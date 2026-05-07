@@ -38,7 +38,8 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
       return { error: first.message, field: first.path[0] as string };
     }
 
-    const { name, email, password } = parsed.data;
+    const { name, password } = parsed.data;
+    const email = parsed.data.email.toLowerCase().trim();
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {

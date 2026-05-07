@@ -27,8 +27,11 @@ import { cn } from "@/lib/utils";
 /* ─── Validation ─────────────────────────────────────────────────────── */
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().trim().email("Please enter a valid email address"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .refine((v) => v.trim().length > 0, "Password is required"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -87,7 +90,9 @@ function LoginFormInner() {
   const registered = searchParams.get("registered") === "true";
   const rawCallback = searchParams.get("callbackUrl") ?? "/account/dashboard";
   const callbackUrl =
-    rawCallback.startsWith("/") ? rawCallback : "/account/dashboard";
+    rawCallback.startsWith("/") && !rawCallback.startsWith("//")
+      ? rawCallback
+      : "/account/dashboard";
 
   const [showPw, setShowPw] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
