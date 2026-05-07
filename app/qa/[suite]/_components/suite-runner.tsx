@@ -28,6 +28,7 @@ const STATUS_CONFIG: Record<TestStatus, { label: string; Icon: React.ComponentTy
 const SUITE_LABELS: Record<Suite, string> = {
   login: "Login Page",
   signup: "Signup Page",
+  profile: "Profile Page",
 };
 
 export default function SuiteRunner({ suite, initialResults }: Props) {
