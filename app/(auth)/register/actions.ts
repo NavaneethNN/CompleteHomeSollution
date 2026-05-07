@@ -3,6 +3,8 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { createVerificationToken } from "@/lib/token";
+import { sendVerificationEmail } from "@/lib/email";
 
 const registerSchema = z
   .object({
@@ -54,6 +56,21 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     await db.user.create({
       data: { name, email, passwordHash },
     });
+
+    const token = await createVerificationToken(email);
+
+    try {
+      await sendVerificationEmail(email, name, token);
+    } catch (emailErr) {
+      const detail = emailErr instanceof Error ? emailErr.message : String(emailErr);
+      console.error("[registerUser] email send failed:", detail);
+      await db.user.delete({ where: { email } }).catch(() => null);
+      await db.verificationToken.deleteMany({ where: { identifier: email } }).catch(() => null);
+      const devMsg = process.env.NODE_ENV === "development" ? ` Debug: ${detail}` : "";
+      return {
+        error: `Verification email could not be sent. Please try again or contact support.${devMsg}`,
+      };
+    }
 
     return { success: true };
   } catch (err) {

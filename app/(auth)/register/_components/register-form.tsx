@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -122,7 +121,6 @@ function FieldError({ message }: { message?: string }) {
 /* ─── Main component ─────────────────────────────────────────────────── */
 
 export default function RegisterForm() {
-  const router = useRouter();
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -180,16 +178,7 @@ export default function RegisterForm() {
     }
 
     if (result.success) {
-      const signInResult = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
       setSuccess(true);
-      setTimeout(() => {
-        router.push(signInResult?.ok ? "/account/dashboard" : "/login?registered=true");
-      }, 1500);
     }
   };
 
@@ -197,23 +186,21 @@ export default function RegisterForm() {
   if (success) {
     return (
       <div className="flex items-center justify-center py-24 px-6">
-        <div className="text-center max-w-xs">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 className="h-10 w-10 text-green-600" />
+        <div className="text-center max-w-sm">
+          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Mail className="h-10 w-10 text-primary" />
           </div>
-          <h2 className="text-2xl font-black text-foreground mb-2">You&apos;re in!</h2>
-          <p className="text-sm text-muted-foreground mb-6">
-            Your account has been created. Taking you to your dashboard…
+          <h2 className="text-2xl font-black text-foreground mb-2">Check your inbox!</h2>
+          <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
+            We&apos;ve sent a verification link to your email address.
           </p>
-          <div className="flex items-center justify-center gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="h-2.5 w-2.5 rounded-full bg-primary animate-bounce"
-                style={{ animationDelay: `${i * 0.15}s` }}
-              />
-            ))}
-          </div>
+          <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+            Click the link in the email to activate your account, then sign in.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Didn&apos;t receive it? Check your spam folder or{" "}
+            <Link href="/register" className="text-primary font-medium hover:underline">try again</Link>.
+          </p>
         </div>
       </div>
     );
