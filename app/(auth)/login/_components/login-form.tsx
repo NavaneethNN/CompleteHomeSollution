@@ -41,6 +41,8 @@ type LoginFormData = z.infer<typeof loginSchema>;
 const AUTH_ERRORS: Record<string, string> = {
   CredentialsSignin:
     "Invalid email or password. Please check your details and try again.",
+  EmailNotVerified:
+    "Please verify your email before signing in. Check your inbox for the verification link.",
   OAuthAccountNotLinked:
     "This email is already registered with a different sign-in method. Please use the original sign-in method.",
   OAuthCallbackError:   "Google sign-in was cancelled or failed. Please try again.",
@@ -88,6 +90,7 @@ function LoginFormInner() {
 
   const errorParam = searchParams.get("error");
   const registered = searchParams.get("registered") === "true";
+  const verified = searchParams.get("verified") === "true";
   const rawCallback = searchParams.get("callbackUrl") ?? "/account/dashboard";
   const callbackUrl =
     rawCallback.startsWith("/") && !rawCallback.startsWith("//")
@@ -268,6 +271,16 @@ function LoginFormInner() {
               <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               <span>
                 Account created successfully! Sign in to get started.
+              </span>
+            </div>
+          )}
+
+          {/* ── Email verified banner ────────────────────────────── */}
+          {verified && (
+            <div className="mb-5 flex items-start gap-2.5 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700">
+              <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                Email verified! Your account is active — sign in below.
               </span>
             </div>
           )}

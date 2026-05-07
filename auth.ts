@@ -1,10 +1,14 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = "EmailNotVerified";
+}
 
 export type UserRole = "ADMIN" | "MEMBER" | "CUSTOMER";
 
@@ -35,6 +39,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await db.user.findUnique({ where: { email } });
 
         if (!user || !user.passwordHash) return null;
+
+        if (!user.emailVerified) throw new EmailNotVerifiedError();
 
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) return null;
