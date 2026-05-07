@@ -31,7 +31,7 @@ export default async function SuitePage({
     select: { testId: true, status: true, notes: true },
   });
 
-  const initialResults = rawResults.map((r) => ({
+  const initialResults = rawResults.map((r: { testId: string; status: string; notes: string | null }) => ({
     testId: r.testId,
     status: r.status as "PENDING" | "PASSED" | "FAILED",
     notes: r.notes ?? "",
