@@ -1,4 +1,4 @@
-export type Suite = "login" | "signup";
+export type Suite = "login" | "signup" | "profile";
 export type TestStatus = "PENDING" | "PASSED" | "FAILED";
 
 export interface TestCase {
@@ -162,6 +162,86 @@ export const TEST_CASES: TestCase[] = [
   { id: "S-091", suite: "signup", category: "Redirect / Callback", description: "Google OAuth redirect after registration", steps: "Register via Google Sign In", expected: "Redirect to /account/dashboard" },
   { id: "S-092", suite: "signup", category: "Redirect / Callback", description: "Redirect with callbackUrl", steps: "Navigate to /register?callbackUrl=/account/orders, register", expected: "Redirect to /account/orders after registration" },
   { id: "S-093", suite: "signup", category: "Redirect / Callback", description: "Login link preserves context", steps: "Click \"Sign in\" from registration page", expected: "Redirect to /login with appropriate context" },
+
+  // ─── PROFILE: Authentication & Access ────────────────────────────────────────────
+  { id: "P-001", suite: "profile", category: "Authentication", description: "Unauthenticated access to profile page", steps: "Navigate to /account/profile while not logged in", expected: "Redirect to /login page" },
+  { id: "P-002", suite: "profile", category: "Authentication", description: "Authenticated access to profile page", steps: "Login and navigate to /account/profile", expected: "Profile page loads with user data pre-filled" },
+  { id: "P-003", suite: "profile", category: "Authentication", description: "Session expires while on profile page", steps: "Login, go to profile, wait for session to expire, try to save", expected: "Error message about session expiration, redirect to login" },
+
+  // ─── PROFILE: Name Field Validation ─────────────────────────────────────────────
+  { id: "P-010", suite: "profile", category: "Form Validation", description: "Empty name field", steps: "Clear name field, click Save Changes", expected: "Validation error: \"Name is required\"" },
+  { id: "P-011", suite: "profile", category: "Form Validation", description: "Name with only whitespace", steps: "Enter spaces in name field, click Save", expected: "Validation error or trimmed to empty\"" },
+  { id: "P-012", suite: "profile", category: "Form Validation", description: "Name with 1 character", steps: "Enter single character name \"A\", click Save", expected: "Accepted or validation error based on min length" },
+  { id: "P-013", suite: "profile", category: "Form Validation", description: "Name with 100+ characters", steps: "Enter very long name (100+ chars), click Save", expected: "Accepted or max length validation error" },
+  { id: "P-014", suite: "profile", category: "Form Validation", description: "Name with special characters", steps: "Enter name with emojis and special chars: \"John 🎉 O'Connor\"", expected: "Name accepted and saved correctly" },
+  { id: "P-015", suite: "profile", category: "Form Validation", description: "Name with numbers", steps: "Enter name with numbers: \"User123\"", expected: "Name accepted" },
+
+  // ─── PROFILE: Phone Field Validation ────────────────────────────────────────────
+  { id: "P-020", suite: "profile", category: "Phone Validation", description: "Empty phone field", steps: "Leave phone blank, click Save", expected: "Accepted (optional field)" },
+  { id: "P-021", suite: "profile", category: "Phone Validation", description: "Valid Australian mobile number", steps: "Enter \"+61 412 345 678\", click Save", expected: "Phone saved successfully" },
+  { id: "P-022", suite: "profile", category: "Phone Validation", description: "Valid Australian landline", steps: "Enter \"+61 2 1234 5678\", click Save", expected: "Phone saved successfully" },
+  { id: "P-023", suite: "profile", category: "Phone Validation", description: "Invalid phone format", steps: "Enter \"not-a-phone\", click Save", expected: "Validation error about invalid phone format" },
+  { id: "P-024", suite: "profile", category: "Phone Validation", description: "Phone with letters", steps: "Enter \"ABC123456\", click Save", expected: "Validation error" },
+  { id: "P-025", suite: "profile", category: "Phone Validation", description: "International phone number", steps: "Enter \"+1 555-555-5555\" (US number), click Save", expected: "Accepted or validation error based on requirements" },
+  { id: "P-026", suite: "profile", category: "Phone Validation", description: "Phone with spaces and dashes", steps: "Enter \"0412 345 678\", click Save", expected: "Formatted and saved correctly" },
+
+  // ─── PROFILE: Profile Image URL ──────────────────────────────────────────────────
+  { id: "P-030", suite: "profile", category: "Profile Image", description: "Empty image URL", steps: "Leave image URL blank, click Save", expected: "Accepted, profile shows initials avatar" },
+  { id: "P-031", suite: "profile", category: "Profile Image", description: "Valid image URL (HTTPS)", steps: "Enter valid HTTPS image URL, click Save", expected: "Image preview shown, saved successfully" },
+  { id: "P-032", suite: "profile", category: "Profile Image", description: "Invalid URL format", steps: "Enter \"not-a-url\", click Save", expected: "Validation error about invalid URL" },
+  { id: "P-033", suite: "profile", category: "Profile Image", description: "HTTP URL (non-secure)", steps: "Enter HTTP image URL, click Save", expected: "Warning or accepted based on security settings" },
+  { id: "P-034", suite: "profile", category: "Profile Image", description: "Image URL returns 404", steps: "Enter URL that doesn't exist, click Save", expected: "Error handling with fallback to initials" },
+  { id: "P-035", suite: "profile", category: "Profile Image", description: "Non-image URL", steps: "Enter link to PDF or text file, click Save", expected: "Error or fallback when image fails to load" },
+
+  // ─── PROFILE: Update Functionality ──────────────────────────────────────────────
+  { id: "P-040", suite: "profile", category: "Update", description: "Update name successfully", steps: "Change name, click Save Changes", expected: "Success toast, name updated in sidebar and dashboard" },
+  { id: "P-041", suite: "profile", category: "Update", description: "Update phone successfully", steps: "Add/change phone, click Save", expected: "Success toast, phone saved to database" },
+  { id: "P-042", suite: "profile", category: "Update", description: "Update profile image successfully", steps: "Change image URL, click Save", expected: "New image preview shown, saved to database" },
+  { id: "P-043", suite: "profile", category: "Update", description: "Update multiple fields at once", steps: "Change name, phone, and image, click Save", expected: "All fields saved successfully, success message" },
+  { id: "P-044", suite: "profile", category: "Update", description: "No changes - save button disabled", steps: "Open profile, don't change anything", expected: "Save Changes button is disabled" },
+  { id: "P-045", suite: "profile", category: "Update", description: "Cancel button resets changes", steps: "Make changes, click Cancel, confirm", expected: "Form resets to original values" },
+
+  // ─── PROFILE: Session & Data Persistence ─────────────────────────────────────────
+  { id: "P-050", suite: "profile", category: "Data Persistence", description: "Name persists after logout/login", steps: "Update name, logout, login again", expected: "Updated name shown in dashboard and profile" },
+  { id: "P-051", suite: "profile", category: "Data Persistence", description: "Changes reflect immediately in dashboard", steps: "Update profile from profile page, navigate to dashboard", expected: "New name/image visible in dashboard sidebar" },
+  { id: "P-052", suite: "profile", category: "Data Persistence", description: "Changes reflect in navbar", steps: "Update profile, check main navigation", expected: "Avatar/name updated in top navigation" },
+  { id: "P-053", suite: "profile", category: "Data Persistence", description: "Database update verification", steps: "Update profile, check database directly", expected: "User record has updated values in DB" },
+
+  // ─── PROFILE: Error Handling ───────────────────────────────────────────────────
+  { id: "P-060", suite: "profile", category: "Error Handling", description: "Network error during save", steps: "Disconnect network, click Save", expected: "Error toast: \"Something went wrong\"" },
+  { id: "P-061", suite: "profile", category: "Error Handling", description: "Server error (500)", steps: "(Mock) Server error on updateProfile action", expected: "Error message displayed" },
+  { id: "P-062", suite: "profile", category: "Error Handling", description: "Database unavailable", steps: "(Mock) Database connection lost", expected: "Appropriate error message" },
+  { id: "P-063", suite: "profile", category: "Error Handling", description: "Concurrent update conflict", steps: "Update from two browser tabs simultaneously", expected: "Last write wins or conflict error" },
+
+  // ─── PROFILE: UI/UX ──────────────────────────────────────────────────────────────
+  { id: "P-070", suite: "profile", category: "UI / UX", description: "Profile picture preview", steps: "Enter image URL", expected: "Image preview updates in real-time" },
+  { id: "P-071", suite: "profile", category: "UI / UX", description: "Loading state on save", steps: "Click Save Changes", expected: "Button shows loading spinner, disabled during save" },
+  { id: "P-072", suite: "profile", category: "UI / UX", description: "Success toast message", steps: "Save profile successfully", expected: "Green success toast appears" },
+  { id: "P-073", suite: "profile", category: "UI / UX", description: "Error toast message", steps: "Trigger an error", expected: "Red error toast with clear message" },
+  { id: "P-074", suite: "profile", category: "UI / UX", description: "Responsive design - mobile", steps: "View profile page on mobile viewport", expected: "Form is usable, fields are accessible" },
+  { id: "P-075", suite: "profile", category: "UI / UX", description: "Responsive design - tablet", steps: "View profile page on tablet viewport", expected: "Layout adapts appropriately" },
+  { id: "P-076", suite: "profile", category: "UI / UX", description: "Form field focus states", steps: "Click through each form field", expected: "Clear focus indicators on active field" },
+  { id: "P-077", suite: "profile", category: "UI / UX", description: "Back button navigation", steps: "Click Back button", expected: "Returns to previous page or dashboard" },
+  { id: "P-078", suite: "profile", category: "UI / UX", description: "Breadcrumb navigation", steps: "Click breadcrumb links", expected: "Navigate to Dashboard or other pages" },
+  { id: "P-079", suite: "profile", category: "UI / UX", description: "Sidebar active state", steps: "Navigate to profile page", expected: "Profile link highlighted in sidebar" },
+
+  // ─── PROFILE: Security ──────────────────────────────────────────────────────────
+  { id: "P-080", suite: "profile", category: "Security", description: "XSS in name field", steps: "Enter `<script>alert(1)</script>` as name", expected: "Input sanitized, no script execution" },
+  { id: "P-081", suite: "profile", category: "Security", description: "XSS in phone field", steps: "Enter `<img src=x onerror=alert(1)>`", expected: "Input sanitized/escaped" },
+  { id: "P-082", suite: "profile", category: "Security", description: "SQL injection in name", steps: "Enter `' OR '1'='1`", expected: "No SQL injection vulnerability" },
+  { id: "P-083", suite: "profile", category: "Security", description: "Update another user's profile", steps: "Try to call updateProfile with different userId", expected: "Unauthorized error (can only update own profile)" },
+  { id: "P-084", suite: "profile", category: "Security", description: "CSRF protection", steps: "Submit form without valid CSRF token", expected: "Request rejected" },
+
+  // ─── PROFILE: Email Display ───────────────────────────────────────────────────────
+  { id: "P-090", suite: "profile", category: "Email Display", description: "Email shown as read-only", steps: "View profile page", expected: "Email displayed but cannot be edited" },
+  { id: "P-091", suite: "profile", category: "Email Display", description: "Email from OAuth provider", steps: "Login with Google, view profile", expected: "Google email shown correctly" },
+  { id: "P-092", suite: "profile", category: "Email Display", description: "Email update restriction message", steps: "View profile, look for email field message", expected: "Message: \"Email cannot be changed\" or similar" },
+
+  // ─── PROFILE: Membership Info ───────────────────────────────────────────────────
+  { id: "P-100", suite: "profile", category: "Membership", description: "Non-member status display", steps: "View profile as non-member", expected: "Shows \"Not a member yet\" with upgrade button" },
+  { id: "P-101", suite: "profile", category: "Membership", description: "Member status display", steps: "View profile as member", expected: "Shows \"Active Member\" with member since date" },
+  { id: "P-102", suite: "profile", category: "Membership", description: "Member since date format", steps: "View member profile", expected: "Date shown in AU format (e.g., \"1 Jan 2024\")" },
+  { id: "P-103", suite: "profile", category: "Membership", description: "Become a Member button", steps: "Click \"Become a Member\" button as non-member", expected: "Navigate to /account/membership" },
 ];
 
 export function getTestsBysuites(suite: Suite): TestCase[] {
@@ -185,5 +265,11 @@ export const SUITE_META: Record<Suite, { label: string; color: string; accent: s
     color: "bg-violet-50 border-violet-200",
     accent: "text-violet-700",
     total: TEST_CASES.filter((t) => t.suite === "signup").length,
+  },
+  profile: {
+    label: "Profile Page",
+    color: "bg-emerald-50 border-emerald-200",
+    accent: "text-emerald-700",
+    total: TEST_CASES.filter((t) => t.suite === "profile").length,
   },
 };

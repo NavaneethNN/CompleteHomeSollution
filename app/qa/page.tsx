@@ -16,14 +16,15 @@ async function getSuiteStats(suite: Suite) {
 }
 
 export default async function QADashboardPage() {
-  const [loginStats, signupStats] = await Promise.all([
+  const [loginStats, signupStats, profileStats] = await Promise.all([
     getSuiteStats("login"),
     getSuiteStats("signup"),
+    getSuiteStats("profile"),
   ]);
 
-  const statsMap = { login: loginStats, signup: signupStats };
+  const statsMap = { login: loginStats, signup: signupStats, profile: profileStats };
 
-  const suites: Suite[] = ["login", "signup"];
+  const suites: Suite[] = ["login", "signup", "profile"];
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -46,10 +47,10 @@ export default async function QADashboardPage() {
         {/* Overall summary */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           {(() => {
-            const total = loginStats.total + signupStats.total;
-            const passed = loginStats.passed + signupStats.passed;
-            const failed = loginStats.failed + signupStats.failed;
-            const pending = loginStats.pending + signupStats.pending;
+            const total = loginStats.total + signupStats.total + profileStats.total;
+            const passed = loginStats.passed + signupStats.passed + profileStats.passed;
+            const failed = loginStats.failed + signupStats.failed + profileStats.failed;
+            const pending = loginStats.pending + signupStats.pending + profileStats.pending;
             return [
               { label: "Total Cases", value: total, Icon: FlaskConical, bg: "bg-secondary", color: "text-foreground" },
               { label: "Passed", value: passed, Icon: CheckCircle2, bg: "bg-green-50", color: "text-green-600" },
@@ -67,7 +68,7 @@ export default async function QADashboardPage() {
         </div>
 
         {/* Suite cards */}
-        <div className="grid sm:grid-cols-2 gap-6">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {suites.map((suite) => {
             const meta = SUITE_META[suite];
             const stats = statsMap[suite];
