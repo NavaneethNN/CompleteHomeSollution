@@ -60,11 +60,7 @@ interface PlaceDetailsResponse {
   }>;
 }
 
-declare global {
-  interface Window {
-    google?: typeof google;
-  }
-}
+// Google Maps API is loaded dynamically via script tag
 
 export function AddressAutocomplete({
   value,
