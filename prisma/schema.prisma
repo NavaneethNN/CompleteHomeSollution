@@ -26,6 +26,12 @@ enum OrderStatus {
   REFUNDED
 }
 
+enum TestStatus {
+  PENDING
+  PASSED
+  FAILED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
@@ -204,4 +210,14 @@ model StockAlert {
   createdAt DateTime @default(now())
 
   @@unique([email, productId])
+}
+
+model TestResult {
+  id        String     @id @default(cuid())
+  testId    String     @unique
+  suite     String
+  status    TestStatus @default(PENDING)
+  notes     String?    @db.Text
+  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now())
 }
