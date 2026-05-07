@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { SUITE_META, type Suite } from "@/lib/qa-test-data";
 import SuiteRunner from "./_components/suite-runner";
 
-const VALID_SUITES: Suite[] = ["login", "signup"];
+const VALID_SUITES: Suite[] = ["login", "signup", "profile"];
 
 export async function generateMetadata({
   params,
