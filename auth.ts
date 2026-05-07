@@ -10,6 +10,15 @@ class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
 }
 
+// Log Google OAuth configuration at startup
+if (typeof window === "undefined") {
+  console.log("[auth] Google OAuth config:", {
+    hasClientId: !!process.env.AUTH_GOOGLE_ID,
+    hasClientSecret: !!process.env.AUTH_GOOGLE_SECRET,
+    authUrl: process.env.AUTH_URL,
+  });
+}
+
 export type UserRole = "ADMIN" | "MEMBER" | "CUSTOMER";
 
 const credentialsSchema = z.object({
@@ -24,6 +33,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
       allowDangerousEmailAccountLinking: true,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+        },
+      },
     }),
     Credentials({
       credentials: {

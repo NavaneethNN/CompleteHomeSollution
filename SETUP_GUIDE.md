@@ -250,6 +250,26 @@ If you see a redirect URI mismatch:
 2. Ensure the redirect URI in Google Cloud Console is exactly: `http://localhost:3000/api/auth/callback/google`
 3. Verify `NEXTAUTH_URL=http://localhost:3000` in `.env.local`
 
+### Google OAuth Not Working After Cloning
+
+If Google OAuth fails after cloning the project:
+
+1. **Check env vars are loaded:**
+   - Look at the dev server terminal for: `[auth] Google OAuth config: { hasClientId: true, hasClientSecret: true, authUrl: 'http://localhost:3000' }`
+   - If `hasClientId: false`, copy `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` from the original `.env` file
+
+2. **Verify Google Cloud Console configuration:**
+   - Go to https://console.cloud.google.com/apis/credentials
+   - Find the OAuth 2.0 Client ID: `758619436282-5cooe8q7mcp8voomo4ulfqdto1hfdfl8.apps.googleusercontent.com`
+   - Under "Authorized redirect URIs", ensure `http://localhost:3000/api/auth/callback/google` is listed
+   - If your colleague is on a different port (e.g., 3001), add that URI too: `http://localhost:3001/api/auth/callback/google`
+
+3. **Check for network/firewall issues:**
+   - Some corporate networks block Google OAuth
+   - Try using a different network or mobile hotspot
+
+4. **Restart the dev server** after updating env vars
+
 ### Database Connection Error
 
 If you see database connection errors:
