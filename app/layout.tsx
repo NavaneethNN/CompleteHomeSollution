@@ -1,38 +1,15 @@
 import type { Metadata } from "next";
-import { Inter, Dancing_Script } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
-import { Providers } from "@/components/shared/providers";
-import { Navbar } from "@/components/shared/navbar";
-import { Footer } from "@/components/shared/footer";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const dancingScript = Dancing_Script({
-  subsets: ["latin"],
-  variable: "--font-dancing-script",
-  weight: ["400", "700"],
-});
 
 export const metadata: Metadata = {
   title: {
-    default: "Complete Home Sollution — Premium Furniture for Australian Homes",
-    template: "%s | Complete Home Sollution",
+    default: "QA Test Dashboard — CHS",
+    template: "%s | CHS QA",
   },
-  description:
-    "Shop premium furniture for every room. Based in Paralowie SA, delivering quality pieces for living, dining, bedroom and office across Australia.",
-  keywords: ["furniture", "Australian furniture", "home decor", "sofas", "beds", "dining tables", "South Australia", "Adelaide"],
-  openGraph: {
-    type: "website",
-    locale: "en_AU",
-    url: "https://completehomesollution.com.au",
-    siteName: "Complete Home Sollution",
-  },
-  twitter: {
-    card: "summary_large_image",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
+  description: "Quality Assurance test dashboard for Complete Home Sollution",
 };
 
 export default function RootLayout({
@@ -41,13 +18,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en-AU" suppressHydrationWarning>
-      <body className={`${inter.variable} ${dancingScript.variable} font-sans antialiased flex flex-col min-h-screen`}>
-        <Providers>
-          <Navbar />
-          <main className="flex-1 flex flex-col">{children}</main>
-          <Footer />
-        </Providers>
+    <html lang="en-AU">
+      <body className={`${inter.variable} font-sans antialiased flex flex-col min-h-screen bg-secondary/30`}>
+        <main className="flex-1 flex flex-col">{children}</main>
       </body>
     </html>
   );
