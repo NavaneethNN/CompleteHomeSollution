@@ -554,7 +554,7 @@ export function Navbar() {
 
         <div className="shrink-0 flex justify-center px-4 py-5">
           <Image
-            src="/Chs-logo.webp"
+            src="/Chs-logo.png"
             alt="Complete Home Sollution"
             width={360}
             height={110}
