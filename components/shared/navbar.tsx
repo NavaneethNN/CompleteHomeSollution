@@ -175,7 +175,7 @@ export function Navbar() {
             </Link>
 
             {/* ── Desktop navigation ──────────────────────── */}
-            <nav className="hidden lg:flex items-center gap-0.5 ml-2" aria-label="Main navigation">
+            <nav className="hidden lg:flex items-center gap-5 ml-2" aria-label="Main navigation">
 
               <NavItem href="/" active={pathname === "/"}>HOME</NavItem>
               <NavItem href="/products" active={pathname.startsWith("/products")}>SHOP</NavItem>
@@ -286,13 +286,38 @@ export function Navbar() {
               )}
             </div>
 
-            {/* ── User dropdown ───────────────────────────── */}
+          
+
+            {/* ── Wishlist ────────────────────────────────── */}
+            <Link
+              href="/account/dashboard"
+              aria-label="Wishlist"
+              className="hidden md:flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center text-foreground hover:text-primary transition-colors"
+            >
+              <Heart className="h-[18px] w-[18px]" />
+            </Link>
+
+            {/* ── Cart ────────────────────────────────────── */}
+            <Link
+              href="/cart"
+              aria-label="Cart"
+              className="relative flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center text-foreground hover:text-primary transition-colors"
+            >
+              <ShoppingBag className="h-[18px] w-[18px]" />
+              {cartCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center leading-none px-1">
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
+            </Link>
+
+              {/* ── User dropdown ───────────────────────────── */}
             <div ref={userRef} className="hidden md:block relative">
               <button
                 onClick={() => { setUserOpen(!userOpen); setCatsOpen(false); setSearchOpen(false); }}
                 aria-label="Account"
                 aria-expanded={userOpen}
-                className={`w-10 h-10 rounded-full flex items-center justify-center overflow-hidden transition-colors
+                className={`w-8 h-8 rounded-full flex items-center justify-center overflow-hidden transition-colors
                   ${userOpen ? "ring-2 ring-primary ring-offset-1" : "hover:ring-2 hover:ring-primary/40 hover:ring-offset-1"}`}
               >
                 {user?.image ? (
@@ -373,29 +398,6 @@ export function Navbar() {
                 </div>
               )}
             </div>
-
-            {/* ── Wishlist ────────────────────────────────── */}
-            <Link
-              href="/account/dashboard"
-              aria-label="Wishlist"
-              className="hidden md:flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center text-foreground hover:text-primary transition-colors"
-            >
-              <Heart className="h-[18px] w-[18px]" />
-            </Link>
-
-            {/* ── Cart ────────────────────────────────────── */}
-            <Link
-              href="/cart"
-              aria-label="Cart"
-              className="relative flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center text-foreground hover:text-primary transition-colors"
-            >
-              <ShoppingBag className="h-[18px] w-[18px]" />
-              {cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-primary text-white text-[10px] font-black rounded-full flex items-center justify-center leading-none px-1">
-                  {cartCount > 99 ? "99+" : cartCount}
-                </span>
-              )}
-            </Link>
 
             {/* ── Mobile hamburger ────────────────────────── */}
             <button

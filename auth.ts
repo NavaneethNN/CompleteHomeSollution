@@ -73,7 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
         token["id"] = user.id;
         token["role"] = user.role ?? "CUSTOMER";
@@ -94,10 +94,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.error("[jwt callback] db lookup failed:", err);
         }
       }
+      
+      // Always fetch fresh user data to reflect profile updates
+      if (token["id"]) {
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: token["id"] as string },
+            select: { name: true, image: true, role: true, isMember: true },
+          });
+          if (dbUser) {
+            token["name"] = dbUser.name;
+            token["image"] = dbUser.image;
+            token["role"] = (dbUser.role as UserRole) ?? "CUSTOMER";
+            token["isMember"] = dbUser.isMember ?? false;
+          }
+        } catch (err) {
+          console.error("[jwt callback] fresh user lookup failed:", err);
+        }
+      }
+      
       return token;
     },
     session({ session, token }) {
       session.user.id = (token["id"] as string) ?? "";
+      session.user.name = (token["name"] as string | null) ?? session.user.name;
+      session.user.image = (token["image"] as string | null) ?? session.user.image;
       session.user.role = (token["role"] as UserRole) ?? "CUSTOMER";
       session.user.isMember = (token["isMember"] as boolean) ?? false;
       return session;

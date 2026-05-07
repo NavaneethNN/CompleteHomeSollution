@@ -81,6 +81,28 @@ AUTH_GOOGLE_ID="your-google-client-id"
 AUTH_GOOGLE_SECRET="your-google-client-secret"
 ```
 
+### Google Maps API (for Address Autocomplete)
+
+For the address autocomplete feature to work, you need a Google Maps API key:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Select your project (or create a new one)
+3. Navigate to **APIs & Services** → **Library**
+4. Search for and enable **Places API** and **Maps JavaScript API**
+5. Go to **APIs & Services** → **Credentials**
+6. Click **Create Credentials** → **API Key**
+7. (Optional) Restrict the API key to HTTP referrers for security:
+   - Add `http://localhost:3000/*` for local development
+   - Add your production domain for deployment
+
+Add to `.env.local`:
+
+```env
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="your-google-maps-api-key"
+```
+
+**Note:** This key is required for the address autocomplete feature to work. Without it, users will need to manually enter their address.
+
 ### Optional Services (for production)
 
 The following services are optional for local development but required for production features:
