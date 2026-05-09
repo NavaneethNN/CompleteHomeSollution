@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, Suspense } from "react";
+import { useState, useCallback, Suspense, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -49,13 +49,13 @@ const AUTH_ERRORS: Record<string, string> = {
   OAuthAccountNotLinked:
     "This email is already registered with a different sign-in method. Please use the original sign-in method.",
   OAuthCallbackError:   "Google sign-in was cancelled or failed. Please try again.",
-  OAuthCallback:        "Google sign-in callback failed. Please try again.",
+  OAuthCallback:        "Google sign-in was cancelled or failed. Please try again.",
   OAuthSignin:          "Could not start Google sign-in. Please try again.",
   OAuthCreateAccount:   "Could not create your account via Google. Please try again.",
-  Callback:             "An authentication error occurred. Please try again.",
-  Configuration:
-    "Authentication is not fully configured. Please ensure AUTH_SECRET, AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET are all set in .env.local, then restart the server.",
-  AccessDenied:         "Access was denied. Please try again.",
+  Callback:             "Google sign-in was cancelled or failed. Please try again.",
+  // Configuration error can also occur when user cancels OAuth
+  Configuration:      "Google sign-in was cancelled or failed. Please try again.",
+  AccessDenied:       "Google sign-in was cancelled. Please try again.",
   Verification:         "The sign-in link has expired. Please request a new one.",
   Default:              "Something went wrong. Please try again.",
 };
@@ -101,6 +101,23 @@ function LoginFormInner() {
   const [serverError, setServerError] = useState<string | null>(
     errorParam ? (AUTH_ERRORS[errorParam] ?? AUTH_ERRORS.Default) : null
   );
+
+  // Reset google loading if there's an error (user cancelled OAuth)
+  useEffect(() => {
+    if (errorParam) {
+      setGoogleLoading(false);
+    }
+  }, [errorParam]);
+
+  // Timeout to reset loading if OAuth hangs
+  useEffect(() => {
+    if (googleLoading) {
+      const timer = setTimeout(() => {
+        setGoogleLoading(false);
+      }, 10000); // 10 second timeout
+      return () => clearTimeout(timer);
+    }
+  }, [googleLoading]);
 
   const {
     register,
