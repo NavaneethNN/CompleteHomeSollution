@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import { registerUser } from "../actions";
 import { cn } from "@/lib/utils";
+import { getSafeCallbackUrl } from "@/lib/safe-callback";
 
 /* ─── Validation schema ─────────────────────────────────────────────── */
 
@@ -121,6 +123,10 @@ function FieldError({ message }: { message?: string }) {
 /* ─── Main component ─────────────────────────────────────────────────── */
 
 export default function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
+  
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -146,7 +152,7 @@ export default function RegisterForm() {
     setGoogleLoading(true);
     setServerError(null);
     try {
-      await signIn("google", { callbackUrl: "/account/dashboard" });
+      await signIn("google", { callbackUrl });
     } catch (err) {
       console.error("[Google signIn error]", err);
       setServerError(
@@ -154,7 +160,7 @@ export default function RegisterForm() {
       );
       setGoogleLoading(false);
     }
-  }, []);
+  }, [callbackUrl]);
 
   /* ── Email/password registration ──────────────────────────────────── */
   const onSubmit = async (data: FormData) => {
@@ -279,7 +285,7 @@ export default function RegisterForm() {
           <p className="text-white/50 text-sm">
             Already a member?{" "}
             <Link
-              href="/login"
+              href={`/login${callbackUrl !== "/account/dashboard" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
               className="text-primary font-semibold hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
             >
               Sign in here →
@@ -315,7 +321,7 @@ export default function RegisterForm() {
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link
-                href="/login"
+                href={`/login${callbackUrl !== "/account/dashboard" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
                 className="text-primary font-semibold hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
               >
                 Sign in
@@ -632,7 +638,7 @@ export default function RegisterForm() {
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already a member?{" "}
             <Link
-              href="/login"
+              href={`/login${callbackUrl !== "/account/dashboard" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
               className="text-primary font-semibold hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary rounded"
             >
               Sign in to your account
