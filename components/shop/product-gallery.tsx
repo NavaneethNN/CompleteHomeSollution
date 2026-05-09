@@ -11,14 +11,21 @@ interface ProductGalleryProps {
 
 export function ProductGallery({ images, productName }: ProductGalleryProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const displayImages = images.length > 0 ? images : ["/placeholder.jpg"];
+
+  if (!images || images.length === 0) {
+    return (
+      <div className="aspect-[4/3] bg-muted rounded-lg flex items-center justify-center">
+        <p className="text-muted-foreground text-sm">No images available</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
       {/* Main Image - Smaller aspect ratio */}
       <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
         <Image
-          src={displayImages[selectedIndex]}
+          src={images[selectedIndex]}
           alt={`${productName} - Image ${selectedIndex + 1}`}
           fill
           className="object-cover"
@@ -28,9 +35,9 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
       </div>
 
       {/* Thumbnail Grid - Smaller */}
-      {displayImages.length > 1 && (
+      {images.length > 1 && (
         <div className="flex gap-2">
-          {displayImages.map((image, index) => (
+          {images.map((image, index) => (
             <button
               key={index}
               onClick={() => setSelectedIndex(index)}
