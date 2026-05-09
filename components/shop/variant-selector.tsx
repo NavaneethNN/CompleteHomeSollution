@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
 interface VariantAttribute {
@@ -48,7 +48,6 @@ export function VariantSelector({
   variantMap,
   defaultVariant,
 }: VariantSelectorProps) {
-  // Initialize selections from default variant
   const [selections, setSelections] = useState<Record<string, string>>(() => {
     if (!defaultVariant) return {};
     return defaultVariant.values.reduce((acc, v) => {
@@ -57,7 +56,6 @@ export function VariantSelector({
     }, {} as Record<string, string>);
   });
 
-  // Update selected variant when selections change
   const selectedVariant = useMemo(() => {
     const key = attributes
       .map((attr) => {
@@ -70,12 +68,8 @@ export function VariantSelector({
     return variantMap[key] || null;
   }, [selections, attributes, variantMap]);
 
-  // Find available values for each attribute based on current selections
   const getAvailableValues = (attributeId: string, valueId: string) => {
-    // Check if this combination exists in any variant
     const testSelections = { ...selections, [attributeId]: valueId };
-    
-    // Build partial key with current selections
     const partialKey = attributes
       .map((attr) => {
         const selValueId = testSelections[attr.id];
@@ -86,7 +80,6 @@ export function VariantSelector({
       .filter(Boolean)
       .join("|");
 
-    // Check if any variant matches this partial key
     return Object.keys(variantMap).some((variantKey) =>
       variantKey.startsWith(partialKey) || variantKey.includes(partialKey)
     );
@@ -97,14 +90,14 @@ export function VariantSelector({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Variant Attributes */}
       {attributes.map((attribute) => (
         <div key={attribute.id}>
-          <label className="block text-sm font-medium text-foreground mb-2">
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
             {attribute.name}
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {attribute.variantValues.map((value) => {
               const isSelected = selections[attribute.id] === value.id;
               const isAvailable = getAvailableValues(attribute.id, value.id);
@@ -115,7 +108,7 @@ export function VariantSelector({
                   onClick={() => isAvailable && handleSelect(attribute.id, value.id)}
                   disabled={!isAvailable}
                   className={cn(
-                    "relative px-4 py-2 rounded-lg border text-sm font-medium transition-all",
+                    "relative px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
                     isSelected
                       ? "border-primary bg-primary text-primary-foreground"
                       : isAvailable
@@ -123,10 +116,9 @@ export function VariantSelector({
                       : "border-border/50 bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                   )}
                 >
-                  {/* Color swatch for color attributes */}
                   {value.hexCode && (
                     <span
-                      className="inline-block w-4 h-4 rounded-full mr-2 border border-border"
+                      className="inline-block w-3 h-3 rounded-full mr-1.5 border border-border align-middle"
                       style={{ backgroundColor: value.hexCode }}
                     />
                   )}
@@ -138,44 +130,21 @@ export function VariantSelector({
         </div>
       ))}
 
-      {/* Selected Variant Info */}
+      {/* Selected Variant Info - Compact */}
       {selectedVariant && (
-        <div className="p-4 bg-muted rounded-lg space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Selected:</span>
-            <span className="font-medium">{selectedVariant.sku}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Price:</span>
-            <span className="text-lg font-bold">${selectedVariant.price.toLocaleString()}</span>
-          </div>
-          {selectedVariant.comparePrice && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Compare at:</span>
-              <span className="text-sm line-through text-muted-foreground">
-                ${selectedVariant.comparePrice.toLocaleString()}
-              </span>
-            </div>
-          )}
+        <div className="flex items-center justify-between py-2 border-t border-border text-sm">
+          <span className="text-muted-foreground">
+            {selectedVariant.stock > 0 ? (
+              <span className="text-green-600">● In Stock</span>
+            ) : (
+              <span className="text-destructive">Out of stock</span>
+            )}
+          </span>
           {selectedVariant.memberPrice && (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Member Price:</span>
-              <span className="text-sm font-medium text-primary">
-                ${selectedVariant.memberPrice.toLocaleString()}
-              </span>
-            </div>
-          )}
-          <div className="flex items-center justify-between pt-2 border-t border-border">
-            <span className="text-sm text-muted-foreground">Stock:</span>
-            <span
-              className={cn(
-                "text-sm font-medium",
-                selectedVariant.stock > 0 ? "text-green-600" : "text-destructive"
-              )}
-            >
-              {selectedVariant.stock > 0 ? `${selectedVariant.stock} available` : "Out of stock"}
+            <span className="text-primary font-medium">
+              Member: ${selectedVariant.memberPrice.toLocaleString()}
             </span>
-          </div>
+          )}
         </div>
       )}
     </div>

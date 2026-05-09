@@ -103,7 +103,7 @@ export default async function ProductDetailPage({
   return (
     <main className="min-h-screen bg-background">
       {/* Breadcrumbs */}
-      <div className="container mx-auto px-4 py-4">
+      <div className="container mx-auto px-4 py-3">
         <Breadcrumbs
           items={[
             { label: "Home", href: "/" },
@@ -114,55 +114,46 @@ export default async function ProductDetailPage({
         />
       </div>
 
-      <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+      <div className="container mx-auto px-4 pb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
           {/* Product Gallery */}
           <ProductGallery images={displayImages} productName={product.name} />
 
-          {/* Product Info */}
-          <div className="space-y-6">
+          {/* Product Info - Compact */}
+          <div className="space-y-4">
             {/* Header */}
             <div>
-              <p className="text-sm text-muted-foreground">{product.category.name}</p>
-              <h1 className="text-2xl md:text-3xl font-bold text-foreground mt-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">{product.category.name}</p>
+              <h1 className="text-xl md:text-2xl font-semibold text-foreground mt-0.5">
                 {product.name}
               </h1>
               {product.material && (
-                <p className="text-sm text-muted-foreground mt-1">{product.material}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{product.material}</p>
               )}
             </div>
 
-            {/* Pricing */}
-            <div className="flex flex-wrap items-baseline gap-3">
-              <span className="text-3xl font-bold text-foreground">
+            {/* Pricing - Inline */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-semibold text-foreground">
                 ${displayPrice.toLocaleString()}
               </span>
               {displayComparePrice && displayComparePrice > displayPrice && (
-                <>
-                  <span className="text-xl text-muted-foreground line-through">
-                    ${displayComparePrice.toLocaleString()}
-                  </span>
-                  <span className="px-2 py-1 bg-destructive/10 text-destructive text-sm font-medium rounded">
-                    Save ${(displayComparePrice - displayPrice).toLocaleString()}
-                  </span>
-                </>
+                <span className="text-sm text-muted-foreground line-through">
+                  ${displayComparePrice.toLocaleString()}
+                </span>
               )}
             </div>
 
-            {/* Member Price */}
+            {/* Member Price - Compact */}
             {displayMemberPrice && (
-              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                <p className="text-sm text-primary font-medium">
-                  Member Price: ${displayMemberPrice.toLocaleString()}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Join our membership program to save ${(displayPrice - displayMemberPrice).toLocaleString()}
-                </p>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-primary font-medium">Member: ${displayMemberPrice.toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">(Save ${(displayPrice - displayMemberPrice).toLocaleString()})</span>
               </div>
             )}
 
-            {/* Description */}
-            <p className="text-muted-foreground leading-relaxed">{product.description}</p>
+            {/* Description - Shorter */}
+            <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
 
             {/* Variant Selector */}
             {product.hasVariants && (
@@ -174,19 +165,13 @@ export default async function ProductDetailPage({
               />
             )}
 
-            {/* Stock & SKU */}
-            <div className="flex items-center gap-6 text-sm">
-              <div>
-                <span className="text-muted-foreground">SKU:</span>{" "}
-                <span className="font-medium">{defaultVariant?.sku ?? product.sku}</span>
-              </div>
+            {/* Stock & SKU - Compact */}
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span>SKU: {defaultVariant?.sku ?? product.sku}</span>
               {(defaultVariant?.stock ?? product.stock) > 0 ? (
-                <div className="text-green-600 font-medium flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
-                  In Stock ({defaultVariant?.stock ?? product.stock} available)
-                </div>
+                <span className="text-green-600">● In Stock</span>
               ) : (
-                <div className="text-destructive font-medium">Out of Stock</div>
+                <span className="text-destructive">Out of Stock</span>
               )}
             </div>
 
@@ -198,20 +183,13 @@ export default async function ProductDetailPage({
               hasVariants={product.hasVariants}
             />
 
-            {/* Trust Badges */}
-            <div className="grid grid-cols-3 gap-4 py-4 border-t border-border">
-              <div className="text-center">
-                <p className="font-medium text-sm">Free Delivery</p>
-                <p className="text-xs text-muted-foreground">Australia-wide</p>
-              </div>
-              <div className="text-center border-x border-border">
-                <p className="font-medium text-sm">30 Day Returns</p>
-                <p className="text-xs text-muted-foreground">Easy returns</p>
-              </div>
-              <div className="text-center">
-                <p className="font-medium text-sm">2 Year Warranty</p>
-                <p className="text-xs text-muted-foreground">Quality guaranteed</p>
-              </div>
+            {/* Trust Badges - Minimal */}
+            <div className="flex gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
+              <span>Free Delivery</span>
+              <span>•</span>
+              <span>30 Day Returns</span>
+              <span>•</span>
+              <span>2 Year Warranty</span>
             </div>
           </div>
         </div>
