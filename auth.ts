@@ -121,12 +121,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   callbacks: {
+    async signIn({ user, account, profile, email, credentials }) {
+      // Allow sign in to proceed - errors will be handled by error page
+      return true;
+    },
     async jwt({ token, user, account, trigger }) {
       if (user) {
         token["id"] = user.id;
         token["role"] = user.role ?? "CUSTOMER";
         token["isMember"] = user.isMember ?? false;
       }
+      // Only fetch Google user data if we have a valid email
       if (account?.provider === "google" && token.email) {
         try {
           const dbUser = await db.user.findUnique({
