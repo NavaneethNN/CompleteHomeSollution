@@ -62,16 +62,6 @@ export default async function ProductsPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Minimal Header */}
-      <div className="border-b border-border">
-        <div className="container mx-auto px-4 py-6">
-          <h1 className="text-xl font-semibold text-foreground">All Products</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {products.length} products available
-          </p>
-        </div>
-      </div>
-
       {/* Products with Client-side Filtering */}
       <div className="container mx-auto px-4 py-6">
         <ProductsClient categories={categories} products={products} />
