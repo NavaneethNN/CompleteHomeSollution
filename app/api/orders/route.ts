@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
       const price =
         session?.user.isMember && product.memberPrice
           ? product.memberPrice
-          : product.price;
+          : product.basePrice;
       subtotal += price * item.quantity;
     }
 
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
             const price =
               session?.user.isMember && product.memberPrice
                 ? product.memberPrice
-                : product.price;
+                : product.basePrice;
             return {
               productId: item.productId,
               quantity: item.quantity,
