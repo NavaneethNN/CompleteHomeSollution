@@ -119,6 +119,16 @@ function LoginFormInner() {
     }
   }, [googleLoading]);
 
+  // Auto-dismiss error messages after 5 seconds
+  useEffect(() => {
+    if (serverError) {
+      const timer = setTimeout(() => {
+        setServerError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [serverError]);
+
   const {
     register,
     handleSubmit,
