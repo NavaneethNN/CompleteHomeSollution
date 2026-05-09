@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -147,6 +147,24 @@ export default function RegisterForm() {
   const password = watch("password", "");
   const strength = getPasswordStrength(password);
 
+  // Reset google loading if there's an error (user cancelled OAuth)
+  const errorParam = searchParams.get("error");
+  useEffect(() => {
+    if (errorParam) {
+      setGoogleLoading(false);
+    }
+  }, [errorParam]);
+
+  // Timeout to reset loading if OAuth hangs
+  useEffect(() => {
+    if (googleLoading) {
+      const timer = setTimeout(() => {
+        setGoogleLoading(false);
+      }, 10000); // 10 second timeout
+      return () => clearTimeout(timer);
+    }
+  }, [googleLoading]);
+
   /* ── Google OAuth ─────────────────────────────────────────────────── */
   const handleGoogle = useCallback(async () => {
     setGoogleLoading(true);
@@ -156,7 +174,7 @@ export default function RegisterForm() {
     } catch (err) {
       console.error("[Google signIn error]", err);
       setServerError(
-        "Could not connect to Google. Check your internet connection and try again."
+        "Google sign-in was cancelled or failed. Please try again."
       );
       setGoogleLoading(false);
     }
