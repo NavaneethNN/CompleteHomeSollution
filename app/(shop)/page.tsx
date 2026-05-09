@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { db } from "@/lib/db";
 import {
   ArrowRight, ChevronRight, Star, Heart,
   Award, Truck, ShieldCheck, Headphones,
@@ -20,50 +21,11 @@ const FEATURES = [
 ];
 
 const CATEGORIES = [
-  { icon: Armchair,        label: "Living Room",     href: "/categories/living-room",     img: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80" },
-  { icon: BedDouble,       label: "Bedroom",         href: "/categories/bedroom",          img: "https://images.unsplash.com/photo-1505693314120-0d443867891c?auto=format&fit=crop&w=400&q=80" },
-  { icon: UtensilsCrossed, label: "Dining Room",     href: "/categories/dining-room",      img: "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=400&q=80" },
-  { icon: Monitor,         label: "Office Furniture",href: "/categories/office-furniture", img: "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?auto=format&fit=crop&w=400&q=80" },
-  { icon: Flower2,         label: "Home Decor",      href: "/categories/home-decor",       img: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80" },
-];
-
-const PRODUCTS = [
-  {
-    name: "Modern Comfort Sofa",
-    price: 1299,
-    originalPrice: 1599,
-    discount: "-10%",
-    rating: 4.5,
-    reviews: 120,
-    img: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80",
-  },
-  {
-    name: "Premium Timber Bed Frame",
-    price: 899,
-    originalPrice: 1199,
-    discount: null,
-    rating: 4.5,
-    reviews: 86,
-    img: "https://images.unsplash.com/photo-1505693314120-0d443867891c?auto=format&fit=crop&w=500&q=80",
-  },
-  {
-    name: "Elegant Dining Set",
-    price: 1499,
-    originalPrice: 1799,
-    discount: "-15%",
-    rating: 4.5,
-    reviews: 64,
-    img: "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=500&q=80",
-  },
-  {
-    name: "Ergonomic Office Chair",
-    price: 449,
-    originalPrice: 599,
-    discount: null,
-    rating: 4,
-    reviews: 98,
-    img: "https://images.unsplash.com/photo-1593642634524-b40b5baae6bb?auto=format&fit=crop&w=500&q=80",
-  },
+  { icon: Armchair,        label: "Living Room",     href: "/products",     img: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80" },
+  { icon: BedDouble,       label: "Bedroom",         href: "/products",     img: "https://images.unsplash.com/photo-1505693314120-0d443867891c?auto=format&fit=crop&w=400&q=80" },
+  { icon: UtensilsCrossed, label: "Dining Room",     href: "/products",     img: "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=400&q=80" },
+  { icon: Monitor,         label: "Office Furniture",href: "/products",     img: "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?auto=format&fit=crop&w=400&q=80" },
+  { icon: Flower2,         label: "Storage",         href: "/products",     img: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80" },
 ];
 
 const TRUST = [
@@ -72,6 +34,49 @@ const TRUST = [
   { icon: Tag,         title: "Best Price Guarantee",      sub: "Unbeatable prices" },
   { icon: Leaf,        title: "Sustainable Materials",     sub: "Eco-friendly & safe" },
 ];
+
+/* ─── Data Fetching ─────────────────────────────────────────────────── */
+
+async function getTrendingProducts() {
+  const products = await db.product.findMany({
+    where: { isActive: true },
+    include: {
+      category: { select: { name: true } },
+      productVariants: {
+        where: { isActive: true },
+        include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
+        orderBy: { price: "asc" },
+        take: 1,
+      },
+      _count: { select: { reviews: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 4,
+  });
+
+  return products.map((p) => {
+    const variant = p.hasVariants && p.productVariants[0] ? p.productVariants[0] : null;
+    const price = variant?.price ?? p.basePrice;
+    const comparePrice = variant?.comparePrice ?? p.comparePrice;
+    const image = variant?.images[0]?.url ?? p.images[0];
+
+    const discount = comparePrice && comparePrice > price 
+      ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%`
+      : null;
+
+    return {
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      price,
+      originalPrice: comparePrice || price,
+      discount,
+      rating: 4.5, // Could be calculated from reviews
+      reviews: p._count.reviews,
+      img: image,
+    };
+  });
+}
 
 /* ─── Sub-components ────────────────────────────────────────────────── */
 
@@ -106,7 +111,9 @@ function StarRating({ rating, count }: { rating: number; count: number }) {
 
 /* ─── Page ──────────────────────────────────────────────────────────── */
 
-export default function HomePage() {
+export default async function HomePage() {
+  const trendingProducts = await getTrendingProducts();
+
   return (
     <div>
       {/* ── Hero ──────────────────────────────────────────────────── */}
@@ -306,43 +313,47 @@ export default function HomePage() {
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <SectionHeading tag="TRENDING PRODUCTS" title="Popular Picks For You" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-            {PRODUCTS.map((p) => (
-              <div key={p.name} className="group bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden">
-                {/* Image */}
-                <div className="relative aspect-square bg-secondary overflow-hidden">
-                  <Image
-                    src={p.img}
-                    alt={p.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {/* Discount badge */}
-                  {p.discount && (
-                    <span className="absolute top-3 left-3 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full z-10">
-                      {p.discount}
-                    </span>
-                  )}
-                  {/* Wishlist */}
-                  <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:text-primary transition-colors z-10">
-                    <Heart className="h-4 w-4" />
-                  </button>
-                </div>
-                {/* Info */}
-                <div className="p-4">
-                  <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2 mb-2">
-                    {p.name}
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-black text-foreground">
-                      A${p.price.toLocaleString()}
-                    </span>
-                    <span className="text-xs text-muted-foreground line-through">
-                      A${p.originalPrice.toLocaleString()}
-                    </span>
+            {trendingProducts.map((p) => (
+              <Link key={p.id} href={`/products/${p.slug}`} className="group block">
+                <div className="bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden">
+                  {/* Image */}
+                  <div className="relative aspect-square bg-secondary overflow-hidden">
+                    <Image
+                      src={p.img}
+                      alt={p.name}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {/* Discount badge */}
+                    {p.discount && (
+                      <span className="absolute top-3 left-3 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full z-10">
+                        {p.discount}
+                      </span>
+                    )}
+                    {/* Wishlist */}
+                    <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:text-primary transition-colors z-10">
+                      <Heart className="h-4 w-4" />
+                    </button>
                   </div>
-                  <StarRating rating={p.rating} count={p.reviews} />
+                  {/* Info */}
+                  <div className="p-4">
+                    <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2 mb-2">
+                      {p.name}
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-black text-foreground">
+                        ${p.price.toLocaleString()}
+                      </span>
+                      {p.originalPrice > p.price && (
+                        <span className="text-xs text-muted-foreground line-through">
+                          ${p.originalPrice.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    <StarRating rating={p.rating} count={p.reviews} />
+                  </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
 
