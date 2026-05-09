@@ -14,29 +14,29 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
   const displayImages = images.length > 0 ? images : ["/placeholder.jpg"];
 
   return (
-    <div className="space-y-4">
-      {/* Main Image */}
-      <div className="relative aspect-square bg-muted rounded-xl overflow-hidden">
+    <div className="space-y-3">
+      {/* Main Image - Smaller aspect ratio */}
+      <div className="relative aspect-[4/3] bg-muted rounded-lg overflow-hidden">
         <Image
           src={displayImages[selectedIndex]}
           alt={`${productName} - Image ${selectedIndex + 1}`}
           fill
           className="object-cover"
-          sizes="(max-width: 1024px) 100vw, 50vw"
+          sizes="(max-width: 768px) 100vw, 50vw"
           priority
         />
       </div>
 
-      {/* Thumbnail Grid */}
+      {/* Thumbnail Grid - Smaller */}
       {displayImages.length > 1 && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="flex gap-2">
           {displayImages.map((image, index) => (
             <button
               key={index}
               onClick={() => setSelectedIndex(index)}
               className={cn(
-                "relative aspect-square bg-muted rounded-lg overflow-hidden",
-                "border-2 transition-colors",
+                "relative w-16 h-16 bg-muted rounded-md overflow-hidden shrink-0",
+                "border transition-colors",
                 selectedIndex === index
                   ? "border-primary"
                   : "border-transparent hover:border-border"
@@ -48,7 +48,7 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
                 alt={`${productName} thumbnail ${index + 1}`}
                 fill
                 className="object-cover"
-                sizes="150px"
+                sizes="64px"
               />
             </button>
           ))}
