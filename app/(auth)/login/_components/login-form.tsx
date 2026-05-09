@@ -27,11 +27,13 @@ import { cn } from "@/lib/utils";
 /* ─── Validation ─────────────────────────────────────────────────────── */
 
 const loginSchema = z.object({
-  email: z.string().trim().email("Please enter a valid email address"),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Invalid email address"),
   password: z
     .string()
-    .min(1, "Password is required")
-    .refine((v) => v.trim().length > 0, "Password is required"),
+    .min(1, "Password is required"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -39,8 +41,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 /* ─── NextAuth error messages ────────────────────────────────────────── */
 
 const AUTH_ERRORS: Record<string, string> = {
-  CredentialsSignin:
-    "Invalid email or password. Please check your details and try again.",
+  CredentialsSignin: "Invalid email or password",
   EmailNotVerified:
     "Please verify your email before signing in. Check your inbox for the verification link.",
   OAuthAccountNotLinked:
