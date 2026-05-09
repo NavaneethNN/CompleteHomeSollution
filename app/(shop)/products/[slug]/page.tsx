@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ProductGallery } from "@/components/shop/product-gallery";
-import { VariantSelector } from "@/components/shop/variant-selector";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
 import { ProductReviews } from "@/components/shop/product-reviews";
 import { Breadcrumbs } from "@/components/shop/breadcrumbs";
+import { ProductDetailsClient } from "@/components/shop/product-details-client";
 
 export const revalidate = 3600;
 
@@ -115,84 +115,50 @@ export default async function ProductDetailPage({
       </div>
 
       <div className="container mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-          {/* Product Gallery */}
-          <ProductGallery images={displayImages} productName={product.name} />
-
-          {/* Product Info - Compact */}
-          <div className="space-y-4">
-            {/* Header */}
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">{product.category.name}</p>
-              <h1 className="text-xl md:text-2xl font-semibold text-foreground mt-0.5">
-                {product.name}
-              </h1>
-              {product.material && (
-                <p className="text-xs text-muted-foreground mt-0.5">{product.material}</p>
-              )}
-            </div>
-
-            {/* Pricing - Inline */}
-            <div className="flex items-center gap-2">
-              <span className="text-2xl font-semibold text-foreground">
-                ${displayPrice.toLocaleString()}
-              </span>
-              {displayComparePrice && displayComparePrice > displayPrice && (
-                <span className="text-sm text-muted-foreground line-through">
-                  ${displayComparePrice.toLocaleString()}
-                </span>
-              )}
-            </div>
-
-            {/* Member Price - Compact */}
-            {displayMemberPrice && (
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-primary font-medium">Member: ${displayMemberPrice.toLocaleString()}</span>
-                <span className="text-xs text-muted-foreground">(Save ${(displayPrice - displayMemberPrice).toLocaleString()})</span>
+        {product.hasVariants ? (
+          <ProductDetailsClient
+            product={{
+              id: product.id,
+              name: product.name,
+              sku: product.sku,
+              basePrice: product.basePrice,
+              comparePrice: product.comparePrice,
+              memberPrice: product.memberPrice,
+              stock: product.stock,
+              images: product.images,
+              description: product.description,
+              material: product.material,
+            }}
+            attributes={product.variantAttributes}
+            variants={product.productVariants}
+            variantMap={product.variantMap}
+            defaultVariant={defaultVariant}
+          />
+        ) : (
+          // Simple product without variants
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+            <ProductGallery images={product.images} productName={product.name} />
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{product.category.name}</p>
+                <h1 className="text-xl md:text-2xl font-semibold text-foreground mt-0.5">{product.name}</h1>
+                {product.material && <p className="text-xs text-muted-foreground mt-0.5">{product.material}</p>}
               </div>
-            )}
-
-            {/* Description - Shorter */}
-            <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
-
-            {/* Variant Selector */}
-            {product.hasVariants && (
-              <VariantSelector
-                attributes={product.variantAttributes}
-                variants={product.productVariants}
-                variantMap={product.variantMap}
-                defaultVariant={defaultVariant}
-              />
-            )}
-
-            {/* Stock & SKU - Compact */}
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span>SKU: {defaultVariant?.sku ?? product.sku}</span>
-              {(defaultVariant?.stock ?? product.stock) > 0 ? (
-                <span className="text-green-600">● In Stock</span>
-              ) : (
-                <span className="text-destructive">Out of Stock</span>
-              )}
-            </div>
-
-            {/* Add to Cart */}
-            <AddToCartButton
-              productId={product.id}
-              variantId={defaultVariant?.id}
-              disabled={(defaultVariant?.stock ?? product.stock) === 0}
-              hasVariants={product.hasVariants}
-            />
-
-            {/* Trust Badges - Minimal */}
-            <div className="flex gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
-              <span>Free Delivery</span>
-              <span>•</span>
-              <span>30 Day Returns</span>
-              <span>•</span>
-              <span>2 Year Warranty</span>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-semibold text-foreground">${product.basePrice.toLocaleString()}</span>
+                {product.comparePrice && product.comparePrice > product.basePrice && (
+                  <span className="text-sm text-muted-foreground line-through">${product.comparePrice.toLocaleString()}</span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>SKU: {product.sku}</span>
+                {product.stock > 0 ? <span className="text-green-600">● In Stock</span> : <span className="text-destructive">Out of Stock</span>}
+              </div>
+              <AddToCartButton productId={product.id} disabled={product.stock === 0} hasVariants={false} />
             </div>
           </div>
-        </div>
+        )}
 
         {/* Reviews Section */}
         <ProductReviews reviews={product.reviews} reviewCount={product._count.reviews} />

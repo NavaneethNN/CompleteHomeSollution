@@ -5,32 +5,291 @@ const { PrismaNeon } = require("@prisma/adapter-neon");
 // Load env vars
 config({ path: ".env.local" });
 
+// Diverse image collections for different variants
 const furnitureImages = {
-  sofa: [
-    "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1567016432779-094069958ea5?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80",
-  ],
-  bed: [
-    "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
-  ],
-  dining: [
-    "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1604578762246-41134e2295f7?auto=format&fit=crop&w=800&q=80",
-  ],
-  chair: [
-    "https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
-  ],
-  table: [
-    "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
-  ],
-  storage: [
-    "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
-  ],
+  // Sofa images by color
+  sofa: {
+    black: [
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1567016432779-094069958ea5?auto=format&fit=crop&w=800&q=80",
+    ],
+    blue: [
+      "https://images.unsplash.com/photo-1550226894-d7786be3bd3b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1540574163026-643ea20ade25?auto=format&fit=crop&w=800&q=80",
+    ],
+    green: [
+      "https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1484101403633-562f891dc89a?auto=format&fit=crop&w=800&q=80",
+    ],
+    grey: [
+      "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=800&q=80",
+    ],
+  },
+  // Chair images by model/color
+  chair: {
+    standard: {
+      black: [
+        "https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?auto=format&fit=crop&w=800&q=80",
+      ],
+      grey: [
+        "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1519947486511-46149fa0a254?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617103996709-44d15585d096?auto=format&fit=crop&w=800&q=80",
+      ],
+      blue: [
+        "https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    pro: {
+      black: [
+        "https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=800&q=80",
+      ],
+      grey: [
+        "https://images.unsplash.com/photo-1519947486511-46149fa0a254?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1617103996709-44d15585d096?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
+      ],
+      blue: [
+        "https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    executive: {
+      black: [
+        "https://images.unsplash.com/photo-1519947486511-46149fa0a254?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?auto=format&fit=crop&w=800&q=80",
+      ],
+      grey: [
+        "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617103996709-44d15585d096?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1580480055273-228ff5388ef8?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?auto=format&fit=crop&w=800&q=80",
+      ],
+      blue: [
+        "https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1519947486511-46149fa0a254?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+  },
+  // Bed images by size/color
+  bed: {
+    single: {
+      oak: [
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+      ],
+      walnut: [
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+      ],
+      black: [
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    double: {
+      oak: [
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+      ],
+      walnut: [
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+      ],
+      black: [
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    queen: {
+      oak: [
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+      ],
+      walnut: [
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+      ],
+      black: [
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    king: {
+      oak: [
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+      ],
+      walnut: [
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617325247661-675ab4b64ae2?auto=format&fit=crop&w=800&q=80",
+      ],
+      black: [
+        "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+  },
+  // Table images by model/color
+  table: {
+    basic: {
+      natural: [
+        "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+      ],
+      dark: [
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+      ],
+      black: [
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    premium: {
+      natural: [
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
+      ],
+      dark: [
+        "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
+      ],
+      black: [
+        "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    deluxe: {
+      natural: [
+        "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+      ],
+      dark: [
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
+      ],
+      white: [
+        "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+      ],
+      black: [
+        "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+  },
+  // Wardrobe images by size/color
+  storage: {
+    door2: {
+      white: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+      beige: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+      grey: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+      oak: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    door3: {
+      white: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+      beige: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+      grey: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+      oak: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    door4: {
+      white: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+      beige: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+      grey: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+      oak: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+    door5: {
+      white: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+      beige: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+      grey: [
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+      ],
+      oak: [
+        "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1595515106969-1ce29566ff1c?auto=format&fit=crop&w=800&q=80",
+      ],
+    },
+  },
 };
 
 function createPrismaClient() {
@@ -63,42 +322,42 @@ async function main() {
       data: {
         name: "Living Room",
         slug: "living-room",
-        image: furnitureImages.sofa[0],
+        image: furnitureImages.sofa.black[0],
       },
     }),
     db.category.create({
       data: {
         name: "Bedroom",
         slug: "bedroom",
-        image: furnitureImages.bed[0],
+        image: furnitureImages.bed.queen.oak[0],
       },
     }),
     db.category.create({
       data: {
         name: "Dining",
         slug: "dining",
-        image: furnitureImages.dining[0],
+        image: furnitureImages.table.basic.natural[0],
       },
     }),
     db.category.create({
       data: {
         name: "Office",
         slug: "office",
-        image: furnitureImages.chair[0],
+        image: furnitureImages.chair.standard.black[0],
       },
     }),
     db.category.create({
       data: {
         name: "Storage",
         slug: "storage",
-        image: furnitureImages.storage[0],
+        image: furnitureImages.storage.door3.white[0],
       },
     }),
   ]);
 
   console.log(`✅ Created ${categories.length} categories`);
 
-  // Create Luxury Sofa with variants
+  // Create Luxury Sofa with variants - using color-specific images
   const sofa = await db.product.create({
     data: {
       name: "Luxury Velvet Sofa",
@@ -109,7 +368,7 @@ async function main() {
       hasVariants: true,
       stock: 50,
       sku: "LVS-SOF-001",
-      images: furnitureImages.sofa,
+      images: furnitureImages.sofa.black,
       material: "Velvet, Hardwood Frame",
       roomType: "Living Room",
       categoryId: categories[0].id,
@@ -141,16 +400,17 @@ async function main() {
     data: { value: "3-Seater (220cm)", variantAttributeId: sofaSizeAttr.id },
   });
 
-  const sofaVariants = [
-    { sku: "LVS-SOF-BLK-2S", price: 1299, values: [black.id, twoSeater.id] },
-    { sku: "LVS-SOF-BLK-3S", price: 1599, values: [black.id, threeSeater.id] },
-    { sku: "LVS-SOF-NVY-2S", price: 1299, values: [navy.id, twoSeater.id] },
-    { sku: "LVS-SOF-NVY-3S", price: 1599, values: [navy.id, threeSeater.id] },
-    { sku: "LVS-SOF-EMR-2S", price: 1399, values: [emerald.id, twoSeater.id] },
-    { sku: "LVS-SOF-EMR-3S", price: 1699, values: [emerald.id, threeSeater.id] },
+  // Map variant combinations to color-specific images
+  const sofaVariantConfigs = [
+    { sku: "LVS-SOF-BLK-2S", price: 1299, values: [black.id, twoSeater.id], colorKey: "black" },
+    { sku: "LVS-SOF-BLK-3S", price: 1599, values: [black.id, threeSeater.id], colorKey: "black" },
+    { sku: "LVS-SOF-NVY-2S", price: 1299, values: [navy.id, twoSeater.id], colorKey: "blue" },
+    { sku: "LVS-SOF-NVY-3S", price: 1599, values: [navy.id, threeSeater.id], colorKey: "blue" },
+    { sku: "LVS-SOF-EMR-2S", price: 1399, values: [emerald.id, twoSeater.id], colorKey: "green" },
+    { sku: "LVS-SOF-EMR-3S", price: 1699, values: [emerald.id, threeSeater.id], colorKey: "green" },
   ];
 
-  for (const variant of sofaVariants) {
+  for (const variant of sofaVariantConfigs) {
     const pv = await db.productVariant.create({
       data: {
         sku: variant.sku,
@@ -165,8 +425,10 @@ async function main() {
       },
     });
 
+    // Use color-specific images
+    const colorImages = furnitureImages.sofa[variant.colorKey] || furnitureImages.sofa.black;
     await db.variantImage.createMany({
-      data: furnitureImages.sofa.map((url, idx) => ({
+      data: colorImages.map((url, idx) => ({
         url,
         displayOrder: idx,
         productVariantId: pv.id,
@@ -174,10 +436,11 @@ async function main() {
     });
   }
 
-  console.log("✅ Created Luxury Velvet Sofa with 6 variants");
+  console.log("✅ Created Luxury Velvet Sofa with 6 variants (color-specific images)");
 
   // Helper function to create product with Model, Size, Color variants
-  async function createProductWithVariants(productData, images, variantConfig) {
+  // getImagesForVariant: function that receives (model, size, color) and returns image array
+  async function createProductWithVariants(productData, getImagesForVariant, variantConfig) {
     const product = await db.product.create({
       data: {
         ...productData,
@@ -223,7 +486,7 @@ async function main() {
       }));
     }
 
-    // Create all combinations
+    // Create all combinations with variant-specific images
     let variantCount = 0;
     for (const model of models) {
       for (const size of sizes) {
@@ -247,8 +510,10 @@ async function main() {
             },
           });
 
+          // Get variant-specific images
+          const variantImages = getImagesForVariant(model.value, size.value, color.value);
           await db.variantImage.createMany({
-            data: images.map((url, idx) => ({
+            data: variantImages.map((url, idx) => ({
               url,
               displayOrder: idx,
               productVariantId: pv.id,
@@ -270,12 +535,17 @@ async function main() {
       slug: "ergonomic-office-chair",
       description: "Premium ergonomic office chair with lumbar support, adjustable armrests, and breathable mesh back.",
       sku: "OF-CHR",
-      images: furnitureImages.chair,
+      images: furnitureImages.chair.standard.black, // default images
       material: "Mesh, Aluminum",
       roomType: "Office",
       categoryId: categories[3].id,
     },
-    furnitureImages.chair,
+    // Image getter function - returns different images based on model and color
+    (model, size, color) => {
+      const modelKey = model.toLowerCase();
+      const colorKey = color.toLowerCase();
+      return furnitureImages.chair[modelKey]?.[colorKey] || furnitureImages.chair.standard.black;
+    },
     {
       basePrice: 449,
       models: ["Standard", "Pro", "Executive"],
@@ -300,12 +570,17 @@ async function main() {
       slug: "king-size-platform-bed",
       description: "Minimalist platform bed with solid wood slats. No box spring needed. Clean lines for modern bedrooms.",
       sku: "BD-KNG",
-      images: furnitureImages.bed,
+      images: furnitureImages.bed.queen.oak, // default images
       material: "Solid Pine",
       roomType: "Bedroom",
       categoryId: categories[1].id,
     },
-    furnitureImages.bed,
+    // Image getter function - returns different images based on size and color
+    (model, size, color) => {
+      const sizeKey = size.toLowerCase().replace(/\s+/g, '');
+      const colorKey = color.toLowerCase();
+      return furnitureImages.bed[sizeKey]?.[colorKey] || furnitureImages.bed.queen.oak;
+    },
     {
       basePrice: 899,
       models: ["Classic", "Modern", "Premium"],
@@ -331,12 +606,17 @@ async function main() {
       slug: "scandinavian-coffee-table",
       description: "Minimalist coffee table with clean lines and tapered legs. Perfect centerpiece for your living room.",
       sku: "LV-TBL",
-      images: furnitureImages.table,
+      images: furnitureImages.table.basic.natural, // default images
       material: "Oak Veneer",
       roomType: "Living Room",
       categoryId: categories[0].id,
     },
-    furnitureImages.table,
+    // Image getter function - returns different images based on model and color
+    (model, size, color) => {
+      const modelKey = model.toLowerCase();
+      const colorKey = color.toLowerCase().replace(/\s+/g, '');
+      return furnitureImages.table[modelKey]?.[colorKey] || furnitureImages.table.basic.natural;
+    },
     {
       basePrice: 299,
       models: ["Basic", "Premium", "Deluxe"],
@@ -361,12 +641,17 @@ async function main() {
       slug: "modular-wardrobe-system",
       description: "Customizable wardrobe system with adjustable shelves, hanging rods, and drawers.",
       sku: "ST-WDR",
-      images: furnitureImages.storage,
+      images: furnitureImages.storage.door3.white, // default images
       material: "Melamine Coated Particle Board",
       roomType: "Bedroom",
       categoryId: categories[4].id,
     },
-    furnitureImages.storage,
+    // Image getter function - returns different images based on size (door count) and color
+    (model, size, color) => {
+      const sizeKey = size.toLowerCase().replace(/\s+/g, '').replace('-', '');
+      const colorKey = color.toLowerCase();
+      return furnitureImages.storage[sizeKey]?.[colorKey] || furnitureImages.storage.door3.white;
+    },
     {
       basePrice: 599,
       models: ["Basic", "Standard", "Premium"],
