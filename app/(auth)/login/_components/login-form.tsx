@@ -23,6 +23,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSafeCallbackUrl } from "@/lib/safe-callback";
 
 /* ─── Validation ─────────────────────────────────────────────────────── */
 
@@ -42,6 +43,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 const AUTH_ERRORS: Record<string, string> = {
   CredentialsSignin: "Invalid email or password",
+  RateLimited: "Too many failed attempts. Please try again after 15 minutes.",
   EmailNotVerified:
     "Please verify your email before signing in. Check your inbox for the verification link.",
   OAuthAccountNotLinked:
@@ -92,11 +94,7 @@ function LoginFormInner() {
   const errorParam = searchParams.get("error");
   const registered = searchParams.get("registered") === "true";
   const verified = searchParams.get("verified") === "true";
-  const rawCallback = searchParams.get("callbackUrl") ?? "/account/dashboard";
-  const callbackUrl =
-    rawCallback.startsWith("/") && !rawCallback.startsWith("//")
-      ? rawCallback
-      : "/account/dashboard";
+  const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
 
   const [showPw, setShowPw] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);

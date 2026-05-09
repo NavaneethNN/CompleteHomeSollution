@@ -5,6 +5,11 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { checkRateLimit, recordFailedAttempt, resetRateLimit } from "@/lib/rate-limit";
+
+// Security configuration
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MINUTES = 15;
 
 class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
@@ -26,6 +31,11 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
+// Custom error for rate limiting
+class RateLimitError extends CredentialsSignin {
+  code = "RateLimited";
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   providers: [
@@ -45,20 +55,41 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         const parsed = credentialsSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
         const { password } = parsed.data;
         const email = parsed.data.email.toLowerCase().trim();
+        
+        // Rate limiting check - use IP + email as identifier
+        const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+        const rateLimitKey = `${ip}:${email}`;
+        
+        const rateLimit = checkRateLimit(rateLimitKey);
+        if (rateLimit.blocked) {
+          throw new RateLimitError();
+        }
+
         const user = await db.user.findUnique({ where: { email } });
 
-        if (!user || !user.passwordHash) return null;
+        if (!user || !user.passwordHash) {
+          // Record failed attempt even for non-existent users
+          recordFailedAttempt(rateLimitKey);
+          return null;
+        }
 
         if (!user.emailVerified) throw new EmailNotVerifiedError();
 
         const valid = await verifyPassword(password, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          // Record failed attempt for wrong password
+          recordFailedAttempt(rateLimitKey);
+          return null;
+        }
+
+        // Reset rate limit on successful login
+        resetRateLimit(rateLimitKey);
 
         return {
           id: user.id,
@@ -71,7 +102,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60, // 24 hours
+  },
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === "production" 
+        ? "__Secure-authjs.session-token" 
+        : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
+  },
   callbacks: {
     async jwt({ token, user, account, trigger }) {
       if (user) {
