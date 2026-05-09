@@ -395,3 +395,125 @@ export async function deleteVariantValue(valueId: string) {
     return { success: false, error: "Failed to delete variant value" };
   }
 }
+
+// Product creation schema
+const createProductSchema = z.object({
+  name: z.string().min(1, "Product name is required"),
+  slug: z.string().min(1, "Slug is required"),
+  description: z.string().min(1, "Description is required"),
+  basePrice: z.number().min(0).default(0),
+  comparePrice: z.number().min(0).optional(),
+  memberPrice: z.number().min(0).optional(),
+  stock: z.number().int().min(0).default(0),
+  sku: z.string().min(1, "SKU is required"),
+  images: z.array(z.string()).default([]),
+  material: z.string().optional(),
+  roomType: z.string().optional(),
+  categoryId: z.string().min(1, "Category is required"),
+  hasVariants: z.boolean().default(false),
+});
+
+/**
+ * Create a new product
+ */
+export async function createProduct(data: {
+  name: string;
+  slug: string;
+  description: string;
+  basePrice?: number;
+  comparePrice?: number;
+  memberPrice?: number;
+  stock?: number;
+  sku: string;
+  images?: string[];
+  material?: string;
+  roomType?: string;
+  categoryId: string;
+  hasVariants?: boolean;
+}) {
+  try {
+    const validated = createProductSchema.parse(data);
+
+    // Check if slug is unique
+    const existingSlug = await db.product.findUnique({
+      where: { slug: validated.slug },
+    });
+    if (existingSlug) {
+      return { success: false, error: "A product with this slug already exists" };
+    }
+
+    // Check if SKU is unique
+    const existingSku = await db.product.findUnique({
+      where: { sku: validated.sku },
+    });
+    if (existingSku) {
+      return { success: false, error: "A product with this SKU already exists" };
+    }
+
+    const product = await db.product.create({
+      data: validated,
+    });
+
+    revalidatePath("/products");
+    revalidatePath("/admin/products");
+    return { success: true, product };
+  } catch (error) {
+    console.error("[createProduct] Error:", error);
+    return { success: false, error: "Failed to create product" };
+  }
+}
+
+/**
+ * Update an existing product
+ */
+export async function updateProduct(
+  productId: string,
+  data: Partial<{
+    name: string;
+    slug: string;
+    description: string;
+    basePrice: number;
+    comparePrice: number | null;
+    memberPrice: number | null;
+    stock: number;
+    images: string[];
+    material: string | null;
+    roomType: string | null;
+    categoryId: string;
+    isActive: boolean;
+  }>
+) {
+  try {
+    const product = await db.product.update({
+      where: { id: productId },
+      data,
+    });
+
+    revalidatePath("/products");
+    revalidatePath(`/products/${product.slug}`);
+    revalidatePath("/admin/products");
+    return { success: true, product };
+  } catch (error) {
+    console.error("[updateProduct] Error:", error);
+    return { success: false, error: "Failed to update product" };
+  }
+}
+
+/**
+ * Delete a product and all its associated data
+ */
+export async function deleteProduct(productId: string) {
+  try {
+    // This will cascade delete all related data (variants, variant values, images, etc.)
+    await db.product.delete({
+      where: { id: productId },
+    });
+
+    revalidatePath("/products");
+    revalidatePath("/admin/products");
+    return { success: true };
+  } catch (error) {
+    console.error("[deleteProduct] Error:", error);
+    return { success: false, error: "Failed to delete product" };
+  }
+}
