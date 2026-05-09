@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { db } from "@/lib/db";
-import { ProductCard } from "@/components/shop/product-card";
-import { CategoryFilter } from "@/components/shop/category-filter";
+import { ProductsClient } from "@/components/shop/products-client";
 
 export const metadata: Metadata = {
   title: "All Products — Complete Home Sollution",
-  description: "Browse our premium furniture collection. Sofas, beds, dining sets, office furniture and more with Australia-wide delivery.",
+  description: "Browse our premium furniture collection. Sofas, beds, dining sets, office furniture and more.",
 };
 
 export const revalidate = 3600;
@@ -38,11 +36,9 @@ async function getProducts() {
     stock: p.stock,
     images: p.images,
     material: p.material,
-    roomType: p.roomType,
     hasVariants: p.hasVariants,
     category: p.category,
     reviewCount: p._count.reviews,
-    // If has variants, use first variant's price and image
     variant: p.hasVariants && p.productVariants[0] ? {
       id: p.productVariants[0].id,
       price: p.productVariants[0].price,
@@ -66,41 +62,19 @@ export default async function ProductsPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Hero Banner */}
-      <section className="bg-navy py-12 md:py-16">
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">All Products</h1>
-          <p className="text-white/70 max-w-2xl">
-            Discover our curated collection of premium furniture. Each piece is crafted with care 
-            to transform your home into a beautiful living space.
+      {/* Minimal Header */}
+      <div className="border-b border-border">
+        <div className="container mx-auto px-4 py-6">
+          <h1 className="text-xl font-semibold text-foreground">All Products</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {products.length} products available
           </p>
         </div>
-      </section>
+      </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
-          <aside className="w-full lg:w-64 shrink-0">
-            <Suspense fallback={<div className="h-48 bg-muted rounded-xl animate-pulse" />}>
-              <CategoryFilter categories={categories} />
-            </Suspense>
-          </aside>
-
-          {/* Product Grid */}
-          <div className="flex-1">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing <span className="font-medium text-foreground">{products.length}</span> products
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          </div>
-        </div>
+      {/* Products with Client-side Filtering */}
+      <div className="container mx-auto px-4 py-6">
+        <ProductsClient categories={categories} products={products} />
       </div>
     </main>
   );
