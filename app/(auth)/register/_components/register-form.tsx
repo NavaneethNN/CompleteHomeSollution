@@ -165,6 +165,16 @@ export default function RegisterForm() {
     }
   }, [googleLoading]);
 
+  // Auto-dismiss error messages after 5 seconds
+  useEffect(() => {
+    if (serverError) {
+      const timer = setTimeout(() => {
+        setServerError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [serverError]);
+
   /* ── Google OAuth ─────────────────────────────────────────────────── */
   const handleGoogle = useCallback(async () => {
     setGoogleLoading(true);
