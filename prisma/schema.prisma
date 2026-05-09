@@ -100,27 +100,111 @@ model Product {
   name         String
   slug         String   @unique
   description  String   @db.Text
-  price        Float
+  basePrice    Float    @default(0) // Base price before variants
   comparePrice Float?
   memberPrice  Float?
-  stock        Int      @default(0)
-  sku          String   @unique
-  images       String[]
+  stock        Int      @default(0) // Total stock across all variants
+  sku          String   @unique // Base SKU
+  images       String[] // Default product images
   material     String?
   roomType     String?
   isActive     Boolean  @default(true)
+  hasVariants  Boolean  @default(false) // Whether this product uses variant system
   categoryId   String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  category   Category  @relation(fields: [categoryId], references: [id])
-  reviews    Review[]
-  orderItems OrderItem[]
+  category          Category           @relation(fields: [categoryId], references: [id])
+  reviews           Review[]
+  orderItems        OrderItem[]
+  cartItems         CartItem[]
+  variantAttributes VariantAttribute[] // Custom variant categories (Color, Size, etc.)
+  productVariants   ProductVariant[]   // Actual sellable variants with prices
 
   embedding Unsupported("vector(1536)")?
 
   @@index([categoryId])
   @@index([slug])
+}
+
+// Defines variant categories for a product (e.g., Color, Size, Material)
+model VariantAttribute {
+  id          String         @id @default(cuid())
+  name        String         // Display name: "Color", "Size", "Material"
+  displayOrder Int           @default(0) // Order to show in UI
+  productId   String
+  createdAt   DateTime       @default(now())
+
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantValues VariantValue[] // Options under this attribute
+
+  @@index([productId])
+}
+
+// Defines specific variant options (e.g., Red, Blue, Large, Leather)
+model VariantValue {
+  id                 String           @id @default(cuid())
+  value              String           // Display value: "Red", "Large", "Leather"
+  hexCode            String?          // For color variants (optional)
+  variantAttributeId String
+  createdAt          DateTime         @default(now())
+
+  variantAttribute VariantAttribute @relation(fields: [variantAttributeId], references: [id], onDelete: Cascade)
+  
+  // Join table relationships
+  productVariantValues ProductVariantValue[]
+
+  @@index([variantAttributeId])
+}
+
+// The actual sellable product variant (combination of variant values)
+model ProductVariant {
+  id           String   @id @default(cuid())
+  productId    String
+  sku          String   @unique // Unique SKU for this variant
+  price        Float    // Specific price for this variant combination
+  comparePrice Float?
+  memberPrice  Float?
+  stock        Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  images  VariantImage[]       // Images specific to this variant
+  values  ProductVariantValue[] // Links to the variant values (Color: Red, Size: Large)
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+
+  @@index([productId])
+}
+
+// Join table: Links ProductVariant to VariantValue combinations
+model ProductVariantValue {
+  id               String @id @default(cuid())
+  productVariantId String
+  variantValueId   String
+
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+  variantValue   VariantValue   @relation(fields: [variantValueId], references: [id], onDelete: Cascade)
+
+  @@unique([productVariantId, variantValueId])
+  @@index([productVariantId])
+  @@index([variantValueId])
+}
+
+// Images specific to a product variant
+model VariantImage {
+  id               String @id @default(cuid())
+  productVariantId String
+  url              String
+  alt              String?
+  displayOrder     Int    @default(0)
+  createdAt        DateTime @default(now())
+
+  productVariant ProductVariant @relation(fields: [productVariantId], references: [id], onDelete: Cascade)
+
+  @@index([productVariantId])
 }
 
 model Category {
@@ -154,14 +238,19 @@ model Order {
 }
 
 model OrderItem {
-  id        String @id @default(cuid())
-  orderId   String
-  productId String
-  quantity  Int
-  unitPrice Float
+  id               String @id @default(cuid())
+  orderId          String
+  productId        String
+  productVariantId String? // Optional: only if product has variants
+  quantity         Int
+  unitPrice        Float
+  variantSummary   String? // Summary of selected variants (e.g., "Color: Red, Size: Large")
 
-  order   Order   @relation(fields: [orderId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  order          Order           @relation(fields: [orderId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
+
+  @@index([productVariantId])
 }
 
 model Address {
@@ -193,14 +282,19 @@ model Review {
 }
 
 model CartItem {
-  id        String @id @default(cuid())
-  userId    String
-  productId String
-  quantity  Int
+  id               String  @id @default(cuid())
+  userId           String
+  productId        String
+  productVariantId String? // Optional: only if product has variants
+  quantity         Int
+  variantSummary   String? // Summary of selected variants
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product        Product         @relation(fields: [productId], references: [id])
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
 
-  @@unique([userId, productId])
+  @@unique([userId, productId, productVariantId])
+  @@index([productVariantId])
 }
 
 model StockAlert {
