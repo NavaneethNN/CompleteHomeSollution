@@ -176,77 +176,223 @@ async function main() {
 
   console.log("✅ Created Luxury Velvet Sofa with 6 variants");
 
-  // Create simple products without variants
-  const simpleProducts = [
+  // Helper function to create product with Model, Size, Color variants
+  async function createProductWithVariants(productData, images, variantConfig) {
+    const product = await db.product.create({
+      data: {
+        ...productData,
+        basePrice: 0,
+        hasVariants: true,
+      },
+    });
+
+    // Create Model attribute
+    const modelAttr = await db.variantAttribute.create({
+      data: { name: "Model", displayOrder: 0, productId: product.id },
+    });
+
+    // Create Size attribute
+    const sizeAttr = await db.variantAttribute.create({
+      data: { name: "Size", displayOrder: 1, productId: product.id },
+    });
+
+    // Create Color attribute
+    const colorAttr = await db.variantAttribute.create({
+      data: { name: "Color", displayOrder: 2, productId: product.id },
+    });
+
+    // Create variant values
+    const models = [];
+    for (const model of variantConfig.models) {
+      models.push(await db.variantValue.create({
+        data: { value: model, variantAttributeId: modelAttr.id },
+      }));
+    }
+
+    const sizes = [];
+    for (const size of variantConfig.sizes) {
+      sizes.push(await db.variantValue.create({
+        data: { value: size.name, variantAttributeId: sizeAttr.id },
+      }));
+    }
+
+    const colors = [];
+    for (const color of variantConfig.colors) {
+      colors.push(await db.variantValue.create({
+        data: { value: color.name, hexCode: color.hex, variantAttributeId: colorAttr.id },
+      }));
+    }
+
+    // Create all combinations
+    let variantCount = 0;
+    for (const model of models) {
+      for (const size of sizes) {
+        for (const color of colors) {
+          const basePrice = variantConfig.basePrice + (size.priceMod || 0) + (color.priceMod || 0);
+          const pv = await db.productVariant.create({
+            data: {
+              sku: `${productData.sku}-${model.value.slice(0,3).toUpperCase()}-${size.value.slice(0,2).toUpperCase()}-${color.value.slice(0,3).toUpperCase()}`,
+              price: basePrice,
+              comparePrice: basePrice * 1.2,
+              memberPrice: basePrice * 0.85,
+              stock: 10 + Math.floor(Math.random() * 20),
+              productId: product.id,
+              values: {
+                create: [
+                  { variantValueId: model.id },
+                  { variantValueId: size.id },
+                  { variantValueId: color.id },
+                ],
+              },
+            },
+          });
+
+          await db.variantImage.createMany({
+            data: images.map((url, idx) => ({
+              url,
+              displayOrder: idx,
+              productVariantId: pv.id,
+            })),
+          });
+          variantCount++;
+        }
+      }
+    }
+
+    console.log(`✅ Created ${productData.name} with ${variantCount} variants`);
+    return product;
+  }
+
+  // 2. Ergonomic Office Chair with Model, Size, Color variants
+  await createProductWithVariants(
     {
       name: "Ergonomic Office Chair",
       slug: "ergonomic-office-chair",
       description: "Premium ergonomic office chair with lumbar support, adjustable armrests, and breathable mesh back.",
-      basePrice: 449,
-      comparePrice: 549,
-      memberPrice: 399,
-      stock: 25,
-      sku: "OF-CHR-001",
+      sku: "OF-CHR",
       images: furnitureImages.chair,
       material: "Mesh, Aluminum",
       roomType: "Office",
       categoryId: categories[3].id,
     },
+    furnitureImages.chair,
+    {
+      basePrice: 449,
+      models: ["Standard", "Pro", "Executive"],
+      sizes: [
+        { name: "Small", priceMod: -50 },
+        { name: "Medium", priceMod: 0 },
+        { name: "Large", priceMod: 50 },
+      ],
+      colors: [
+        { name: "Black", hex: "#1a1a1a", priceMod: 0 },
+        { name: "Grey", hex: "#6b7280", priceMod: 0 },
+        { name: "White", hex: "#f5f5f5", priceMod: 20 },
+        { name: "Blue", hex: "#1e3a5f", priceMod: 30 },
+      ],
+    }
+  );
+
+  // 3. King Size Platform Bed with Model, Size, Color variants
+  await createProductWithVariants(
     {
       name: "King Size Platform Bed",
       slug: "king-size-platform-bed",
       description: "Minimalist platform bed with solid wood slats. No box spring needed. Clean lines for modern bedrooms.",
-      basePrice: 899,
-      comparePrice: 1099,
-      memberPrice: 799,
-      stock: 20,
-      sku: "BD-KNG-001",
+      sku: "BD-KNG",
       images: furnitureImages.bed,
       material: "Solid Pine",
       roomType: "Bedroom",
       categoryId: categories[1].id,
     },
+    furnitureImages.bed,
+    {
+      basePrice: 899,
+      models: ["Classic", "Modern", "Premium"],
+      sizes: [
+        { name: "Single", priceMod: -300 },
+        { name: "Double", priceMod: -100 },
+        { name: "Queen", priceMod: 0 },
+        { name: "King", priceMod: 200 },
+      ],
+      colors: [
+        { name: "Oak", hex: "#c4a77d", priceMod: 0 },
+        { name: "Walnut", hex: "#5d4a3a", priceMod: 50 },
+        { name: "White", hex: "#f5f5f5", priceMod: 30 },
+        { name: "Black", hex: "#1a1a1a", priceMod: 30 },
+      ],
+    }
+  );
+
+  // 4. Scandinavian Coffee Table with Model, Size, Color variants
+  await createProductWithVariants(
     {
       name: "Scandinavian Coffee Table",
       slug: "scandinavian-coffee-table",
       description: "Minimalist coffee table with clean lines and tapered legs. Perfect centerpiece for your living room.",
-      basePrice: 299,
-      comparePrice: 379,
-      memberPrice: 269,
-      stock: 40,
-      sku: "LV-TBL-001",
+      sku: "LV-TBL",
       images: furnitureImages.table,
       material: "Oak Veneer",
       roomType: "Living Room",
       categoryId: categories[0].id,
     },
+    furnitureImages.table,
+    {
+      basePrice: 299,
+      models: ["Basic", "Premium", "Deluxe"],
+      sizes: [
+        { name: "Small (80cm)", priceMod: -50 },
+        { name: "Medium (100cm)", priceMod: 0 },
+        { name: "Large (120cm)", priceMod: 80 },
+      ],
+      colors: [
+        { name: "Natural", hex: "#d4c4a8", priceMod: 0 },
+        { name: "Dark Oak", hex: "#5c4a3d", priceMod: 30 },
+        { name: "White", hex: "#f5f5f5", priceMod: 20 },
+        { name: "Black", hex: "#1a1a1a", priceMod: 20 },
+      ],
+    }
+  );
+
+  // 5. Modular Wardrobe System with Model, Size, Color variants
+  await createProductWithVariants(
     {
       name: "Modular Wardrobe System",
       slug: "modular-wardrobe-system",
       description: "Customizable wardrobe system with adjustable shelves, hanging rods, and drawers.",
-      basePrice: 599,
-      comparePrice: 749,
-      memberPrice: 539,
-      stock: 15,
-      sku: "ST-WDR-001",
+      sku: "ST-WDR",
       images: furnitureImages.storage,
       material: "Melamine Coated Particle Board",
       roomType: "Bedroom",
       categoryId: categories[4].id,
     },
-  ];
+    furnitureImages.storage,
+    {
+      basePrice: 599,
+      models: ["Basic", "Standard", "Premium"],
+      sizes: [
+        { name: "2-Door", priceMod: -200 },
+        { name: "3-Door", priceMod: 0 },
+        { name: "4-Door", priceMod: 250 },
+        { name: "5-Door", priceMod: 450 },
+      ],
+      colors: [
+        { name: "White", hex: "#f5f5f5", priceMod: 0 },
+        { name: "Beige", hex: "#e8dcc4", priceMod: 0 },
+        { name: "Grey", hex: "#6b7280", priceMod: 30 },
+        { name: "Oak", hex: "#c4a77d", priceMod: 50 },
+      ],
+    }
+  );
 
-  for (const product of simpleProducts) {
-    await db.product.create({ data: product });
-  }
-
-  console.log(`✅ Created ${simpleProducts.length} simple products`);
+  // Count total variants created
+  const totalVariants = await db.productVariant.count();
 
   console.log("\n🎉 Database seeded successfully!");
   console.log(`📊 Summary:`);
   console.log(`   - ${categories.length} Categories`);
-  console.log(`   - 5 Products (1 with variants, 4 simple)`);
-  console.log(`   - 6 Product Variants`);
+  console.log(`   - 5 Products (all with variants)`);
+  console.log(`   - ${totalVariants} Total Product Variants`);
 }
 
 main()
