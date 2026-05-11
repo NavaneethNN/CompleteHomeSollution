@@ -19,58 +19,53 @@ interface CategorySliderProps {
 }
 
 export function CategorySlider({ categories }: CategorySliderProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(5);
 
-  const checkScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 2);
-    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 2);
+  // Calculate how many cards are visible based on screen width
+  const updateVisibleCount = useCallback(() => {
+    const width = window.innerWidth;
+    if (width < 640) setVisibleCount(2);
+    else if (width < 768) setVisibleCount(3);
+    else if (width < 1024) setVisibleCount(4);
+    else setVisibleCount(5);
   }, []);
+
+  useEffect(() => {
+    updateVisibleCount();
+    window.addEventListener("resize", updateVisibleCount);
+    return () => window.removeEventListener("resize", updateVisibleCount);
+  }, [updateVisibleCount]);
+
+  const maxIndex = Math.max(0, categories.length - visibleCount);
 
   // Auto-slide every 3 seconds
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || isPaused) return;
+    if (isPaused || maxIndex === 0) return;
 
     const interval = setInterval(() => {
-      const maxScroll = el.scrollWidth - el.clientWidth;
-      if (el.scrollLeft >= maxScroll - 2) {
-        // Reset to start
-        el.scrollTo({ left: 0, behavior: "smooth" });
-      } else {
-        // Slide by one card width + gap
-        const cardWidth = el.querySelector<HTMLElement>(":scope > a")?.offsetWidth ?? 240;
-        el.scrollBy({ left: cardWidth + 16, behavior: "smooth" });
-      }
+      setCurrentIndex((prev) => (prev >= maxIndex ? 0 : prev + 1));
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [isPaused]);
+  }, [isPaused, maxIndex]);
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    checkScroll();
-    el.addEventListener("scroll", checkScroll, { passive: true });
-    window.addEventListener("resize", checkScroll);
-    return () => {
-      el.removeEventListener("scroll", checkScroll);
-      window.removeEventListener("resize", checkScroll);
-    };
-  }, [checkScroll]);
-
-  const scroll = (direction: "left" | "right") => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const cardWidth = el.querySelector<HTMLElement>(":scope > a")?.offsetWidth ?? 240;
-    el.scrollBy({
-      left: direction === "left" ? -(cardWidth + 16) : cardWidth + 16,
-      behavior: "smooth",
+  const slide = (direction: "left" | "right") => {
+    setCurrentIndex((prev) => {
+      if (direction === "left") return Math.max(0, prev - 1);
+      return Math.min(maxIndex, prev + 1);
     });
+  };
+
+  // Calculate translateX percentage based on currentIndex
+  const gap = 16; // gap-4 = 16px
+  const getTranslateX = () => {
+    if (!trackRef.current) return "0px";
+    const containerWidth = trackRef.current.parentElement?.clientWidth ?? 0;
+    const cardWidth = (containerWidth - gap * (visibleCount - 1)) / visibleCount;
+    return `${-(currentIndex * (cardWidth + gap))}px`;
   };
 
   return (
@@ -79,48 +74,53 @@ export function CategorySlider({ categories }: CategorySliderProps) {
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      {/* Scroll container */}
-      <div
-        ref={scrollRef}
-        className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-      >
-        {categories.map((cat) => (
-          <Link
-            key={cat.id}
-            href={`/categories/${cat.slug}`}
-            className="group relative shrink-0 w-[45%] sm:w-[30%] md:w-[22%] lg:w-[18%] aspect-[3/4] rounded-xl overflow-hidden bg-secondary snap-start"
-          >
-            {cat.image && (
-              <Image
-                src={cat.image}
-                alt={cat.name}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                sizes="(max-width: 640px) 45vw, (max-width: 768px) 30vw, (max-width: 1024px) 22vw, 18vw"
-              />
-            )}
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            {/* Text overlay */}
-            <div className="absolute bottom-0 left-0 right-0 p-4">
-              <h3 className="text-white font-bold text-sm md:text-base leading-tight">
-                {cat.name}
-              </h3>
-              <p className="text-white/70 text-xs mt-1">
-                {cat._count.products} {cat._count.products === 1 ? "product" : "products"}
-              </p>
-            </div>
-          </Link>
-        ))}
+      {/* Overflow wrapper */}
+      <div className="overflow-hidden">
+        <div
+          ref={trackRef}
+          className="flex gap-4 transition-transform duration-700 ease-in-out"
+          style={{ transform: `translateX(${getTranslateX()})` }}
+        >
+          {categories.map((cat) => (
+            <Link
+              key={cat.id}
+              href={`/categories/${cat.slug}`}
+              className="group relative shrink-0 aspect-[3/4] rounded-xl overflow-hidden bg-secondary"
+              style={{
+                width: `calc((100% - ${gap * (visibleCount - 1)}px) / ${visibleCount})`,
+              }}
+            >
+              {cat.image && (
+                <Image
+                  src={cat.image}
+                  alt={cat.name}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                />
+              )}
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              {/* Text overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-4">
+                <h3 className="text-white font-bold text-sm md:text-base leading-tight">
+                  {cat.name}
+                </h3>
+                <p className="text-white/70 text-xs mt-1">
+                  {cat._count.products} {cat._count.products === 1 ? "product" : "products"}
+                </p>
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Navigation arrows */}
       <button
-        onClick={() => scroll("left")}
+        onClick={() => slide("left")}
         className={cn(
           "absolute left-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/90 backdrop-blur shadow-md flex items-center justify-center transition-all",
-          canScrollLeft
+          currentIndex > 0
             ? "opacity-0 group-hover/slider:opacity-100 hover:bg-white hover:scale-110"
             : "opacity-0 pointer-events-none"
         )}
@@ -130,10 +130,10 @@ export function CategorySlider({ categories }: CategorySliderProps) {
       </button>
 
       <button
-        onClick={() => scroll("right")}
+        onClick={() => slide("right")}
         className={cn(
           "absolute right-2 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/90 backdrop-blur shadow-md flex items-center justify-center transition-all",
-          canScrollRight
+          currentIndex < maxIndex
             ? "opacity-0 group-hover/slider:opacity-100 hover:bg-white hover:scale-110"
             : "opacity-0 pointer-events-none"
         )}
