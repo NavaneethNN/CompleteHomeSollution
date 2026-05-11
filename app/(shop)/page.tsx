@@ -3,9 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import {
-  ArrowRight, ChevronRight, Star, Heart,
+  ArrowRight, Star, Heart,
   Award, Truck, ShieldCheck, Headphones,
-  Armchair, BedDouble, UtensilsCrossed, Monitor, Flower2,
   RotateCcw, BadgeCheck, Tag, Leaf,
 } from "lucide-react";
 
@@ -20,13 +19,6 @@ const FEATURES = [
   { icon: Headphones,  title: "24/7 Support",      sub: "Dedicated support whenever you need" },
 ];
 
-const CATEGORIES = [
-  { icon: Armchair,        label: "Living Room",     href: "/products",     img: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=400&q=80" },
-  { icon: BedDouble,       label: "Bedroom",         href: "/products",     img: "https://images.unsplash.com/photo-1505693314120-0d443867891c?auto=format&fit=crop&w=400&q=80" },
-  { icon: UtensilsCrossed, label: "Dining Room",     href: "/products",     img: "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=400&q=80" },
-  { icon: Monitor,         label: "Office Furniture",href: "/products",     img: "https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?auto=format&fit=crop&w=400&q=80" },
-  { icon: Flower2,         label: "Storage",         href: "/products",     img: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=400&q=80" },
-];
 
 const TRUST = [
   { icon: RotateCcw,   title: "7 Days Easy Returns",      sub: "Hassle-free returns" },
@@ -36,6 +28,13 @@ const TRUST = [
 ];
 
 /* ─── Data Fetching ─────────────────────────────────────────────────── */
+
+async function getCategories() {
+  return db.category.findMany({
+    include: { _count: { select: { products: true } } },
+    orderBy: { name: "asc" },
+  });
+}
 
 async function getTrendingProducts() {
   const products = await db.product.findMany({
@@ -112,7 +111,10 @@ function StarRating({ rating, count }: { rating: number; count: number }) {
 /* ─── Page ──────────────────────────────────────────────────────────── */
 
 export default async function HomePage() {
-  const trendingProducts = await getTrendingProducts();
+  const [trendingProducts, categories] = await Promise.all([
+    getTrendingProducts(),
+    getCategories(),
+  ]);
 
   return (
     <div>
@@ -208,24 +210,31 @@ export default async function HomePage() {
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <SectionHeading tag="BROWSE BY CATEGORY" title="Shop By Category" />
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {CATEGORIES.map(({ icon: Icon, label, href, img }) => (
-              <Link key={label} href={href} className="group block">
-                {/* Chip */}
-                <div className="flex items-center gap-2 border border-border rounded-full px-3.5 py-2 mb-3 bg-white group-hover:border-primary group-hover:bg-primary/5 transition-colors">
-                  <Icon className="h-4 w-4 text-primary shrink-0" />
-                  <span className="text-xs font-semibold text-foreground group-hover:text-primary truncate transition-colors">
-                    {label}
-                  </span>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground ml-auto shrink-0" />
-                </div>
-                {/* Image */}
-                <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-secondary">
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/categories/${cat.slug}`}
+                className="group relative block aspect-[3/4] rounded-xl overflow-hidden bg-secondary"
+              >
+                {cat.image && (
                   <Image
-                    src={img}
-                    alt={label}
+                    src={cat.image}
+                    alt={cat.name}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 768px) 50vw, 20vw"
                   />
+                )}
+                {/* Gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                {/* Text overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <h3 className="text-white font-bold text-sm md:text-base leading-tight">
+                    {cat.name}
+                  </h3>
+                  <p className="text-white/70 text-xs mt-1">
+                    {cat._count.products} {cat._count.products === 1 ? "product" : "products"}
+                  </p>
                 </div>
               </Link>
             ))}
