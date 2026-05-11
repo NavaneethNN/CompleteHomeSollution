@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { CategorySlider } from "@/components/shop/category-slider";
 import {
   ArrowRight, Star, Heart,
   Award, Truck, ShieldCheck, Headphones,
@@ -209,36 +210,7 @@ export default async function HomePage() {
       <section className="py-10 md:py-16 bg-white">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <SectionHeading tag="BROWSE BY CATEGORY" title="Shop By Category" />
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/categories/${cat.slug}`}
-                className="group relative block aspect-[3/4] rounded-xl overflow-hidden bg-secondary"
-              >
-                {cat.image && (
-                  <Image
-                    src={cat.image}
-                    alt={cat.name}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    sizes="(max-width: 768px) 50vw, 20vw"
-                  />
-                )}
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                {/* Text overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-4">
-                  <h3 className="text-white font-bold text-sm md:text-base leading-tight">
-                    {cat.name}
-                  </h3>
-                  <p className="text-white/70 text-xs mt-1">
-                    {cat._count.products} {cat._count.products === 1 ? "product" : "products"}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <CategorySlider categories={categories} />
         </div>
       </section>
 
