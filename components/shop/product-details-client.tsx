@@ -47,6 +47,7 @@ interface ProductDetailsClientProps {
     id: string;
     name: string;
     sku: string;
+    slug: string;
     basePrice: number;
     comparePrice: number | null;
     memberPrice: number | null;
@@ -148,8 +149,17 @@ export function ProductDetailsClient({
 
         {/* Add to Cart */}
         <AddToCartButton
-          productId={product.id}
-          variantId={selectedVariant?.id}
+          product={{
+            id: product.id,
+            name: product.name,
+            slug: product.slug,
+            price: displayPrice,
+            memberPrice: displayMemberPrice,
+            images: displayImages,
+            stock: displayStock,
+            description: product.description,
+            variantId: selectedVariant?.id ?? null,
+          }}
           disabled={displayStock === 0}
           hasVariants={true}
         />

@@ -5,6 +5,7 @@ import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCartStore } from "@/store/cart";
 import {
   Search, ShoppingBag, Heart, User, ChevronDown, ChevronRight,
   Menu, X, Armchair, BedDouble, UtensilsCrossed, Monitor, Flower2,
@@ -98,7 +99,9 @@ export function Navbar() {
   const { data: session } = useSession();
   const isLoggedIn = !!session?.user;
   const user       = session?.user;
-  const cartCount  = 0; /* swap with useCartStore(s => s.items.reduce(...)) */
+  const cartCount  = useCartStore((state) =>
+    state.items.reduce((total, item) => total + item.quantity, 0)
+  );
 
   /* scroll shadow */
   useEffect(() => {
