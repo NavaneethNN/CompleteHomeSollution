@@ -1,15 +1,22 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, Layers } from "lucide-react";
+import { ShoppingCart, Layers, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCartStore } from "@/store/cart";
+import {
+  ProductPopupModal,
+  type ProductPopupModalProduct,
+} from "./product-popup-modal";
 
 interface ProductCardProps {
   product: {
     id: string;
     name: string;
     slug: string;
+    description: string;
     basePrice: number;
     comparePrice: number | null;
     memberPrice: number | null;
@@ -32,6 +39,7 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, isMember = false }: ProductCardProps) {
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
   // Use variant price if available, otherwise use base price
   const displayPrice = product.variant?.price ?? product.basePrice;
   const displayComparePrice = product.variant?.comparePrice ?? product.comparePrice;
@@ -42,9 +50,35 @@ export function ProductCard({ product, isMember = false }: ProductCardProps) {
   const discountPercent = hasDiscount
     ? Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)
     : 0;
+  const cartVariantId = product.variant?.id ?? null;
+  const isInCart = useCartStore((state) => state.isInCart(product.id, cartVariantId));
+  const addItem = useCartStore((state) => state.addItem);
+
+  const popupProduct: ProductPopupModalProduct = {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    price: displayPrice,
+    memberPrice: displayMemberPrice,
+    images: [displayImage],
+    stock: displayStock,
+    description: product.description,
+    variantId: cartVariantId,
+  };
+
+  const handleConfirm = (quantity: number) => {
+    addItem(
+      {
+        ...popupProduct,
+        variantLabel: product.variant ? "Selected option" : undefined,
+      },
+      quantity
+    );
+  };
 
   return (
-    <div className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300">
+    <>
+      <div className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300">
       {/* Image Container */}
       <Link href={`/products/${product.slug}`} className="block relative aspect-[4/3] bg-muted overflow-hidden">
         <Image
@@ -77,21 +111,6 @@ export function ProductCard({ product, isMember = false }: ProductCardProps) {
               Out of Stock
             </span>
           </div>
-        )}
-
-        {/* Quick Add Button */}
-        {displayStock > 0 && !product.hasVariants && (
-          <button
-            className={cn(
-              "absolute bottom-3 right-3 w-10 h-10 rounded-full bg-white shadow-lg",
-              "flex items-center justify-center",
-              "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-              "hover:bg-primary hover:text-white"
-            )}
-            aria-label="Add to cart"
-          >
-            <ShoppingCart className="w-4 h-4" />
-          </button>
         )}
       </Link>
 
@@ -152,7 +171,32 @@ export function ProductCard({ product, isMember = false }: ProductCardProps) {
             {product.reviewCount} {product.reviewCount === 1 ? "review" : "reviews"}
           </p>
         )}
+
+        <button
+          type="button"
+          onClick={() => setIsPopupOpen(true)}
+          disabled={displayStock === 0}
+          className={cn(
+            "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200",
+            displayStock === 0
+              ? "cursor-not-allowed bg-muted text-muted-foreground"
+              : isInCart
+              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
+              : "bg-primary text-white shadow-md hover:bg-primary/90"
+          )}
+        >
+          {displayStock === 0 ? null : isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+          {displayStock === 0 ? "Out of Stock" : isInCart ? "Added to Cart" : "Add to Cart"}
+        </button>
       </div>
-    </div>
+      </div>
+
+      <ProductPopupModal
+        open={isPopupOpen}
+        onOpenChange={setIsPopupOpen}
+        product={popupProduct}
+        onConfirm={handleConfirm}
+      />
+    </>
   );
 }

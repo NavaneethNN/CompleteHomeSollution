@@ -6,9 +6,12 @@ export interface CartProduct {
   name: string;
   slug: string;
   price: number;
-  memberPrice?: number;
+  memberPrice?: number | null;
   images: string[];
   stock: number;
+  description?: string;
+  variantId?: string | null;
+  variantLabel?: string;
 }
 
 export interface CartItem {
@@ -19,12 +22,17 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   addItem: (product: CartProduct, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string, variantId?: string | null) => void;
+  updateQuantity: (productId: string, quantity: number, variantId?: string | null) => void;
   clearCart: () => void;
   getTotalItems: () => number;
   getSubtotal: (isMember?: boolean) => number;
+  getItemQuantity: (productId: string, variantId?: string | null) => number;
+  isInCart: (productId: string, variantId?: string | null) => boolean;
 }
+
+const getCartItemKey = (productId: string, variantId?: string | null) =>
+  `${productId}:${variantId ?? "default"}`;
 
 export const useCartStore = create<CartState>()(
   persist(
@@ -33,47 +41,61 @@ export const useCartStore = create<CartState>()(
 
       addItem: (product, quantity = 1) => {
         set((state) => {
-          const existing = state.items.find((i) => i.product.id === product.id);
+          const key = getCartItemKey(product.id, product.variantId ?? null);
+          const existing = state.items.find(
+            (item) => getCartItemKey(item.product.id, item.product.variantId ?? null) === key
+          );
+
           if (existing) {
             return {
-              items: state.items.map((i) =>
-                i.product.id === product.id
+              items: state.items.map((item) =>
+                getCartItemKey(item.product.id, item.product.variantId ?? null) === key
                   ? {
-                      ...i,
-                      quantity: Math.min(
-                        i.quantity + quantity,
-                        product.stock
-                      ),
+                      ...item,
+                      quantity: Math.min(item.quantity + quantity, item.product.stock),
                     }
-                  : i
+                  : item
               ),
             };
           }
+
           return {
             items: [
               ...state.items,
-              { product, quantity: Math.min(quantity, product.stock) },
+              {
+                product: {
+                  ...product,
+                  variantId: product.variantId ?? null,
+                },
+                quantity: Math.min(quantity, product.stock),
+              },
             ],
           };
         });
       },
 
-      removeItem: (productId) => {
+      removeItem: (productId, variantId = null) => {
         set((state) => ({
-          items: state.items.filter((i) => i.product.id !== productId),
+          items: state.items.filter(
+            (item) =>
+              getCartItemKey(item.product.id, item.product.variantId ?? null) !==
+              getCartItemKey(productId, variantId)
+          ),
         }));
       },
 
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (productId, quantity, variantId = null) => {
         if (quantity <= 0) {
-          get().removeItem(productId);
+          get().removeItem(productId, variantId);
           return;
         }
+
         set((state) => ({
-          items: state.items.map((i) =>
-            i.product.id === productId
-              ? { ...i, quantity: Math.min(quantity, i.product.stock) }
-              : i
+          items: state.items.map((item) =>
+            getCartItemKey(item.product.id, item.product.variantId ?? null) ===
+            getCartItemKey(productId, variantId)
+              ? { ...item, quantity: Math.min(quantity, item.product.stock) }
+              : item
           ),
         }));
       },
@@ -91,6 +113,16 @@ export const useCartStore = create<CartState>()(
               : item.product.price;
           return total + price * item.quantity;
         }, 0),
+
+      getItemQuantity: (productId, variantId = null) =>
+        get().items.find(
+          (item) =>
+            getCartItemKey(item.product.id, item.product.variantId ?? null) ===
+            getCartItemKey(productId, variantId)
+        )?.quantity ?? 0,
+
+      isInCart: (productId, variantId = null) =>
+        get().getItemQuantity(productId, variantId) > 0,
     }),
     {
       name: "chs-cart",
