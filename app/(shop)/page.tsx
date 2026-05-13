@@ -3,8 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { CategorySlider } from "@/components/shop/category-slider";
+import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
+import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 import {
-  ArrowRight, Star, Heart,
+  ArrowRight,
   Award, Truck, ShieldCheck, Headphones,
   RotateCcw, BadgeCheck, Tag, Leaf,
 } from "lucide-react";
@@ -31,56 +33,111 @@ const TRUST = [
 /* ─── Data Fetching ─────────────────────────────────────────────────── */
 
 async function getCategories() {
-  return db.category.findMany({
-    include: { _count: { select: { products: true } } },
-    orderBy: { name: "asc" },
-  });
+  try {
+    const categories = await db.category.findMany({
+      include: { _count: { select: { products: true } } },
+      orderBy: { name: "asc" },
+    });
+
+    return categories.length > 0 ? categories : fallbackCategories;
+  } catch {
+    return fallbackCategories;
+  }
 }
 
 async function getTrendingProducts() {
-  const products = await db.product.findMany({
-    where: { isActive: true },
-    include: {
-      category: { select: { name: true } },
-      productVariants: {
-        where: { isActive: true },
-        include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
-        orderBy: { price: "asc" },
-        take: 1,
+  try {
+    const products = await db.product.findMany({
+      where: { isActive: true },
+      include: {
+        category: { select: { name: true, slug: true } },
+        productVariants: {
+          where: { isActive: true },
+          include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
+          orderBy: { price: "asc" },
+          take: 1,
+        },
+        _count: { select: { reviews: true } },
       },
-      _count: { select: { reviews: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 4,
+    });
 
-  return products.map((p) => {
-    const variant = p.hasVariants && p.productVariants[0] ? p.productVariants[0] : null;
-    const price = variant?.price ?? p.basePrice;
-    const comparePrice = variant?.comparePrice ?? p.comparePrice;
-    const image = variant?.images[0]?.url ?? p.images[0];
+    if (products.length === 0) {
+      return fallbackProducts.slice(0, 4).map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        price: p.basePrice,
+        originalPrice: p.comparePrice ?? p.basePrice,
+        discount: p.comparePrice && p.comparePrice > p.basePrice
+          ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%`
+          : null,
+        rating: 4.5,
+        reviews: p.reviewCount,
+        img: p.images[0],
+        description: p.description,
+        memberPrice: p.memberPrice,
+        stock: p.stock,
+        category: p.category,
+      }));
+    }
 
-    const discount = comparePrice && comparePrice > price 
-      ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%`
-      : null;
+    return products.map((p) => {
+      const variant = p.hasVariants && p.productVariants[0] ? p.productVariants[0] : null;
+      const price = variant?.price ?? p.basePrice;
+      const comparePrice = variant?.comparePrice ?? p.comparePrice;
+      const image = variant?.images[0]?.url ?? p.images[0];
 
-    return {
+      const discount = comparePrice && comparePrice > price 
+        ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%`
+        : null;
+
+      return {
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        price,
+        originalPrice: comparePrice || price,
+        discount,
+        rating: 4.5, // Could be calculated from reviews
+        reviews: p._count.reviews,
+        img: image,
+        description: p.description,
+        memberPrice: p.memberPrice,
+        stock: p.stock,
+        category: p.category,
+      };
+    });
+  } catch {
+    return fallbackProducts.slice(0, 4).map((p) => ({
       id: p.id,
       name: p.name,
       slug: p.slug,
-      price,
-      originalPrice: comparePrice || price,
-      discount,
-      rating: 4.5, // Could be calculated from reviews
-      reviews: p._count.reviews,
-      img: image,
-    };
-  });
+      price: p.basePrice,
+      originalPrice: p.comparePrice ?? p.basePrice,
+      discount: p.comparePrice && p.comparePrice > p.basePrice
+        ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%`
+        : null,
+      rating: 4.5,
+      reviews: p.reviewCount,
+      img: p.images[0],
+      description: p.description,
+      memberPrice: p.memberPrice,
+      stock: p.stock,
+      category: p.category,
+    }));
+  }
 }
 
 /* ─── Sub-components ────────────────────────────────────────────────── */
 
-function SectionHeading({ tag, title }: { tag: string; title: string }) {
+interface SectionHeadingProps {
+  readonly tag: string;
+  readonly title: string;
+}
+
+function SectionHeading({ tag, title }: SectionHeadingProps) {
   return (
     <div className="text-center mb-10">
       <p className="text-sm font-semibold tracking-widest text-primary uppercase mb-2">{tag}</p>
@@ -93,17 +150,25 @@ function SectionHeading({ tag, title }: { tag: string; title: string }) {
   );
 }
 
-function StarRating({ rating, count }: { rating: number; count: number }) {
+interface StarRatingProps {
+  readonly rating: number;
+  readonly count: number;
+}
+
+function StarRating({ rating, count }: StarRatingProps) {
+  const starClassName = (value: number) => {
+    if (value <= Math.floor(rating)) return "fill-amber-400 text-amber-400";
+    if (value - 0.5 <= rating) return "fill-amber-400/50 text-amber-400";
+    return "text-muted-foreground/30";
+  };
+
+  const stars = [1, 2, 3, 4, 5].map((value) => (
+    <Star key={value} className={`h-3.5 w-3.5 ${starClassName(value)}`} />
+  ));
+
   return (
     <div className="flex items-center gap-1.5 mt-2">
-      <div className="flex">
-        {[1, 2, 3, 4, 5].map((s) => (
-          <Star
-            key={s}
-            className={`h-3.5 w-3.5 ${s <= Math.floor(rating) ? "fill-amber-400 text-amber-400" : s - 0.5 <= rating ? "fill-amber-400/50 text-amber-400" : "text-muted-foreground/30"}`}
-          />
-        ))}
-      </div>
+      <div className="flex">{stars}</div>
       <span className="text-xs text-muted-foreground">({count})</span>
     </div>
   );
@@ -295,46 +360,7 @@ export default async function HomePage() {
           <SectionHeading tag="TRENDING PRODUCTS" title="Popular Picks For You" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
             {trendingProducts.map((p) => (
-              <Link key={p.id} href={`/products/${p.slug}`} className="group block">
-                <div className="bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden">
-                  {/* Image */}
-                  <div className="relative aspect-square bg-secondary overflow-hidden">
-                    <Image
-                      src={p.img}
-                      alt={p.name}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    {/* Discount badge */}
-                    {p.discount && (
-                      <span className="absolute top-3 left-3 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full z-10">
-                        {p.discount}
-                      </span>
-                    )}
-                    {/* Wishlist */}
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow hover:text-primary transition-colors z-10">
-                      <Heart className="h-4 w-4" />
-                    </button>
-                  </div>
-                  {/* Info */}
-                  <div className="p-4">
-                    <h4 className="text-sm font-semibold text-foreground leading-snug line-clamp-2 mb-2">
-                      {p.name}
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-black text-foreground">
-                        ${p.price.toLocaleString()}
-                      </span>
-                      {p.originalPrice > p.price && (
-                        <span className="text-xs text-muted-foreground line-through">
-                          ${p.originalPrice.toLocaleString()}
-                        </span>
-                      )}
-                    </div>
-                    <StarRating rating={p.rating} count={p.reviews} />
-                  </div>
-                </div>
-              </Link>
+              <HomeTrendingProductCard key={p.id} product={p} />
             ))}
           </div>
 

@@ -53,7 +53,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: Readonly<CartItem
           </div>
         </div>
 
-        <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-4">
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:flex-col sm:items-end sm:justify-start sm:gap-4">
           <div className="flex items-center rounded-xl border border-border bg-secondary/40 shadow-sm">
             <button
               type="button"
@@ -83,7 +83,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: Readonly<CartItem
           <button
             type="button"
             onClick={onRemove}
-            className="inline-flex items-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white"
+            className="inline-flex min-w-0 flex-1 items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white sm:flex-none"
           >
             <Trash2 className="h-4 w-4" />
             Remove
