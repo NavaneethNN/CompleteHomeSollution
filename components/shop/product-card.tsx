@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { ShoppingCart, Layers, Check, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cart";
+import { WishlistToggleButton } from "./wishlist-toggle-button";
 import {
   ProductPopupModal,
   type ProductPopupModalProduct,
@@ -88,6 +89,22 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
     variantId: cartVariantId,
   };
 
+  const wishlistProduct = {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    price: displayPrice,
+    comparePrice: displayComparePrice,
+    memberPrice: displayMemberPrice,
+    images: [displayImage],
+    stock: displayStock,
+    description: product.description,
+    material: product.material,
+    category: product.category,
+    variantId: cartVariantId,
+    variantLabel: product.variant ? "Selected option" : undefined,
+  };
+
   const handleConfirm = (quantity: number) => {
     let variantLabel: string | undefined;
     if (product.variant) {
@@ -127,17 +144,19 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
     <>
       <div className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300">
       {/* Image Container */}
-      <Link href={`/products/${product.slug}`} className="block relative aspect-[4/3] bg-muted overflow-hidden">
-        <Image
-          src={displayImage}
-          alt={product.name}
-          fill
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
-          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-        />
-        
+      <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+        <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
+          <Image
+            src={displayImage}
+            alt={product.name}
+            fill
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
+          />
+        </Link>
+
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-2">
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
           {hasDiscount && (
             <span className="px-2 py-1 bg-destructive text-white text-xs font-semibold rounded-md">
               -{discountPercent}%
@@ -151,15 +170,20 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
           )}
         </div>
 
+        <WishlistToggleButton
+          product={wishlistProduct}
+          className="absolute top-3 right-3 z-10 h-9 w-9"
+        />
+
         {/* Out of Stock Overlay */}
         {displayStock === 0 && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="absolute inset-0 z-0 flex items-center justify-center bg-black/50">
             <span className="px-4 py-2 bg-white text-foreground font-semibold rounded-lg">
               Out of Stock
             </span>
           </div>
         )}
-      </Link>
+      </div>
 
       {/* Content */}
       <div className="p-4">

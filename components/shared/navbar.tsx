@@ -52,17 +52,19 @@ function useClickOutside(
 
 /* ─── NavLink helper ──────────────────────────────────────────────── */
 
+interface NavItemProps {
+  readonly href: string;
+  readonly active: boolean;
+  readonly children: React.ReactNode;
+  readonly className?: string;
+}
+
 function NavItem({
   href,
   active,
   children,
   className = "",
-}: {
-  href: string;
-  active: boolean;
-  children: React.ReactNode;
-  className?: string;
-}) {
+}: NavItemProps) {
   return (
     <Link
       href={href}
@@ -150,7 +152,7 @@ export function Navbar() {
   /* search submit */
   const handleSearch = (q: string) => {
     if (q.trim()) {
-      window.location.href = `/search?q=${encodeURIComponent(q.trim())}`;
+      globalThis.location.href = `/search?q=${encodeURIComponent(q.trim())}`;
     }
   };
 
@@ -184,13 +186,9 @@ export function Navbar() {
               <NavItem href="/products" active={pathname.startsWith("/products")}>SHOP</NavItem>
 
               {/* Categories mega-menu */}
-              <div
-                ref={catsRef}
-                className="relative"
-                onMouseEnter={() => { setCatsOpen(true); setUserOpen(false); setSearchOpen(false); }}
-                onMouseLeave={() => setCatsOpen(false)}
-              >
+              <div ref={catsRef} className="relative">
                 <button
+                  type="button"
                   onClick={() => { setCatsOpen(!catsOpen); setUserOpen(false); setSearchOpen(false); }}
                   aria-expanded={catsOpen}
                   aria-haspopup="true"
@@ -293,9 +291,10 @@ export function Navbar() {
 
             {/* ── Wishlist ────────────────────────────────── */}
             <Link
-              href="/account/dashboard"
+              href="/wishlist"
               aria-label="Wishlist"
-              className="hidden md:flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center text-foreground hover:text-primary transition-colors"
+              className={`hidden md:flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center transition-colors relative
+                ${pathname.startsWith("/wishlist") ? "text-primary" : "text-foreground hover:text-primary"}`}
             >
               <Heart className="h-[18px] w-[18px]" />
             </Link>
@@ -515,6 +514,19 @@ export function Navbar() {
               Membership
             </span>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+
+          <Link
+            href="/wishlist"
+            className={`flex items-center justify-between px-3.5 py-3.5 rounded-xl text-sm font-semibold mb-0.5 transition-colors
+              ${pathname.startsWith("/wishlist") ? "bg-primary/8 text-primary" : "text-foreground hover:bg-secondary"}`}
+          >
+            <span className="flex items-center gap-2">
+              Wishlist
+            </span>
+            <span className="flex items-center gap-2">
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </span>
           </Link>
 
           <div className="mx-1 my-3 h-px bg-border" />

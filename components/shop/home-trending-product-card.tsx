@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, ShoppingCart, Zap } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import { cn } from "@/lib/utils";
+import { WishlistToggleButton } from "./wishlist-toggle-button";
 
 interface HomeTrendingProductCardProps {
   readonly product: {
@@ -90,29 +91,48 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
     ? "cursor-not-allowed border border-border bg-muted text-muted-foreground"
     : "border border-primary bg-primary/10 text-primary hover:bg-primary hover:text-white";
 
+  const wishlistProduct = {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    price: product.price,
+    comparePrice: product.originalPrice,
+    memberPrice: product.memberPrice,
+    images: [product.img],
+    stock: product.stock,
+    description: product.description,
+    category: product.category,
+  };
+
   return (
     <div className="group block">
       <div className="bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden">
-        <Link href={`/products/${product.slug}`} className="relative block aspect-square bg-secondary overflow-hidden">
+        <div className="relative aspect-square bg-secondary overflow-hidden">
+          <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
           <Image
             src={product.img}
             alt={product.name}
             fill
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
+          </Link>
           {product.discount && (
-            <span className="absolute top-3 left-3 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full z-10">
+            <span className="absolute top-3 left-3 z-10 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
               {product.discount}
             </span>
           )}
+          <WishlistToggleButton
+            product={wishlistProduct}
+            className="absolute top-3 right-3 z-10 h-9 w-9"
+          />
           {outOfStock && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+            <div className="absolute inset-0 z-0 flex items-center justify-center bg-black/50">
               <span className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-foreground">
                 Out of Stock
               </span>
             </div>
           )}
-        </Link>
+        </div>
 
         <div className="p-4">
           <Link href={`/categories/${product.category.slug}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">
@@ -170,3 +190,4 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
     </div>
   );
 }
+
