@@ -55,16 +55,16 @@ export function WishlistItem({ product }: WishlistItemProps) {
 
   return (
     <>
-      <article className="rounded-2xl border border-border bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <article className="h-full rounded-2xl border border-border bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-5">
+        <div className="flex h-full flex-col gap-4">
           <Link
             href={`/products/${product.slug}`}
-            className="relative block aspect-square w-full overflow-hidden rounded-xl bg-muted sm:h-28 sm:w-28 sm:flex-shrink-0"
+            className="relative block aspect-[4/3] w-full overflow-hidden rounded-xl bg-muted"
           >
-            <Image src={image} alt={product.name} fill className="object-cover" sizes="112px" />
+            <Image src={image} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw" />
           </Link>
 
-          <div className="flex-1 space-y-3">
+          <div className="flex flex-1 flex-col space-y-3">
             <div className="flex flex-col gap-1">
               <Link href={`/products/${product.slug}`} className="text-base font-bold text-foreground transition-colors hover:text-primary">
                 {product.name}
@@ -94,7 +94,7 @@ export function WishlistItem({ product }: WishlistItemProps) {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="mt-auto flex flex-wrap items-center gap-2 text-sm">
               <button
                 type="button"
                 onClick={() => {

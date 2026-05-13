@@ -41,7 +41,7 @@ export function WishlistPage() {
           </button>
         </div>
 
-        <section className="space-y-4">
+        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
           {items.map((product) => (
             <WishlistItem key={`${product.id}:${product.variantId ?? "default"}`} product={product} />
           ))}
