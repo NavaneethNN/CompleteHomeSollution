@@ -16,7 +16,7 @@ export function CartPage() {
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
-  const clearCart = useCartStore((state) => state.clearCart);
+  
 
   const subtotal = useMemo(
     () => items.reduce((total, item) => total + item.product.price * item.quantity, 0),
@@ -78,13 +78,7 @@ export function CartPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={clearCart}
-            className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-          >
-            Clear Cart
-          </button>
+          {/* Clear Cart option removed */}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
