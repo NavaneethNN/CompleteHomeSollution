@@ -8,7 +8,6 @@ import { WishlistEmptyState } from "./wishlist-empty-state";
 
 export function WishlistPage() {
   const items = useWishlistStore((state) => state.items);
-  const clearWishlist = useWishlistStore((state) => state.clearWishlist);
 
   if (items.length === 0) {
     return (
@@ -23,22 +22,14 @@ export function WishlistPage() {
   return (
     <main className="bg-background py-8 md:py-12">
       <div className="container mx-auto px-4 md:px-6 xl:px-8">
-        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="mb-8">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Wishlist</p>
             <h1 className="mt-2 text-3xl font-black text-foreground md:text-5xl">Your saved products</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Keep track of the products you love, move them to cart when you’re ready, or remove them anytime.
+              Keep track of the products you love, move them to cart when you're ready, or remove them anytime.
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={clearWishlist}
-            className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-          >
-            Clear Wishlist
-          </button>
         </div>
 
         <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
