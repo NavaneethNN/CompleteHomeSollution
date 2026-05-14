@@ -3,76 +3,66 @@
 import { useState } from "react";
 import { ShoppingCart, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCartStore } from "@/store/cart";
+import {
+  ProductPopupModal,
+  type ProductPopupModalProduct,
+} from "./product-popup-modal";
 
 interface AddToCartButtonProps {
-  productId: string;
-  variantId?: string;
+  product: ProductPopupModalProduct;
   disabled?: boolean;
   hasVariants?: boolean;
 }
 
 export function AddToCartButton({
-  productId,
-  variantId,
+  product,
   disabled = false,
   hasVariants = false,
 }: AddToCartButtonProps) {
-  const [isAdded, setIsAdded] = useState(false);
-  const [quantity, setQuantity] = useState(1);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const isAdded = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
+  const addItem = useCartStore((state) => state.addItem);
 
-  const handleAddToCart = () => {
-    console.log("Adding to cart:", { productId, variantId, quantity });
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 2000);
+  const handleConfirm = (quantity: number) => {
+    addItem(product, quantity);
   };
 
   return (
-    <div className="flex items-center gap-3">
-      {/* Quantity Selector - Compact */}
-      <div className="flex items-center border border-border rounded-lg">
-        <button
-          onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-          className="px-3 py-2.5 hover:bg-muted transition-colors text-sm"
-          disabled={disabled}
-        >
-          -
-        </button>
-        <span className="px-3 py-2.5 font-medium min-w-[2.5rem] text-center text-sm">{quantity}</span>
-        <button
-          onClick={() => setQuantity((q) => q + 1)}
-          className="px-3 py-2.5 hover:bg-muted transition-colors text-sm"
-          disabled={disabled}
-        >
-          +
-        </button>
-      </div>
-
-      {/* Add to Cart Button - Compact */}
+    <>
       <button
-        onClick={handleAddToCart}
+        onClick={() => setIsPopupOpen(true)}
         disabled={disabled}
         className={cn(
-          "flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all duration-200",
+          "inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200",
           "flex items-center justify-center gap-2",
           disabled
-            ? "bg-muted text-muted-foreground cursor-not-allowed"
+            ? "cursor-not-allowed bg-muted text-muted-foreground"
             : isAdded
-            ? "bg-green-600 text-white"
-            : "bg-primary text-primary-foreground hover:bg-primary/90"
+            ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
+            : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-md"
         )}
       >
         {isAdded ? (
           <>
             <Check className="w-4 h-4" />
-            Added!
+            Added to Cart
           </>
         ) : (
           <>
             <ShoppingCart className="w-4 h-4" />
-            {disabled ? "Out of Stock" : "Add to Cart"}
+            {disabled ? "Out of Stock" : hasVariants ? "Choose Options" : "Add to Cart"}
           </>
         )}
       </button>
-    </div>
+
+      <ProductPopupModal
+        open={isPopupOpen}
+        onOpenChange={setIsPopupOpen}
+        product={product}
+        onConfirm={handleConfirm}
+        confirmLabel={hasVariants ? "Add Selected Item" : "Add to Cart"}
+      />
+    </>
   );
 }

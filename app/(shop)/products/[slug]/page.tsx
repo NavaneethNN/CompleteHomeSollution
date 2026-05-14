@@ -83,9 +83,9 @@ export async function generateMetadata({
 
 export default async function ProductDetailPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ slug: string }>;
-}) {
+}>) {
   const { slug } = await params;
   const product = await getProduct(slug);
 
@@ -95,10 +95,6 @@ export default async function ProductDetailPage({
 
   // Default to first variant if product has variants
   const defaultVariant = product.hasVariants ? product.productVariants[0] : null;
-  const displayImages = defaultVariant?.images.map((i) => i.url) ?? product.images;
-  const displayPrice = defaultVariant?.price ?? product.basePrice;
-  const displayComparePrice = defaultVariant?.comparePrice ?? product.comparePrice;
-  const displayMemberPrice = defaultVariant?.memberPrice ?? product.memberPrice;
 
   return (
     <main className="min-h-screen bg-background">
@@ -121,6 +117,7 @@ export default async function ProductDetailPage({
               id: product.id,
               name: product.name,
               sku: product.sku,
+              slug: product.slug,
               basePrice: product.basePrice,
               comparePrice: product.comparePrice,
               memberPrice: product.memberPrice,
@@ -155,7 +152,20 @@ export default async function ProductDetailPage({
                 <span>SKU: {product.sku}</span>
                 {product.stock > 0 ? <span className="text-green-600">● In Stock</span> : <span className="text-destructive">Out of Stock</span>}
               </div>
-              <AddToCartButton productId={product.id} disabled={product.stock === 0} hasVariants={false} />
+              <AddToCartButton
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  slug: product.slug,
+                  price: product.basePrice,
+                  memberPrice: product.memberPrice,
+                  images: product.images,
+                  stock: product.stock,
+                  description: product.description,
+                }}
+                disabled={product.stock === 0}
+                hasVariants={false}
+              />
             </div>
           </div>
         )}

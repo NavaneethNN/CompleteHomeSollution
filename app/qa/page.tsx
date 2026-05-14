@@ -22,6 +22,16 @@ export default async function QADashboardPage() {
     getSuiteStats("profile"),
   ]);
 
+  try {
+    // Non-sensitive runtime info for debugging: which DB host and counts
+    const url = process.env.DATABASE_URL ?? process.env.DATABASE_URL_UNPOOLED ?? "";
+    const hostMatch = url.match(/@(.*?)\//);
+    // eslint-disable-next-line no-console
+    console.log("[qa/dashboard] dbHost=", hostMatch ? hostMatch[1] : "(none)", "loginPassed=", loginStats.passed, "signupPassed=", signupStats.passed, "profilePassed=", profileStats.passed);
+  } catch (e) {
+    // ignore logging failures in production
+  }
+
   const statsMap = { login: loginStats, signup: signupStats, profile: profileStats };
 
   const suites: Suite[] = ["login", "signup", "profile"];
