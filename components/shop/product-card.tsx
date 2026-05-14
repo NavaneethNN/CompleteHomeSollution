@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ShoppingCart, Layers, Check, Zap } from "lucide-react";
+import { ShoppingCart, Layers, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cart";
 import {
@@ -13,36 +12,34 @@ import {
 } from "./product-popup-modal";
 
 interface ProductCardProps {
-  readonly product: {
-    readonly id: string;
-    readonly name: string;
-    readonly slug: string;
-    readonly description: string;
-    readonly basePrice: number;
-    readonly comparePrice: number | null;
-    readonly memberPrice: number | null;
-    readonly stock: number;
-    readonly images: string[];
-    readonly material: string | null;
-    readonly hasVariants: boolean;
-    readonly category: { name: string; slug: string };
-    readonly reviewCount: number;
-    readonly variant: {
-      readonly id: string;
-      readonly price: number;
-      readonly comparePrice: number | null;
-      readonly memberPrice: number | null;
-      readonly stock: number;
-      readonly image: string | undefined;
+  product: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    basePrice: number;
+    comparePrice: number | null;
+    memberPrice: number | null;
+    stock: number;
+    images: string[];
+    material: string | null;
+    hasVariants: boolean;
+    category: { name: string; slug: string };
+    reviewCount: number;
+    variant: {
+      id: string;
+      price: number;
+      comparePrice: number | null;
+      memberPrice: number | null;
+      stock: number;
+      image: string | undefined;
     } | null;
   };
-  readonly isMember?: boolean;
+  isMember?: boolean;
 }
 
-export function ProductCard(props: Readonly<ProductCardProps>) {
-  const { product, isMember = false } = props;
+export function ProductCard({ product, isMember = false }: ProductCardProps) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const router = useRouter();
   // Use variant price if available, otherwise use base price
   const displayPrice = product.variant?.price ?? product.basePrice;
   const displayComparePrice = product.variant?.comparePrice ?? product.comparePrice;
@@ -50,31 +47,12 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
   const displayStock = product.variant?.stock ?? product.stock;
   const displayImage = product.variant?.image ?? product.images[0] ?? "/placeholder.jpg";
   const hasDiscount = displayComparePrice && displayComparePrice > displayPrice;
-  let reviewLabel = "reviews";
-  if (product.reviewCount === 1) {
-    reviewLabel = "review";
-  }
-
-  let discountPercent = 0;
-  if (hasDiscount) {
-    discountPercent = Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100);
-  }
+  const discountPercent = hasDiscount
+    ? Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)
+    : 0;
   const cartVariantId = product.variant?.id ?? null;
   const isInCart = useCartStore((state) => state.isInCart(product.id, cartVariantId));
   const addItem = useCartStore((state) => state.addItem);
-  let addToCartButtonClassName = "bg-primary text-white shadow-md hover:bg-primary/90";
-  let addToCartIcon = <ShoppingCart className="h-4 w-4" />;
-  let addToCartLabel = "Add to Cart";
-
-  if (displayStock === 0) {
-    addToCartButtonClassName = "cursor-not-allowed bg-muted text-muted-foreground";
-    addToCartIcon = null;
-    addToCartLabel = "Out of Stock";
-  } else if (isInCart) {
-    addToCartButtonClassName = "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100";
-    addToCartIcon = <Check className="h-4 w-4" />;
-    addToCartLabel = "Added";
-  }
 
   const popupProduct: ProductPopupModalProduct = {
     id: product.id,
@@ -89,38 +67,13 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
   };
 
   const handleConfirm = (quantity: number) => {
-    let variantLabel: string | undefined;
-    if (product.variant) {
-      variantLabel = "Selected option";
-    }
-
     addItem(
       {
         ...popupProduct,
-        variantLabel,
+        variantLabel: product.variant ? "Selected option" : undefined,
       },
       quantity
     );
-  };
-
-  const handleBuyNow = () => {
-    if (displayStock === 0) {
-      return;
-    }
-
-    let variantLabel: string | undefined;
-    if (product.variant) {
-      variantLabel = "Selected option";
-    }
-
-    addItem(
-      {
-        ...popupProduct,
-        variantLabel,
-      },
-      1
-    );
-    router.push("/checkout");
   };
 
   return (
@@ -215,39 +168,26 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
         {/* Reviews */}
         {product.reviewCount > 0 && (
           <p className="mt-2 text-xs text-muted-foreground">
-            {product.reviewCount} {reviewLabel}
+            {product.reviewCount} {product.reviewCount === 1 ? "review" : "reviews"}
           </p>
         )}
 
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setIsPopupOpen(true)}
-            disabled={displayStock === 0}
-            className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all duration-200",
-              addToCartButtonClassName
-            )}
-          >
-            {addToCartIcon}
-            {addToCartLabel}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleBuyNow}
-            disabled={displayStock === 0}
-            className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all duration-200",
-              displayStock === 0
-                ? "cursor-not-allowed border border-border bg-muted text-muted-foreground"
-                : "border border-primary bg-primary/10 text-primary hover:bg-primary hover:text-white"
-            )}
-          >
-            <Zap className="h-4 w-4" />
-            Buy Now
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => setIsPopupOpen(true)}
+          disabled={displayStock === 0}
+          className={cn(
+            "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200",
+            displayStock === 0
+              ? "cursor-not-allowed bg-muted text-muted-foreground"
+              : isInCart
+              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100"
+              : "bg-primary text-white shadow-md hover:bg-primary/90"
+          )}
+        >
+          {displayStock === 0 ? null : isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+          {displayStock === 0 ? "Out of Stock" : isInCart ? "Added to Cart" : "Add to Cart"}
+        </button>
       </div>
       </div>
 
