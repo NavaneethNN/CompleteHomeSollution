@@ -52,7 +52,7 @@ export const useWishlistStore = create<WishlistState>()(
           }
 
           return {
-            items: [...state.items, { ...product, variantId: product.variantId ?? null }],
+            items: [{ ...product, variantId: product.variantId ?? null }, ...state.items],
           };
         });
       },
