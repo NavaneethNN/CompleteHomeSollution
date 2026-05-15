@@ -1,52 +1,16 @@
-"use client";
-
-import { useMemo } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, ShoppingBag } from "lucide-react";
-import { useCartStore } from "@/store/cart";
+import { auth } from "@/auth";
+import { getAddresses } from "@/lib/actions/address";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
+import { CartSummary } from "@/components/shop/cart-summary";
 
-export default function CheckoutPage() {
-  const items = useCartStore((state) => state.items);
-  const clearCart = useCartStore((state) => state.clearCart);
+export const metadata: Metadata = { title: "Checkout — Complete Home Sollution" };
 
-  const subtotal = useMemo(
-    () => items.reduce((total, item) => total + item.product.price * item.quantity, 0),
-    [items]
-  );
-
-  const itemCount = useMemo(
-    () => items.reduce((total, item) => total + item.quantity, 0),
-    [items]
-  );
-
-  // Redirect to cart if empty
-  if (items.length === 0) {
-    return (
-      <main className="bg-background py-12 md:py-16">
-        <div className="container mx-auto px-4 md:px-6 xl:px-8">
-          <div className="mx-auto max-w-3xl rounded-[2rem] border border-border bg-white p-8 text-center shadow-sm md:p-12">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <ShoppingBag className="h-7 w-7" />
-            </div>
-            <p className="mt-5 text-xs font-bold uppercase tracking-[0.24em] text-primary">Checkout</p>
-            <h1 className="mt-2 text-3xl font-black text-foreground md:text-4xl">Your cart is empty</h1>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
-              Add items to your cart before proceeding to checkout.
-            </p>
-            <div className="mt-8">
-              <Link
-                href="/products"
-                className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary/90"
-              >
-                Continue Shopping
-              </Link>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
+export default async function CheckoutPage() {
+  const session = await auth();
+  const { addresses, error } = await getAddresses();
 
   return (
     <main className="bg-background py-8 md:py-12">
@@ -66,11 +30,11 @@ export default function CheckoutPage() {
           </Link>
         </div>
 
-        {/* Checkout Form */}
+        {/* Checkout Form - Client Component with Address Management */}
         <CheckoutForm 
-          subtotal={subtotal} 
-          itemCount={itemCount}
-          onCheckoutComplete={clearCart}
+          savedAddresses={addresses || []}
+          addressesError={error}
+          isAuthenticated={!!session}
         />
       </div>
     </main>
