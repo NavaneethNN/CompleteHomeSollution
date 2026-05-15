@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Truck, CreditCard, MapPin, ChevronRight, Loader2 } from "lucide-react";
+import { Truck, CreditCard, MapPin, ChevronRight, Loader2, Plus, Home, Building, Navigation, Globe, Check, X, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { Address } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { addressSchema, AddressInput } from "@/lib/validations/address";
+import {
+  createAddress,
+  updateAddress,
+  deleteAddress,
+} from "@/lib/actions/address";
+import { AddressAutocomplete } from "@/components/account/address-autocomplete";
+import { SuburbSelector } from "@/components/account/suburb-selector";
+import { useCartStore } from "@/store/cart";
 
 // Australian states
 const AU_STATES = [
@@ -80,9 +101,9 @@ const SHIPPING_METHODS = [
 ];
 
 interface CheckoutFormProps {
-  readonly subtotal: number;
-  readonly itemCount: number;
-  readonly onCheckoutComplete?: () => void;
+  readonly savedAddresses: Address[];
+  readonly addressesError?: string;
+  readonly isAuthenticated: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
@@ -90,17 +111,57 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
   currency: "AUD",
 });
 
-export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: CheckoutFormProps) {
+export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }: CheckoutFormProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [step, setStep] = useState<"shipping" | "delivery" | "payment">("shipping");
   const [selectedShipping, setSelectedShipping] = useState<string>("standard");
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Address management state
+  const [addresses, setAddresses] = useState<Address[]>(savedAddresses);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
+  // Cart state
+  const items = useCartStore((state) => state.items);
+  const clearCart = useCartStore((state) => state.clearCart);
+  
+  const subtotal = items.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+  
+  // Address form
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    reset,
+    setValue,
+    formState: { errors: addressErrors },
     watch,
+  } = useForm<AddressInput>({
+    resolver: zodResolver(addressSchema),
+    defaultValues: {
+      line1: "",
+      line2: undefined,
+      suburb: "",
+      state: "",
+      postcode: "",
+      country: "AU",
+    },
+  });
+
+  const selectedState = watch("state");
+
+  // Shipping form
+  const {
+    register: registerShipping,
+    handleSubmit: handleSubmitShipping,
+    formState: { errors: shippingErrors },
+    watch: watchShipping,
+    setValue: setShippingValue,
   } = useForm<ShippingFormData>({
     resolver: zodResolver(shippingSchema),
     defaultValues: {
@@ -108,7 +169,8 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
     },
   });
 
-  const watchedState = watch("state");
+  const watchedShippingState = watchShipping("state");
+
 
   // Calculate shipping cost
   const shippingCost = subtotal >= 1200
@@ -119,8 +181,142 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
   const tax = subtotal * 0.1;
   const total = subtotal + shippingCost + tax;
 
+  // Address management functions
+  const openAddDialog = () => {
+    setEditingAddress(null);
+    reset({
+      line1: "",
+      line2: undefined,
+      suburb: "",
+      state: "",
+      postcode: "",
+      country: "AU",
+    });
+    setIsAddressDialogOpen(true);
+  };
+
+  const openEditDialog = (address: Address) => {
+    setEditingAddress(address);
+    reset({
+      line1: address.line1,
+      line2: address.line2 || undefined,
+      suburb: address.suburb,
+      state: address.state,
+      postcode: address.postcode,
+      country: address.country || "AU",
+    });
+    setIsAddressDialogOpen(true);
+  };
+
+  const onAddressSubmit = async (data: AddressInput) => {
+    setIsLoading(true);
+    try {
+      if (editingAddress) {
+        const result = await updateAddress(editingAddress.id, data);
+        if (result.error) {
+          toast({
+            title: "Error",
+            description: result.error,
+            variant: "destructive",
+          });
+        } else if (result.address) {
+          setAddresses(
+            addresses.map((a) => (a.id === editingAddress.id ? result.address : a))
+          );
+          toast({
+            title: "Success",
+            description: "Address updated successfully.",
+            variant: "success",
+          });
+          setIsAddressDialogOpen(false);
+        }
+      } else {
+        const result = await createAddress(data);
+        if (result.error) {
+          toast({
+            title: "Error",
+            description: result.error,
+            variant: "destructive",
+          });
+        } else if (result.address) {
+          setAddresses([result.address, ...addresses]);
+          toast({
+            title: "Success",
+            description: "Address added successfully.",
+            variant: "success",
+          });
+          setIsAddressDialogOpen(false);
+        }
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDeleteAddress = async (id: string) => {
+    setIsLoading(true);
+    try {
+      const result = await deleteAddress(id);
+      if (result.error) {
+        toast({
+          title: "Error",
+          description: result.error,
+          variant: "destructive",
+        });
+      } else {
+        setAddresses(addresses.filter((a) => a.id !== id));
+        if (selectedAddressId === id) {
+          setSelectedAddressId(null);
+        }
+        toast({
+          title: "Success",
+          description: "Address deleted successfully.",
+          variant: "success",
+        });
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setDeleteConfirmId(null);
+    }
+  };
+
+  const formatAddress = (address: Address) => {
+    const parts = [
+      address.line1,
+      address.line2,
+      `${address.suburb}, ${address.state} ${address.postcode}`,
+      address.country,
+    ].filter(Boolean);
+    return parts;
+  };
+
+  const selectAddress = (addressId: string) => {
+    setSelectedAddressId(addressId);
+    const selected = addresses.find((a) => a.id === addressId);
+    if (selected) {
+      // Pre-fill shipping form with selected address
+      setShippingValue("address", selected.line1);
+      setShippingValue("apartment", selected.line2 || "");
+      setShippingValue("suburb", selected.suburb);
+      setShippingValue("state", selected.state);
+      setShippingValue("postcode", selected.postcode);
+    }
+  };
+
   const onShippingSubmit = (data: ShippingFormData) => {
-    // Store shipping details (could use a store or localStorage)
+    // Store shipping details
     localStorage.setItem("checkout-shipping", JSON.stringify(data));
     setStep("delivery");
   };
@@ -137,7 +333,7 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Clear cart and redirect to confirmation
-    onCheckoutComplete?.();
+    clearCart();
     router.push("/order-confirmation");
   };
 
@@ -199,11 +395,97 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
 
         {/* Step 1: Shipping Address */}
         {step === "shipping" && (
-          <form onSubmit={handleSubmit(onShippingSubmit)} className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <form onSubmit={handleSubmitShipping(onShippingSubmit)} className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-foreground">Shipping Address</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Enter your delivery details for Australian shipping.
             </p>
+
+            {/* Saved Addresses Section */}
+            {isAuthenticated && addresses.length > 0 && (
+              <div className="mt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <Label className="text-sm font-medium">Select a saved address</Label>
+                  <Button type="button" variant="ghost" size="sm" onClick={openAddDialog}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add New
+                  </Button>
+                </div>
+                <div className="grid gap-3">
+                  {addresses.map((address) => (
+                    <Card
+                      key={address.id}
+                      className={cn(
+                        "cursor-pointer transition-colors",
+                        selectedAddressId === address.id
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-secondary/50"
+                      )}
+                      onClick={() => selectAddress(address.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Home className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="space-y-0.5">
+                              {formatAddress(address).map((line, i) => (
+                                <p
+                                  key={i}
+                                  className={`text-sm ${i === 0 ? "font-medium text-foreground" : "text-muted-foreground"}`}
+                                >
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEditDialog(address);
+                              }}
+                              className="h-7 w-7 p-0"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteConfirmId(address.id);
+                              }}
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                <Separator className="my-6" />
+              </div>
+            )}
+
+            {/* Manual Address Entry */}
+            {(!isAuthenticated || addresses.length === 0) && (
+              <div className="mt-6">
+                {addressesError && (
+                  <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-red-700">{addressesError}</p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
@@ -212,11 +494,11 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                   id="email"
                   type="email"
                   placeholder="your@email.com"
-                  className={cn("mt-1.5", errors.email && "border-destructive")}
-                  {...register("email")}
+                  className={cn("mt-1.5", shippingErrors.email && "border-destructive")}
+                  {...registerShipping("email")}
                 />
-                {errors.email && (
-                  <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>
+                {shippingErrors.email && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.email.message}</p>
                 )}
               </div>
 
@@ -225,11 +507,11 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                 <Input
                   id="firstName"
                   placeholder="John"
-                  className={cn("mt-1.5", errors.firstName && "border-destructive")}
-                  {...register("firstName")}
+                  className={cn("mt-1.5", shippingErrors.firstName && "border-destructive")}
+                  {...registerShipping("firstName")}
                 />
-                {errors.firstName && (
-                  <p className="mt-1 text-xs text-destructive">{errors.firstName.message}</p>
+                {shippingErrors.firstName && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.firstName.message}</p>
                 )}
               </div>
 
@@ -238,11 +520,11 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                 <Input
                   id="lastName"
                   placeholder="Smith"
-                  className={cn("mt-1.5", errors.lastName && "border-destructive")}
-                  {...register("lastName")}
+                  className={cn("mt-1.5", shippingErrors.lastName && "border-destructive")}
+                  {...registerShipping("lastName")}
                 />
-                {errors.lastName && (
-                  <p className="mt-1 text-xs text-destructive">{errors.lastName.message}</p>
+                {shippingErrors.lastName && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.lastName.message}</p>
                 )}
               </div>
 
@@ -252,11 +534,11 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                   id="phone"
                   type="tel"
                   placeholder="0412 345 678"
-                  className={cn("mt-1.5", errors.phone && "border-destructive")}
-                  {...register("phone")}
+                  className={cn("mt-1.5", shippingErrors.phone && "border-destructive")}
+                  {...registerShipping("phone")}
                 />
-                {errors.phone && (
-                  <p className="mt-1 text-xs text-destructive">{errors.phone.message}</p>
+                {shippingErrors.phone && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.phone.message}</p>
                 )}
               </div>
 
@@ -265,11 +547,11 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                 <Input
                   id="address"
                   placeholder="123 Main Street"
-                  className={cn("mt-1.5", errors.address && "border-destructive")}
-                  {...register("address")}
+                  className={cn("mt-1.5", shippingErrors.address && "border-destructive")}
+                  {...registerShipping("address")}
                 />
-                {errors.address && (
-                  <p className="mt-1 text-xs text-destructive">{errors.address.message}</p>
+                {shippingErrors.address && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.address.message}</p>
                 )}
               </div>
 
@@ -279,7 +561,7 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                   id="apartment"
                   placeholder="Unit 4"
                   className="mt-1.5"
-                  {...register("apartment")}
+                  {...registerShipping("apartment")}
                 />
               </div>
 
@@ -288,23 +570,23 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                 <Input
                   id="suburb"
                   placeholder="Sydney"
-                  className={cn("mt-1.5", errors.suburb && "border-destructive")}
-                  {...register("suburb")}
+                  className={cn("mt-1.5", shippingErrors.suburb && "border-destructive")}
+                  {...registerShipping("suburb")}
                 />
-                {errors.suburb && (
-                  <p className="mt-1 text-xs text-destructive">{errors.suburb.message}</p>
+                {shippingErrors.suburb && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.suburb.message}</p>
                 )}
               </div>
 
               <div>
                 <Label htmlFor="state">State / Territory</Label>
                 <Select
-                  value={watchedState}
+                  value={watchedShippingState}
                   onValueChange={(value) => {
-                    register("state").onChange({ target: { value } });
+                    registerShipping("state").onChange({ target: { value } });
                   }}
                 >
-                  <SelectTrigger className={cn("mt-1.5", errors.state && "border-destructive")}>
+                  <SelectTrigger className={cn("mt-1.5", shippingErrors.state && "border-destructive")}>
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
@@ -315,8 +597,8 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.state && (
-                  <p className="mt-1 text-xs text-destructive">{errors.state.message}</p>
+                {shippingErrors.state && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.state.message}</p>
                 )}
               </div>
 
@@ -326,11 +608,11 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
                   id="postcode"
                   placeholder="2000"
                   maxLength={4}
-                  className={cn("mt-1.5", errors.postcode && "border-destructive")}
-                  {...register("postcode")}
+                  className={cn("mt-1.5", shippingErrors.postcode && "border-destructive")}
+                  {...registerShipping("postcode")}
                 />
-                {errors.postcode && (
-                  <p className="mt-1 text-xs text-destructive">{errors.postcode.message}</p>
+                {shippingErrors.postcode && (
+                  <p className="mt-1 text-xs text-destructive">{shippingErrors.postcode.message}</p>
                 )}
               </div>
             </div>
@@ -507,6 +789,145 @@ export function CheckoutForm({ subtotal, itemCount, onCheckoutComplete }: Checko
           </div>
         </div>
       </aside>
+
+      {/* Address Dialog */}
+      <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
+        <DialogContent className="sm:max-w-[525px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAddress ? "Edit Address" : "Add New Address"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingAddress
+                ? "Update your address details below."
+                : "Enter your address details below."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4 mt-4">
+            <div className="space-y-3">
+              <div>
+                <Label htmlFor="line1">Street Address</Label>
+                <Input
+                  id="line1"
+                  placeholder="123 Main Street"
+                  className={cn("mt-1.5", addressErrors.line1 && "border-destructive")}
+                  {...register("line1")}
+                />
+                {addressErrors.line1 && (
+                  <p className="mt-1 text-xs text-destructive">{addressErrors.line1.message}</p>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="line2">
+                  Apartment, Suite, etc. <span className="text-muted-foreground">(Optional)</span>
+                </Label>
+                <Input
+                  id="line2"
+                  placeholder="Unit 4"
+                  className="mt-1.5"
+                  {...register("line2")}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="suburb">Suburb</Label>
+                <Input
+                  id="suburb"
+                  placeholder="Sydney"
+                  className={cn("mt-1.5", addressErrors.suburb && "border-destructive")}
+                  {...register("suburb")}
+                />
+                {addressErrors.suburb && (
+                  <p className="mt-1 text-xs text-destructive">{addressErrors.suburb.message}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="state">State</Label>
+                  <Select
+                    value={selectedState}
+                    onValueChange={(value) => setValue("state", value)}
+                  >
+                    <SelectTrigger className={cn("mt-1.5", addressErrors.state && "border-destructive")}>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AU_STATES.map((state) => (
+                        <SelectItem key={state.value} value={state.value}>
+                          {state.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {addressErrors.state && (
+                    <p className="mt-1 text-xs text-destructive">{addressErrors.state.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="postcode">Postcode</Label>
+                  <Input
+                    id="postcode"
+                    placeholder="2000"
+                    maxLength={4}
+                    className={cn("mt-1.5", addressErrors.postcode && "border-destructive")}
+                    {...register("postcode")}
+                  />
+                  {addressErrors.postcode && (
+                    <p className="mt-1 text-xs text-destructive">{addressErrors.postcode.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="mt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsAddressDialogOpen(false)}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? "Saving..." : editingAddress ? "Save Changes" : "Add Address"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>Delete Address</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this address? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteConfirmId(null)}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => deleteConfirmId && handleDeleteAddress(deleteConfirmId)}
+              disabled={isLoading}
+            >
+              {isLoading ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
