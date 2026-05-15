@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, ShoppingCart, Trash2 } from "lucide-react";
+import { Check, ShoppingCart, Trash2, Heart, Package, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cart";
 import { useWishlistStore, type WishlistProduct } from "@/store/wishlist";
 import { ProductPopupModal, type ProductPopupModalProduct } from "./product-popup-modal";
@@ -12,6 +13,11 @@ interface WishlistItemProps {
   readonly product: WishlistProduct;
 }
 
+const currencyFormatter = new Intl.NumberFormat("en-AU", {
+  style: "currency",
+  currency: "AUD",
+});
+
 export function WishlistItem({ product }: WishlistItemProps) {
   const [moveOpen, setMoveOpen] = useState(false);
   const removeItem = useWishlistStore((state) => state.removeItem);
@@ -19,14 +25,15 @@ export function WishlistItem({ product }: WishlistItemProps) {
   const addItem = useCartStore((state) => state.addItem);
   const image = product.images[0] ?? "/placeholder.jpg";
   const displayComparePrice = product.comparePrice ?? null;
-  const displayMemberPrice = product.memberPrice ?? null;
+  const outOfStock = product.stock <= 0;
+  const isLowStock = product.stock > 0 && product.stock <= 5;
 
   const popupProduct: ProductPopupModalProduct = {
     id: product.id,
     name: product.name,
     slug: product.slug,
     price: product.price,
-    memberPrice: displayMemberPrice,
+    memberPrice: product.memberPrice,
     images: [image],
     stock: product.stock,
     description: product.description,
@@ -40,6 +47,7 @@ export function WishlistItem({ product }: WishlistItemProps) {
         id: product.id,
         name: product.name,
         slug: product.slug,
+        sku: product.sku,
         price: product.price,
         memberPrice: product.memberPrice,
         images: product.images,
@@ -53,74 +61,129 @@ export function WishlistItem({ product }: WishlistItemProps) {
     removeItem(product.id, product.variantId ?? null);
   };
 
+  let addToCartClassName = "bg-primary text-white hover:bg-primary/90 shadow-md";
+  let addToCartLabel = "Add to Cart";
+  let addToCartIcon: React.ReactNode = <ShoppingCart className="h-3.5 w-3.5" />;
+
+  if (outOfStock) {
+    addToCartClassName = "cursor-not-allowed bg-muted text-muted-foreground";
+    addToCartLabel = "Out of Stock";
+    addToCartIcon = null;
+  } else if (isInCart) {
+    addToCartClassName = "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100";
+    addToCartLabel = "Added";
+    addToCartIcon = <Check className="h-3.5 w-3.5" />;
+  }
+
   return (
     <>
-      <article className="h-full rounded-2xl border border-border bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md sm:p-5">
-        <div className="flex h-full flex-col gap-4">
-          <Link
-            href={`/products/${product.slug}`}
-            className="relative block aspect-[4/3] w-full overflow-hidden rounded-xl bg-muted"
-          >
-            <Image src={image} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw" />
-          </Link>
+      <div className="group block">
+        <div className="bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden">
+          {/* Image Container */}
+          <div className="relative aspect-square bg-secondary overflow-hidden">
+            <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
+              <Image
+                src={image}
+                alt={product.name}
+                fill
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </Link>
 
-          <div className="flex flex-1 flex-col space-y-3">
-            <div className="flex flex-col gap-1">
-              <Link href={`/products/${product.slug}`} className="text-base font-bold text-foreground transition-colors hover:text-primary">
+            {/* Remove Button (Heart/X style like wishlist toggle) */}
+            <button
+              type="button"
+              onClick={() => removeItem(product.id, product.variantId ?? null)}
+              className="absolute top-3 right-3 z-10 h-9 w-9 inline-flex items-center justify-center rounded-full border border-border bg-white/95 text-foreground shadow-sm transition-all duration-200 hover:scale-105 hover:text-destructive"
+              aria-label={`Remove ${product.name} from wishlist`}
+            >
+              <Heart className="h-5 w-5 text-destructive fill-current" />
+            </button>
+
+            {/* Out of Stock Overlay */}
+            {outOfStock && (
+              <div className="absolute inset-0 z-0 flex items-center justify-center bg-black/50">
+                <span className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-foreground">
+                  Out of Stock
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="p-4">
+            <Link
+              href={`/categories/${product.category.slug}`}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              {product.category.name}
+            </Link>
+
+            <Link href={`/products/${product.slug}`}>
+              <h4 className="mt-1 text-sm font-semibold text-foreground leading-snug line-clamp-2 hover:text-primary transition-colors">
                 {product.name}
-              </Link>
-              {product.variantLabel ? (
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  {product.variantLabel}
+              </h4>
+            </Link>
+
+            {/* SKU */}
+            {product.sku && (
+              <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground">
+                <Package className="h-3 w-3" />
+                <span>SKU: {product.sku}</span>
+              </div>
+            )}
+
+            {/* Variant Details */}
+            {product.variantLabel ? (
+              <div className="mt-2 rounded-lg bg-secondary/50 px-3 py-2">
+                <p className="text-xs font-semibold text-foreground">
+                  Variant: {product.variantLabel}
                 </p>
-              ) : null}
-              {product.description ? (
-                <p className="line-clamp-2 text-sm text-muted-foreground">{product.description}</p>
-              ) : null}
-              <p className="text-sm font-semibold text-foreground">
-                ${product.price.toLocaleString()}
-                {displayComparePrice && displayComparePrice > product.price ? (
-                  <span className="ml-2 text-xs font-medium text-muted-foreground line-through">
-                    ${displayComparePrice.toLocaleString()}
-                  </span>
-                ) : null}
-              </p>
-              {product.stock > 0 ? (
-                <p className="text-xs font-medium text-emerald-600">
-                  In stock{product.stock <= 5 ? ` - Only ${product.stock} left` : ""}
-                </p>
-              ) : (
-                <p className="text-xs font-medium text-destructive">Out of stock</p>
+              </div>
+            ) : null}
+
+            {/* Price */}
+            <div className="mt-3 flex items-baseline gap-2">
+              <span className="text-base font-black text-foreground">
+                {currencyFormatter.format(product.price)}
+              </span>
+              {displayComparePrice && displayComparePrice > product.price && (
+                <span className="text-xs text-muted-foreground line-through">
+                  {currencyFormatter.format(displayComparePrice)}
+                </span>
               )}
             </div>
 
-            <div className="mt-auto flex flex-wrap items-center gap-2 text-sm">
+            {/* Stock indicator */}
+            {isLowStock && (
+              <div className="flex items-center gap-1.5 mt-2 text-xs text-amber-600">
+                <AlertCircle className="h-3 w-3" />
+                <span>Only {product.stock} left!</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="mt-4 grid grid-cols-1 gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  if (!isInCart) {
+                  if (!isInCart && !outOfStock) {
                     setMoveOpen(true);
                   }
                 }}
-                disabled={product.stock <= 0 || isInCart}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"
+                disabled={outOfStock || isInCart}
+                className={cn(
+                  "inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors",
+                  addToCartClassName
+                )}
               >
-                {isInCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
-                {isInCart ? "Added to Cart" : "Move to Cart"}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => removeItem(product.id, product.variantId ?? null)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-2.5 text-sm font-semibold text-destructive transition-colors hover:bg-destructive hover:text-white"
-              >
-                <Trash2 className="h-4 w-4" />
-                Remove
+                {addToCartIcon}
+                {addToCartLabel}
               </button>
             </div>
           </div>
         </div>
-      </article>
+      </div>
 
       <ProductPopupModal
         open={moveOpen}
