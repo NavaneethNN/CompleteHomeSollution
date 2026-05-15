@@ -144,6 +144,8 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
   } = useForm<AddressInput>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
+      name: "",
+      phone: "",
       line1: "",
       line2: undefined,
       suburb: "",
@@ -185,6 +187,8 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
   const openAddDialog = () => {
     setEditingAddress(null);
     reset({
+      name: "",
+      phone: "",
       line1: "",
       line2: undefined,
       suburb: "",
@@ -198,6 +202,8 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
   const openEditDialog = (address: Address) => {
     setEditingAddress(address);
     reset({
+      name: (address as any).name || "",
+      phone: (address as any).phone || "",
       line1: address.line1,
       line2: address.line2 || undefined,
       suburb: address.suburb,
@@ -395,7 +401,7 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
 
         {/* Step 1: Shipping Address */}
         {step === "shipping" && (
-          <form onSubmit={handleSubmitShipping(onShippingSubmit)} className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-foreground">Shipping Address</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Enter your delivery details for Australian shipping.
@@ -485,141 +491,25 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
               </div>
             )}
 
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  className={cn("mt-1.5", shippingErrors.email && "border-destructive")}
-                  {...registerShipping("email")}
-                />
-                {shippingErrors.email && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.email.message}</p>
-                )}
+            {/* No address selected message */}
+            {!selectedAddressId && (
+              <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  Please select a saved address or add a new one to continue.
+                </p>
               </div>
+            )}
 
-              <div>
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  placeholder="John"
-                  className={cn("mt-1.5", shippingErrors.firstName && "border-destructive")}
-                  {...registerShipping("firstName")}
-                />
-                {shippingErrors.firstName && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.firstName.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  placeholder="Smith"
-                  className={cn("mt-1.5", shippingErrors.lastName && "border-destructive")}
-                  {...registerShipping("lastName")}
-                />
-                {shippingErrors.lastName && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.lastName.message}</p>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  placeholder="0412 345 678"
-                  className={cn("mt-1.5", shippingErrors.phone && "border-destructive")}
-                  {...registerShipping("phone")}
-                />
-                {shippingErrors.phone && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.phone.message}</p>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <Label htmlFor="address">Street Address</Label>
-                <Input
-                  id="address"
-                  placeholder="123 Main Street"
-                  className={cn("mt-1.5", shippingErrors.address && "border-destructive")}
-                  {...registerShipping("address")}
-                />
-                {shippingErrors.address && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.address.message}</p>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <Label htmlFor="apartment">Apartment, Suite, etc. (optional)</Label>
-                <Input
-                  id="apartment"
-                  placeholder="Unit 4"
-                  className="mt-1.5"
-                  {...registerShipping("apartment")}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="suburb">Suburb</Label>
-                <Input
-                  id="suburb"
-                  placeholder="Sydney"
-                  className={cn("mt-1.5", shippingErrors.suburb && "border-destructive")}
-                  {...registerShipping("suburb")}
-                />
-                {shippingErrors.suburb && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.suburb.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="state">State / Territory</Label>
-                <Select
-                  value={watchedShippingState}
-                  onValueChange={(value) => {
-                    registerShipping("state").onChange({ target: { value } });
-                  }}
-                >
-                  <SelectTrigger className={cn("mt-1.5", shippingErrors.state && "border-destructive")}>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AU_STATES.map((state) => (
-                      <SelectItem key={state.value} value={state.value}>
-                        {state.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {shippingErrors.state && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.state.message}</p>
-                )}
-              </div>
-
-              <div>
-                <Label htmlFor="postcode">Postcode</Label>
-                <Input
-                  id="postcode"
-                  placeholder="2000"
-                  maxLength={4}
-                  className={cn("mt-1.5", shippingErrors.postcode && "border-destructive")}
-                  {...registerShipping("postcode")}
-                />
-                {shippingErrors.postcode && (
-                  <p className="mt-1 text-xs text-destructive">{shippingErrors.postcode.message}</p>
-                )}
-              </div>
-            </div>
-
-            <Button type="submit" className="mt-6 w-full">
+            <Button 
+              type="button" 
+              className="mt-6 w-full"
+              disabled={!selectedAddressId}
+              onClick={onDeliverySubmit}
+            >
               Continue to Delivery
               <ChevronRight className="ml-2 h-4 w-4" />
             </Button>
-          </form>
+          </div>
         )}
 
         {/* Step 2: Delivery Method */}
@@ -803,6 +693,35 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
           </DialogHeader>
           <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4 mt-4">
             <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    placeholder="John Smith"
+                    className={cn("mt-1.5", addressErrors.name && "border-destructive")}
+                    {...register("name")}
+                  />
+                  {addressErrors.name && (
+                    <p className="mt-1 text-xs text-destructive">{addressErrors.name.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <Label htmlFor="phone">Mobile Number</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="0412 345 678"
+                    className={cn("mt-1.5", addressErrors.phone && "border-destructive")}
+                    {...register("phone")}
+                  />
+                  {addressErrors.phone && (
+                    <p className="mt-1 text-xs text-destructive">{addressErrors.phone.message}</p>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <Label htmlFor="line1">Street Address</Label>
                 <Input
