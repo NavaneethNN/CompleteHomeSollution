@@ -31,7 +31,7 @@ interface HomeTrendingProductCardProps {
 
 export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProps) {
   const router = useRouter();
-  const isInCart = useCartStore((state) => state.isInCart(product.id, null));
+  const isInCart = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
   const addItem = useCartStore((state) => state.addItem);
   const outOfStock = product.stock <= 0;
 
@@ -95,6 +95,8 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
     addToCartClassName = "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100";
     addToCartLabel = "Added";
     addToCartIcon = <Check className="h-3.5 w-3.5" />;
+  } else if (product.hasVariants && !product.variantId) {
+    addToCartLabel = "Choose Options";
   }
 
   const buyNowClassName = outOfStock
