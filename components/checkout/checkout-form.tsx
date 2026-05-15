@@ -4,8 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Truck, CreditCard, MapPin, ChevronRight, Loader2, Plus, Home, Building, Navigation, Globe, Check, X, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { 
+  MapPin, 
+  Plus, 
+  Home, 
+  Pencil, 
+  Trash2, 
+  AlertCircle, 
+  Tag,
+  ShoppingBag,
+  Loader2,
+  Check
+} from "lucide-react";
 import { Address } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,9 +45,10 @@ import {
   updateAddress,
   deleteAddress,
 } from "@/lib/actions/address";
-import { AddressAutocomplete } from "@/components/account/address-autocomplete";
-import { SuburbSelector } from "@/components/account/suburb-selector";
 import { useCartStore } from "@/store/cart";
+import Image from "next/image";
+import { loadStripe } from "@stripe/stripe-js";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 
 // Australian states
 const AU_STATES = [
@@ -51,54 +62,8 @@ const AU_STATES = [
   { value: "NT", label: "Northern Territory" },
 ];
 
-// Australian postcode validation regex (4 digits)
-const postcodeRegex = /^[0-9]{4}$/;
-
-// Email validation regex
-const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
-
-// Phone validation (Australian format)
-const phoneRegex = /^(\+61|0)[2-478][0-9]{8}$/;
-
-// Schema for shipping address
-const shippingSchema = z.object({
-  email: z.string().regex(emailRegex, "Please enter a valid email address"),
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  phone: z.string().regex(phoneRegex, "Please enter a valid Australian phone number"),
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  apartment: z.string().optional(),
-  suburb: z.string().min(2, "Suburb must be at least 2 characters"),
-  state: z.string().min(1, "Please select a state"),
-  postcode: z.string().regex(postcodeRegex, "Postcode must be 4 digits"),
-});
-
-type ShippingFormData = z.infer<typeof shippingSchema>;
-
-// Shipping methods
-const SHIPPING_METHODS = [
-  {
-    id: "standard",
-    name: "Standard Delivery",
-    description: "5-7 business days",
-    price: 79,
-    icon: Truck,
-  },
-  {
-    id: "express",
-    name: "Express Delivery",
-    description: "2-3 business days",
-    price: 129,
-    icon: Truck,
-  },
-  {
-    id: "free",
-    name: "Free Delivery",
-    description: "Orders over $1,200 - 5-7 business days",
-    price: 0,
-    icon: Truck,
-  },
-];
+// Stripe setup
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "");
 
 interface CheckoutFormProps {
   readonly savedAddresses: Address[];
@@ -111,12 +76,95 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
   currency: "AUD",
 });
 
+// Stripe Card Form Component
+function StripePaymentForm({ 
+  total, 
+  isProcessing, 
+  setIsProcessing, 
+  onSuccess,
+  disabled
+}: { 
+  total: number; 
+  isProcessing: boolean; 
+  setIsProcessing: (v: boolean) => void;
+  onSuccess: () => void;
+  disabled?: boolean;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements || disabled) return;
+
+    setIsProcessing(true);
+
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: "card",
+      card: elements.getElement(CardElement)!,
+    });
+
+    if (error) {
+      toast({
+        title: "Payment Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+      return;
+    }
+
+    // Simulate successful payment
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    toast({
+      title: "Payment Successful",
+      description: "Your order has been placed!",
+      variant: "success",
+    });
+    
+    onSuccess();
+    setIsProcessing(false);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 border rounded-lg bg-white">
+        <CardElement 
+          options={{
+            style: {
+              base: {
+                fontSize: "16px",
+                color: "#424770",
+                "::placeholder": { color: "#aab7c4" },
+              },
+              invalid: { color: "#9e2146" },
+            },
+          }}
+        />
+      </div>
+      <Button 
+        type="submit" 
+        className="w-full" 
+        disabled={!stripe || isProcessing || disabled}
+      >
+        {isProcessing ? (
+          <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+        ) : (
+          `Pay ${currencyFormatter.format(total)}`
+        )}
+      </Button>
+    </form>
+  );
+}
+
 export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }: CheckoutFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [step, setStep] = useState<"shipping" | "delivery" | "payment">("shipping");
-  const [selectedShipping, setSelectedShipping] = useState<string>("standard");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
   
   // Address management state
   const [addresses, setAddresses] = useState<Address[]>(savedAddresses);
@@ -132,6 +180,11 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
   
   const subtotal = items.reduce((total, item) => total + item.product.price * item.quantity, 0);
   const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+  
+  // Calculate totals
+  const discount = appliedCoupon ? subtotal * (appliedCoupon.discount / 100) : 0;
+  const shippingCost = subtotal - discount >= 1200 ? 0 : 79;
+  const total = subtotal - discount + shippingCost;
   
   // Address form
   const {
@@ -156,32 +209,6 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
   });
 
   const selectedState = watch("state");
-
-  // Shipping form
-  const {
-    register: registerShipping,
-    handleSubmit: handleSubmitShipping,
-    formState: { errors: shippingErrors },
-    watch: watchShipping,
-    setValue: setShippingValue,
-  } = useForm<ShippingFormData>({
-    resolver: zodResolver(shippingSchema),
-    defaultValues: {
-      state: "",
-    },
-  });
-
-  const watchedShippingState = watchShipping("state");
-
-
-  // Calculate shipping cost
-  const shippingCost = subtotal >= 1200
-    ? selectedShipping === "free" ? 0 : SHIPPING_METHODS.find(m => m.id === selectedShipping)?.price ?? 79
-    : SHIPPING_METHODS.find(m => m.id === selectedShipping)?.price ?? 79;
-
-  // Calculate totals
-  const tax = subtotal * 0.1;
-  const total = subtotal + shippingCost + tax;
 
   // Address management functions
   const openAddDialog = () => {
@@ -220,46 +247,24 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
       if (editingAddress) {
         const result = await updateAddress(editingAddress.id, data);
         if (result.error) {
-          toast({
-            title: "Error",
-            description: result.error,
-            variant: "destructive",
-          });
+          toast({ title: "Error", description: result.error, variant: "destructive" });
         } else if (result.address) {
-          setAddresses(
-            addresses.map((a) => (a.id === editingAddress.id ? result.address : a))
-          );
-          toast({
-            title: "Success",
-            description: "Address updated successfully.",
-            variant: "success",
-          });
+          setAddresses(addresses.map((a) => (a.id === editingAddress.id ? result.address : a)));
+          toast({ title: "Success", description: "Address updated.", variant: "success" });
           setIsAddressDialogOpen(false);
         }
       } else {
         const result = await createAddress(data);
         if (result.error) {
-          toast({
-            title: "Error",
-            description: result.error,
-            variant: "destructive",
-          });
+          toast({ title: "Error", description: result.error, variant: "destructive" });
         } else if (result.address) {
           setAddresses([result.address, ...addresses]);
-          toast({
-            title: "Success",
-            description: "Address added successfully.",
-            variant: "success",
-          });
+          toast({ title: "Success", description: "Address added.", variant: "success" });
           setIsAddressDialogOpen(false);
         }
       }
     } catch {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -270,28 +275,14 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
     try {
       const result = await deleteAddress(id);
       if (result.error) {
-        toast({
-          title: "Error",
-          description: result.error,
-          variant: "destructive",
-        });
+        toast({ title: "Error", description: result.error, variant: "destructive" });
       } else {
         setAddresses(addresses.filter((a) => a.id !== id));
-        if (selectedAddressId === id) {
-          setSelectedAddressId(null);
-        }
-        toast({
-          title: "Success",
-          description: "Address deleted successfully.",
-          variant: "success",
-        });
+        if (selectedAddressId === id) setSelectedAddressId(null);
+        toast({ title: "Success", description: "Address deleted.", variant: "success" });
       }
     } catch {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Something went wrong.", variant: "destructive" });
     } finally {
       setIsLoading(false);
       setDeleteConfirmId(null);
@@ -310,322 +301,220 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
 
   const selectAddress = (addressId: string) => {
     setSelectedAddressId(addressId);
-    const selected = addresses.find((a) => a.id === addressId);
-    if (selected) {
-      // Pre-fill shipping form with selected address
-      setShippingValue("address", selected.line1);
-      setShippingValue("apartment", selected.line2 || "");
-      setShippingValue("suburb", selected.suburb);
-      setShippingValue("state", selected.state);
-      setShippingValue("postcode", selected.postcode);
+  };
+
+  const applyCoupon = () => {
+    if (!couponCode.trim()) return;
+    if (couponCode.toUpperCase() === "SAVE10") {
+      setAppliedCoupon({ code: couponCode.toUpperCase(), discount: 10 });
+      toast({ title: "Coupon Applied", description: "10% discount applied.", variant: "success" });
+    } else {
+      toast({ title: "Invalid Coupon", description: "The coupon code is not valid.", variant: "destructive" });
     }
   };
 
-  const onShippingSubmit = (data: ShippingFormData) => {
-    // Store shipping details
-    localStorage.setItem("checkout-shipping", JSON.stringify(data));
-    setStep("delivery");
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
   };
 
-  const onDeliverySubmit = () => {
-    localStorage.setItem("checkout-shipping-method", selectedShipping);
-    setStep("payment");
-  };
-
-  const onPaymentSubmit = async () => {
-    setIsProcessing(true);
-    
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Clear cart and redirect to confirmation
+  const onPaymentSuccess = () => {
     clearCart();
     router.push("/order-confirmation");
   };
 
-  const steps = [
-    { id: "shipping", label: "Shipping", icon: MapPin },
-    { id: "delivery", label: "Delivery", icon: Truck },
-    { id: "payment", label: "Payment", icon: CreditCard },
-  ];
-
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_380px] lg:items-start">
-      {/* Main Form */}
+      {/* Main Form - Single Page Checkout */}
       <div className="space-y-6">
-        {/* Step Indicator */}
-        <nav className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-          <ol className="flex items-center gap-2">
-            {steps.map((s, index) => {
-              const Icon = s.icon;
-              const isActive = step === s.id;
-              const isCompleted = steps.findIndex(st => st.id === step) > index;
-              
-              return (
-                <li key={s.id} className="flex items-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isCompleted) setStep(s.id as typeof step);
-                    }}
-                    disabled={!isActive && !isCompleted}
-                    className={cn(
-                      "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive && "bg-primary/10 text-primary",
-                      isCompleted && "text-primary hover:bg-primary/5",
-                      !isActive && !isCompleted && "text-muted-foreground"
-                    )}
-                  >
-                    <div className={cn(
-                      "flex h-6 w-6 items-center justify-center rounded-full text-xs",
-                      isActive || isCompleted ? "bg-primary text-white" : "bg-muted text-muted-foreground"
-                    )}>
-                      {isCompleted ? (
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        index + 1
-                      )}
-                    </div>
-                    <span className="hidden sm:inline">{s.label}</span>
-                  </button>
-                  {index < steps.length - 1 && (
-                    <ChevronRight className="mx-1 h-4 w-4 text-muted-foreground" />
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
-
-        {/* Step 1: Shipping Address */}
-        {step === "shipping" && (
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">Shipping Address</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Enter your delivery details for Australian shipping.
-            </p>
-
-            {/* Saved Addresses Section */}
-            {isAuthenticated && addresses.length > 0 && (
-              <div className="mt-6">
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-sm font-medium">Select a saved address</Label>
-                  <Button type="button" variant="ghost" size="sm" onClick={openAddDialog}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add New
-                  </Button>
-                </div>
-                <div className="grid gap-3">
-                  {addresses.map((address) => (
-                    <Card
-                      key={address.id}
-                      className={cn(
-                        "cursor-pointer transition-colors",
-                        selectedAddressId === address.id
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:bg-secondary/50"
-                      )}
-                      onClick={() => selectAddress(address.id)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                            <Home className="h-4 w-4 text-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="space-y-0.5">
-                              {formatAddress(address).map((line, i) => (
-                                <p
-                                  key={i}
-                                  className={`text-sm ${i === 0 ? "font-medium text-foreground" : "text-muted-foreground"}`}
-                                >
-                                  {line}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openEditDialog(address);
-                              }}
-                              className="h-7 w-7 p-0"
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirmId(address.id);
-                              }}
-                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-                <Separator className="my-6" />
-              </div>
-            )}
-
-            {/* Error Display - Only show if authenticated and there's an error */}
-            {isAuthenticated && addressesError && (
-              <div className="mt-6">
-                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-red-700">{addressesError}</p>
-                </div>
-              </div>
-            )}
-
-            {/* No address selected message */}
-            {!selectedAddressId && (
-              <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-sm text-amber-800">
-                  Please select a saved address or add a new one to continue.
-                </p>
-              </div>
-            )}
-
-            <Button 
-              type="button" 
-              className="mt-6 w-full"
-              disabled={!selectedAddressId}
-              onClick={onDeliverySubmit}
-            >
-              Continue to Delivery
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        )}
-
-        {/* Step 2: Delivery Method */}
-        {step === "delivery" && (
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">Delivery Method</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Choose your preferred shipping option.
-            </p>
-
-            <div className="mt-6 space-y-3">
-              {SHIPPING_METHODS.map((method) => {
-                const Icon = method.icon;
-                const isDisabled = method.id === "free" && subtotal < 1200;
-                
-                return (
-                  <label
-                    key={method.id}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-4 rounded-xl border p-4 transition-colors",
-                      selectedShipping === method.id
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:bg-secondary/50",
-                      isDisabled && "cursor-not-allowed opacity-50"
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="shipping"
-                      value={method.id}
-                      checked={selectedShipping === method.id}
-                      onChange={() => setSelectedShipping(method.id)}
-                      disabled={isDisabled}
-                      className="h-4 w-4 text-primary"
+        {/* Order Items */}
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <ShoppingBag className="h-5 w-5" />
+            Order Items ({itemCount})
+          </h2>
+          <div className="mt-4 space-y-4">
+            {items.map((item) => (
+              <div key={`${item.product.id}-${item.product.variantId}`} className="flex gap-4 py-4 border-b border-border last:border-0">
+                <div className="relative h-20 w-20 rounded-lg overflow-hidden bg-muted shrink-0">
+                  {item.product.images?.[0] && (
+                    <Image
+                      src={item.product.images[0]}
+                      alt={item.product.name}
+                      fill
+                      className="object-cover"
                     />
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="font-semibold text-foreground">{method.name}</p>
-                        <p className="font-bold text-foreground">
-                          {method.price === 0 ? "FREE" : currencyFormatter.format(method.price)}
-                        </p>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-foreground truncate">{item.product.name}</h3>
+                  {item.product.variantLabel && (
+                    <p className="text-sm text-muted-foreground">{item.product.variantLabel}</p>
+                  )}
+                  {item.product.sku && (
+                    <p className="text-xs text-muted-foreground">SKU: {item.product.sku}</p>
+                  )}
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                    <p className="font-medium">{currencyFormatter.format(item.product.price * item.quantity)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Shipping Address */}
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Shipping Address
+            </h2>
+            {isAuthenticated && (
+              <Button type="button" variant="ghost" size="sm" onClick={openAddDialog}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add New
+              </Button>
+            )}
+          </div>
+
+          {/* Error Display */}
+          {isAuthenticated && addressesError && (
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-700">{addressesError}</p>
+            </div>
+          )}
+
+          {/* Saved Addresses */}
+          {isAuthenticated && addresses.length > 0 && (
+            <div className="space-y-3 mb-6">
+              {addresses.map((address) => (
+                <Card
+                  key={address.id}
+                  className={cn(
+                    "cursor-pointer transition-colors",
+                    selectedAddressId === address.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-secondary/50"
+                  )}
+                  onClick={() => selectAddress(address.id)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Home className="h-4 w-4 text-primary" />
                       </div>
-                      <p className="text-sm text-muted-foreground">{method.description}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="space-y-0.5">
+                          {formatAddress(address).map((line, i) => (
+                            <p key={i} className={`text-sm ${i === 0 ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                              {line}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditDialog(address);
+                          }}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteConfirmId(address.id);
+                          }}
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                      {selectedAddressId === address.id && (
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                          <Check className="h-3.5 w-3.5 text-white" />
+                        </div>
+                      )}
                     </div>
-                  </label>
-                );
-              })}
+                  </CardContent>
+                </Card>
+              ))}
             </div>
+          )}
 
-            <div className="mt-6 flex gap-3">
-              <Button variant="outline" onClick={() => setStep("shipping")} className="flex-1">
-                Back
-              </Button>
-              <Button onClick={onDeliverySubmit} className="flex-1">
-                Continue to Payment
-                <ChevronRight className="ml-2 h-4 w-4" />
-              </Button>
+          {/* No Address Selected Warning */}
+          {!selectedAddressId && (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-6">
+              <p className="text-sm text-amber-800">
+                Please select a saved address or add a new one to continue.
+              </p>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Step 3: Payment */}
-        {step === "payment" && (
-          <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-foreground">Payment</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Complete your order with Stripe secure payment.
-            </p>
-
-            <div className="mt-6 space-y-4">
-              {/* Stripe Payment Placeholder */}
-              <div className="rounded-xl border-2 border-dashed border-border bg-secondary/30 p-8 text-center">
-                <CreditCard className="mx-auto h-12 w-12 text-muted-foreground" />
-                <p className="mt-4 text-sm font-medium text-foreground">Stripe Payment Integration</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Secure credit card processing will be integrated here.
-                </p>
+        {/* Coupon Code */}
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2 mb-4">
+            <Tag className="h-5 w-5" />
+            Coupon Code
+          </h2>
+          
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-green-600" />
+                <span className="text-sm font-medium text-green-800">
+                  {appliedCoupon.code} - {appliedCoupon.discount}% off
+                </span>
               </div>
-
-              {/* Order Summary for Mobile */}
-              <div className="rounded-xl bg-secondary/50 p-4 lg:hidden">
-                <p className="text-sm font-semibold text-foreground">Order Total</p>
-                <p className="text-2xl font-black text-foreground">{currencyFormatter.format(total)}</p>
-              </div>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <Button variant="outline" onClick={() => setStep("delivery")} className="flex-1" disabled={isProcessing}>
-                Back
+              <Button type="button" variant="ghost" size="sm" onClick={removeCoupon}>
+                Remove
               </Button>
-              <Button 
-                onClick={onPaymentSubmit} 
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter coupon code"
+                value={couponCode}
+                onChange={(e) => setCouponCode(e.target.value)}
                 className="flex-1"
-                disabled={isProcessing}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    Pay {currencyFormatter.format(total)}
-                  </>
-                )}
+              />
+              <Button type="button" onClick={applyCoupon} disabled={!couponCode.trim()}>
+                Apply
               </Button>
             </div>
+          )}
+        </div>
 
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              By placing this order, you agree to our Terms of Service and Privacy Policy.
+        {/* Payment Section */}
+        <div className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-foreground mb-4">Payment</h2>
+          <Elements stripe={stripePromise}>
+            <StripePaymentForm
+              total={total}
+              isProcessing={isProcessing}
+              setIsProcessing={setIsProcessing}
+              onSuccess={onPaymentSuccess}
+              disabled={!selectedAddressId}
+            />
+          </Elements>
+          {!selectedAddressId && (
+            <p className="mt-2 text-xs text-amber-600 text-center">
+              Please select a shipping address to complete payment
             </p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Order Summary Sidebar */}
@@ -640,29 +529,33 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
 
         <div className="space-y-3 py-4">
           <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium text-muted-foreground">Subtotal</span>
-            <span className="font-semibold text-foreground">{currencyFormatter.format(subtotal)}</span>
+            <span className="text-muted-foreground">Subtotal</span>
+            <span className="font-medium">{currencyFormatter.format(subtotal)}</span>
           </div>
+          
+          {discount > 0 && (
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="text-green-600">Discount ({appliedCoupon?.code})</span>
+              <span className="font-medium text-green-600">-{currencyFormatter.format(discount)}</span>
+            </div>
+          )}
+          
           <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium text-muted-foreground">Shipping</span>
-            <span className="font-semibold text-foreground">
-              {shippingCost === 0 ? "FREE" : currencyFormatter.format(shippingCost)}
+            <span className="text-muted-foreground">Shipping</span>
+            <span className="font-medium">
+              {shippingCost === 0 ? "Free" : currencyFormatter.format(shippingCost)}
             </span>
           </div>
-          <div className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium text-muted-foreground">GST (10%)</span>
-            <span className="font-semibold text-foreground">{currencyFormatter.format(tax)}</span>
-          </div>
-        </div>
-
-        <div className="rounded-2xl bg-secondary/50 p-4">
+          
+          <Separator />
+          
           <div className="flex items-center justify-between gap-3">
-            <span className="text-sm font-semibold text-foreground">Grand Total</span>
-            <span className="text-2xl font-black text-foreground">{currencyFormatter.format(total)}</span>
+            <span className="text-base font-bold">Total</span>
+            <span className="text-xl font-black">{currencyFormatter.format(total)}</span>
           </div>
         </div>
 
-        <div className="mt-5 space-y-2">
+        <div className="mt-6 space-y-3 border-t border-border pt-4">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -676,6 +569,10 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
             <span>PCI DSS Compliant</span>
           </div>
         </div>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          By placing this order, you agree to our Terms of Service and Privacy Policy.
+        </p>
       </aside>
 
       {/* Address Dialog */}
@@ -686,9 +583,7 @@ export function CheckoutForm({ savedAddresses, addressesError, isAuthenticated }
               {editingAddress ? "Edit Address" : "Add New Address"}
             </DialogTitle>
             <DialogDescription>
-              {editingAddress
-                ? "Update your address details below."
-                : "Enter your address details below."}
+              {editingAddress ? "Update your address details below." : "Enter your address details below."}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4 mt-4">
