@@ -94,7 +94,7 @@ export const useWishlistStore = create<WishlistState>()(
         ),
     }),
     {
-      name: "chs-wishlist-v2",
+      name: "chs-wishlist-v3",
       storage: createJSONStorage(() => localStorage),
     }
   )
