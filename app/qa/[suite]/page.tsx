@@ -31,6 +31,15 @@ export default async function SuitePage({
     select: { testId: true, status: true, notes: true },
   });
 
+  try {
+    const url = process.env.DATABASE_URL ?? process.env.DATABASE_URL_UNPOOLED ?? "";
+    const hostMatch = url.match(/@(.*?)\//);
+    // eslint-disable-next-line no-console
+    console.log("[qa/suite] suite=", suite, "dbHost=", hostMatch ? hostMatch[1] : "(none)", "results=", rawResults.length);
+  } catch (e) {
+    // ignore
+  }
+
   const initialResults = rawResults.map((r) => ({
     testId: r.testId,
     status: r.status as "PENDING" | "PASSED" | "FAILED",

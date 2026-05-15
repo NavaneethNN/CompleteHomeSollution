@@ -3,64 +3,92 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { ProductCard } from "@/components/shop/product-card";
 import { Breadcrumbs } from "@/components/shop/breadcrumbs";
+import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 
 export const revalidate = 3600;
 
+interface CategoryPageProps {
+  readonly params: Promise<{ slug: string }>;
+}
+
 async function getCategory(slug: string) {
-  const category = await db.category.findUnique({
-    where: { slug },
-  });
+  try {
+    const category = await db.category.findUnique({
+      where: { slug },
+    });
 
-  if (!category) return null;
+    if (!category) {
+      const fallbackCategory = fallbackCategories.find((item) => item.slug === slug);
+      if (!fallbackCategory) return null;
 
-  const products = await db.product.findMany({
-    where: { categoryId: category.id, isActive: true },
-    include: {
-      productVariants: {
-        where: { isActive: true },
-        include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
-        orderBy: { price: "asc" },
-        take: 1,
+      return {
+        category: fallbackCategory,
+        products: fallbackProducts.filter((product) => product.category.slug === slug),
+      };
+    }
+
+    const products = await db.product.findMany({
+      where: { categoryId: category.id, isActive: true },
+      include: {
+        productVariants: {
+          where: { isActive: true },
+          include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
+          orderBy: { price: "asc" },
+          take: 1,
+        },
+        _count: { select: { reviews: true } },
       },
-      _count: { select: { reviews: true } },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    });
 
-  return {
-    category,
-    products: products.map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      description: p.description,
-      basePrice: p.basePrice,
-      comparePrice: p.comparePrice,
-      memberPrice: p.memberPrice,
-      stock: p.stock,
-      images: p.images,
-      material: p.material,
-      roomType: p.roomType,
-      hasVariants: p.hasVariants,
-      category: { name: category.name, slug: category.slug },
-      reviewCount: p._count.reviews,
-      variant: p.hasVariants && p.productVariants[0] ? {
-        id: p.productVariants[0].id,
-        price: p.productVariants[0].price,
-        comparePrice: p.productVariants[0].comparePrice,
-        memberPrice: p.productVariants[0].memberPrice,
-        stock: p.productVariants[0].stock,
-        image: p.productVariants[0].images[0]?.url,
-      } : null,
-    })),
-  };
+    if (products.length === 0) {
+      return {
+        category,
+        products: fallbackProducts.filter((product) => product.category.slug === slug),
+      };
+    }
+
+    return {
+      category,
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+        description: p.description,
+        basePrice: p.basePrice,
+        comparePrice: p.comparePrice,
+        memberPrice: p.memberPrice,
+        stock: p.stock,
+        images: p.images,
+        material: p.material,
+        roomType: p.roomType,
+        hasVariants: p.hasVariants,
+        category: { name: category.name, slug: category.slug },
+        reviewCount: p._count.reviews,
+        variant: p.hasVariants && p.productVariants[0] ? {
+          id: p.productVariants[0].id,
+          price: p.productVariants[0].price,
+          comparePrice: p.productVariants[0].comparePrice,
+          memberPrice: p.productVariants[0].memberPrice,
+          stock: p.productVariants[0].stock,
+          image: p.productVariants[0].images[0]?.url,
+        } : null,
+      })),
+    };
+  } catch {
+    const fallbackCategory = fallbackCategories.find((item) => item.slug === slug);
+    if (!fallbackCategory) return null;
+
+    return {
+      category: fallbackCategory,
+      products: fallbackProducts.filter((product) => product.category.slug === slug),
+    };
+  }
 }
 
 export async function generateMetadata({
   params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+}: CategoryPageProps): Promise<Metadata> {
   const { slug } = await params;
   const data = await getCategory(slug);
   
@@ -75,9 +103,7 @@ export async function generateMetadata({
 
 export default async function CategoryPage({
   params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
+}: CategoryPageProps) {
   const { slug } = await params;
   const data = await getCategory(slug);
 
