@@ -10,6 +10,7 @@ export interface WishlistProduct {
   id: string;
   name: string;
   slug: string;
+  sku?: string | null;
   price: number;
   comparePrice?: number | null;
   memberPrice?: number | null;
@@ -93,7 +94,7 @@ export const useWishlistStore = create<WishlistState>()(
         ),
     }),
     {
-      name: "chs-wishlist",
+      name: "chs-wishlist-v2",
       storage: createJSONStorage(() => localStorage),
     }
   )

@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Award, Truck, ShieldCheck, Headphones,
   RotateCcw, BadgeCheck, Tag, Leaf,
+  Star,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Home — Complete Home Sollution" };
@@ -88,6 +89,7 @@ async function getTrendingProducts() {
       const price = variant?.price ?? p.basePrice;
       const comparePrice = variant?.comparePrice ?? p.comparePrice;
       const image = variant?.images[0]?.url ?? p.images[0];
+      const stock = variant?.stock ?? p.stock; // Use variant stock if available
 
       const discount = comparePrice && comparePrice > price 
         ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%`
@@ -105,7 +107,7 @@ async function getTrendingProducts() {
         img: image,
         description: p.description,
         memberPrice: p.memberPrice,
-        stock: p.stock,
+        stock,
         category: p.category,
       };
     });

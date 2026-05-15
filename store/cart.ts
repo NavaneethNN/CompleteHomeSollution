@@ -5,6 +5,7 @@ export interface CartProduct {
   id: string;
   name: string;
   slug: string;
+  sku?: string | null;
   price: number;
   memberPrice?: number | null;
   images: string[];
@@ -125,7 +126,7 @@ export const useCartStore = create<CartState>()(
         get().getItemQuantity(productId, variantId) > 0,
     }),
     {
-      name: "chs-cart",
+      name: "chs-cart-v2",
       storage: createJSONStorage(() => localStorage),
     }
   )

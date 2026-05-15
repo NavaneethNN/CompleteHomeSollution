@@ -75,7 +75,7 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
 
   let addToCartClassName = "bg-primary text-white hover:bg-primary/90 shadow-md";
   let addToCartLabel = "Add to Cart";
-  let addToCartIcon = <ShoppingCart className="h-3.5 w-3.5" />;
+  let addToCartIcon: React.ReactNode = <ShoppingCart className="h-3.5 w-3.5" />;
 
   if (outOfStock) {
     addToCartClassName = "cursor-not-allowed bg-muted text-muted-foreground";
@@ -157,6 +157,13 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
               </span>
             )}
           </div>
+
+          {/* Stock indicator */}
+          {product.stock > 0 && product.stock <= 5 && (
+            <p className="mt-2 text-xs text-amber-600 font-medium">
+              Only {product.stock} left!
+            </p>
+          )}
 
           <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button

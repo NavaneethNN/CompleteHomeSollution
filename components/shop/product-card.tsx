@@ -18,6 +18,7 @@ interface ProductCardProps {
     readonly id: string;
     readonly name: string;
     readonly slug: string;
+    readonly sku?: string | null;
     readonly description: string;
     readonly basePrice: number;
     readonly comparePrice: number | null;
@@ -30,6 +31,7 @@ interface ProductCardProps {
     readonly reviewCount: number;
     readonly variant: {
       readonly id: string;
+      readonly sku?: string | null;
       readonly price: number;
       readonly comparePrice: number | null;
       readonly memberPrice: number | null;
@@ -64,7 +66,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
   const isInCart = useCartStore((state) => state.isInCart(product.id, cartVariantId));
   const addItem = useCartStore((state) => state.addItem);
   let addToCartButtonClassName = "bg-primary text-white shadow-md hover:bg-primary/90";
-  let addToCartIcon = <ShoppingCart className="h-4 w-4" />;
+  let addToCartIcon: React.ReactNode = <ShoppingCart className="h-4 w-4" />;
   let addToCartLabel = "Add to Cart";
 
   if (displayStock === 0) {
@@ -93,6 +95,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
     id: product.id,
     name: product.name,
     slug: product.slug,
+    sku: product.variant?.sku ?? product.sku,
     price: displayPrice,
     comparePrice: displayComparePrice,
     memberPrice: displayMemberPrice,
