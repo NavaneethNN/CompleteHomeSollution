@@ -54,7 +54,14 @@ async function getTrendingProducts() {
         category: { select: { name: true, slug: true } },
         productVariants: {
           where: { isActive: true },
-          include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
+          include: { 
+            images: { take: 1, orderBy: { displayOrder: "asc" } },
+            values: {
+              include: {
+                variantValue: true,
+              },
+            },
+          },
           orderBy: { price: "asc" },
           take: 1,
         },
@@ -91,6 +98,11 @@ async function getTrendingProducts() {
       const image = variant?.images[0]?.url ?? p.images[0];
       const stock = variant?.stock ?? p.stock; // Use variant stock if available
 
+      // Generate variant label from variant attribute values if available
+      const variantLabel = variant?.values
+        ?.map((v: { variantValue: { value: string } }) => v.variantValue.value)
+        .join(" / ");
+
       const discount = comparePrice && comparePrice > price 
         ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%`
         : null;
@@ -104,6 +116,10 @@ async function getTrendingProducts() {
         discount,
         rating: 4.5, // Could be calculated from reviews
         reviews: p._count.reviews,
+        variantId: variant?.id ?? null,
+        sku: variant?.sku ?? p.sku,
+        variantLabel,
+        hasVariants: p.hasVariants,
         img: image,
         description: p.description,
         memberPrice: p.memberPrice,

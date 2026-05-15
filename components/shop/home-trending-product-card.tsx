@@ -22,6 +22,10 @@ interface HomeTrendingProductCardProps {
     readonly memberPrice: number | null;
     readonly stock: number;
     readonly category: { name: string; slug: string };
+    readonly variantId?: string | null;
+    readonly sku?: string | null;
+    readonly variantLabel?: string;
+    readonly hasVariants?: boolean;
   };
 }
 
@@ -41,11 +45,14 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
         id: product.id,
         name: product.name,
         slug: product.slug,
+        sku: product.sku,
         price: product.price,
         memberPrice: product.memberPrice,
         images: [product.img],
         stock: product.stock,
         description: product.description,
+        variantId: product.variantId ?? null,
+        variantLabel: product.variantLabel,
       },
       1
     );
@@ -61,11 +68,14 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
         id: product.id,
         name: product.name,
         slug: product.slug,
+        sku: product.sku,
         price: product.price,
         memberPrice: product.memberPrice,
         images: [product.img],
         stock: product.stock,
         description: product.description,
+        variantId: product.variantId ?? null,
+        variantLabel: product.variantLabel,
       },
       1
     );
@@ -95,6 +105,7 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
     id: product.id,
     name: product.name,
     slug: product.slug,
+    sku: product.sku,
     price: product.price,
     comparePrice: product.originalPrice,
     memberPrice: product.memberPrice,
@@ -102,6 +113,8 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
     stock: product.stock,
     description: product.description,
     category: product.category,
+    variantId: product.variantId ?? null,
+    variantLabel: product.variantLabel,
   };
 
   return (
