@@ -39,6 +39,8 @@ export async function createAddress(data: AddressInput) {
     const address = await db.address.create({
       data: {
         userId: session.user.id,
+        name: validated.data.name,
+        phone: validated.data.phone,
         line1: validated.data.line1,
         line2: validated.data.line2 || null,
         suburb: validated.data.suburb,
@@ -50,6 +52,7 @@ export async function createAddress(data: AddressInput) {
 
     revalidatePath("/account/addresses");
     revalidatePath("/account/dashboard");
+    revalidatePath("/checkout");
     return { success: true, address };
   } catch (error) {
     console.error("Failed to create address:", error);
@@ -81,6 +84,8 @@ export async function updateAddress(id: string, data: AddressInput) {
     const address = await db.address.update({
       where: { id },
       data: {
+        name: validated.data.name,
+        phone: validated.data.phone,
         line1: validated.data.line1,
         line2: validated.data.line2 || null,
         suburb: validated.data.suburb,
@@ -92,6 +97,7 @@ export async function updateAddress(id: string, data: AddressInput) {
 
     revalidatePath("/account/addresses");
     revalidatePath("/account/dashboard");
+    revalidatePath("/checkout");
     return { success: true, address };
   } catch (error) {
     console.error("Failed to update address:", error);
@@ -119,6 +125,7 @@ export async function deleteAddress(id: string) {
 
     revalidatePath("/account/addresses");
     revalidatePath("/account/dashboard");
+    revalidatePath("/checkout");
     return { success: true };
   } catch (error) {
     console.error("Failed to delete address:", error);
