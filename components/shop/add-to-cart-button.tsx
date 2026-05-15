@@ -24,6 +24,24 @@ export function AddToCartButton({
   const isAdded = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
   const addItem = useCartStore((state) => state.addItem);
 
+  // If variant is selected (variantId exists), show "Add to Cart", otherwise "Choose Options"
+  const hasSelectedVariant = product.variantId !== null && product.variantId !== undefined;
+  const buttonText = disabled 
+    ? "Out of Stock" 
+    : hasVariants && !hasSelectedVariant 
+      ? "Choose Options" 
+      : "Add to Cart";
+
+  const handleAddToCart = () => {
+    if (hasVariants && !hasSelectedVariant) {
+      // Show popup only if variants exist but none selected
+      setIsPopupOpen(true);
+    } else {
+      // Add directly to cart
+      addItem(product, 1);
+    }
+  };
+
   const handleConfirm = (quantity: number) => {
     addItem(product, quantity);
   };
@@ -31,7 +49,7 @@ export function AddToCartButton({
   return (
     <>
       <button
-        onClick={() => setIsPopupOpen(true)}
+        onClick={handleAddToCart}
         disabled={disabled}
         className={cn(
           "inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-200",
@@ -51,7 +69,7 @@ export function AddToCartButton({
         ) : (
           <>
             <ShoppingCart className="w-4 h-4" />
-            {disabled ? "Out of Stock" : hasVariants ? "Choose Options" : "Add to Cart"}
+            {buttonText}
           </>
         )}
       </button>
@@ -61,7 +79,7 @@ export function AddToCartButton({
         onOpenChange={setIsPopupOpen}
         product={product}
         onConfirm={handleConfirm}
-        confirmLabel={hasVariants ? "Add Selected Item" : "Add to Cart"}
+        confirmLabel={hasSelectedVariant ? "Add to Cart" : "Add Selected Item"}
       />
     </>
   );

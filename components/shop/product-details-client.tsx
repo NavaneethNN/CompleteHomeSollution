@@ -79,6 +79,11 @@ export function ProductDetailsClient({
   const displayStock = selectedVariant?.stock ?? product.stock;
   const displaySku = selectedVariant?.sku ?? product.sku;
 
+  // Generate variant label from selected variant's attribute values
+  const variantLabel = selectedVariant?.values
+    ?.map((v) => v.variantValue.value)
+    .join(" / ");
+
   const handleVariantChange = useCallback((variant: ProductVariant | null) => {
     setSelectedVariant(variant);
   }, []);
@@ -153,12 +158,14 @@ export function ProductDetailsClient({
             id: product.id,
             name: product.name,
             slug: product.slug,
+            sku: displaySku,
             price: displayPrice,
             memberPrice: displayMemberPrice,
             images: displayImages,
             stock: displayStock,
             description: product.description,
             variantId: selectedVariant?.id ?? null,
+            variantLabel,
           }}
           disabled={displayStock === 0}
           hasVariants={true}
