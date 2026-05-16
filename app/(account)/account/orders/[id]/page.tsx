@@ -89,7 +89,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               </div>
               <div className="divide-y divide-border">
                 {order.items.map((item) => {
-                  // Build variant string from productVariant.values or fall back to variantSummary
                   const variantDetails =
                     item.productVariant?.values
                       ?.map((v) => `${v.variantValue.variantAttribute.name}: ${v.variantValue.value}`)
@@ -97,7 +96,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
                   return (
                     <div key={item.id} className="flex items-start gap-4 p-5">
-                      {/* Product image */}
                       <div className="w-20 h-20 rounded-xl bg-secondary flex items-center justify-center shrink-0 overflow-hidden border border-border">
                         {item.product.images?.[0] ? (
                           <img
@@ -110,7 +108,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                         )}
                       </div>
 
-                      {/* Details */}
                       <div className="flex-1 min-w-0">
                         <Link
                           href={`/products/${item.product.slug}`}
@@ -119,7 +116,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                           {item.product.name}
                         </Link>
 
-                        {/* Variant badges */}
                         {variantDetails && (
                           <div className="flex flex-wrap gap-1.5 mt-1.5">
                             {variantDetails.split(" · ").map((v, i) => (
@@ -134,7 +130,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                           </div>
                         )}
 
-                        {/* SKU */}
                         {item.productVariant?.sku && (
                           <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
                             <Hash className="h-3 w-3" />
@@ -185,7 +180,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           {/* ── Right Column ── */}
           <div className="space-y-6">
 
-            {/* Payment Summary */}
+            {/* Payment & Summary */}
             <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-border">
                 <h2 className="font-bold text-foreground flex items-center gap-2">
@@ -205,7 +200,6 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   <span className="text-xl font-bold text-foreground">${order.total.toFixed(2)}</span>
                 </div>
 
-                {/* Payment status */}
                 <div className="mt-4 pt-4 border-t border-border space-y-2.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Payment Status</span>
@@ -295,7 +289,7 @@ function Row({
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-muted-foreground">{label}</span>
-      <span className={mono ? `font-mono text-xs text-foreground` : `font-medium text-foreground ${valueClass ?? ""}`}>
+      <span className={mono ? "font-mono text-xs text-foreground" : `font-medium text-foreground ${valueClass ?? ""}`}>
         {value}
       </span>
     </div>

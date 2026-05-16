@@ -5,10 +5,10 @@ import { db } from "@/lib/db";
 import { addressSchema, AddressInput } from "@/lib/validations/address";
 import { revalidatePath } from "next/cache";
 
-export async function getAddresses() {
+export async function getAddresses(): Promise<{ addresses: Awaited<ReturnType<typeof db.address.findMany>>; error?: string }> {
   const session = await auth();
   if (!session?.user?.id) {
-    return { error: "Unauthorized" };
+    return { addresses: [] };
   }
 
   try {
@@ -20,7 +20,8 @@ export async function getAddresses() {
     return { addresses };
   } catch (error) {
     console.error("Failed to fetch addresses:", error);
-    return { error: "Failed to fetch addresses" };
+    // Return empty array to prevent UI from breaking — user can still enter address inline
+    return { addresses: [] };
   }
 }
 

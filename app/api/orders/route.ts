@@ -60,7 +60,14 @@ export async function POST(req: NextRequest) {
     const address = await db.address.create({
       data: {
         ...(session && { userId: session.user.id }),
-        ...input.address,
+        name: input.address.name,
+        phone: input.address.phone,
+        line1: input.address.line1,
+        line2: input.address.line2 || null,
+        suburb: input.address.suburb,
+        state: input.address.state,
+        postcode: input.address.postcode,
+        country: input.address.country || "AU",
       },
     });
 

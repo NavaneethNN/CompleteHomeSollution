@@ -1,16 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ShoppingBag } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
 import { getAddresses } from "@/lib/actions/address";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
-import { CartSummary } from "@/components/shop/cart-summary";
+import { db } from "@/lib/db";
 
 export const metadata: Metadata = { title: "Checkout — Complete Home Sollution" };
 
 export default async function CheckoutPage() {
   const session = await auth();
-  const { addresses, error } = await getAddresses();
+
+  // Fetch addresses and user profile for authenticated users
+  let addresses: Awaited<ReturnType<typeof getAddresses>>["addresses"] = [];
+  let addressError: string | undefined;
+  let userProfile: { name: string; phone: string } = { name: "", phone: "" };
+
+  if (session?.user?.id) {
+    const [addressResult, dbUser] = await Promise.all([
+      getAddresses(),
+      db.user.findUnique({
+        where: { id: session.user.id },
+        select: { name: true, phone: true },
+      }),
+    ]);
+    addresses = addressResult.addresses || [];
+    addressError = addressResult.error;
+    userProfile = { name: dbUser?.name ?? "", phone: dbUser?.phone ?? "" };
+  }
 
   return (
     <main className="bg-background py-8 md:py-12">
@@ -30,11 +47,12 @@ export default async function CheckoutPage() {
           </Link>
         </div>
 
-        {/* Checkout Form - Client Component with Address Management */}
-        <CheckoutForm 
+        {/* Checkout Form */}
+        <CheckoutForm
           savedAddresses={addresses || []}
-          addressesError={error}
+          addressesError={addressError}
           isAuthenticated={!!session}
+          userProfile={userProfile}
         />
       </div>
     </main>
