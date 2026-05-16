@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
 
       if (!orderId) return NextResponse.json({ received: true });
 
+      // Update order status to PAID
       const order = await db.order.update({
         where: { id: orderId },
         data: {
@@ -34,11 +35,30 @@ export async function POST(req: NextRequest) {
           stripePaymentId: session.payment_intent as string,
         },
         include: {
-          items: { include: { product: { select: { name: true } } } },
+          items: {
+            include: {
+              product: { select: { name: true } },
+            },
+          },
           address: true,
           user: true,
         },
       });
+
+      // Decrement stock for each ordered item
+      for (const item of order.items) {
+        if (item.productVariantId) {
+          await db.productVariant.update({
+            where: { id: item.productVariantId },
+            data: { stock: { decrement: item.quantity } },
+          }).catch((e) => console.error("Stock decrement failed for variant", e));
+        } else {
+          await db.product.update({
+            where: { id: item.productId },
+            data: { stock: { decrement: item.quantity } },
+          }).catch((e) => console.error("Stock decrement failed for product", e));
+        }
+      }
 
       const email = order.user?.email ?? order.guestEmail;
       const name = order.user?.name ?? "Customer";
@@ -50,7 +70,7 @@ export async function POST(req: NextRequest) {
           name,
           orderId: order.id,
           total: order.total,
-          items: order.items.map((i: { product: { name: string }; quantity: number; unitPrice: number }) => ({
+          items: order.items.map((i) => ({
             name: i.product.name,
             quantity: i.quantity,
             price: i.unitPrice,
@@ -68,11 +88,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (event.type === "checkout.session.expired") {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId;
+
+      if (orderId) {
+        await db.order.update({
+          where: { id: orderId },
+          data: { status: "CANCELLED" },
+        }).catch((e) => console.error("Order cancellation failed", e));
+      }
+    }
+
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("[Stripe webhook] processing error", error);
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
 }
-
-export const config = { api: { bodyParser: false } };

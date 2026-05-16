@@ -11,11 +11,15 @@ export interface OrderWithItems {
   shippingCost: number;
   tax: number;
   total: number;
+  stripePaymentId: string | null;
   trackingNumber: string | null;
   carrier: string | null;
+  guestEmail: string | null;
   createdAt: Date;
   updatedAt: Date;
   address: {
+    name: string;
+    phone: string;
     line1: string;
     line2: string | null;
     suburb: string;
@@ -27,6 +31,18 @@ export interface OrderWithItems {
     id: string;
     quantity: number;
     unitPrice: number;
+    variantSummary: string | null;
+    productVariantId: string | null;
+    productVariant: {
+      id: string;
+      sku: string;
+      values: {
+        variantValue: {
+          value: string;
+          variantAttribute: { name: string };
+        };
+      }[];
+    } | null;
     product: {
       id: string;
       name: string;
@@ -35,6 +51,41 @@ export interface OrderWithItems {
     };
   }[];
 }
+
+// Shared include for all order queries
+const orderInclude = {
+  address: {
+    select: {
+      name: true,
+      phone: true,
+      line1: true,
+      line2: true,
+      suburb: true,
+      state: true,
+      postcode: true,
+      country: true,
+    },
+  },
+  items: {
+    include: {
+      product: {
+        select: { id: true, name: true, slug: true, images: true },
+      },
+      productVariant: {
+        include: {
+          values: {
+            include: {
+              variantValue: {
+                include: { variantAttribute: { select: { name: true } } },
+              },
+            },
+          },
+        },
+        select: undefined,
+      },
+    },
+  },
+} as const;
 
 export async function getOrders(): Promise<{ orders: OrderWithItems[]; error?: string }> {
   const session = await auth();
@@ -48,22 +99,21 @@ export async function getOrders(): Promise<{ orders: OrderWithItems[]; error?: s
       include: {
         address: {
           select: {
-            line1: true,
-            line2: true,
-            suburb: true,
-            state: true,
-            postcode: true,
-            country: true,
+            name: true, phone: true,
+            line1: true, line2: true,
+            suburb: true, state: true, postcode: true, country: true,
           },
         },
         items: {
           include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                images: true,
+            product: { select: { id: true, name: true, slug: true, images: true } },
+            productVariant: {
+              include: {
+                values: {
+                  include: {
+                    variantValue: { include: { variantAttribute: { select: { name: true } } } },
+                  },
+                },
               },
             },
           },
@@ -72,7 +122,7 @@ export async function getOrders(): Promise<{ orders: OrderWithItems[]; error?: s
       orderBy: { createdAt: "desc" },
     });
 
-    return { orders };
+    return { orders: orders as unknown as OrderWithItems[] };
   } catch (error) {
     console.error("Failed to fetch orders:", error);
     return { orders: [], error: "Failed to fetch orders" };
@@ -87,29 +137,25 @@ export async function getOrderById(orderId: string): Promise<{ order: OrderWithI
 
   try {
     const order = await db.order.findFirst({
-      where: { 
-        id: orderId,
-        userId: session.user.id,
-      },
+      where: { id: orderId, userId: session.user.id },
       include: {
         address: {
           select: {
-            line1: true,
-            line2: true,
-            suburb: true,
-            state: true,
-            postcode: true,
-            country: true,
+            name: true, phone: true,
+            line1: true, line2: true,
+            suburb: true, state: true, postcode: true, country: true,
           },
         },
         items: {
           include: {
-            product: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                images: true,
+            product: { select: { id: true, name: true, slug: true, images: true } },
+            productVariant: {
+              include: {
+                values: {
+                  include: {
+                    variantValue: { include: { variantAttribute: { select: { name: true } } } },
+                  },
+                },
               },
             },
           },
@@ -117,11 +163,8 @@ export async function getOrderById(orderId: string): Promise<{ order: OrderWithI
       },
     });
 
-    if (!order) {
-      return { order: null, error: "Order not found" };
-    }
-
-    return { order };
+    if (!order) return { order: null, error: "Order not found" };
+    return { order: order as unknown as OrderWithItems };
   } catch (error) {
     console.error("Failed to fetch order:", error);
     return { order: null, error: "Failed to fetch order" };
@@ -153,22 +196,21 @@ export async function getOrderStats(): Promise<{
         include: {
           address: {
             select: {
-              line1: true,
-              line2: true,
-              suburb: true,
-              state: true,
-              postcode: true,
-              country: true,
+              name: true, phone: true,
+              line1: true, line2: true,
+              suburb: true, state: true, postcode: true, country: true,
             },
           },
           items: {
             include: {
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  slug: true,
-                  images: true,
+              product: { select: { id: true, name: true, slug: true, images: true } },
+              productVariant: {
+                include: {
+                  values: {
+                    include: {
+                      variantValue: { include: { variantAttribute: { select: { name: true } } } },
+                    },
+                  },
                 },
               },
             },
@@ -179,7 +221,7 @@ export async function getOrderStats(): Promise<{
       }),
     ]);
 
-    return { totalOrders, pendingOrders, recentOrders };
+    return { totalOrders, pendingOrders, recentOrders: recentOrders as unknown as OrderWithItems[] };
   } catch (error) {
     console.error("Failed to fetch order stats:", error);
     return { totalOrders: 0, pendingOrders: 0, recentOrders: [], error: "Failed to fetch order stats" };

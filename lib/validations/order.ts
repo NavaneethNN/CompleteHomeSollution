@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const auAddressSchema = z.object({
+  name: z.string().min(2, "Full name is required"),
+  phone: z.string().min(1, "Phone number is required").max(20, "Phone number is too long"),
   line1: z.string().min(3, "Address line 1 is required"),
   line2: z.string().optional(),
   suburb: z.string().min(2, "Suburb is required"),
@@ -27,13 +29,13 @@ export const createOrderSchema = z.object({
   items: z
     .array(
       z.object({
-        productId: z.string().cuid(),
+        productId: z.string(),
         quantity: z.number().int().positive(),
       })
     )
     .min(1, "Cart cannot be empty"),
   address: auAddressSchema,
-  shippingServiceLevel: z.enum(["standard", "express", "priority"]),
+  shippingServiceLevel: z.enum(["standard", "express", "priority"]).optional(),
   guestInfo: z
     .object({
       name: z.string(),
