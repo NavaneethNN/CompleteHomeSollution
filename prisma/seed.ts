@@ -34,7 +34,7 @@ const furnitureImages = {
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // Clear existing data
+  // Clear existing data (order matters for FK constraints)
   await db.orderItem.deleteMany();
   await db.order.deleteMany();
   await db.cartItem.deleteMany();
@@ -46,6 +46,7 @@ async function main() {
   await db.variantAttribute.deleteMany();
   await db.product.deleteMany();
   await db.category.deleteMany();
+  await db.membershipPlan.deleteMany();
 
   // Create categories
   const categories = await Promise.all([
@@ -479,11 +480,47 @@ async function main() {
 
   console.log("✅ Created Complete Bedroom Set with 6 variants");
 
+  // 5. Membership plans
+  await db.membershipPlan.createMany({
+    data: [
+      {
+        name: "Monthly Premium",
+        description: "Full access to member pricing and perks, billed monthly.",
+        price: 9.99,
+        durationDays: 30,
+        discountPercent: 10,
+        isActive: true,
+        isDefault: false,
+      },
+      {
+        name: "Annual Premium",
+        description: "Best value — full member benefits for a full year.",
+        price: 89.99,
+        durationDays: 365,
+        discountPercent: 20,
+        isActive: true,
+        isDefault: true,
+      },
+      {
+        name: "6-Month Premium",
+        description: "6 months of member pricing, free express delivery and more.",
+        price: 49.99,
+        durationDays: 180,
+        discountPercent: 15,
+        isActive: true,
+        isDefault: false,
+      },
+    ],
+  });
+
+  console.log("✅ Created 3 membership plans");
+
   console.log("\n🎉 Database seeded successfully!");
   console.log(`📊 Summary:`);
   console.log(`   - ${categories.length} Categories`);
-  console.log(`   - 8 Products (4 with variants, 4 simple)`);
+  console.log(`   - 13 Products (3 with variants, 10 simple)`);
   console.log(`   - 26 Product Variants`);
+  console.log(`   - 3 Membership Plans`);
 }
 
 main()
