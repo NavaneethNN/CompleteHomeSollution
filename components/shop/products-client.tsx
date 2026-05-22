@@ -38,9 +38,10 @@ interface Product {
 interface ProductsClientProps {
   categories: Category[];
   products: Product[];
+  isMember?: boolean;
 }
 
-export function ProductsClient({ categories, products }: ProductsClientProps) {
+export function ProductsClient({ categories, products, isMember = false }: ProductsClientProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const filteredProducts = useMemo(() => {
@@ -76,7 +77,7 @@ export function ProductsClient({ categories, products }: ProductsClientProps) {
         {filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id} product={product} isMember={isMember} />
             ))}
           </div>
         ) : (

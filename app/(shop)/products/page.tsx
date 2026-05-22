@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { ProductsClient } from "@/components/shop/products-client";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 
@@ -73,13 +74,21 @@ async function getCategories() {
 }
 
 export default async function ProductsPage() {
-  const [products, categories] = await Promise.all([getProducts(), getCategories()]);
+  const session = await auth();
+  const [products, categories, dbUser] = await Promise.all([
+    getProducts(),
+    getCategories(),
+    session?.user?.id
+      ? db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
+      : Promise.resolve(null),
+  ]);
+  const isMember = dbUser?.isMember ?? false;
 
   return (
     <main className="min-h-screen bg-background">
       {/* Products with Client-side Filtering */}
       <div className="container mx-auto px-4 py-6">
-        <ProductsClient categories={categories} products={products} />
+        <ProductsClient categories={categories} products={products} isMember={isMember} />
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ShoppingCart, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/store/cart";
@@ -21,8 +21,14 @@ export function AddToCartButton({
   hasVariants = false,
 }: AddToCartButtonProps) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const isAdded = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
+  const [mounted, setMounted] = useState(false);
+  const isAddedRaw = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
   const addItem = useCartStore((state) => state.addItem);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  // Before hydration completes, always render the "not added" state to match SSR
+  const isAdded = mounted && isAddedRaw;
 
   // If variant is selected (variantId exists), show "Add to Cart", otherwise "Choose Options"
   const hasSelectedVariant = product.variantId !== null && product.variantId !== undefined;

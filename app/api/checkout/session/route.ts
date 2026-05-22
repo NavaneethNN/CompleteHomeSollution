@@ -15,21 +15,28 @@ const addressSchema = z.object({
   country: z.string().default("AU"),
 });
 
+const VALID_COUPONS: Record<string, number> = { SAVE10: 10 };
+
 const checkoutSchema = z
   .object({
     items: z
       .array(
         z.object({
-          productId: z.string(),
-          variantId: z.string().optional(),
-          quantity: z.number().int().positive(),
+          productId: z.string().cuid(),
+          variantId: z.string().cuid().optional(),
+          quantity: z.number().int().positive().max(100),
         })
       )
-      .min(1, "Cart cannot be empty"),
+      .min(1, "Cart cannot be empty")
+      .max(50, "Too many items in cart"),
     // address is only required when savedAddressId is not provided
     address: addressSchema.optional(),
-    savedAddressId: z.string().optional(),
+    savedAddressId: z.string().cuid().optional(),
     guestEmail: z.string().email().optional(),
+    shippingRateCode: z.string().max(50).optional(),
+    shippingCost: z.number().min(0).max(500).optional(),
+    couponCode: z.string().max(20).optional(),
+    addMembership: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (!data.savedAddressId && !data.address) {
@@ -51,12 +58,13 @@ export async function POST(req: NextRequest) {
     let addressId: string;
 
     if (input.savedAddressId) {
+      // Security: saved addresses require authentication
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Authentication required to use saved addresses" }, { status: 401 });
+      }
       // Verify the saved address belongs to user
       const existing = await db.address.findFirst({
-        where: {
-          id: input.savedAddressId,
-          ...(session?.user?.id ? { userId: session.user.id } : {}),
-        },
+        where: { id: input.savedAddressId, userId: session.user.id },
       });
       if (!existing) {
         return NextResponse.json({ error: "Address not found" }, { status: 400 });
@@ -81,11 +89,26 @@ export async function POST(req: NextRequest) {
       addressId = address.id;
     }
 
-    // Fetch products and calculate prices
-    const productIds = input.items.map((i) => i.productId);
+    // Validate coupon server-side
+    const couponCode = input.couponCode?.trim().toUpperCase();
+    const couponDiscountPct = couponCode ? (VALID_COUPONS[couponCode] ?? 0) : 0;
+    const discountFactor = 1 - couponDiscountPct / 100;
+
+    // FIX: Always fetch isMember fresh from DB for billing — never trust JWT for financial decisions
+    let isMemberFromDb = false;
+    if (session?.user?.id) {
+      const currentUser = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true },
+      });
+      isMemberFromDb = currentUser?.isMember ?? false;
+    }
+
+    // Fetch products and calculate prices — only active products/variants
+    const productIds = [...new Set(input.items.map((i) => i.productId))];
     const products = await db.product.findMany({
-      where: { id: { in: productIds } },
-      include: { productVariants: true },
+      where: { id: { in: productIds }, isActive: true },
+      include: { productVariants: { where: { isActive: true } } },
     });
 
     let subtotal = 0;
@@ -93,6 +116,9 @@ export async function POST(req: NextRequest) {
       price_data: { currency: string; product_data: { name: string }; unit_amount: number };
       quantity: number;
     }[] = [];
+
+    // Treat as member if already a member (fresh from DB) OR buying membership with this order
+    const effectiveMember = isMemberFromDb || (input.addMembership === true && !!session?.user?.id);
 
     for (const item of input.items) {
       const product = products.find((p) => p.id === item.productId);
@@ -118,7 +144,7 @@ export async function POST(req: NextRequest) {
           );
         }
         unitPrice =
-          session?.user?.isMember && variant.memberPrice
+          effectiveMember && variant.memberPrice
             ? variant.memberPrice
             : variant.price;
       } else {
@@ -129,34 +155,69 @@ export async function POST(req: NextRequest) {
           );
         }
         unitPrice =
-          session?.user?.isMember && product.memberPrice
+          effectiveMember && product.memberPrice
             ? product.memberPrice
             : product.basePrice;
       }
 
-      subtotal += unitPrice * item.quantity;
+      // Apply coupon discount factor
+      const discountedUnitPrice = Math.round(unitPrice * discountFactor * 100) / 100;
+      subtotal += discountedUnitPrice * item.quantity;
       lineItems.push({
         price_data: {
           currency: "aud",
           product_data: { name: itemName },
-          unit_amount: Math.round(unitPrice * 100), // Stripe uses cents
+          unit_amount: Math.round(discountedUnitPrice * 100),
         },
         quantity: item.quantity,
       });
     }
 
-    // Calculate totals
-    const shippingCost = subtotal >= 1200 ? 0 : 79;
-    const tax = Math.round(subtotal * 0.1 * 100) / 100; // 10% GST
-    const total = subtotal + shippingCost + tax;
-
-    // Add shipping as line item if not free
-    if (shippingCost > 0) {
+    // Membership add-on: only allowed for authenticated non-members
+    // Use isMemberFromDb (fresh) — no second DB call needed
+    const wantsMembership = input.addMembership === true && !!session?.user?.id;
+    const alreadyMember = isMemberFromDb;
+    if (wantsMembership && !alreadyMember) {
       lineItems.push({
         price_data: {
           currency: "aud",
-          product_data: { name: "Shipping" },
-          unit_amount: shippingCost * 100,
+          product_data: { name: "CHS Premium Membership (Annual)" },
+          unit_amount: 3000, // $30 AUD in cents
+        },
+        quantity: 1,
+      });
+    }
+    const membershipCharge = (wantsMembership && !alreadyMember) ? 30 : 0;
+
+    // FIX: Round subtotal to 2dp before computing tax/total (avoids float accumulation)
+    subtotal = Math.round(subtotal * 100) / 100;
+
+    // Calculate totals — members always get free shipping; otherwise use AusPost rate
+    const freeShipping = effectiveMember || subtotal >= 1200;
+
+    // FIX: Reject non-free orders that send shippingCost=0 — prevents shipping fee bypass
+    if (!freeShipping && (!input.shippingCost || input.shippingCost <= 0)) {
+      return NextResponse.json(
+        { error: "A shipping rate is required for this order" },
+        { status: 400 }
+      );
+    }
+    const shippingCost = freeShipping ? 0 : Math.round(input.shippingCost! * 100) / 100;
+
+    const tax = Math.round(subtotal * 0.1 * 100) / 100; // 10% GST
+    // FIX: Round total to 2dp so DB value matches Stripe integer-cent charge
+    const total = Math.round((subtotal + shippingCost + tax + membershipCharge) * 100) / 100;
+
+    // Add shipping as line item if not free
+    if (shippingCost > 0) {
+      const shippingLabel = input.shippingRateCode
+        ? `Shipping (${input.shippingRateCode})`
+        : "Shipping";
+      lineItems.push({
+        price_data: {
+          currency: "aud",
+          product_data: { name: shippingLabel },
+          unit_amount: Math.round(shippingCost * 100),
         },
         quantity: 1,
       });
@@ -174,7 +235,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create the order in DB
+    // Create the order in DB — store addMembership flag in metadata
     const order = await db.order.create({
       data: {
         ...(session?.user?.id ? { userId: session.user.id } : {}),
@@ -193,12 +254,12 @@ export async function POST(req: NextRequest) {
             if (item.variantId) {
               const variant = product.productVariants.find((v) => v.id === item.variantId);
               unitPrice =
-                session?.user?.isMember && variant?.memberPrice
+                effectiveMember && variant?.memberPrice
                   ? variant.memberPrice
                   : variant?.price || product.basePrice;
             } else {
               unitPrice =
-                session?.user?.isMember && product.memberPrice
+                effectiveMember && product.memberPrice
                   ? product.memberPrice
                   : product.basePrice;
             }
@@ -206,7 +267,7 @@ export async function POST(req: NextRequest) {
               productId: item.productId,
               productVariantId: item.variantId || null,
               quantity: item.quantity,
-              unitPrice,
+              unitPrice: Math.round(unitPrice * discountFactor * 100) / 100,
             };
           }),
         },
@@ -217,14 +278,16 @@ export async function POST(req: NextRequest) {
     const customerEmail =
       session?.user?.email || input.guestEmail || undefined;
 
-    // Create Stripe Checkout Session
-    const origin = req.headers.get("origin") || process.env.AUTH_URL || "http://localhost:3000";
+    // Security: use server-configured URL, never trust client-supplied origin header
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
     const checkoutSession = await createCheckoutSession({
       lineItems,
       orderId: order.id,
       customerEmail,
-      successUrl: `${origin}/order-confirmation/${order.id}?session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${origin}/checkout?cancelled=true`,
+      successUrl: `${appUrl}/order-confirmation/${order.id}?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${appUrl}/checkout?cancelled=true`,
+      addMembership: wantsMembership,
+      userId: session?.user?.id,
     });
 
     return NextResponse.json({

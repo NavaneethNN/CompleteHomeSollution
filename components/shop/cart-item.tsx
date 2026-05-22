@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Minus, Plus, Trash2, Package, AlertCircle } from "lucide-react";
+import { Minus, Plus, Trash2, Package, AlertCircle, Crown } from "lucide-react";
 import type { CartItem as CartItemType } from "@/store/cart";
 import { cn } from "@/lib/utils";
 
 interface CartItemProps {
   readonly item: CartItemType;
+  readonly isMember?: boolean;
   readonly onUpdateQuantity: (quantity: number) => void;
   readonly onRemove: () => void;
 }
@@ -17,10 +18,12 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
   currency: "AUD",
 });
 
-export function CartItem({ item, onUpdateQuantity, onRemove }: Readonly<CartItemProps>) {
+export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }: Readonly<CartItemProps>) {
   const { product, quantity } = item;
   const image = product.images[0] ?? "/placeholder.jpg";
-  const subtotal = product.price * quantity;
+  const hasMemberPrice = isMember && product.memberPrice != null && product.memberPrice > 0 && product.memberPrice < product.price;
+  const effectivePrice = hasMemberPrice ? product.memberPrice! : product.price;
+  const subtotal = effectivePrice * quantity;
   const isLowStock = product.stock > 0 && product.stock <= 5;
   const isOutOfStock = product.stock <= 0;
 
@@ -79,13 +82,26 @@ export function CartItem({ item, onUpdateQuantity, onRemove }: Readonly<CartItem
 
           {/* Price Info */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm pt-1">
-            <span className="text-muted-foreground">
-              Unit: <span className="font-semibold text-foreground">{currencyFormatter.format(product.price)}</span>
+            <span className="text-muted-foreground flex items-center gap-1">
+              Unit:{" "}
+              {hasMemberPrice ? (
+                <>
+                  <span className="font-semibold text-primary">{currencyFormatter.format(effectivePrice)}</span>
+                  <span className="text-xs line-through text-muted-foreground">{currencyFormatter.format(product.price)}</span>
+                </>
+              ) : (
+                <span className="font-semibold text-foreground">{currencyFormatter.format(product.price)}</span>
+              )}
             </span>
             <span className="text-muted-foreground">
               Subtotal: <span className="font-semibold text-primary">{currencyFormatter.format(subtotal)}</span>
             </span>
           </div>
+          {hasMemberPrice && (
+            <p className="text-xs text-primary font-medium flex items-center gap-1">
+              <Crown className="h-3 w-3" /> Member price applied
+            </p>
+          )}
         </div>
 
         {/* Quantity Controls & Remove */}

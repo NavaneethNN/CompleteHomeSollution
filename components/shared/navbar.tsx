@@ -10,7 +10,7 @@ import {
   Search, ShoppingBag, Heart, User, ChevronDown, ChevronRight,
   Menu, X, Armchair, BedDouble, UtensilsCrossed, Monitor, Flower2,
   LayoutDashboard, Package, Crown, UserCircle, MapPin,
-  LogOut, LogIn, UserPlus,
+  LogOut, LogIn, UserPlus, ShieldCheck,
 } from "lucide-react";
 
 /* ─── Static data ─────────────────────────────────────────────────── */
@@ -23,13 +23,15 @@ const CATEGORIES = [
   { label: "Home Decor",      href: "/categories/home-decor",        Icon: Flower2,         desc: "Accents, rugs & accessories" },
 ] as const;
 
-const ACCOUNT_LINKS = [
+const BASE_ACCOUNT_LINKS = [
   { label: "My Dashboard",  href: "/account/dashboard",  Icon: LayoutDashboard },
   { label: "My Orders",     href: "/account/orders",     Icon: Package },
   { label: "Membership",    href: "/account/membership", Icon: Crown },
   { label: "Profile",       href: "/account/profile",    Icon: UserCircle },
   { label: "Addresses",     href: "/account/addresses",  Icon: MapPin },
-] as const;
+];
+
+const ADMIN_LINK = { label: "Admin Panel", href: "/admin", Icon: ShieldCheck };
 
 /* ─── Tiny hook: close on outside click ──────────────────────────── */
 
@@ -101,6 +103,8 @@ export function Navbar() {
   const { data: session } = useSession();
   const isLoggedIn = !!session?.user;
   const user       = session?.user;
+  const isAdmin    = user?.role === "ADMIN";
+  const ACCOUNT_LINKS = isAdmin ? [ADMIN_LINK, ...BASE_ACCOUNT_LINKS] : BASE_ACCOUNT_LINKS;
   const cartCount  = useCartStore((state) =>
     state.items.reduce((total, item) => total + item.quantity, 0)
   );
@@ -356,17 +360,31 @@ export function Navbar() {
                         </div>
                       </div>
                       <div className="py-1.5">
-                        {ACCOUNT_LINKS.map(({ label, href, Icon }) => (
-                          <Link
-                            key={href}
-                            href={href}
-                            role="menuitem"
-                            className="group flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary hover:text-primary transition-colors"
-                          >
-                            <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                            {label}
-                          </Link>
-                        ))}
+                        {ACCOUNT_LINKS.map(({ label, href, Icon }) => {
+                          const isAdminLink = href === "/admin";
+                          return (
+                            <Link
+                              key={href}
+                              href={href}
+                              role="menuitem"
+                              className={`group flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                                isAdminLink
+                                  ? "text-primary font-semibold hover:bg-primary/8 hover:text-primary"
+                                  : "text-foreground hover:bg-secondary hover:text-primary"
+                              }`}
+                            >
+                              <Icon className={`h-4 w-4 shrink-0 transition-colors ${
+                                isAdminLink ? "text-primary" : "text-muted-foreground group-hover:text-primary"
+                              }`} />
+                              {label}
+                              {isAdminLink && (
+                                <span className="ml-auto text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                                  Admin
+                                </span>
+                              )}
+                            </Link>
+                          );
+                        })}
                       </div>
                       <div className="border-t border-border py-1.5">
                         <button

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState as useStateHook } from "react";
 import { useRouter } from "next/navigation";
 import { Check, ShoppingCart, Zap } from "lucide-react";
 import { useCartStore } from "@/store/cart";
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
 
 interface HomeTrendingProductCardProps {
+  readonly isMember?: boolean;
   readonly product: {
     readonly id: string;
     readonly name: string;
@@ -29,9 +31,12 @@ interface HomeTrendingProductCardProps {
   };
 }
 
-export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProps) {
+export function HomeTrendingProductCard({ product, isMember = false }: HomeTrendingProductCardProps) {
   const router = useRouter();
-  const isInCart = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
+  const [mounted, setMounted] = useStateHook(false);
+  useEffect(() => { setMounted(true); }, []);
+  const isInCartRaw = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
+  const isInCart = mounted && isInCartRaw;
   const addItem = useCartStore((state) => state.addItem);
   const outOfStock = product.stock <= 0;
 
@@ -164,14 +169,27 @@ export function HomeTrendingProductCard({ product }: HomeTrendingProductCardProp
             {product.description}
           </p>
 
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-base font-black text-foreground">${product.price.toLocaleString()}</span>
-            {product.originalPrice > product.price && (
-              <span className="text-xs text-muted-foreground line-through">
-                ${product.originalPrice.toLocaleString()}
-              </span>
-            )}
-          </div>
+          {(() => {
+            const hasMemberPrice = isMember && product.memberPrice != null && product.memberPrice > 0 && product.memberPrice < product.price;
+            const displayPrice = hasMemberPrice ? product.memberPrice! : product.price;
+            return (
+              <>
+                <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                  <span className="text-base font-black text-foreground">
+                    ${displayPrice.toLocaleString()}
+                  </span>
+                  {hasMemberPrice ? (
+                    <span className="text-xs text-muted-foreground line-through">${product.price.toLocaleString()}</span>
+                  ) : product.originalPrice > product.price ? (
+                    <span className="text-xs text-muted-foreground line-through">${product.originalPrice.toLocaleString()}</span>
+                  ) : null}
+                </div>
+                {hasMemberPrice && (
+                  <p className="text-xs text-primary font-semibold mt-0.5">Member price applied</p>
+                )}
+              </>
+            );
+          })()}
 
           {/* Stock indicator */}
           {product.stock > 0 && product.stock <= 5 && (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
@@ -122,7 +123,7 @@ async function getTrendingProducts() {
         hasVariants: p.hasVariants,
         img: image,
         description: p.description,
-        memberPrice: p.memberPrice,
+        memberPrice: variant?.memberPrice ?? p.memberPrice,
         stock,
         category: p.category,
       };
@@ -195,10 +196,15 @@ function StarRating({ rating, count }: StarRatingProps) {
 /* ─── Page ──────────────────────────────────────────────────────────── */
 
 export default async function HomePage() {
-  const [trendingProducts, categories] = await Promise.all([
+  const session = await auth();
+  const [trendingProducts, categories, dbUser] = await Promise.all([
     getTrendingProducts(),
     getCategories(),
+    session?.user?.id
+      ? db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
+      : Promise.resolve(null),
   ]);
+  const isMember = dbUser?.isMember ?? false;
 
   return (
     <div>
@@ -378,7 +384,7 @@ export default async function HomePage() {
           <SectionHeading tag="TRENDING PRODUCTS" title="Popular Picks For You" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
             {trendingProducts.map((p) => (
-              <HomeTrendingProductCard key={p.id} product={p} />
+              <HomeTrendingProductCard key={p.id} product={p} isMember={isMember} />
             ))}
           </div>
 

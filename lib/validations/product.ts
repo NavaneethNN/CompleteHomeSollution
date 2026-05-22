@@ -16,6 +16,10 @@ export const createProductSchema = z.object({
   categoryId: z.string().cuid(),
   material: z.string().optional(),
   roomType: z.string().optional(),
+  weight: z.number().positive().optional(),
+  length: z.number().positive().optional(),
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional(),
 });
 
 export const updateProductSchema = createProductSchema.partial();

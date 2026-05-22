@@ -24,6 +24,10 @@ const productVariantSchema = z.object({
   isActive: z.boolean().default(true),
   variantValueIds: z.array(z.string()).min(1, "At least one variant value is required"),
   images: z.array(z.string()).optional(),
+  weight: z.number().positive().optional(),
+  length: z.number().positive().optional(),
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional(),
 });
 
 // Types
@@ -134,6 +138,10 @@ export async function createProductVariant(
     isActive?: boolean;
     variantValueIds: string[];
     images?: string[];
+    weight?: number;
+    length?: number;
+    width?: number;
+    height?: number;
   }
 ) {
   try {
@@ -157,6 +165,10 @@ export async function createProductVariant(
         memberPrice: validated.memberPrice,
         stock: validated.stock,
         isActive: validated.isActive,
+        weight: validated.weight,
+        length: validated.length,
+        width: validated.width,
+        height: validated.height,
         productId,
         values: {
           create: validated.variantValueIds.map((valueId) => ({
@@ -298,6 +310,10 @@ export async function updateProductVariant(
     memberPrice?: number | null;
     stock?: number;
     isActive?: boolean;
+    weight?: number | null;
+    length?: number | null;
+    width?: number | null;
+    height?: number | null;
   }
 ) {
   try {
@@ -309,6 +325,10 @@ export async function updateProductVariant(
         ...(data.memberPrice !== undefined && { memberPrice: data.memberPrice }),
         ...(data.stock !== undefined && { stock: data.stock }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.weight !== undefined && { weight: data.weight }),
+        ...(data.length !== undefined && { length: data.length }),
+        ...(data.width !== undefined && { width: data.width }),
+        ...(data.height !== undefined && { height: data.height }),
       },
     });
 
@@ -411,6 +431,10 @@ const createProductSchema = z.object({
   roomType: z.string().optional(),
   categoryId: z.string().min(1, "Category is required"),
   hasVariants: z.boolean().default(false),
+  weight: z.number().positive().optional(),
+  length: z.number().positive().optional(),
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional(),
 });
 
 /**
@@ -430,6 +454,10 @@ export async function createProduct(data: {
   roomType?: string;
   categoryId: string;
   hasVariants?: boolean;
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
 }) {
   try {
     const validated = createProductSchema.parse(data);
@@ -481,6 +509,10 @@ export async function updateProduct(
     roomType: string | null;
     categoryId: string;
     isActive: boolean;
+    weight: number | null;
+    length: number | null;
+    width: number | null;
+    height: number | null;
   }>
 ) {
   try {

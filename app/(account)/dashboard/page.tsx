@@ -12,13 +12,13 @@ import {
 
 export const metadata: Metadata = { title: "My Dashboard — Complete Home Sollution" };
 
-const NAV_LINKS = [
+const BASE_NAV_LINKS = [
   { label: "Dashboard",   href: "/account/dashboard",  Icon: LayoutDashboard },
   { label: "My Orders",   href: "/account/orders",     Icon: Package },
   { label: "Membership",  href: "/account/membership", Icon: Crown },
   { label: "Profile",     href: "/account/profile",    Icon: UserCircle },
   { label: "Addresses",   href: "/account/addresses",  Icon: MapPin },
-] as const;
+];
 
 const QUICK_ACTIONS = [
   {
@@ -62,12 +62,19 @@ export default async function AccountDashboardPage() {
   const session = await auth();
   const user = session!.user;
   
-  // Fetch dynamic data
-  const [{ totalOrders, pendingOrders, recentOrders }, { addresses }, cartItems] = await Promise.all([
+  // Fetch dynamic data — always get isMember from DB, not the potentially-stale JWT
+  const [{ totalOrders, pendingOrders, recentOrders }, { addresses }, cartItems, dbUser] = await Promise.all([
     getOrderStats(),
     getAddresses(),
     db.cartItem.count({ where: { userId: user.id } }),
+    db.user.findUnique({ where: { id: user.id }, select: { isMember: true, memberSince: true } }),
   ]);
+
+  const isMember = dbUser?.isMember ?? false;
+  const isAdmin = user.role === "ADMIN";
+  const NAV_LINKS = isAdmin
+    ? [...BASE_NAV_LINKS, { label: "Admin Panel", href: "/admin", Icon: ShieldCheck }]
+    : BASE_NAV_LINKS;
   
   const initials = user.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -102,7 +109,7 @@ export default async function AccountDashboardPage() {
               )}
               <p className="font-bold text-base leading-tight">{user.name ?? "Welcome"}</p>
               <p className="text-white/55 text-xs mt-0.5 truncate max-w-full">{user.email}</p>
-              {user.isMember && (
+              {isMember && (
                 <span className="mt-3 inline-flex items-center gap-1 bg-amber-400/20 text-amber-300 text-[11px] font-bold px-3 py-1 rounded-full">
                   <Crown className="h-3 w-3" /> MEMBER
                 </span>
@@ -111,21 +118,30 @@ export default async function AccountDashboardPage() {
 
             {/* Nav links */}
             <nav className="bg-white rounded-2xl overflow-hidden border border-border shadow-sm">
-              {NAV_LINKS.map(({ label, href, Icon }, i) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-colors group
-                    ${href === "/account/dashboard"
-                      ? "bg-primary/8 text-primary border-l-[3px] border-primary"
-                      : "text-foreground hover:bg-secondary hover:text-primary border-l-[3px] border-transparent"}
-                    ${i !== 0 ? "border-t border-border" : ""}`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                  <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-40 group-hover:opacity-100 transition-opacity" />
-                </Link>
-              ))}
+              {NAV_LINKS.map(({ label, href, Icon }, i) => {
+                const isAdminLink = href === "/admin";
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={`flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-colors group
+                      ${href === "/account/dashboard"
+                        ? "bg-primary/8 text-primary border-l-[3px] border-primary"
+                        : isAdminLink
+                        ? "text-primary font-semibold hover:bg-primary/8 border-l-[3px] border-transparent hover:border-primary"
+                        : "text-foreground hover:bg-secondary hover:text-primary border-l-[3px] border-transparent"}
+                      ${i !== 0 ? "border-t border-border" : ""}`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    {label}
+                    {isAdminLink ? (
+                      <span className="ml-auto text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Admin</span>
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-40 group-hover:opacity-100 transition-opacity" />
+                    )}
+                  </Link>
+                );
+              })}
             </nav>
           </aside>
 
@@ -146,11 +162,11 @@ export default async function AccountDashboardPage() {
                   {user.name?.split(" ")[0] ?? "Friend"} 👋
                 </h1>
                 <p className="text-white/60 text-sm max-w-md">
-                  {user.isMember
+                  {isMember
                     ? "You're a valued member. Enjoy your exclusive discounts on every order."
                     : "Upgrade to membership and save up to 30% on every order."}
                 </p>
-                {!user.isMember && (
+                {!isMember && (
                   <Link
                     href="/account/membership"
                     className="inline-flex items-center gap-2 mt-4 bg-primary hover:bg-primary/90 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors"
@@ -167,7 +183,7 @@ export default async function AccountDashboardPage() {
                 { label: "Total Orders",   value: totalOrders.toString(),    Icon: Package,      color: "text-blue-600",   bg: "bg-blue-50"   },
                 { label: "Cart Items",     value: cartCount.toString(),      Icon: ShoppingBag,  color: "text-rose-500",   bg: "bg-rose-50"   },
                 { label: "Saved Addresses",value: addressCount.toString(),   Icon: MapPin,       color: "text-emerald-600",bg: "bg-emerald-50"},
-                { label: "Member Status",   value: user.isMember ? "Active" : "—", Icon: Crown, color: "text-amber-600", bg: "bg-amber-50" },
+                { label: "Member Status",   value: isMember ? "Active" : "—", Icon: Crown, color: "text-amber-600", bg: "bg-amber-50" },
               ].map(({ label, value, Icon, color, bg }) => (
                 <div key={label} className="bg-white rounded-2xl p-5 border border-border shadow-sm">
                   <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
@@ -203,7 +219,7 @@ export default async function AccountDashboardPage() {
             </div>
 
             {/* Member perks / upgrade card */}
-            {!user.isMember && (
+            {!isMember && (
               <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
                 <div className="px-6 py-5 border-b border-border flex items-center justify-between">
                   <div>
