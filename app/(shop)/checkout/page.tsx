@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { getAddresses } from "@/lib/actions/address";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { db } from "@/lib/db";
+import { getActiveMembershipPlan } from "@/lib/membership-plan";
 
 export const metadata: Metadata = { title: "Checkout — Complete Home Sollution" };
 
@@ -16,18 +17,31 @@ export default async function CheckoutPage() {
   let addressError: string | undefined;
   let userProfile: { name: string; phone: string } = { name: "", phone: "" };
 
+  let isMember = false;
+
   if (session?.user?.id) {
     const [addressResult, dbUser] = await Promise.all([
       getAddresses(),
       db.user.findUnique({
         where: { id: session.user.id },
-        select: { name: true, phone: true },
+        select: { name: true, phone: true, isMember: true },
       }),
     ]);
     addresses = addressResult.addresses || [];
     addressError = addressResult.error;
     userProfile = { name: dbUser?.name ?? "", phone: dbUser?.phone ?? "" };
+    isMember = dbUser?.isMember ?? false;
   }
+
+  // Fetch fresh member prices, product data, and the active membership plan
+  const [freshProducts, freshVariants, activePlan] = await Promise.all([
+    db.product.findMany({ select: { id: true, memberPrice: true } }),
+    db.productVariant.findMany({ select: { id: true, memberPrice: true } }),
+    getActiveMembershipPlan(),
+  ]);
+  const memberPriceMap: Record<string, number | null> = {};
+  for (const p of freshProducts) memberPriceMap[p.id] = p.memberPrice;
+  for (const v of freshVariants) memberPriceMap[v.id] = v.memberPrice;
 
   return (
     <main className="bg-background py-8 md:py-12">
@@ -53,6 +67,9 @@ export default async function CheckoutPage() {
           addressesError={addressError}
           isAuthenticated={!!session}
           userProfile={userProfile}
+          isMember={isMember}
+          memberPriceMap={memberPriceMap}
+          activePlan={activePlan ?? undefined}
         />
       </div>
     </main>

@@ -26,12 +26,17 @@ export async function createCheckoutSession(params: {
   customerEmail?: string;
   successUrl: string;
   cancelUrl: string;
+  addMembership?: boolean;
+  userId?: string;
 }): Promise<Stripe.Checkout.Session> {
   return stripe.checkout.sessions.create({
     mode: "payment",
     line_items: params.lineItems,
     customer_email: params.customerEmail,
-    metadata: { orderId: params.orderId },
+    metadata: {
+      orderId: params.orderId,
+      ...(params.addMembership && params.userId ? { addMembership: "1", userId: params.userId } : {}),
+    },
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
     payment_method_types: ["card"],

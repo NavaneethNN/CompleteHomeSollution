@@ -7,30 +7,36 @@ import { useCartStore } from "@/store/cart";
 import { CartItem } from "./cart-item";
 import { CartSummary } from "./cart-summary";
 
+interface CartPageProps {
+  isMember?: boolean;
+}
+
 const emptyStateActions = [
   { label: "Continue Shopping", href: "/products" },
   { label: "Browse Categories", href: "/categories/living-room" },
 ];
 
-export function CartPage() {
+export function CartPage({ isMember = false }: CartPageProps) {
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const clearCart = useCartStore((state) => state.clearCart);
 
   const subtotal = useMemo(
+    () => items.reduce((total, item) => {
+      const price = isMember && item.product.memberPrice && item.product.memberPrice > 0
+        ? item.product.memberPrice
+        : item.product.price;
+      return total + price * item.quantity;
+    }, 0),
+    [items, isMember]
+  );
+  const fullSubtotal = useMemo(
     () => items.reduce((total, item) => total + item.product.price * item.quantity, 0),
     [items]
   );
+  const memberSavings = isMember ? fullSubtotal - subtotal : 0;
 
-  const shipping = useMemo(() => {
-    if (subtotal <= 0) return 0;
-    return subtotal >= 1200 ? 0 : 79;
-  }, [subtotal]);
-
-  const tax = useMemo(() => subtotal * 0.1, [subtotal]);
-  const discount = useMemo(() => 0, []);
-  const grandTotal = subtotal + shipping + tax - discount;
 
   if (items.length === 0) {
     return (
@@ -93,6 +99,7 @@ export function CartPage() {
               <CartItem
                 key={`${item.product.id}:${item.product.variantId ?? "default"}`}
                 item={item}
+                isMember={isMember}
                 onUpdateQuantity={(quantity) => updateQuantity(item.product.id, quantity, item.product.variantId ?? null)}
                 onRemove={() => removeItem(item.product.id, item.product.variantId ?? null)}
               />
@@ -101,11 +108,9 @@ export function CartPage() {
 
           <CartSummary
             subtotal={subtotal}
-            shipping={shipping}
-            tax={tax}
-            discount={discount}
-            total={grandTotal}
             itemCount={items.reduce((total, item) => total + item.quantity, 0)}
+            isMember={isMember}
+            memberSavings={memberSavings}
           />
         </div>
       </div>

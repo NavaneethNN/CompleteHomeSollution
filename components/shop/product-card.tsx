@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,7 +45,9 @@ interface ProductCardProps {
 export function ProductCard(props: Readonly<ProductCardProps>) {
   const { product, isMember = false } = props;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const router = useRouter();
+  useEffect(() => { setMounted(true); }, []);
   // Use variant price if available, otherwise use base price
   const displayPrice = product.variant?.price ?? product.basePrice;
   const displayComparePrice = product.variant?.comparePrice ?? product.comparePrice;
@@ -63,7 +65,8 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
     discountPercent = Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100);
   }
   const cartVariantId = product.variant?.id ?? null;
-  const isInCart = useCartStore((state) => state.isInCart(product.id, cartVariantId));
+  const isInCartRaw = useCartStore((state) => state.isInCart(product.id, cartVariantId));
+  const isInCart = mounted && isInCartRaw;
   const addItem = useCartStore((state) => state.addItem);
   let addToCartButtonClassName = "bg-primary text-white shadow-md hover:bg-primary/90";
   let addToCartIcon: React.ReactNode = <ShoppingCart className="h-4 w-4" />;

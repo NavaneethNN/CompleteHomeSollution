@@ -22,6 +22,10 @@ interface ProductVariant {
   memberPrice: number | null;
   stock: number;
   isActive: boolean;
+  weight?: number | null;
+  length?: number | null;
+  width?: number | null;
+  height?: number | null;
   values: {
     variantValue: {
       id: string;

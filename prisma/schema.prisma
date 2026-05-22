@@ -43,8 +43,9 @@ model User {
   image         String?
   passwordHash  String?
   role        Role      @default(CUSTOMER)
-  isMember    Boolean   @default(false)
-  memberSince DateTime?
+  isMember         Boolean   @default(false)
+  memberSince      DateTime?
+  membershipExpiry DateTime?
   mfaEnabled  Boolean   @default(false)
   mfaSecret   String?
   createdAt   DateTime  @default(now())
@@ -113,6 +114,11 @@ model Product {
   categoryId   String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  // Shipping dimensions (in cm)
+  weight       Float?   // Weight in kg
+  length       Float?   // Length in cm
+  width        Float?   // Width in cm
+  height       Float?   // Height in cm
 
   category          Category           @relation(fields: [categoryId], references: [id])
   reviews           Review[]
@@ -169,6 +175,11 @@ model ProductVariant {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  // Shipping dimensions (in cm) - overrides product dimensions if set
+  weight       Float?   // Weight in kg
+  length       Float?   // Length in cm
+  width        Float?   // Width in cm
+  height       Float?   // Height in cm
 
   product Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
   images  VariantImage[]       // Images specific to this variant
@@ -297,6 +308,19 @@ model CartItem {
 
   @@unique([userId, productId, productVariantId])
   @@index([productVariantId])
+}
+
+model MembershipPlan {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?  @db.Text
+  price           Float    // AUD price
+  durationDays    Int      // e.g. 365 for annual, 30 for monthly
+  discountPercent Float    @default(0) // % discount members get on products
+  isActive        Boolean  @default(true)
+  isDefault       Boolean  @default(false) // the plan shown in checkout
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model StockAlert {

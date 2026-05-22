@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/shared/providers";
 import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
+import { ShopShell } from "@/components/shared/shop-shell";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const dancingScript = Dancing_Script({
@@ -44,9 +45,7 @@ export default function RootLayout({
     <html lang="en-AU" suppressHydrationWarning>
       <body className={`${inter.variable} ${dancingScript.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <Providers>
-          <Navbar />
-          <main className="flex-1 flex flex-col">{children}</main>
-          <Footer />
+          <ShopShell>{children}</ShopShell>
         </Providers>
       </body>
     </html>

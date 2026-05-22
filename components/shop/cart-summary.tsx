@@ -1,16 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowRight, Crown } from "lucide-react";
 
 interface CartSummaryProps {
   readonly subtotal: number;
-  readonly shipping: number;
-  readonly tax: number;
-  readonly discount: number;
-  readonly total: number;
   readonly itemCount: number;
+  readonly isMember?: boolean;
+  readonly memberSavings?: number;
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
@@ -18,16 +15,7 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
   currency: "AUD",
 });
 
-function SummaryRow({ label, value, subdued = false }: Readonly<{ label: string; value: number; subdued?: boolean }>) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span className={cn(subdued ? "text-muted-foreground" : "text-foreground", "font-medium")}>{label}</span>
-      <span className={cn("font-semibold", subdued ? "text-muted-foreground" : "text-foreground")}>{currencyFormatter.format(value)}</span>
-    </div>
-  );
-}
-
-export function CartSummary({ subtotal, shipping, tax, discount, total, itemCount }: Readonly<CartSummaryProps>) {
+export function CartSummary({ subtotal, itemCount, isMember = false, memberSavings = 0 }: Readonly<CartSummaryProps>) {
   return (
     <aside className="rounded-3xl border border-border bg-white p-5 shadow-sm sm:p-6 lg:sticky lg:top-24">
       <div className="border-b border-border pb-4">
@@ -38,17 +26,33 @@ export function CartSummary({ subtotal, shipping, tax, discount, total, itemCoun
         </p>
       </div>
 
-      <div className="space-y-3 py-4">
-        <SummaryRow label="Subtotal" value={subtotal} />
-        <SummaryRow label="Shipping / Delivery" value={shipping} />
-        <SummaryRow label="Tax" value={tax} />
-        {discount > 0 ? <SummaryRow label="Discount" value={-discount} subdued /> : null}
+      <div className="py-4 space-y-2">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium text-foreground">Subtotal</span>
+          <span className="font-semibold text-foreground">{currencyFormatter.format(subtotal)}</span>
+        </div>
+        {isMember && memberSavings > 0 && (
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-primary font-medium flex items-center gap-1">
+              <Crown className="h-3.5 w-3.5" /> Member savings
+            </span>
+            <span className="font-semibold text-green-600">-{currencyFormatter.format(memberSavings)}</span>
+          </div>
+        )}
+        {isMember && (
+          <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+            <Crown className="h-3 w-3" /> Free shipping on your order
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {isMember ? "GST calculated at checkout." : "Shipping and GST calculated at checkout."}
+        </p>
       </div>
 
       <div className="rounded-2xl bg-secondary/50 p-4">
         <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold text-foreground">Grand Total</span>
-          <span className="text-2xl font-black text-foreground">{currencyFormatter.format(total)}</span>
+          <span className="text-sm font-semibold text-foreground">Subtotal</span>
+          <span className="text-2xl font-black text-foreground">{currencyFormatter.format(subtotal)}</span>
         </div>
       </div>
 
@@ -61,7 +65,7 @@ export function CartSummary({ subtotal, shipping, tax, discount, total, itemCoun
       </Link>
 
       <p className="mt-4 text-center text-xs text-muted-foreground">
-        Secure checkout and delivery calculated at the next step.
+        Secure checkout — shipping &amp; GST calculated at the next step.
       </p>
     </aside>
   );

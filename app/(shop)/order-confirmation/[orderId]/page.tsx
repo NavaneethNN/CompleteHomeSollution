@@ -1,24 +1,48 @@
 import type { Metadata } from "next";
+import type Stripe from "stripe";
 import Link from "next/link";
-import { CheckCircle2, Package, ArrowRight, Mail } from "lucide-react";
+import { notFound } from "next/navigation";
+import { CheckCircle2, Package, ArrowRight, Mail, Crown } from "lucide-react";
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
+import { getStripe } from "@/lib/stripe";
+import { ClearCartOnSuccess } from "@/components/shop/clear-cart-on-success";
+import { RefreshSessionOnMembership } from "@/components/shop/refresh-session-on-membership";
 
 export const metadata: Metadata = { title: "Order Confirmed — Complete Home Sollution" };
 
-async function getOrder(orderId: string) {
-  try {
-    const order = await db.order.findUnique({
-      where: { id: orderId },
-      include: {
-        items: { include: { product: { select: { name: true, images: true } } } },
-        address: true,
-        user: { select: { email: true, name: true } },
-      },
-    });
-    return order;
-  } catch {
-    return null;
+async function getOrderIfAuthorized(
+  orderId: string,
+  stripeSession: Stripe.Checkout.Session | null,
+  userId: string | undefined,
+  userRole: string | undefined
+) {
+  // Sanitize orderId format
+  if (!/^c[a-z0-9]{24,}$/.test(orderId)) return { order: null, authorized: false };
+
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    include: {
+      items: { include: { product: { select: { name: true, images: true } } } },
+      address: true,
+      user: { select: { email: true, name: true } },
+    },
+  }).catch(() => null);
+
+  if (!order) return { order: null, authorized: false };
+
+  // Auth check 1: authenticated owner or admin
+  if (userId && (order.userId === userId || userRole === "ADMIN")) {
+    return { order, authorized: true };
   }
+
+  // Auth check 2: pre-fetched Stripe session that references this order
+  if (stripeSession?.metadata?.orderId === orderId) {
+    return { order, authorized: true };
+  }
+
+  // Auth check 3: guest order with no userId — only accessible via valid session_id (handled above)
+  return { order: null, authorized: false };
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
@@ -28,14 +52,70 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
 
 export default async function OrderConfirmationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orderId: string }>;
+  searchParams?: Promise<{ session_id?: string }>;
 }) {
   const { orderId } = await params;
-  const order = await getOrder(orderId);
+  const resolvedSearch = await searchParams;
+  const sessionId = resolvedSearch?.session_id;
+
+  const authSession = await auth();
+  const userId = authSession?.user?.id;
+  const userRole = authSession?.user?.role;
+
+  if (!orderId) return notFound();
+
+  // Fetch Stripe session ONCE and reuse for both auth and membership activation
+  let stripeSession: Stripe.Checkout.Session | null = null;
+  if (sessionId) {
+    try {
+      stripeSession = await getStripe().checkout.sessions.retrieve(sessionId);
+    } catch {
+      // Invalid session_id — ignore, auth will fall through to 404
+    }
+  }
+
+  const { order, authorized } = await getOrderIfAuthorized(orderId, stripeSession, userId, userRole);
+
+  // Activate membership directly on success redirect — no webhook dependency
+  let membershipActivated = false;
+  if (stripeSession && userId) {
+    try {
+      const wantsMembership =
+        stripeSession.payment_status === "paid" && (
+          stripeSession.metadata?.addMembership === "1" ||
+          stripeSession.metadata?.type === "membership"
+        );
+      const metaUserId = stripeSession.metadata?.userId;
+      if (wantsMembership && metaUserId === userId) {
+        const currentUser = await db.user.findUnique({
+          where: { id: userId },
+          select: { isMember: true },
+        });
+        if (!currentUser?.isMember) {
+          await db.user.update({
+            where: { id: userId },
+            data: { isMember: true, memberSince: new Date() },
+          });
+          console.log(`[order-confirmation] Membership activated for user ${userId}`);
+        }
+        membershipActivated = true;
+      }
+    } catch {
+      // non-critical — ignore
+    }
+  }
+
+  if (!authorized && !order) return notFound();
 
   return (
     <main className="bg-background py-12 md:py-16">
+      {/* Clear cart now that payment succeeded */}
+      <ClearCartOnSuccess />
+      {/* Force session refresh + show welcome banner if membership was just activated */}
+      {membershipActivated && <RefreshSessionOnMembership />}
       <div className="container mx-auto max-w-2xl px-4 md:px-6">
         {/* Success Header */}
         <div className="text-center mb-10">
@@ -61,7 +141,7 @@ export default async function OrderConfirmationPage({
             </div>
           </div>
 
-          {order && (
+          {authorized && order && (
             <>
               {/* Items */}
               <div>
@@ -86,12 +166,20 @@ export default async function OrderConfirmationPage({
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span>{order.shippingCost === 0 ? "Free" : currencyFormatter.format(order.shippingCost)}</span>
+                  <span>{order.shippingCost === 0 ? <span className="text-green-600">Free</span> : currencyFormatter.format(order.shippingCost)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">GST</span>
+                  <span className="text-muted-foreground">GST (10%)</span>
                   <span>{currencyFormatter.format(order.tax)}</span>
                 </div>
+                {membershipActivated && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-primary font-medium flex items-center gap-1">
+                      <Crown className="h-3.5 w-3.5" /> CHS Premium Membership
+                    </span>
+                    <span className="font-medium text-primary">+{currencyFormatter.format(30)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-base font-bold pt-2 border-t border-border">
                   <span>Total</span>
                   <span>{currencyFormatter.format(order.total)}</span>
@@ -123,7 +211,7 @@ export default async function OrderConfirmationPage({
             </>
           )}
 
-          {!order && (
+          {(!authorized || !order) && (
             <div className="text-center py-6">
               <p className="text-sm text-muted-foreground">
                 Your order is being processed. You&apos;ll receive a confirmation email shortly.

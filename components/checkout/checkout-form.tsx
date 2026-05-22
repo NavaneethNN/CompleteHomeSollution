@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import {
   MapPin,
   Plus,
@@ -19,6 +19,15 @@ import {
   CreditCard,
   Building,
   X,
+  Truck,
+  Package,
+  Navigation,
+  Globe,
+  Crown,
+  BadgePercent,
+  Zap,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Address } from "@prisma/client";
 import { cn } from "@/lib/utils";
@@ -42,6 +51,7 @@ import {
   deleteAddress,
 } from "@/lib/actions/address";
 import { useCartStore } from "@/store/cart";
+import type { ActivePlan } from "@/lib/membership-plan";
 import Image from "next/image";
 import { AddressAutocomplete } from "@/components/account/address-autocomplete";
 import { SuburbSelector } from "@/components/account/suburb-selector";
@@ -64,25 +74,14 @@ const AU_STATES = [
   { value: "WA", label: "Western Australia" },
 ];
 
-// Shipping address form schema
-const shippingFormSchema = z.object({
-  name: z.string().min(2, "Full name is required"),
-  phone: z.string().min(1, "Phone number is required").max(20),
-  email: z.string().email("Valid email is required").optional().or(z.literal("")),
-  line1: z.string().min(3, "Street address is required"),
-  line2: z.string().optional(),
-  suburb: z.string().min(2, "Suburb is required"),
-  state: z.string().min(1, "State is required"),
-  postcode: z.string().regex(/^\d{4}$/, "Enter a valid 4-digit postcode"),
-});
-
-type ShippingFormData = z.infer<typeof shippingFormSchema>;
-
 interface CheckoutFormProps {
   readonly savedAddresses: Address[];
   readonly addressesError?: string;
   readonly isAuthenticated: boolean;
   readonly userProfile?: { name: string; phone: string };
+  readonly isMember?: boolean;
+  readonly memberPriceMap?: Record<string, number | null>;
+  readonly activePlan?: ActivePlan;
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
@@ -90,194 +89,89 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
   currency: "AUD",
 });
 
-// ---------- Extracted inline address form with Google Autocomplete ----------
-interface NewAddressFormProps {
-  isGuest: boolean;
-  line1: string;
-  suburb: string;
-  state: string;
-  errors: Partial<Record<keyof ShippingFormData, { message?: string }>>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  register: (...args: any[]) => any;
-  setShippingValue: (field: keyof ShippingFormData, value: string) => void;
+interface ShippingRate {
+  serviceCode: string;
+  serviceName: string;
+  price: number;
+  deliveryTime: string | null;
 }
 
-function NewAddressForm({ isGuest, line1, suburb, state, errors, register, setShippingValue }: NewAddressFormProps) {
-  return (
-    <div className="space-y-4">
-      {/* Email — guests only */}
-      {isGuest && (
-        <div>
-          <Label htmlFor="ship-email" className="text-xs font-medium">
-            Email Address <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="ship-email"
-            type="email"
-            placeholder="you@example.com"
-            className={cn("mt-1.5 h-10", errors.email && "border-destructive")}
-            {...register("email")}
-          />
-          {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
-        </div>
-      )}
-
-      {/* Name & Phone */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <Label htmlFor="ship-name" className="text-xs font-medium">
-            Full Name <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="ship-name"
-            placeholder="John Smith"
-            className={cn("mt-1.5 h-10", errors.name && "border-destructive")}
-            {...register("name")}
-          />
-          {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="ship-phone" className="text-xs font-medium">
-            Phone <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="ship-phone"
-            type="tel"
-            placeholder="0412 345 678"
-            className={cn("mt-1.5 h-10", errors.phone && "border-destructive")}
-            {...register("phone")}
-          />
-          {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone.message}</p>}
-        </div>
-      </div>
-
-      {/* Street Address with Google Autocomplete */}
-      <AddressAutocomplete
-        value={line1}
-        onChange={(val) => setShippingValue("line1", val)}
-        onAddressSelect={(addr) => {
-          setShippingValue("line1", addr.line1);
-          if (addr.line2) setShippingValue("line2", addr.line2);
-          setShippingValue("suburb", addr.suburb);
-          setShippingValue("state", addr.state);
-          setShippingValue("postcode", addr.postcode);
-        }}
-        error={errors.line1?.message}
-      />
-
-      {/* Unit / Apt */}
-      <div>
-        <Label htmlFor="ship-line2" className="text-xs font-medium flex items-center gap-1.5">
-          <Building className="h-3.5 w-3.5 text-muted-foreground" />
-          Apt, Suite, Unit <span className="text-muted-foreground">(Optional)</span>
-        </Label>
-        <Input id="ship-line2" placeholder="Unit 4" className="mt-1.5 h-10" {...register("line2")} />
-      </div>
-
-      {/* Suburb */}
-      <SuburbSelector
-        value={suburb}
-        onChange={(val) => setShippingValue("suburb", val)}
-        state={state}
-        error={errors.suburb?.message}
-      />
-
-      {/* State & Postcode */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label className="text-xs font-medium">State <span className="text-destructive">*</span></Label>
-          <Select value={state} onValueChange={(v) => setShippingValue("state", v)}>
-            <SelectTrigger className={cn("mt-1.5 h-10", errors.state && "border-destructive")}>
-              <SelectValue placeholder="Select state" />
-            </SelectTrigger>
-            <SelectContent>
-              {AU_STATES.map((s) => (
-                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {errors.state && <p className="mt-1 text-xs text-destructive">{errors.state.message}</p>}
-        </div>
-        <div>
-          <Label htmlFor="ship-postcode" className="text-xs font-medium">
-            Postcode <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="ship-postcode"
-            placeholder="2000"
-            maxLength={4}
-            className={cn("mt-1.5 h-10", errors.postcode && "border-destructive")}
-            {...register("postcode")}
-          />
-          {errors.postcode && <p className="mt-1 text-xs text-destructive">{errors.postcode.message}</p>}
-        </div>
-      </div>
-    </div>
-  );
-}
-// ---------------------------------------------------------------------------
-
-export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userProfile }: CheckoutFormProps) {
+export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userProfile, isMember, memberPriceMap, activePlan }: CheckoutFormProps) {
+  const MEMBERSHIP_PRICE = activePlan?.price ?? 30;
+  const membershipLabel = activePlan ? `${activePlan.name} (${activePlan.durationDays >= 365 ? `${Math.round(activePlan.durationDays / 365)}yr` : `${activePlan.durationDays}d`})` : "CHS Membership";
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [addMembership, setAddMembership] = useState(false);
+  const [membershipPerksOpen, setMembershipPerksOpen] = useState(false);
 
   // Address management state
   const [addresses, setAddresses] = useState<Address[]>(savedAddresses);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     savedAddresses.length > 0 ? savedAddresses[0].id : null
   );
-  // "saved" | "new" — guests always start on "new"
-  const [addressMode, setAddressMode] = useState<"saved" | "new">(
-    savedAddresses.length === 0 ? "new" : "saved"
+  const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(
+    !isAuthenticated || savedAddresses.length === 0
   );
-  const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  // Guest: store address locally since it won't be saved to DB
+  const [guestAddress, setGuestAddress] = useState<(AddressInput & { email?: string }) | null>(null);
+  const [guestEmail, setGuestEmail] = useState("");
 
+  // Australia Post shipping rates
+  const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
+  const [selectedRateCode, setSelectedRateCode] = useState<string | null>(null);
+  const [isFetchingRates, setIsFetchingRates] = useState(false);
+  const [ratesError, setRatesError] = useState<string | null>(null);
   // Cart state
   const items = useCartStore((state) => state.items);
   const clearCart = useCartStore((state) => state.clearCart);
 
-  const subtotal = items.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  // effectiveMember = already a member OR just added membership in this checkout
+  const effectiveMember = isMember || (!isMember && addMembership);
+
+  // Resolve memberPrice: prefer fresh DB value from memberPriceMap over stale localStorage value
+  const getMemberPrice = (item: typeof items[number]): number | null | undefined => {
+    if (!memberPriceMap) return item.product.memberPrice;
+    const key = item.product.variantId ?? item.product.id;
+    const fresh = memberPriceMap[key];
+    return fresh !== undefined ? fresh : item.product.memberPrice;
+  };
+
+  const subtotal = items.reduce((total, item) => {
+    const memberPrice = getMemberPrice(item);
+    const price = effectiveMember && memberPrice ? memberPrice : item.product.price;
+    return total + price * item.quantity;
+  }, 0);
+  // Full (non-member) subtotal for savings display
+  const fullSubtotal = items.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  const memberSavings = fullSubtotal - subtotal;
   const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+
+  // Estimate total weight from cart (fallback 2 kg per item if no weight data)
+  const estimatedWeightKg = items.reduce(
+    (sum, item) => sum + ((item.product as { weight?: number }).weight ?? 2) * item.quantity,
+    0
+  );
 
   // Calculate totals
   const discount = appliedCoupon ? subtotal * (appliedCoupon.discount / 100) : 0;
-  const shippingCost = subtotal - discount >= 1200 ? 0 : 79;
-  const total = subtotal - discount + shippingCost;
+  const discountedSubtotal = subtotal - discount;
+  const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode);
+  const freeShipping = discountedSubtotal >= 1200 || effectiveMember;
+  const shippingCost = freeShipping ? 0 : (selectedRate?.price ?? null);
+  const gst = Math.round(discountedSubtotal * 0.1 * 100) / 100;
+  const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
+  const total = discountedSubtotal + (shippingCost ?? 0) + gst + membershipAdd;
+  // Net benefit: savings on items minus membership fee
+  const netBenefit = memberSavings - MEMBERSHIP_PRICE;
 
-  // Inline new-address form
-  const {
-    register: registerShipping,
-    handleSubmit: handleShippingSubmit,
-    setValue: setShippingValue,
-    formState: { errors: shippingErrors },
-    watch: watchShipping,
-    reset: resetShipping,
-  } = useForm<ShippingFormData>({
-    resolver: zodResolver(shippingFormSchema),
-    defaultValues: {
-      name: userProfile?.name || "",
-      phone: userProfile?.phone || "",
-      email: "",
-      line1: "",
-      line2: "",
-      suburb: "",
-      state: "",
-      postcode: "",
-    },
-  });
-
-  const shippingLine1 = watchShipping("line1");
-  const shippingState = watchShipping("state");
-  const shippingSuburb = watchShipping("suburb");
-
-  // Address dialog form (for saving to account)
+  // Address dialog form
   const {
     register: registerAddress,
     handleSubmit: handleAddressSubmit,
@@ -301,7 +195,57 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   const addressState = watchAddress("state");
 
+  // Fetch Australia Post rates when destination postcode is known
+  const fetchAusPostRates = useCallback(
+    async (postcode: string) => {
+      if (!/^\d{4}$/.test(postcode)) return;
+      setIsFetchingRates(true);
+      setRatesError(null);
+      setShippingRates([]);
+      setSelectedRateCode(null);
+      try {
+        const res = await fetch("/api/shipping/auspost", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            postcode,
+            weightKg: Math.max(estimatedWeightKg, 0.1),
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setRatesError(data.error ?? "Could not fetch shipping rates.");
+        } else if (data.rates?.length) {
+          setShippingRates(data.rates);
+          setSelectedRateCode(data.rates[0].serviceCode);
+        } else {
+          setRatesError("No shipping services available for this postcode.");
+        }
+      } catch {
+        setRatesError("Could not connect to shipping service.");
+      } finally {
+        setIsFetchingRates(false);
+      }
+    },
+    [estimatedWeightKg]
+  );
+
+  // Fetch rates when selected saved address changes
+  useEffect(() => {
+    if (!selectedAddressId) return;
+    const addr = addresses.find((a) => a.id === selectedAddressId);
+    if (addr?.postcode) fetchAusPostRates(addr.postcode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAddressId]);
+
+  // Fetch rates when guest address is set
+  useEffect(() => {
+    if (guestAddress?.postcode) fetchAusPostRates(guestAddress.postcode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestAddress]);
+
   // Show cancelled toast
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (searchParams.get("cancelled") === "true") {
       toast({
@@ -313,20 +257,6 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   }, [searchParams, toast]);
 
   // Address management functions
-  const switchToNewAddress = () => {
-    resetShipping({
-      name: userProfile?.name || "",
-      phone: userProfile?.phone || "",
-      email: "",
-      line1: "",
-      line2: "",
-      suburb: "",
-      state: "",
-      postcode: "",
-    });
-    setAddressMode("new");
-  };
-
   const openAddDialog = () => {
     setEditingAddress(null);
     resetAddress({
@@ -360,6 +290,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const onAddressDialogSubmit = async (data: AddressInput) => {
     setIsLoading(true);
     try {
+      if (!isAuthenticated) {
+        // Guest: just store locally, don't hit the DB
+        setGuestAddress({ ...data, email: guestEmail });
+        setIsAddressDialogOpen(false);
+        toast({ title: "Address saved", description: "Your delivery address has been set." });
+        return;
+      }
       if (editingAddress) {
         const result = await updateAddress(editingAddress.id, data);
         if (result.error) {
@@ -376,7 +313,6 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         } else if (result.address) {
           setAddresses([result.address, ...addresses]);
           setSelectedAddressId(result.address.id);
-          setAddressMode("saved");
           toast({ title: "Address saved", description: "Your address has been added." });
           setIsAddressDialogOpen(false);
         }
@@ -398,13 +334,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         const updated = addresses.filter((a) => a.id !== id);
         setAddresses(updated);
         if (selectedAddressId === id) {
-          if (updated.length > 0) {
-            setSelectedAddressId(updated[0].id);
-            setAddressMode("saved");
-          } else {
-            setSelectedAddressId(null);
-            setAddressMode("new");
-          }
+          setSelectedAddressId(updated.length > 0 ? updated[0].id : null);
         }
         toast({ title: "Address deleted" });
       }
@@ -432,38 +362,28 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   };
 
   // Place order with Stripe Checkout redirect
-  const placeOrder = async (shippingData?: ShippingFormData) => {
+  const handlePlaceOrder = async () => {
     if (items.length === 0) {
       toast({ title: "Cart is empty", description: "Add items to your cart first.", variant: "destructive" });
       return;
     }
 
+    // Validate address
+    const hasAddress = isAuthenticated ? !!selectedAddressId : !!guestAddress;
+    if (!hasAddress) {
+      setIsAddressDialogOpen(true);
+      toast({ title: "Address required", description: "Please enter your shipping address.", variant: "destructive" });
+      return;
+    }
+
+    // Require a shipping rate when not free (members always get free shipping)
+    if (!effectiveMember && discountedSubtotal < 1200 && !selectedRateCode) {
+      toast({ title: "Select a shipping option", description: "Please choose a shipping service.", variant: "destructive" });
+      return;
+    }
+
     setIsProcessing(true);
     try {
-      // Validate address mode
-      if (addressMode === "saved" && !selectedAddressId) {
-        toast({ title: "Error", description: "Please select a shipping address.", variant: "destructive" });
-        setIsProcessing(false);
-        return;
-      }
-      if (addressMode === "new" && !shippingData) {
-        toast({ title: "Error", description: "Please fill in your shipping address.", variant: "destructive" });
-        setIsProcessing(false);
-        return;
-      }
-
-      // Build new address payload (only used when addressMode === "new")
-      const addressPayload = addressMode === "new" && shippingData ? {
-        name: shippingData.name,
-        phone: shippingData.phone,
-        line1: shippingData.line1,
-        line2: shippingData.line2 || undefined,
-        suburb: shippingData.suburb,
-        state: shippingData.state,
-        postcode: shippingData.postcode,
-        country: "AU",
-      } : undefined;
-
       const response = await fetch("/api/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -473,11 +393,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             variantId: item.product.variantId || undefined,
             quantity: item.quantity,
           })),
-          // When using saved address, only send the ID — no address object
-          ...(addressMode === "saved"
+          ...(isAuthenticated
             ? { savedAddressId: selectedAddressId }
-            : { address: addressPayload }),
-          guestEmail: !isAuthenticated ? shippingData?.email : undefined,
+            : { address: guestAddress }),
+          guestEmail: !isAuthenticated ? guestAddress?.email : undefined,
+          shippingRateCode: selectedRateCode ?? undefined,
+          shippingCost: shippingCost ?? 0,
+          couponCode: appliedCoupon?.code || undefined,
+          addMembership: !isMember && addMembership,
         }),
       });
 
@@ -493,11 +416,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         return;
       }
 
-      // Clear cart before redirect
-      clearCart();
-
-      // Redirect to Stripe Checkout
       if (data.url) {
+        // Cart is cleared on the order confirmation page after successful payment
         window.location.href = data.url;
       } else {
         toast({ title: "Error", description: "No checkout URL returned.", variant: "destructive" });
@@ -505,20 +425,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       }
     } catch (error) {
       console.error("Checkout error:", error);
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
       setIsProcessing(false);
-    }
-  };
-
-  const handlePlaceOrder = () => {
-    if (addressMode === "new") {
-      handleShippingSubmit((data) => placeOrder(data))();
-    } else {
-      placeOrder();
     }
   };
 
@@ -547,30 +455,48 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             Items ({itemCount})
           </h2>
           <div className="mt-4 divide-y divide-border">
-            {items.map((item) => (
-              <div key={`${item.product.id}-${item.product.variantId}`} className="flex gap-4 py-4 first:pt-0 last:pb-0">
-                <div className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted shrink-0">
-                  {item.product.images?.[0] && (
-                    <Image
-                      src={item.product.images[0]}
-                      alt={item.product.name}
-                      fill
-                      className="object-cover"
-                    />
-                  )}
+            {items.map((item) => {
+              const memberPrice = getMemberPrice(item);
+              const effectivePrice = effectiveMember && memberPrice ? memberPrice : item.product.price;
+              const hasMemberDiscount = effectiveMember && memberPrice && memberPrice < item.product.price;
+              return (
+                <div key={`${item.product.id}-${item.product.variantId}`} className="flex gap-4 py-4 first:pt-0 last:pb-0">
+                  <Link href={`/products/${item.product.slug}`} className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted shrink-0 block hover:opacity-80 transition-opacity">
+                    {item.product.images?.[0] && (
+                      <Image
+                        src={item.product.images[0]}
+                        alt={item.product.name}
+                        fill
+                        className="object-cover"
+                      />
+                    )}
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <Link href={`/products/${item.product.slug}`} className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors block">{item.product.name}</Link>
+                    {item.product.variantLabel && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.product.variantLabel}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">Qty: {item.quantity}</p>
+                    {hasMemberDiscount && (
+                      <p className="text-xs text-primary font-semibold mt-0.5 flex items-center gap-1">
+                        <Crown className="h-2.5 w-2.5" />
+                        Member price applied
+                      </p>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="text-sm font-semibold text-foreground">
+                      {currencyFormatter.format(effectivePrice * item.quantity)}
+                    </p>
+                    {hasMemberDiscount && (
+                      <p className="text-xs text-muted-foreground line-through">
+                        {currencyFormatter.format(item.product.price * item.quantity)}
+                      </p>
+                    )}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-foreground truncate">{item.product.name}</h3>
-                  {item.product.variantLabel && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.product.variantLabel}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-0.5">Qty: {item.quantity}</p>
-                </div>
-                <p className="text-sm font-semibold text-foreground shrink-0">
-                  {currencyFormatter.format(item.product.price * item.quantity)}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -581,7 +507,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             Shipping Address
           </h2>
 
-          {/* Saved address cards — authenticated with existing addresses */}
+          {/* Saved address cards */}
           {isAuthenticated && addresses.length > 0 && (
             <div className="mt-4 space-y-2">
               {addresses.map((address) => (
@@ -589,109 +515,97 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   key={address.id}
                   className={cn(
                     "flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-all",
-                    addressMode === "saved" && selectedAddressId === address.id
+                    selectedAddressId === address.id
                       ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                       : "border-border hover:border-muted-foreground/30"
                   )}
-                  onClick={() => {
-                    setSelectedAddressId(address.id);
-                    setAddressMode("saved");
-                  }}
+                  onClick={() => setSelectedAddressId(address.id)}
                 >
-                  {/* Radio indicator */}
                   <div className={cn(
                     "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    addressMode === "saved" && selectedAddressId === address.id
-                      ? "border-primary bg-primary"
-                      : "border-muted-foreground/40"
+                    selectedAddressId === address.id ? "border-primary bg-primary" : "border-muted-foreground/40"
                   )}>
-                    {addressMode === "saved" && selectedAddressId === address.id && (
-                      <Check className="h-2.5 w-2.5 text-white" />
-                    )}
+                    {selectedAddressId === address.id && <Check className="h-2.5 w-2.5 text-white" />}
                   </div>
-
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{address.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {address.line1}{address.line2 ? `, ${address.line2}` : ""}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {address.suburb}, {address.state} {address.postcode}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{address.suburb}, {address.state} {address.postcode}</p>
                     <p className="text-xs text-muted-foreground">{address.phone}</p>
                   </div>
-
                   <div className="flex gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <Button
-                      type="button" variant="ghost" size="sm"
-                      onClick={() => openEditDialog(address)}
-                      className="h-7 w-7 p-0"
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={() => openEditDialog(address)} className="h-7 w-7 p-0">
                       <Pencil className="h-3 w-3" />
                     </Button>
-                    <Button
-                      type="button" variant="ghost" size="sm"
-                      onClick={() => setDeleteConfirmId(address.id)}
-                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                    >
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setDeleteConfirmId(address.id)} className="h-7 w-7 p-0 text-destructive hover:text-destructive">
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 </div>
               ))}
-
-              {/* Add new address option — toggles inline form */}
-              {addressMode === "saved" ? (
-                <button
-                  type="button"
-                  onClick={switchToNewAddress}
-                  className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-3.5 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add a new address
-                </button>
-              ) : (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm font-medium text-foreground">New address</p>
-                    <Button
-                      type="button" variant="ghost" size="sm"
-                      onClick={() => {
-                        setAddressMode("saved");
-                        setSelectedAddressId(addresses[0]?.id ?? null);
-                      }}
-                      className="h-7 px-2 text-xs text-muted-foreground"
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      Cancel
-                    </Button>
-                  </div>
-                  <NewAddressForm
-                    isGuest={false}
-                    line1={shippingLine1}
-                    suburb={shippingSuburb}
-                    state={shippingState}
-                    errors={shippingErrors}
-                    register={registerShipping}
-                    setShippingValue={setShippingValue}
-                  />
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={openAddDialog}
+                className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-3.5 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+              >
+                <Plus className="h-4 w-4" />
+                Add a new address
+              </button>
             </div>
           )}
 
-          {/* Guest or no saved addresses — always show form */}
-          {(!isAuthenticated || addresses.length === 0) && (
-            <div className="mt-5">
-              <NewAddressForm
-                isGuest={!isAuthenticated}
-                line1={shippingLine1}
-                suburb={shippingSuburb}
-                state={shippingState}
-                errors={shippingErrors}
-                register={registerShipping}
-                setShippingValue={setShippingValue}
-              />
+          {/* No saved addresses (authenticated) — prompt to add */}
+          {isAuthenticated && addresses.length === 0 && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={openAddDialog}
+                className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-3.5 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+              >
+                <Plus className="h-4 w-4" />
+                Add a delivery address
+              </button>
+            </div>
+          )}
+
+          {/* Guest — show saved address summary or prompt */}
+          {!isAuthenticated && (
+            <div className="mt-4">
+              {guestAddress ? (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-primary">
+                        <Check className="h-2.5 w-2.5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{guestAddress.name}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {guestAddress.line1}{guestAddress.line2 ? `, ${guestAddress.line2}` : ""}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{guestAddress.suburb}, {guestAddress.state} {guestAddress.postcode}</p>
+                        <p className="text-xs text-muted-foreground">{guestAddress.phone}</p>
+                        {guestAddress.email && <p className="text-xs text-muted-foreground">{guestAddress.email}</p>}
+                      </div>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={openAddDialog} className="h-7 px-2 text-xs shrink-0">
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openAddDialog}
+                  className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-3.5 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                >
+                  <Plus className="h-4 w-4" />
+                  Enter your delivery address
+                </button>
+              )}
             </div>
           )}
         </section>
@@ -748,6 +662,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               <span className="text-muted-foreground">Subtotal</span>
               <span className="font-medium">{currencyFormatter.format(subtotal)}</span>
             </div>
+            {memberSavings > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-primary font-medium flex items-center gap-1">
+                  <Crown className="h-3 w-3" /> Member savings
+                </span>
+                <span className="font-medium text-primary">-{currencyFormatter.format(memberSavings)}</span>
+              </div>
+            )}
             {discount > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-green-600">Discount ({appliedCoupon?.code})</span>
@@ -757,39 +679,186 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Shipping</span>
               <span className="font-medium">
-                {shippingCost === 0 ? (
+                {freeShipping ? (
                   <span className="text-green-600">Free</span>
-                ) : (
+                ) : isFetchingRates ? (
+                  <span className="text-muted-foreground flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Calculating…
+                  </span>
+                ) : shippingCost !== null ? (
                   currencyFormatter.format(shippingCost)
+                ) : (
+                  <span className="text-muted-foreground text-xs">Enter postcode</span>
                 )}
               </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">GST (10%)</span>
-              <span className="font-medium">{currencyFormatter.format(subtotal * 0.1)}</span>
+              <span className="font-medium">{currencyFormatter.format(gst)}</span>
             </div>
+            {membershipAdd > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-primary font-medium flex items-center gap-1">
+                  <Crown className="h-3 w-3" /> {membershipLabel}
+                </span>
+                <span className="font-medium text-primary">+{currencyFormatter.format(MEMBERSHIP_PRICE)}</span>
+              </div>
+            )}
 
             <Separator className="my-3" />
 
             <div className="flex justify-between items-center">
               <span className="text-base font-bold">Total</span>
               <span className="text-xl font-black">
-                {currencyFormatter.format(total + subtotal * 0.1)}
+                {freeShipping || shippingCost !== null
+                  ? currencyFormatter.format(total)
+                  : "—"}
               </span>
             </div>
           </div>
 
-          {shippingCost === 0 && (
-            <p className="mt-3 text-xs text-green-600 font-medium">
-              Free shipping on orders over $1,200
+          {freeShipping && (
+            <p className="mt-3 text-xs text-green-600 font-medium flex items-center gap-1">
+              {effectiveMember
+                ? <><Crown className="h-3 w-3" /> Free shipping — member benefit</>
+                : "Free shipping on orders over $1,200"}
             </p>
+          )}
+
+          {/* Australia Post shipping options — hidden for members */}
+          {!freeShipping && discountedSubtotal < 1200 && (
+            <div className="mt-4">
+              {isFetchingRates && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Fetching Australia Post rates…
+                </div>
+              )}
+              {ratesError && !isFetchingRates && (
+                <p className="text-xs text-destructive py-1">{ratesError}</p>
+              )}
+              {!isFetchingRates && shippingRates.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                    <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                    Shipping Options
+                  </p>
+                  {shippingRates.map((rate) => (
+                    <button
+                      key={rate.serviceCode}
+                      type="button"
+                      onClick={() => setSelectedRateCode(rate.serviceCode)}
+                      className={cn(
+                        "w-full flex items-start justify-between rounded-lg border px-3 py-2.5 text-left text-xs transition-all",
+                        selectedRateCode === rate.serviceCode
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                          : "border-border hover:border-muted-foreground/40"
+                      )}
+                    >
+                      <span className="flex items-start gap-2">
+                        <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                        <span className="flex flex-col gap-0.5">
+                          <span className="font-medium text-foreground">{rate.serviceName}</span>
+                          {rate.deliveryTime && (
+                            <span className="text-[10px] text-muted-foreground leading-snug">
+                              {rate.deliveryTime}
+                            </span>
+                          )}
+                        </span>
+                      </span>
+                      <span className="font-semibold text-foreground shrink-0 ml-2 mt-0.5">
+                        {currencyFormatter.format(rate.price)}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Membership Add-on Card (BookMyShow style) ── */}
+          {isAuthenticated && !isMember && (
+            <div className={cn(
+              "mt-4 rounded-xl border-2 transition-all duration-200 overflow-hidden",
+              addMembership ? "border-primary bg-primary/5" : "border-border bg-secondary/50"
+            )}>
+              {/* Toggle header */}
+              <button
+                type="button"
+                onClick={() => setAddMembership(!addMembership)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+              >
+                <div className="flex items-center gap-3">
+                  {/* Checkbox */}
+                  <div className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
+                    addMembership ? "border-primary bg-primary" : "border-muted-foreground/40 bg-white"
+                  )}>
+                    {addMembership && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <Crown className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-bold text-foreground">Add CHS Membership</span>
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">+{currencyFormatter.format(MEMBERSHIP_PRICE)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {memberSavings > 0
+                        ? netBenefit > 0
+                          ? `Save ${currencyFormatter.format(memberSavings)} on this order alone — net gain: ${currencyFormatter.format(netBenefit)}`
+                          : `Save ${currencyFormatter.format(memberSavings)} on this order + all future orders`
+                        : `Save up to ${activePlan?.discountPercent ?? 30}% on this & every future order`}
+                    </p>
+                  </div>
+                </div>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => { e.stopPropagation(); setMembershipPerksOpen(!membershipPerksOpen); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); setMembershipPerksOpen(!membershipPerksOpen); } }}
+                  className="shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1"
+                  aria-label={membershipPerksOpen ? "Hide perks" : "Show perks"}
+                >
+                  {membershipPerksOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </div>
+              </button>
+
+              {/* Expandable perks */}
+              {membershipPerksOpen && (
+                <div className="px-4 pb-3 border-t border-border/60">
+                  <p className="text-xs font-semibold text-foreground mt-2 mb-2">What you get:</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { Icon: BadgePercent, text: "Up to 30% off every order" },
+                      { Icon: Truck,        text: "Free express delivery over $200" },
+                      { Icon: ShieldCheck,  text: "3-year extended warranty" },
+                      { Icon: Zap,          text: "Early access to sales & new arrivals" },
+                    ].map(({ Icon, text }) => (
+                      <div key={text} className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Icon className="h-3 w-3 text-primary shrink-0" />
+                        {text}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">{activePlan ? `${activePlan.name} · activates immediately on payment` : "Annual membership · activates immediately on payment"}</p>
+                </div>
+              )}
+
+              {/* Active confirmation strip */}
+              {addMembership && (
+                <div className="px-4 py-2 bg-primary/10 border-t border-primary/20 flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <p className="text-xs font-semibold text-primary">Membership added — activates after payment</p>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Place Order Button */}
           <Button
-            className="mt-6 w-full h-12 text-sm font-semibold"
+            className="mt-5 w-full h-12 text-sm font-semibold"
             onClick={handlePlaceOrder}
-            disabled={isProcessing || items.length === 0}
+            disabled={isProcessing || items.length === 0 || (!freeShipping && discountedSubtotal < 1200 && shippingCost === null)}
           >
             {isProcessing ? (
               <>
@@ -799,7 +868,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             ) : (
               <>
                 <CreditCard className="mr-2 h-4 w-4" />
-                Place Order &amp; Pay
+                {addMembership && !isMember
+                  ? `Pay ${freeShipping || shippingCost !== null ? currencyFormatter.format(total) : "—"} & Join`
+                  : "Place Order & Pay"}
               </>
             )}
           </Button>
@@ -822,39 +893,49 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         </div>
       </aside>
 
-      {/* Edit Address Dialog (for saved addresses only) */}
-      <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
-        <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+      {/* Add / Edit Address Dialog */}
+      <Dialog open={isAddressDialogOpen} onOpenChange={(open) => {
+        if (!open && !isAuthenticated && !guestAddress) return; // guests must fill in address
+        setIsAddressDialogOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
-              {editingAddress ? "Edit Address" : "Save New Address"}
+              {editingAddress ? "Edit Address" : "Add Delivery Address"}
             </DialogTitle>
             <DialogDescription>
-              {editingAddress ? "Update your saved address." : "Save this address to your account for future orders."}
+              {editingAddress ? "Update your delivery address details" : "Enter your delivery address details"}
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddressSubmit(onAddressDialogSubmit)} className="space-y-4 mt-2">
-            {/* Name & Phone */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs font-medium">Full Name</Label>
+
+          <form onSubmit={handleAddressSubmit(onAddressDialogSubmit)} className="space-y-4 pt-2">
+            {/* Email — guests only */}
+            {!isAuthenticated && (
+              <div className="space-y-2">
+                <Label htmlFor="dlg-email" className="text-sm font-medium">Email Address</Label>
                 <Input
-                  placeholder="John Smith"
-                  className={cn("mt-1.5 h-10", addressErrors.name && "border-destructive")}
-                  {...registerAddress("name")}
+                  id="dlg-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  required
                 />
-                {addressErrors.name && <p className="mt-1 text-xs text-destructive">{addressErrors.name.message}</p>}
               </div>
-              <div>
-                <Label className="text-xs font-medium">Phone</Label>
-                <Input
-                  type="tel"
-                  placeholder="0412 345 678"
-                  className={cn("mt-1.5 h-10", addressErrors.phone && "border-destructive")}
-                  {...registerAddress("phone")}
-                />
-                {addressErrors.phone && <p className="mt-1 text-xs text-destructive">{addressErrors.phone.message}</p>}
+            )}
+
+            {/* Name & Phone */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="dlg-name" className="text-sm font-medium">Full Name</Label>
+                <Input id="dlg-name" placeholder="John Smith" {...registerAddress("name")} />
+                {addressErrors.name && <p className="text-sm text-destructive">{addressErrors.name.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dlg-phone" className="text-sm font-medium">Phone</Label>
+                <Input id="dlg-phone" type="tel" placeholder="0412 345 678" {...registerAddress("phone")} />
+                {addressErrors.phone && <p className="text-sm text-destructive">{addressErrors.phone.message}</p>}
               </div>
             </div>
 
@@ -875,12 +956,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             />
 
             {/* Apt / Unit */}
-            <div>
-              <Label className="text-xs font-medium flex items-center gap-2">
-                <Building className="h-3.5 w-3.5 text-muted-foreground" />
-                Apt, Suite, Unit <span className="text-muted-foreground">(Optional)</span>
+            <div className="space-y-2">
+              <Label htmlFor="dlg-line2" className="text-sm font-medium flex items-center gap-2">
+                <Building className="h-4 w-4 text-muted-foreground" />
+                Apartment, Suite, Unit <span className="text-muted-foreground font-normal">(Optional)</span>
               </Label>
-              <Input placeholder="Unit 4" className="mt-1.5 h-10" {...registerAddress("line2")} />
+              <Input id="dlg-line2" placeholder="Apt 4B, Floor 2" {...registerAddress("line2")} />
             </div>
 
             {/* Suburb Selector */}
@@ -894,11 +975,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
             {/* State & Postcode */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs font-medium">State</Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium flex items-center gap-2">
+                  <Navigation className="h-4 w-4 text-muted-foreground" />
+                  State
+                </Label>
                 <Select value={addressState} onValueChange={(v) => setAddressValue("state", v)}>
-                  <SelectTrigger className={cn("mt-1.5 h-10", addressErrors.state && "border-destructive")}>
-                    <SelectValue placeholder="Select" />
+                  <SelectTrigger className={cn(addressErrors.state && "border-destructive")}>
+                    <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
                     {AU_STATES.map((s) => (
@@ -906,51 +990,66 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                     ))}
                   </SelectContent>
                 </Select>
-                {addressErrors.state && <p className="mt-1 text-xs text-destructive">{addressErrors.state.message}</p>}
+                {addressErrors.state && <p className="text-sm text-destructive">{addressErrors.state.message}</p>}
               </div>
-              <div>
-                <Label className="text-xs font-medium">Postcode</Label>
-                <Input
-                  placeholder="2000" maxLength={4}
-                  className={cn("mt-1.5 h-10", addressErrors.postcode && "border-destructive")}
-                  {...registerAddress("postcode")}
-                />
-                {addressErrors.postcode && <p className="mt-1 text-xs text-destructive">{addressErrors.postcode.message}</p>}
+              <div className="space-y-2">
+                <Label htmlFor="dlg-postcode" className="text-sm font-medium">Postcode</Label>
+                <Input id="dlg-postcode" placeholder="2000" maxLength={4} {...registerAddress("postcode")} />
+                {addressErrors.postcode && <p className="text-sm text-destructive">{addressErrors.postcode.message}</p>}
               </div>
             </div>
 
-            <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={() => setIsAddressDialogOpen(false)} disabled={isLoading}>
-                Cancel
-              </Button>
+            {/* Country (read-only) */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Globe className="h-4 w-4 text-muted-foreground" />
+                Country
+              </Label>
+              <Input value="Australia" disabled className="bg-muted/50" />
+            </div>
+
+            <DialogFooter className="gap-2 pt-2">
+              {(isAuthenticated || !!guestAddress) && (
+                <Button type="button" variant="outline" onClick={() => setIsAddressDialogOpen(false)} disabled={isLoading}>
+                  <X className="h-4 w-4 mr-2" />
+                  Cancel
+                </Button>
+              )}
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Saving..." : editingAddress ? "Save Changes" : "Save Address"}
+                {isLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                ) : (
+                  <><Check className="h-4 w-4 mr-2" />{editingAddress ? "Update Address" : "Save Address"}</>
+                )}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
-        <DialogContent className="sm:max-w-[380px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Address</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Delete Address
+            </DialogTitle>
             <DialogDescription>
-              Are you sure? This cannot be undone.
+              Are you sure you want to delete this address? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="mt-4">
-            <Button type="button" variant="outline" onClick={() => setDeleteConfirmId(null)} disabled={isLoading}>
+          <DialogFooter className="gap-2 pt-4">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)} disabled={isLoading}>
               Cancel
             </Button>
             <Button
-              type="button"
               variant="destructive"
               onClick={() => deleteConfirmId && handleDeleteAddress(deleteConfirmId)}
               disabled={isLoading}
             >
-              {isLoading ? "Deleting..." : "Delete"}
+              {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete
             </Button>
           </DialogFooter>
         </DialogContent>

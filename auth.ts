@@ -121,8 +121,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   callbacks: {
-    async signIn({ user, account, profile, email, credentials }) {
-      // Allow sign in to proceed - errors will be handled by error page
+    async signIn({ user, account, profile }) {
+      // For OAuth providers: ensure emailVerified is set (Google always provides verified emails)
+      if (account?.provider === "google" && user.id) {
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: user.id },
+            select: { emailVerified: true },
+          });
+          if (!dbUser?.emailVerified) {
+            await db.user.update({
+              where: { id: user.id },
+              data: { emailVerified: new Date() },
+            });
+          }
+        } catch (err) {
+          console.error("[signIn callback] emailVerified update failed:", err);
+        }
+      }
       return true;
     },
     async jwt({ token, user, account, trigger }) {
@@ -153,13 +169,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await db.user.findUnique({
             where: { id: token["id"] as string },
-            select: { name: true, image: true, role: true, isMember: true },
+            select: { id: true, name: true, image: true, role: true, isMember: true, emailVerified: true, accounts: { select: { provider: true } } },
           });
           if (dbUser) {
             token["name"] = dbUser.name;
             token["image"] = dbUser.image;
             token["role"] = (dbUser.role as UserRole) ?? "CUSTOMER";
             token["isMember"] = dbUser.isMember ?? false;
+            // Backfill emailVerified for existing OAuth users that have NULL
+            const isOAuthUser = dbUser.accounts.some((a) => a.provider !== "credentials");
+            if (!dbUser.emailVerified && isOAuthUser) {
+              await db.user.update({
+                where: { id: dbUser.id },
+                data: { emailVerified: new Date() },
+              });
+            }
+          } else {
+            // User no longer exists in DB — invalidate token to prevent FK errors
+            token["id"] = undefined;
+            token["role"] = undefined;
+            token["isMember"] = undefined;
           }
         } catch (err) {
           console.error("[jwt callback] fresh user lookup failed:", err);
