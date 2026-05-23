@@ -12,6 +12,7 @@ import {
   CreditCard,
   Truck,
   Box,
+  Star,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "My Orders — Complete Home Sollution" };
@@ -92,7 +93,7 @@ export default async function OrdersPage() {
                           })}
                         </p>
                       </div>
-                      <span className={getStatusStyle(order.status)}>{order.status}</span>
+                      <span className={getStatusStyle(order.status)}>{getUserStatusLabel(order.status)}</span>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-foreground">
@@ -145,6 +146,24 @@ export default async function OrdersPage() {
                   </div>
                 </div>
 
+                {/* Rating Section - Only for Delivered Orders */}
+                {order.status === "DELIVERED" && (
+                  <div className="px-6 py-3 border-t border-border bg-amber-50/50">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2">
+                        <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                        <span className="text-sm text-foreground font-medium">How was your order?</span>
+                      </div>
+                      <Link
+                        href={`/account/orders/${order.id}/rate`}
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-amber-600 hover:text-amber-700 hover:underline"
+                      >
+                        Rate Order <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
                 {/* Order Footer */}
                 <div className="px-6 py-4 border-t border-border bg-secondary/10">
                   <div className="flex flex-wrap items-center justify-between gap-4">
@@ -171,6 +190,20 @@ export default async function OrdersPage() {
   );
 }
 
+// Helper function to get user-friendly status labels
+function getUserStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    PENDING: "Order Placed",
+    CONFIRMED: "Confirmed",
+    PROCESSING: "Processing",
+    SHIPPED: "Shipped",
+    OUT_FOR_DELIVERY: "Out for Delivery",
+    DELIVERED: "Delivered",
+    CANCELLED: "Cancelled",
+  };
+  return labels[status] || status;
+}
+
 // Helper function to get status badge styles
 function getStatusStyle(status: string): string {
   const baseClasses = "text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide";
@@ -178,18 +211,18 @@ function getStatusStyle(status: string): string {
   switch (status) {
     case "PENDING":
       return `${baseClasses} bg-amber-100 text-amber-700`;
-    case "PAID":
+    case "CONFIRMED":
       return `${baseClasses} bg-blue-100 text-blue-700`;
     case "PROCESSING":
       return `${baseClasses} bg-purple-100 text-purple-700`;
     case "SHIPPED":
       return `${baseClasses} bg-indigo-100 text-indigo-700`;
+    case "OUT_FOR_DELIVERY":
+      return `${baseClasses} bg-orange-100 text-orange-700`;
     case "DELIVERED":
       return `${baseClasses} bg-emerald-100 text-emerald-700`;
     case "CANCELLED":
       return `${baseClasses} bg-red-100 text-red-700`;
-    case "REFUNDED":
-      return `${baseClasses} bg-gray-100 text-gray-700`;
     default:
       return `${baseClasses} bg-gray-100 text-gray-700`;
   }
