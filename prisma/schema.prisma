@@ -18,12 +18,12 @@ enum Role {
 
 enum OrderStatus {
   PENDING
-  PAID
+  CONFIRMED
   PROCESSING
   SHIPPED
+  OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
-  REFUNDED
 }
 
 enum TestStatus {
