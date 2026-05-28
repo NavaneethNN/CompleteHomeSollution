@@ -125,8 +125,8 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
   };
 
   return (
-    <div className="group block">
-      <div className="bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden">
+    <div className="group block h-full">
+      <div className="bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full flex flex-col">
         <div className="relative aspect-square bg-secondary overflow-hidden">
           <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
           <Image
@@ -154,51 +154,53 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
           )}
         </div>
 
-        <div className="p-4">
-          <Link href={`/categories/${product.category.slug}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">
-            {product.category.name}
-          </Link>
+        <div className="p-4 flex flex-col flex-1">
+          <div className="flex-1 flex flex-col">
+            <Link href={`/categories/${product.category.slug}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">
+              {product.category.name}
+            </Link>
 
-          <Link href={`/products/${product.slug}`}>
-            <h4 className="mt-1 text-sm font-semibold text-foreground leading-snug line-clamp-2 hover:text-primary transition-colors">
-              {product.name}
-            </h4>
-          </Link>
+            <Link href={`/products/${product.slug}`}>
+              <h4 className="mt-1 text-sm font-semibold text-foreground leading-snug line-clamp-2 hover:text-primary transition-colors">
+                {product.name}
+              </h4>
+            </Link>
 
-          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-            {product.description}
-          </p>
-
-          {(() => {
-            const hasMemberPrice = isMember && product.memberPrice != null && product.memberPrice > 0 && product.memberPrice < product.price;
-            const displayPrice = hasMemberPrice ? product.memberPrice! : product.price;
-            return (
-              <>
-                <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-                  <span className="text-base font-black text-foreground">
-                    ${displayPrice.toLocaleString()}
-                  </span>
-                  {hasMemberPrice ? (
-                    <span className="text-xs text-muted-foreground line-through">${product.price.toLocaleString()}</span>
-                  ) : product.originalPrice > product.price ? (
-                    <span className="text-xs text-muted-foreground line-through">${product.originalPrice.toLocaleString()}</span>
-                  ) : null}
-                </div>
-                {hasMemberPrice && (
-                  <p className="text-xs text-primary font-semibold mt-0.5">Member price applied</p>
-                )}
-              </>
-            );
-          })()}
-
-          {/* Stock indicator */}
-          {product.stock > 0 && product.stock <= 5 && (
-            <p className="mt-2 text-xs text-amber-600 font-medium">
-              Only {product.stock} left!
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+              {product.description}
             </p>
-          )}
 
-          <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {(() => {
+              const hasMemberPrice = isMember && product.memberPrice != null && product.memberPrice > 0 && product.memberPrice < product.price;
+              const displayPrice = hasMemberPrice ? product.memberPrice! : product.price;
+              return (
+                <>
+                  <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                    <span className="text-base font-black text-foreground">
+                      ${displayPrice.toLocaleString()}
+                    </span>
+                    {hasMemberPrice ? (
+                      <span className="text-xs text-muted-foreground line-through">${product.price.toLocaleString()}</span>
+                    ) : product.originalPrice > product.price ? (
+                      <span className="text-xs text-muted-foreground line-through">${product.originalPrice.toLocaleString()}</span>
+                    ) : null}
+                  </div>
+                  {hasMemberPrice && (
+                    <p className="text-xs text-primary font-semibold mt-0.5">Member price applied</p>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* Stock indicator */}
+            {product.stock > 0 && product.stock <= 5 && (
+              <p className="mt-2 text-xs text-amber-600 font-medium">
+                Only {product.stock} left!
+              </p>
+            )}
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               type="button"
               onClick={handleAddToCart}

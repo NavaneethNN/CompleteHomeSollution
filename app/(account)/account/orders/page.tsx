@@ -128,12 +128,19 @@ export default async function OrdersPage() {
                     {/* Order Items */}
                     <div className="px-6 py-4">
                       <div className="space-y-3">
-                        {order.items.slice(0, 3).map((item) => (
+                        {order.items.slice(0, 3).map((item) => {
+                          const displayImage =
+                            item.productVariant?.images?.[0]?.url ?? item.product.images?.[0];
+                          const variantLabel =
+                            item.productVariant?.values
+                              ?.map((v) => v.variantValue.value)
+                              .join(" / ") || null;
+                          return (
                           <div key={item.id} className="flex items-center gap-4">
                             <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
-                              {item.product.images?.[0] ? (
+                              {displayImage ? (
                                 <img
-                                  src={item.product.images[0]}
+                                  src={displayImage}
                                   alt={item.product.name}
                                   className="w-full h-full object-cover"
                                 />
@@ -148,6 +155,9 @@ export default async function OrdersPage() {
                               >
                                 {item.product.name}
                               </Link>
+                              {variantLabel && (
+                                <p className="text-xs text-muted-foreground mt-0.5">{variantLabel}</p>
+                              )}
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 Qty: {item.quantity} × ${item.unitPrice.toFixed(2)}
                               </p>
@@ -156,7 +166,8 @@ export default async function OrdersPage() {
                               ${(item.quantity * item.unitPrice).toFixed(2)}
                             </p>
                           </div>
-                        ))}
+                          );
+                        })}
                         {order.items.length > 3 && (
                           <p className="text-xs text-muted-foreground pl-20">
                             +{order.items.length - 3} more {order.items.length - 3 === 1 ? "item" : "items"}

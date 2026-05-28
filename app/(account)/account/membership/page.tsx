@@ -135,8 +135,10 @@ export default async function MembershipPage({
   const resolvedSearch = await searchParams;
   const justJoined = resolvedSearch?.success === "1";
   const cancelled   = resolvedSearch?.cancelled === "1";
-  const stripeSessionId = resolvedSearch && "session_id" in resolvedSearch
-    ? (resolvedSearch as Record<string, string>).session_id
+  // Validate session_id format: Stripe IDs start with "cs_" and are alphanumeric
+  const rawSessionId = typeof resolvedSearch?.session_id === "string" ? resolvedSearch.session_id : undefined;
+  const stripeSessionId = rawSessionId && /^cs_[a-zA-Z0-9_]+$/.test(rawSessionId) && rawSessionId.length < 200
+    ? rawSessionId
     : undefined;
 
   // If returning from Stripe with a session_id, verify payment and activate/renew
@@ -144,11 +146,14 @@ export default async function MembershipPage({
   if (justJoined && stripeSessionId) {
     try {
       const stripe = getStripe();
-      const stripeSession = await stripe.checkout.sessions.retrieve(stripeSessionId);
+      const stripeSession = await stripe.checkout.sessions.retrieve(stripeSessionId, {
+        expand: ["payment_intent"],
+      });
       if (
         stripeSession.payment_status === "paid" &&
         stripeSession.metadata?.type === "membership" &&
-        stripeSession.metadata?.userId === session.user.id
+        stripeSession.metadata?.userId === session.user.id &&
+        stripeSession.status === "complete"
       ) {
         const planId = stripeSession.metadata?.planId;
         const plan = planId
@@ -188,9 +193,22 @@ export default async function MembershipPage({
     getActiveMembershipPlans(),
   ]);
 
-  const isMember         = dbUser?.isMember ?? session.user.isMember ?? false;
-  const memberSince      = dbUser?.memberSince;
+  // Enforce expiry: if the stored expiry has passed, treat as non-member and revoke
+  const now = new Date();
+  const rawIsMember = dbUser?.isMember ?? session.user.isMember ?? false;
   const membershipExpiry = dbUser?.membershipExpiry ?? null;
+  const isActuallyExpired = rawIsMember && membershipExpiry && membershipExpiry < now;
+
+  if (isActuallyExpired) {
+    try {
+      await db.user.update({ where: { id: session.user.id }, data: { isMember: false } });
+    } catch (e) {
+      console.error("[membership page] failed to revoke expired membership", e);
+    }
+  }
+
+  const isMember    = rawIsMember && !isActuallyExpired;
+  const memberSince = dbUser?.memberSince;
 
   const defaultPlan = plans.find((p) => (p as ActivePlan & { isDefault?: boolean }).isDefault) ?? plans[0];
   const hasPlans    = plans.length > 0;
@@ -253,21 +271,21 @@ export default async function MembershipPage({
               <>
                 {/* Membership status card */}
                 <div className="rounded-2xl border border-border bg-white shadow-sm overflow-hidden">
-                  <div className="px-6 py-5 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                  <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
                         <Crown className="h-5 w-5 text-primary" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-bold text-foreground">CHS Premium Membership</p>
-                        <p className="text-sm text-muted-foreground">{dbUser?.name ?? session.user.name ?? "Member"} &middot; {dbUser?.email ?? session.user.email}</p>
+                        <p className="text-sm text-muted-foreground truncate">{dbUser?.name ?? session.user.name ?? "Member"} &middot; {dbUser?.email ?? session.user.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">Active</span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full whitespace-nowrap">Active</span>
                       {memberSince && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <CalendarCheck className="h-3.5 w-3.5" />
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground whitespace-nowrap">
+                          <CalendarCheck className="h-3.5 w-3.5 shrink-0" />
                           Since {new Date(memberSince).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
                         </div>
                       )}
@@ -275,16 +293,16 @@ export default async function MembershipPage({
                   </div>
 
                   {/* Expiry / progress bar */}
-                  {membershipExpiry && (() => {
+                  {membershipExpiry && !isActuallyExpired && (() => {
                     const now = new Date();
                     const expiry = new Date(membershipExpiry);
                     const totalMs = expiry.getTime() - (memberSince ? new Date(memberSince).getTime() : expiry.getTime() - 365 * 86400000);
                     const remainMs = Math.max(0, expiry.getTime() - now.getTime());
                     const daysLeft = Math.ceil(remainMs / 86400000);
                     const pct = Math.min(100, Math.max(0, Math.round((remainMs / totalMs) * 100)));
-                    const isExpiringSoon = daysLeft <= 30;
+                    const isExpiringSoon = daysLeft <= 7;
                     return (
-                      <div className="px-6 py-4 border-b border-border">
+                      <div className="px-4 sm:px-6 py-4 border-b border-border">
                         <div className="flex items-center justify-between mb-2">
                           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Membership Validity</p>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
@@ -310,14 +328,17 @@ export default async function MembershipPage({
                           </p>
                         </div>
                         {isExpiringSoon && daysLeft > 0 && (
-                          <p className="text-xs text-amber-600 font-medium mt-2">Your membership expires soon. Renew below to keep your benefits.</p>
+                          <div className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                            <span className="text-amber-500 text-base leading-none mt-0.5">⚠</span>
+                            <p className="text-xs text-amber-700 font-medium">Your membership expires in {daysLeft} day{daysLeft !== 1 ? "s" : ""}. Renew below to avoid losing your benefits.</p>
+                          </div>
                         )}
                       </div>
                     );
                   })()}
 
                   {/* Active benefits list */}
-                  <div className="px-6 pt-5 pb-2">
+                  <div className="px-4 sm:px-6 pt-5 pb-2">
                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Your Active Benefits</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {PERKS.map(({ Icon, title, desc }) => (
@@ -338,7 +359,7 @@ export default async function MembershipPage({
                   </div>
 
                   {/* Shop now footer */}
-                  <div className="px-6 py-5">
+                  <div className="px-4 sm:px-6 py-4 sm:py-5">
                     <Link
                       href="/products"
                       className="inline-flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm px-5 py-2.5 transition-colors shadow-sm"

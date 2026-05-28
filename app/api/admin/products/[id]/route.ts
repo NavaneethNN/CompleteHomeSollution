@@ -23,12 +23,14 @@ const variantValueSchema = z.object({
   id: z.string(), // temp ID from frontend
   value: z.string(),
   hexCode: z.string().optional().nullable(),
+  images: z.array(z.string()).optional(),
 });
 
 const variantAttributeSchema = z.object({
   id: z.string(), // temp ID from frontend
   name: z.string(),
   displayOrder: z.number().default(0),
+  isPrimary: z.boolean().default(false),
   values: z.array(variantValueSchema),
 });
 
@@ -200,11 +202,9 @@ export async function PUT(
         data: updateData,
       });
 
-      // 2. If hasVariants is being set to true and variant data is provided, create variants
-      if (data.hasVariants && data.variantAttributes && data.variantAttributes.length > 0) {
-        console.log("[PUT /api/admin/products/[id]] Creating variants for update");
-        
-        // Delete old variants and attributes first (clean slate approach for simplicity)
+      // 2. If variant data is provided in the payload, do a full clean-slate replace
+      if (data.variantAttributes !== undefined || data.productVariants !== undefined) {
+        // Always wipe existing variants + attributes first
         await tx.productVariantValue.deleteMany({
           where: { productVariant: { productId: id } },
         });
@@ -221,73 +221,73 @@ export async function PUT(
           where: { productId: id },
         });
 
-        // Build maps: temp ID -> DB ID
-        const attrTempIdToDbId = new Map<string, string>();
-        const valueTempIdToDbId = new Map<string, string>();
+        // Re-create only if hasVariants and attributes are supplied
+        if (data.hasVariants && data.variantAttributes && data.variantAttributes.length > 0) {
+          const attrTempIdToDbId = new Map<string, string>();
+          const valueTempIdToDbId = new Map<string, string>();
 
-        // Create variant attributes and their values
-        for (const attr of data.variantAttributes) {
-          const variantAttr = await tx.variantAttribute.create({
-            data: {
-              name: attr.name,
-              displayOrder: attr.displayOrder,
-              productId: id,
-            },
-          });
-          attrTempIdToDbId.set(attr.id, variantAttr.id);
-
-          for (const val of attr.values) {
-            const variantValue = await tx.variantValue.create({
+          for (const attr of data.variantAttributes) {
+            const variantAttr = await tx.variantAttribute.create({
               data: {
-                value: val.value,
-                hexCode: val.hexCode,
-                variantAttributeId: variantAttr.id,
-              },
-            });
-            valueTempIdToDbId.set(val.id, variantValue.id);
-          }
-        }
-
-        // Create product variants
-        if (data.productVariants && data.productVariants.length > 0) {
-          for (const variant of data.productVariants) {
-            const newVariant = await tx.productVariant.create({
-              data: {
+                name: attr.name,
+                displayOrder: attr.displayOrder,
+                isPrimary: attr.isPrimary ?? false,
                 productId: id,
-                sku: variant.sku,
-                price: variant.price,
-                comparePrice: variant.comparePrice,
-                memberPrice: variant.memberPrice,
-                stock: variant.stock,
-                isActive: variant.isActive,
-                weight: variant.weight,
-                length: variant.length,
-                width: variant.width,
-                height: variant.height,
               },
             });
+            attrTempIdToDbId.set(attr.id, variantAttr.id);
 
-            // Create variant images if provided
-            if (variant.images && variant.images.length > 0) {
-              await tx.variantImage.createMany({
-                data: variant.images.map((url, index) => ({
-                  url,
-                  displayOrder: index,
-                  productVariantId: newVariant.id,
-                })),
+            for (const val of attr.values) {
+              const variantValue = await tx.variantValue.create({
+                data: {
+                  value: val.value,
+                  hexCode: val.hexCode,
+                  images: val.images ?? [],
+                  variantAttributeId: variantAttr.id,
+                },
               });
+              valueTempIdToDbId.set(val.id, variantValue.id);
             }
+          }
 
-            // Link variant to values using temp ID -> DB ID mapping
-            for (const tempValueId of variant.valueIds) {
-              const dbValueId = valueTempIdToDbId.get(tempValueId);
-              if (dbValueId) {
-                await tx.productVariantValue.create({
-                  data: {
+          if (data.productVariants && data.productVariants.length > 0) {
+            for (const variant of data.productVariants) {
+              const newVariant = await tx.productVariant.create({
+                data: {
+                  productId: id,
+                  sku: variant.sku,
+                  price: variant.price,
+                  comparePrice: variant.comparePrice,
+                  memberPrice: variant.memberPrice,
+                  stock: variant.stock,
+                  isActive: variant.isActive,
+                  weight: variant.weight,
+                  length: variant.length,
+                  width: variant.width,
+                  height: variant.height,
+                },
+              });
+
+              if (variant.images && variant.images.length > 0) {
+                await tx.variantImage.createMany({
+                  data: variant.images.map((url, index) => ({
+                    url,
+                    displayOrder: index,
                     productVariantId: newVariant.id,
-                    variantValueId: dbValueId,
-                  },
+                  })),
                 });
+              }
+
+              for (const tempValueId of variant.valueIds) {
+                const dbValueId = valueTempIdToDbId.get(tempValueId);
+                if (dbValueId) {
+                  await tx.productVariantValue.create({
+                    data: {
+                      productVariantId: newVariant.id,
+                      variantValueId: dbValueId,
+                    },
+                  });
+                }
               }
             }
           }

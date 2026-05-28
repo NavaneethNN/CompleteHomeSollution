@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
+        hostname: "pub-7aba051db2a742818ff1fe9419a24021.r2.dev",
+      },
+      {
+        protocol: "https",
         hostname: "*.cloudflare.com",
       },
       {
@@ -18,6 +22,14 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "completehomesolution.com.au",
+      },
+      {
+        protocol: "https",
+        hostname: "*.r2.cloudflarestorage.com",
       },
     ],
     formats: ["image/avif", "image/webp"],

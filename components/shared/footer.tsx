@@ -42,15 +42,18 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-block mb-5" aria-label="Complete Home Sollution — Home">
+            <Link href="/" className="inline-flex flex-col items-start mb-5 gap-1" aria-label="Complete Home Sollution — Home">
               <Image
                 src="/chs-logo.png"
                 alt="Complete Home Sollution"
-                width={180}
-                height={55}
-                className="h-12 w-auto object-contain brightness-0 invert"
+                width={430}
+                height={131}
+                className="h-20 w-auto object-contain brightness-0 invert"
                 style={{ width: "auto" }}
               />
+              <span className="text-sm font-bold text-white/80 tracking-wide leading-tight">
+                Complete Home Sollution
+              </span>
             </Link>
             <p className="text-sm text-white/50 leading-relaxed mb-6">
               Premium furniture delivered across Australia. Quality pieces for every room, proudly based in South Australia.

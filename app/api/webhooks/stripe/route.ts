@@ -167,6 +167,8 @@ export async function POST(req: NextRequest) {
             quantity: i.quantity,
             price: i.unitPrice,
           })),
+          address: order.address ?? null,
+          customerEmail: email,
         }).catch((e) => console.error("Email send failed", e));
       }
 
@@ -180,15 +182,70 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Session expired (user abandoned checkout) ──────────────────────────
     if (event.type === "checkout.session.expired") {
       const session = event.data.object;
       const orderId = session.metadata?.orderId;
-
       if (orderId) {
         await db.order.update({
           where: { id: orderId },
           data: { status: "CANCELLED" },
-        }).catch((e) => console.error("Order cancellation failed", e));
+        }).catch((e) => console.error("[Stripe webhook] Order cancellation failed", e));
+        console.log(`[Stripe webhook] Order ${orderId} cancelled (session expired)`);
+      }
+    }
+
+    // ── Async payment failed (e.g. bank transfer / BNPL declined) ────────────
+    if (event.type === "checkout.session.async_payment_failed") {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId;
+      if (orderId) {
+        await db.order.update({
+          where: { id: orderId },
+          data: { status: "CANCELLED" },
+        }).catch((e) => console.error("[Stripe webhook] Async payment fail update failed", e));
+        console.log(`[Stripe webhook] Order ${orderId} cancelled (async payment failed)`);
+      }
+    }
+
+    // ── Payment intent failed (card declined, insufficient funds, etc.) ─────
+    if (event.type === "payment_intent.payment_failed") {
+      const paymentIntent = event.data.object;
+      // Find order by stripePaymentId or metadata
+      const orderId = (paymentIntent.metadata as Record<string, string>)?.orderId;
+      if (orderId) {
+        // Only cancel if still PENDING (don't touch already-paid orders)
+        const existingOrder = await db.order.findUnique({
+          where: { id: orderId },
+          select: { status: true },
+        });
+        if (existingOrder?.status === "PENDING") {
+          await db.order.update({
+            where: { id: orderId },
+            data: { status: "CANCELLED" },
+          }).catch((e) => console.error("[Stripe webhook] Payment failed update error", e));
+          console.log(`[Stripe webhook] Order ${orderId} cancelled (payment failed: ${paymentIntent.last_payment_error?.message ?? "unknown"})`);
+        }
+      }
+    }
+
+    // ── Refund issued ─────────────────────────────────────────────────
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object;
+      const paymentIntentId = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+      if (paymentIntentId) {
+        // Find order by stripePaymentId
+        const refundedOrder = await db.order.findFirst({
+          where: { stripePaymentId: paymentIntentId },
+          select: { id: true, status: true },
+        });
+        if (refundedOrder && refundedOrder.status !== "REFUNDED") {
+          await db.order.update({
+            where: { id: refundedOrder.id },
+            data: { status: "REFUNDED" },
+          }).catch((e) => console.error("[Stripe webhook] Refund update failed", e));
+          console.log(`[Stripe webhook] Order ${refundedOrder.id} marked REFUNDED`);
+        }
       }
     }
 

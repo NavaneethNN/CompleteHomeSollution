@@ -19,6 +19,7 @@ import {
   Clock,
   Hash,
 } from "lucide-react";
+import { CancelOrderButton } from "@/components/shop/cancel-order-button";
 
 export const metadata: Metadata = { title: "Order Details — Complete Home Sollution" };
 
@@ -43,6 +44,9 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   });
 
   const isPaid = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(order.status);
+  const isPreShip = ["PAID", "CONFIRMED", "PROCESSING"].includes(order.status);
+  const isPostShip = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
+  const isCancellable = isPreShip || isPostShip;
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -96,17 +100,23 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
                   return (
                     <div key={item.id} className="flex items-start gap-4 p-5">
-                      <div className="w-20 h-20 rounded-xl bg-secondary flex items-center justify-center shrink-0 overflow-hidden border border-border">
-                        {item.product.images?.[0] ? (
-                          <img
-                            src={item.product.images[0]}
-                            alt={item.product.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <Box className="h-8 w-8 text-muted-foreground" />
-                        )}
-                      </div>
+                      {(() => {
+                        const displayImage =
+                          item.productVariant?.images?.[0]?.url ?? item.product.images?.[0];
+                        return (
+                          <div className="w-20 h-20 rounded-xl bg-secondary flex items-center justify-center shrink-0 overflow-hidden border border-border">
+                            {displayImage ? (
+                              <img
+                                src={displayImage}
+                                alt={item.product.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Box className="h-8 w-8 text-muted-foreground" />
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       <div className="flex-1 min-w-0">
                         <Link
@@ -249,6 +259,27 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 </div>
               </div>
             </div>
+
+            {/* Cancel / Refund */}
+            {isCancellable && (
+              <CancelOrderButton
+                orderId={order.id}
+                orderTotal={order.total}
+                isPreShip={isPreShip}
+                alreadyRequested={order.refundRequested}
+              />
+            )}
+
+            {/* Refund info if already refunded */}
+            {order.status === "REFUNDED" && order.refundAmount != null && (
+              <div className="bg-gray-50 rounded-2xl border border-gray-200 p-5 text-sm space-y-1">
+                <p className="font-semibold text-gray-700">Refund Processed</p>
+                <p className="text-muted-foreground">Amount: <span className="font-medium text-foreground">A${order.refundAmount.toFixed(2)}</span></p>
+                {order.refundedAt && (
+                  <p className="text-muted-foreground">Date: {new Date(order.refundedAt).toLocaleDateString("en-AU")}</p>
+                )}
+              </div>
+            )}
 
             {/* Need Help */}
             <div className="bg-primary/5 rounded-2xl border border-primary/20 p-5">

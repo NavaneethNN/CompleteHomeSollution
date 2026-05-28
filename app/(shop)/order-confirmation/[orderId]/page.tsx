@@ -8,6 +8,7 @@ import { auth } from "@/auth";
 import { getStripe } from "@/lib/stripe";
 import { ClearCartOnSuccess } from "@/components/shop/clear-cart-on-success";
 import { RefreshSessionOnMembership } from "@/components/shop/refresh-session-on-membership";
+import { sendOrderConfirmationEmail } from "@/lib/brevo";
 
 export const metadata: Metadata = { title: "Order Confirmed — Complete Home Sollution" };
 
@@ -23,10 +24,25 @@ async function getOrderIfAuthorized(
   const order = await db.order.findUnique({
     where: { id: orderId },
     include: {
-      items: { include: { product: { select: { name: true, images: true } } } },
+      items: {
+        include: {
+          product: { select: { name: true, slug: true, images: true } },
+          productVariant: {
+            include: {
+              images: { orderBy: { displayOrder: "asc" } },
+              values: {
+                include: {
+                  variantValue: { include: { variantAttribute: { select: { name: true } } } },
+                },
+              },
+            },
+          },
+        },
+      },
       address: true,
       user: { select: { email: true, name: true } },
     },
+    // guestEmail and total are scalar fields included automatically by `include`
   }).catch(() => null);
 
   if (!order) return { order: null, authorized: false };
@@ -79,7 +95,74 @@ export default async function OrderConfirmationPage({
 
   const { order, authorized } = await getOrderIfAuthorized(orderId, stripeSession, userId, userRole);
 
-  // Activate membership directly on success redirect — no webhook dependency
+  // ── Confirm payment on redirect (webhook fallback) ──────────────────────────
+  // Stripe webhooks may not fire in local dev or arrive after the redirect.
+  // This block mirrors the webhook transaction but is idempotent — the webhook
+  // won't double-process because it checks status === "PAID" before acting.
+  let didConfirmPayment = false;
+  if (stripeSession?.payment_status === "paid" && stripeSession.metadata?.orderId === orderId) {
+    try {
+      await db.$transaction(async (tx) => {
+        const freshOrder = await tx.order.findUnique({
+          where: { id: orderId },
+          select: { id: true, status: true },
+        });
+        // Skip if already PAID (webhook already ran) or order not found
+        if (!freshOrder || freshOrder.status !== "PENDING") return;
+
+        const items = await tx.orderItem.findMany({ where: { orderId } });
+        for (const item of items) {
+          if (item.productVariantId) {
+            await tx.productVariant.update({
+              where: { id: item.productVariantId },
+              data: { stock: { decrement: item.quantity } },
+            });
+          } else {
+            await tx.product.update({
+              where: { id: item.productId },
+              data: { stock: { decrement: item.quantity } },
+            });
+          }
+        }
+
+        await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: "PAID",
+            stripePaymentId: (stripeSession.payment_intent as string) ?? null,
+          },
+        });
+        didConfirmPayment = true;
+      });
+    } catch (e) {
+      console.error("[order-confirmation] payment confirm failed", e);
+      // Non-fatal — webhook will still handle it
+    }
+
+    // Send confirmation emails when we confirmed payment here (webhook fallback)
+    // If the webhook already ran first, it already sent the emails — skip.
+    if (didConfirmPayment && order) {
+      const emailAddr = order.user?.email ?? order.guestEmail;
+      const customerName = order.user?.name ?? "Customer";
+      if (emailAddr) {
+        sendOrderConfirmationEmail({
+          email: emailAddr,
+          name: customerName,
+          orderId: order.id,
+          total: order.total,
+          items: order.items.map((i) => ({
+            name: i.product.name,
+            quantity: i.quantity,
+            price: i.unitPrice,
+          })),
+          address: order.address ?? null,
+          customerEmail: emailAddr,
+        }).catch((e) => console.error("[order-confirmation] email failed", e));
+      }
+    }
+  }
+
+  // ── Activate membership on success redirect ────────────────────────────────
   let membershipActivated = false;
   if (stripeSession && userId) {
     try {
@@ -147,14 +230,23 @@ export default async function OrderConfirmationPage({
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3">Items Ordered</h3>
                 <div className="divide-y divide-border">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="flex justify-between py-2.5 text-sm">
-                      <span className="text-muted-foreground">
-                        {item.product.name} <span className="text-xs">&times; {item.quantity}</span>
-                      </span>
-                      <span className="font-medium">{currencyFormatter.format(item.unitPrice * item.quantity)}</span>
-                    </div>
-                  ))}
+                  {order.items.map((item) => {
+                    const variantLabel = (item as any).productVariant?.values
+                      ?.map((v: any) => v.variantValue.value)
+                      .join(" / ");
+                    return (
+                      <div key={item.id} className="flex justify-between py-2.5 text-sm">
+                        <span className="text-muted-foreground">
+                          {item.product.name}
+                          {variantLabel && (
+                            <span className="text-xs ml-1 text-muted-foreground/70">({variantLabel})</span>
+                          )}
+                          {" "}<span className="text-xs">&times; {item.quantity}</span>
+                        </span>
+                        <span className="font-medium">{currencyFormatter.format(item.unitPrice * item.quantity)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

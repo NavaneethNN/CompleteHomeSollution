@@ -41,10 +41,12 @@ interface VariantAttribute {
   id: string;
   name: string;
   displayOrder: number;
+  isPrimary: boolean;
   variantValues: {
     id: string;
     value: string;
     hexCode: string | null;
+    images: string[];
   }[];
 }
 
@@ -84,8 +86,26 @@ export function ProductDetailsClient({
 }: ProductDetailsClientProps) {
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(defaultVariant);
 
-  // Get images from selected variant or fallback to product images
-  const displayImages = selectedVariant?.images?.map((i) => i.url) ?? product.images;
+  // Image priority:
+  // 1. Variant has its own images → use them
+  // 2. No variant images but a primary attribute is set → use that primary value's images
+  // 3. Fallback to product-level images
+  const variantOwnImages = selectedVariant?.images?.map((i) => i.url) ?? [];
+  const primaryAttr = attributes.find((a) => a.isPrimary);
+  const primaryValueId = primaryAttr
+    ? selectedVariant?.values.find(
+        (v) => v.variantValue.variantAttribute.id === primaryAttr.id
+      )?.variantValue?.id
+    : undefined;
+  const primaryValueImages = primaryAttr && primaryValueId
+    ? (primaryAttr.variantValues.find((v) => v.id === primaryValueId)?.images ?? [])
+    : [];
+  const displayImages =
+    variantOwnImages.length > 0
+      ? variantOwnImages
+      : primaryValueImages.length > 0
+        ? primaryValueImages
+        : product.images;
   const displayPrice = selectedVariant?.price ?? product.basePrice;
   const displayComparePrice = selectedVariant?.comparePrice ?? product.comparePrice;
   const displayMemberPrice = selectedVariant?.memberPrice ?? product.memberPrice;
@@ -110,12 +130,14 @@ export function ProductDetailsClient({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-      {/* Product Gallery - Updates when variant changes */}
-      <ProductGallery 
-        images={displayImages} 
-        productName={product.name} 
-        key={selectedVariant?.id || 'default'} // Force re-render on variant change
-      />
+      {/* Product Gallery */}
+      <div className="w-full max-w-[480px] mx-auto md:mx-0">
+        <ProductGallery
+          images={displayImages}
+          productName={product.name}
+          key={selectedVariant?.id || "default"}
+        />
+      </div>
 
       {/* Product Info */}
       <div className="space-y-4">
@@ -203,7 +225,7 @@ export function ProductDetailsClient({
         />
 
         {/* Stock & SKU */}
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>SKU: {displaySku}</span>
           {displayStock > 0 ? (
             <span className="text-green-600 font-medium">● In Stock ({displayStock} available)</span>
@@ -235,7 +257,7 @@ export function ProductDetailsClient({
         {hasDimensions && (
           <div className="pt-3 border-t border-border">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Specifications</p>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+            <div className="grid grid-cols-1 gap-y-2 text-sm">
               {displayWeight && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Weight</span>

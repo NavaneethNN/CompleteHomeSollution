@@ -15,7 +15,10 @@ import {
   AlertCircle,
   XCircle,
   ShoppingBag,
+  RefreshCw,
 } from "lucide-react";
+import { AdminRefundPanel } from "@/components/admin/refund-panel";
+import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,13 +36,15 @@ const ORDER_STATUS_CONFIG: Record<
   string,
   { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline"; color: string }
 > = {
-  PENDING:    { label: "Pending",    icon: Clock,          variant: "outline",    color: "text-amber-600" },
-  PAID:       { label: "Paid",       icon: CheckCircle2,   variant: "secondary",  color: "text-blue-600" },
-  PROCESSING: { label: "Processing", icon: Package,        variant: "default",    color: "text-indigo-600" },
-  SHIPPED:    { label: "Shipped",    icon: Truck,          variant: "default",    color: "text-purple-600" },
-  DELIVERED:  { label: "Delivered",  icon: CheckCircle2,   variant: "secondary",  color: "text-emerald-600" },
-  CANCELLED:  { label: "Cancelled",  icon: XCircle,        variant: "destructive", color: "text-red-600" },
-  REFUNDED:   { label: "Refunded",   icon: AlertCircle,    variant: "outline",    color: "text-slate-600" },
+  PENDING:          { label: "Pending",          icon: Clock,          variant: "outline",     color: "text-amber-600" },
+  PAID:             { label: "Paid",             icon: CheckCircle2,   variant: "secondary",   color: "text-blue-600" },
+  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "secondary",   color: "text-teal-600" },
+  PROCESSING:       { label: "Processing",       icon: Package,        variant: "default",     color: "text-indigo-600" },
+  SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "default",     color: "text-purple-600" },
+  OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "default",     color: "text-violet-600" },
+  DELIVERED:        { label: "Delivered",        icon: CheckCircle2,   variant: "secondary",   color: "text-emerald-600" },
+  CANCELLED:        { label: "Cancelled",        icon: XCircle,        variant: "destructive", color: "text-red-600" },
+  REFUNDED:         { label: "Refunded",         icon: AlertCircle,    variant: "outline",     color: "text-slate-600" },
 };
 
 async function getOrder(id: string) {
@@ -53,13 +58,28 @@ async function getOrder(id: string) {
       shippingCost: true,
       tax: true,
       stripePaymentId: true,
+      refundRequested: true,
+      refundReason: true,
+      refundAmount: true,
+      refundedAt: true,
+      refundStripeId: true,
       createdAt: true,
       updatedAt: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
       address: true,
       items: {
         include: {
-          product: { select: { id: true, name: true, images: true, sku: true } },
+          product: { select: { id: true, name: true, slug: true, images: true, sku: true } },
+          productVariant: {
+            include: {
+              images: { orderBy: { displayOrder: "asc" } },
+              values: {
+                include: {
+                  variantValue: { include: { variantAttribute: { select: { name: true } } } },
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -128,45 +148,49 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               <div className="divide-y divide-slate-100">
                 {order.items.map((item, index) => (
                   <div key={index} className="p-4 flex gap-4">
-                    {/* Product Image */}
-                    <div className="h-20 w-20 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-50">
-                      {item.product.images?.[0] ? (
-                        <img
-                          src={item.product.images[0]}
-                          alt={item.product.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full flex items-center justify-center text-slate-400">
-                          <Package className="h-8 w-8" />
+                    {/* Product Image — prefer variant image over product image */}
+                    {(() => {
+                      const displayImage =
+                        (item as any).productVariant?.images?.[0]?.url ?? item.product.images?.[0];
+                      return (
+                        <div className="h-20 w-20 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-50">
+                          {displayImage ? (
+                            <img
+                              src={displayImage}
+                              alt={item.product.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-slate-400">
+                              <Package className="h-8 w-8" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    
+                      );
+                    })()}
+
                     {/* Product Info */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-slate-900 truncate">
-                        {item.product.name}
-                      </h4>
-                      <p className="text-sm text-slate-500">SKU: {item.product.sku || "N/A"}</p>
-                      
-                      {/* Variants if any */}
-                      {item.variantData && Object.keys(item.variantData).length > 0 && (
+                      <h4 className="font-medium text-slate-900 truncate">{item.product.name}</h4>
+                      <p className="text-sm text-slate-500">
+                        SKU: {(item as any).productVariant?.sku || item.product.sku || "N/A"}
+                      </p>
+
+                      {/* Variant attributes */}
+                      {(item as any).productVariant?.values?.length > 0 && (
                         <div className="flex gap-2 mt-1 flex-wrap">
-                          {Object.entries(item.variantData).map(([key, value]) => (
-                            <span key={key} className="text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                              {key}: {value as string}
+                          {(item as any).productVariant.values.map((v: any) => (
+                            <span key={v.variantValue.value} className="text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                              {v.variantValue.variantAttribute.name}: {v.variantValue.value}
                             </span>
                           ))}
                         </div>
                       )}
-                      
+
                       <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm text-slate-600">
-                          Qty: {item.quantity}
-                        </span>
+                        <span className="text-sm text-slate-600">Qty: {item.quantity}</span>
                         <span className="font-medium text-slate-900">
-                          {currencyFormatter.format(item.price * item.quantity)}
+                          {currencyFormatter.format((item as any).unitPrice * item.quantity)}
                         </span>
                       </div>
                     </div>
@@ -219,8 +243,21 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Payment Status</p>
-                  <Badge variant={order.stripePaymentId ? "secondary" : "outline"}>
-                    {order.stripePaymentId ? "Paid" : "Unpaid"}
+                  <Badge
+                    variant={
+                      order.status === "REFUNDED" ? "destructive"
+                      : ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status)
+                        ? "secondary"
+                        : "outline"
+                    }
+                  >
+                    {order.status === "REFUNDED"
+                      ? "Refunded"
+                      : order.status === "CANCELLED"
+                        ? "Not Paid"
+                        : order.status === "PENDING"
+                          ? "Awaiting Payment"
+                          : "Paid"}
                   </Badge>
                 </div>
               </div>
@@ -273,7 +310,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                   <p className="text-slate-600">{order.address.line1}</p>
                   {order.address.line2 && <p className="text-slate-600">{order.address.line2}</p>}
                   <p className="text-slate-600">
-                    {order.address.city}, {order.address.state} {order.address.postalCode}
+                    {order.address.suburb}, {order.address.state} {order.address.postcode}
                   </p>
                   <p className="text-slate-600">{order.address.country}</p>
                   {order.address.phone && (
@@ -285,6 +322,14 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               )}
             </CardContent>
           </Card>
+
+          {/* Order Status Update */}
+          <OrderStatusUpdate
+            orderId={order.id}
+            currentStatus={order.status}
+            currentTrackingNumber={order.trackingNumber}
+            currentCarrier={order.carrier}
+          />
 
           {/* Order Timeline */}
           <Card>
@@ -342,6 +387,35 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               </div>
             </CardContent>
           </Card>
+
+          {/* Refund Management */}
+          {["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "REFUNDED"].includes(order.status) && (
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  Refund Management
+                  {order.refundRequested && order.status !== "REFUNDED" && (
+                    <span className="ml-auto text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                      Action Required
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AdminRefundPanel
+                  orderId={order.id}
+                  orderTotal={order.total}
+                  refundRequested={order.refundRequested}
+                  refundReason={order.refundReason ?? null}
+                  alreadyRefunded={order.status === "REFUNDED"}
+                  refundAmount={order.refundAmount ?? null}
+                  refundedAt={order.refundedAt ?? null}
+                  hasStripePayment={!!order.stripePaymentId}
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

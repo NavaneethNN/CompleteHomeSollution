@@ -15,6 +15,11 @@ export interface OrderWithItems {
   trackingNumber: string | null;
   carrier: string | null;
   guestEmail: string | null;
+  refundRequested: boolean;
+  refundReason: string | null;
+  refundAmount: number | null;
+  refundedAt: Date | null;
+  refundStripeId: string | null;
   createdAt: Date;
   updatedAt: Date;
   address: {
@@ -36,6 +41,7 @@ export interface OrderWithItems {
     productVariant: {
       id: string;
       sku: string;
+      images: { url: string; displayOrder: number }[];
       values: {
         variantValue: {
           value: string;
@@ -109,6 +115,7 @@ export async function getOrders(): Promise<{ orders: OrderWithItems[]; error?: s
             product: { select: { id: true, name: true, slug: true, images: true } },
             productVariant: {
               include: {
+                images: { orderBy: { displayOrder: "asc" } },
                 values: {
                   include: {
                     variantValue: { include: { variantAttribute: { select: { name: true } } } },
@@ -151,6 +158,7 @@ export async function getOrderById(orderId: string): Promise<{ order: OrderWithI
             product: { select: { id: true, name: true, slug: true, images: true } },
             productVariant: {
               include: {
+                images: { orderBy: { displayOrder: "asc" } },
                 values: {
                   include: {
                     variantValue: { include: { variantAttribute: { select: { name: true } } } },
@@ -206,6 +214,7 @@ export async function getOrderStats(): Promise<{
               product: { select: { id: true, name: true, slug: true, images: true } },
               productVariant: {
                 include: {
+                  images: { orderBy: { displayOrder: "asc" } },
                   values: {
                     include: {
                       variantValue: { include: { variantAttribute: { select: { name: true } } } },

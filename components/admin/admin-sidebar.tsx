@@ -19,6 +19,7 @@ import {
   LogOut,
   ChevronDown,
   FolderTree,
+  BookOpen,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Menu, X } from "lucide-react";
@@ -36,6 +37,12 @@ const NAV_GROUPS = [
     items: [
       { href: "/admin/products", label: "Products", icon: Package },
       { href: "/admin/categories", label: "Categories", icon: FolderTree },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { href: "/admin/blog", label: "Blog", icon: BookOpen },
     ],
   },
   {

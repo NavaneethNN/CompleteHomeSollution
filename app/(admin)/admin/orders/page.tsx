@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { revalidatePath } from "next/cache";
+import { Suspense } from "react";
 import { db } from "@/lib/db";
 import {
   ShoppingCart,
@@ -16,37 +16,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Eye,
-  MoreHorizontal,
+  CreditCard,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { MobileStatusDropdown } from "@/components/admin/mobile-status-dropdown";
+import { OrderRowStatusForm } from "@/components/admin/order-row-status-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-// Server action to update order status
-async function updateOrderStatus(orderId: string, newStatus: string) {
-  "use server";
-  
-  try {
-    await db.order.update({
-      where: { id: orderId },
-      data: { status: newStatus as any },
-    });
-    
-    revalidatePath("/admin/orders");
-    return { success: true };
-  } catch (error) {
-    console.error("Failed to update order status:", error);
-    return { success: false, error: "Failed to update status" };
-  }
-}
 
 export const metadata: Metadata = { title: "Manage Orders — Admin" };
 
@@ -59,23 +39,25 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
 
 const ORDER_STATUS_CONFIG: Record<
   string,
-  { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline" }
+  { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline"; className: string }
 > = {
-  PENDING:          { label: "Pending",          icon: Clock,          variant: "outline" },
-  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "secondary" },
-  PROCESSING:       { label: "Processing",       icon: Package,        variant: "default" },
-  SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "default" },
-  OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "default" },
-  DELIVERED:        { label: "Delivered",        icon: CheckCircle2,   variant: "secondary" },
-  CANCELLED:        { label: "Cancelled",        icon: XCircle,        variant: "destructive" },
+  PENDING:          { label: "Pending",          icon: Clock,          variant: "outline",     className: "border-amber-300 text-amber-700 bg-amber-50" },
+  PAID:             { label: "Paid",             icon: CreditCard,     variant: "outline",     className: "border-blue-300 text-blue-700 bg-blue-50" },
+  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "outline",     className: "border-teal-300 text-teal-700 bg-teal-50" },
+  PROCESSING:       { label: "Processing",       icon: Package,        variant: "outline",     className: "border-indigo-300 text-indigo-700 bg-indigo-50" },
+  SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "outline",     className: "border-purple-300 text-purple-700 bg-purple-50" },
+  OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "outline",     className: "border-violet-300 text-violet-700 bg-violet-50" },
+  DELIVERED:        { label: "Delivered",        icon: CheckCircle2,   variant: "outline",     className: "border-emerald-300 text-emerald-700 bg-emerald-50" },
+  CANCELLED:        { label: "Cancelled",        icon: XCircle,        variant: "destructive", className: "border-red-300 text-red-700 bg-red-50" },
+  REFUNDED:         { label: "Refunded",         icon: RefreshCw,      variant: "outline",     className: "border-slate-300 text-slate-600 bg-slate-50" },
 };
 
 interface OrdersPageProps {
-  searchParams: { 
+  searchParams: Promise<{ 
     page?: string;
     status?: string;
     search?: string;
-  };
+  }>;
 }
 
 const ORDERS_PER_PAGE = 20;
@@ -103,12 +85,17 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
       take: ORDERS_PER_PAGE,
       skip,
       orderBy: { createdAt: "desc" },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        total: true,
+        createdAt: true,
+        refundRequested: true,
         user: { select: { id: true, name: true, email: true } },
         address: { select: { name: true } },
         items: {
           take: 1,
-          include: {
+          select: {
             product: { select: { name: true } },
           },
         },
@@ -123,13 +110,14 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
 async function getOrderStats() {
   const [
     totalOrders,
-    confirmedOrders,
+    paidOrders,
     processingOrders,
     todayOrders,
     todayRevenue,
   ] = await Promise.all([
     db.order.count(),
-    db.order.count({ where: { status: "CONFIRMED" } }),
+    // Count all paid/confirmed/active orders (PAID = payment received, CONFIRMED = admin confirmed)
+    db.order.count({ where: { status: { in: ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] } } }),
     db.order.count({ where: { status: "PROCESSING" } }),
     db.order.count({ 
       where: { 
@@ -140,7 +128,7 @@ async function getOrderStats() {
     }),
     db.order.aggregate({
       where: { 
-        status: { not: "CANCELLED" },
+        status: { notIn: ["CANCELLED", "PENDING", "REFUNDED"] },
         createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
       },
       _sum: { total: true },
@@ -149,7 +137,7 @@ async function getOrderStats() {
 
   return {
     totalOrders,
-    confirmedOrders,
+    paidOrders,
     processingOrders,
     todayOrders,
     todayRevenue: todayRevenue._sum.total ?? 0,
@@ -157,9 +145,8 @@ async function getOrderStats() {
 }
 
 export default async function AdminOrdersPage({ searchParams }: OrdersPageProps) {
-  const page = Math.max(1, parseInt(searchParams.page || "1", 10));
-  const status = searchParams.status;
-  const search = searchParams.search;
+  const { page: pageParam, status, search } = await searchParams;
+  const page = Math.max(1, parseInt(pageParam || "1", 10));
 
   const [{ orders, totalCount, totalPages }, stats] = await Promise.all([
     getOrders({ page, status, search }),
@@ -175,9 +162,9 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
       accent: "bg-blue-500",
     },
     {
-      label: "Confirmed",
-      mobileLabel: "Confirmed",
-      value: stats.confirmedOrders.toLocaleString(),
+      label: "Paid",
+      mobileLabel: "Paid",
+      value: stats.paidOrders.toLocaleString(),
       icon: CheckCircle2,
       accent: "bg-emerald-500",
     },
@@ -198,7 +185,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     },
   ];
 
-  const statusOptions = ["ALL", "PENDING", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"];
+  const statusOptions = ["ALL", "PENDING", "PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"];
 
   return (
     <div className="space-y-6 p-4 sm:p-6 w-full max-w-none">
@@ -277,32 +264,12 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
             </div>
             
             {/* Status Filter - Mobile Dropdown */}
-            <details className="sm:hidden relative">
-              <summary className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg cursor-pointer list-none hover:bg-slate-200 transition-colors">
-                <Filter className="h-4 w-4 text-slate-600" />
-                <span className="text-sm font-medium text-slate-700">
-                  {status || "ALL"}
-                </span>
-                <span className="text-xs text-slate-500">
-                  ({status && status !== "ALL" ? "filtered" : "all"})
-                </span>
-              </summary>
-              <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-2 min-w-[150px] z-10">
-                {statusOptions.map((s) => (
-                  <Link
-                    key={s}
-                    href={`/admin/orders?page=1&status=${s}${search ? `&search=${search}` : ""}`}
-                    className={`block px-3 py-2 text-sm rounded-md transition-colors ${
-                      (status || "ALL") === s
-                        ? "bg-slate-900 text-white"
-                        : "text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    {s}
-                  </Link>
-                ))}
-              </div>
-            </details>
+            <Suspense fallback={null}>
+              <MobileStatusDropdown 
+                currentStatus={status || "ALL"}
+                statusOptions={statusOptions}
+              />
+            </Suspense>
           </div>
         </CardContent>
       </Card>
@@ -339,8 +306,10 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                   </tr>
                 ) : (
                   orders.map((order) => {
-                    const StatusConfig = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.PENDING;
+                    const StatusConfig = ORDER_STATUS_CONFIG[order.status] ?? ORDER_STATUS_CONFIG.PENDING;
                     const StatusIcon = StatusConfig.icon;
+                    const isTerminal = ["CANCELLED", "REFUNDED"].includes(order.status);
+                    const hasRefundRequest = order.refundRequested && order.status !== "REFUNDED";
                     
                     return (
                       <tr key={order.id} className="hover:bg-slate-50">
@@ -375,10 +344,18 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           {currencyFormatter.format(order.total)}
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4">
-                          <Badge variant={StatusConfig.variant} className="flex items-center gap-1 w-fit text-xs whitespace-nowrap">
-                            <StatusIcon className="h-3 w-3" />
-                            <span className="hidden sm:inline">{StatusConfig.label}</span>
-                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold w-fit whitespace-nowrap ${StatusConfig.className}`}>
+                              <StatusIcon className="h-3 w-3" />
+                              {StatusConfig.label}
+                            </span>
+                            {hasRefundRequest && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                Refund Req.
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 text-slate-600 hidden lg:table-cell">
                           {order.items?.length || 0} items
@@ -392,33 +369,14 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                         <td className="py-2 sm:py-3 px-2 sm:px-4 text-right">
                           <div className="flex items-center justify-end gap-1 sm:gap-2">
                             {/* Status Change Form */}
-                            <form 
-                              action={async (formData: FormData) => {
-                                "use server";
-                                const newStatus = formData.get("status") as string;
-                                if (newStatus) await updateOrderStatus(order.id, newStatus);
-                              }}
-                              className="flex items-center gap-1"
-                            >
-                              <input type="hidden" name="orderId" value={order.id} />
-                              <Select name="status" defaultValue={order.status}>
-                                <SelectTrigger className="w-[100px] sm:w-[130px] h-8 text-xs">
-                                  <SelectValue placeholder="Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="PENDING">Pending</SelectItem>
-                                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
-                                  <SelectItem value="PROCESSING">Processing</SelectItem>
-                                  <SelectItem value="SHIPPED">Shipped</SelectItem>
-                                  <SelectItem value="OUT_FOR_DELIVERY">Out for Delivery</SelectItem>
-                                  <SelectItem value="DELIVERED">Delivered</SelectItem>
-                                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Button type="submit" size="sm" className="h-8 px-2 text-xs">
-                                Update
-                              </Button>
-                            </form>
+                            {isTerminal ? (
+                              <span className="text-xs text-slate-400 italic px-1">—</span>
+                            ) : (
+                              <OrderRowStatusForm
+                                orderId={order.id}
+                                currentStatus={order.status}
+                              />
+                            )}
                             
                             <Link href={`/admin/orders/${order.id}`}>
                               <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3">

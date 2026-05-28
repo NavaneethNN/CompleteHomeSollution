@@ -14,6 +14,8 @@ const ROUTE_LABELS: Record<string, string> = {
   "/admin/orders": "Orders",
   "/admin/customers": "Customers",
   "/admin/membership": "Membership",
+  "/admin/blog": "Blog",
+  "/admin/blog/new": "New Post",
   "/admin/settings": "Settings",
 };
 
@@ -35,7 +37,7 @@ export function AdminHeader() {
   const crumbs = useBreadcrumbs();
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background px-6">
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background pl-16 pr-6 lg:px-6">
       {/* Breadcrumbs */}
       <nav className="flex items-center gap-1.5 text-sm">
         {crumbs.map((crumb, i) => (

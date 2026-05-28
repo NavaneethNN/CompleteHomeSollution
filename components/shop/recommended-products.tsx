@@ -77,9 +77,9 @@ export async function RecommendedProducts({
             <Link
               key={product.id}
               href={`/products/${product.slug}`}
-              className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all duration-300"
+              className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all duration-300 flex flex-col"
             >
-              <div className="relative aspect-[4/3] bg-muted overflow-hidden">
+              <div className="relative aspect-[4/3] bg-muted overflow-hidden shrink-0">
                 <Image
                   src={product.images[0] ?? "/placeholder.jpg"}
                   alt={product.name}
@@ -93,7 +93,7 @@ export async function RecommendedProducts({
                   </span>
                 )}
               </div>
-              <div className="p-3">
+              <div className="p-3 flex flex-col flex-1">
                 <p className="text-xs text-muted-foreground line-clamp-1">{product.material}</p>
                 <h3 className="mt-0.5 text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
                   {product.name}
@@ -108,7 +108,7 @@ export async function RecommendedProducts({
                     </span>
                   )}
                 </div>
-                <div className="mt-3 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-primary/5 text-primary text-xs font-medium group-hover:bg-primary group-hover:text-white transition-colors">
+                <div className="mt-auto pt-3 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-primary/5 text-primary text-xs font-medium group-hover:bg-primary group-hover:text-white transition-colors">
                   <ShoppingCart className="h-3.5 w-3.5" />
                   View Product
                 </div>

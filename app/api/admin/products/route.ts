@@ -9,12 +9,14 @@ const variantValueSchema = z.object({
   id: z.string(), // temp ID from frontend
   value: z.string(),
   hexCode: z.string().optional().nullable(),
+  images: z.array(z.string()).optional(),
 });
 
 const variantAttributeSchema = z.object({
   id: z.string(), // temp ID from frontend
   name: z.string(),
   displayOrder: z.number().default(0),
+  isPrimary: z.boolean().default(false),
   values: z.array(variantValueSchema),
 });
 
@@ -219,6 +221,7 @@ export async function POST(req: Request) {
             data: {
               name: attr.name,
               displayOrder: attr.displayOrder,
+              isPrimary: attr.isPrimary ?? false,
               productId: newProduct.id,
             },
           });
@@ -231,6 +234,7 @@ export async function POST(req: Request) {
               data: {
                 value: val.value,
                 hexCode: val.hexCode,
+                images: val.images ?? [],
                 variantAttributeId: variantAttr.id,
               },
             });

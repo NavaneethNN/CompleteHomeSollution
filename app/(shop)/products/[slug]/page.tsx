@@ -25,6 +25,13 @@ async function getProduct(slug: string) {
         include: {
           variantValues: {
             orderBy: { value: "asc" },
+            select: {
+              id: true,
+              value: true,
+              hexCode: true,
+              images: true,
+              variantAttributeId: true,
+            },
           },
         },
       },
@@ -44,8 +51,15 @@ async function getProduct(slug: string) {
         },
       },
       reviews: {
-        include: { user: { select: { name: true, image: true } } },
         orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          rating: true,
+          comment: true,
+          images: true,
+          createdAt: true,
+          user: { select: { name: true, image: true } },
+        },
       },
       _count: { select: { reviews: true } },
     },
@@ -125,7 +139,7 @@ export default async function ProductDetailPage({
   return (
     <main className="min-h-screen bg-background">
       {/* Breadcrumbs */}
-      <div className="container mx-auto px-4 py-3">
+      <div className="container mx-auto px-4 md:px-6 xl:px-8 py-3">
         <Breadcrumbs
           items={[
             { label: "Home", href: "/" },
@@ -136,7 +150,7 @@ export default async function ProductDetailPage({
         />
       </div>
 
-      <div className="container mx-auto px-4 pb-12 space-y-12">
+      <div className="container mx-auto px-4 md:px-6 xl:px-8 pb-12 space-y-12">
         {/* ── Product Detail ── */}
         {product.hasVariants ? (
           <ProductDetailsClient
@@ -167,7 +181,9 @@ export default async function ProductDetailPage({
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
-            <ProductGallery images={product.images} productName={product.name} />
+            <div className="w-full max-w-[480px] mx-auto md:mx-0">
+              <ProductGallery images={product.images} productName={product.name} />
+            </div>
             <div className="space-y-4">
               {/* Header */}
               <div className="flex items-start justify-between gap-2">
@@ -217,7 +233,7 @@ export default async function ProductDetailPage({
               <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
 
               {/* SKU / Stock */}
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span>SKU: {product.sku}</span>
                 {product.stock > 0
                   ? <span className="text-green-600 font-medium">● In Stock ({product.stock} available)</span>
@@ -244,15 +260,15 @@ export default async function ProductDetailPage({
               {(product.weight || product.length || product.width || product.height) && (
                 <div className="pt-3 border-t border-border">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Specifications</p>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                  <div className="grid grid-cols-1 gap-y-2 text-sm">
                     {product.weight && (
-                      <div className="flex justify-between col-span-1">
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Weight</span>
                         <span className="font-medium">{product.weight} kg</span>
                       </div>
                     )}
                     {product.length && product.width && product.height && (
-                      <div className="flex justify-between col-span-1">
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Dimensions</span>
                         <span className="font-medium">{product.length} × {product.width} × {product.height} cm</span>
                       </div>
@@ -281,7 +297,11 @@ export default async function ProductDetailPage({
         )}
 
         {/* ── Reviews Section ── */}
-        <ProductReviews reviews={product.reviews} reviewCount={product._count.reviews} />
+        <ProductReviews
+          productId={product.id}
+          reviews={product.reviews}
+          reviewCount={product._count.reviews}
+        />
 
         {/* ── Recommended Products ── */}
         <RecommendedProducts

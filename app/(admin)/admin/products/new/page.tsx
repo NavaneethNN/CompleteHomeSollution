@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Plus,
   Trash2,
-  Upload,
   X,
   Check,
   ChevronDown,
@@ -35,13 +34,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ImageUploader } from "@/components/admin/image-uploader";
 import type { Category } from "@prisma/client";
 
 interface VariantAttribute {
   id: string;
   name: string;
   displayOrder: number;
-  values: { id: string; value: string; hexCode?: string }[];
+  values: { id: string; value: string; hexCode?: string; images?: string[] }[];
 }
 
 interface ProductVariant {
@@ -58,6 +58,196 @@ interface ProductVariant {
   length?: number;
   width?: number;
   height?: number;
+}
+
+function VariantCard({
+  variant,
+  label,
+  onUpdate,
+  primaryImages,
+  primaryLabel,
+}: {
+  variant: ProductVariant;
+  label: string;
+  onUpdate: (updates: Partial<ProductVariant>) => void;
+  primaryImages?: string[];   // images inherited from the primary attribute value
+  primaryLabel?: string;      // e.g. "Black" — shown in the inherited badge
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const effectiveImages = primaryImages && primaryImages.length > 0 ? primaryImages : variant.images;
+  const hasImages = effectiveImages && effectiveImages.length > 0;
+
+  return (
+    <div className="rounded-lg border border-slate-200 overflow-hidden">
+      {/* Header row — always visible */}
+      <div
+        className="flex items-center gap-3 px-4 py-3 bg-slate-50 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        {/* Thumbnail */}
+        <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden border border-slate-200 bg-white flex items-center justify-center">
+          {hasImages ? (
+            <img src={effectiveImages[0]} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Package className="h-5 w-5 text-slate-300" />
+          )}
+        </div>
+
+        <span className="flex-1 text-sm font-medium text-slate-700">{label}</span>
+
+        {/* Quick stats */}
+        <span className="text-xs text-slate-400 hidden sm:inline">
+          {primaryImages && primaryImages.length > 0
+            ? <span className="text-primary/70">↑ {primaryLabel}</span>
+            : hasImages ? `${variant.images.length} img` : "No images"}
+        </span>
+        <span className="text-xs text-slate-400 hidden sm:inline">Stock: {variant.stock}</span>
+        <Switch
+          checked={variant.isActive}
+          onCheckedChange={(checked: boolean) => {
+            onUpdate({ isActive: checked });
+          }}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <ChevronDown
+          className={cn("h-4 w-4 text-slate-400 transition-transform shrink-0", expanded && "rotate-180")}
+        />
+      </div>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div className="p-4 space-y-4 border-t border-slate-200">
+          {/* SKU + Price + Stock row */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">SKU</Label>
+              <Input
+                value={variant.sku}
+                onChange={(e) => onUpdate({ sku: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Price (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={variant.price ?? ""}
+                onChange={(e) => onUpdate({ price: parseFloat(e.target.value) || 0 })}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Stock</Label>
+              <Input
+                type="number"
+                min="0"
+                value={variant.stock}
+                onFocus={(e) => variant.stock === 0 && e.target.select()}
+                onChange={(e) => onUpdate({ stock: parseInt(e.target.value) || 0 })}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Compare Price (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={variant.comparePrice ?? ""}
+                onChange={(e) =>
+                  onUpdate({ comparePrice: e.target.value ? parseFloat(e.target.value) : undefined })
+                }
+                className="h-8 text-xs"
+                placeholder="Optional"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Member Price (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={variant.memberPrice ?? ""}
+                onChange={(e) =>
+                  onUpdate({ memberPrice: e.target.value ? parseFloat(e.target.value) : undefined })
+                }
+                className="h-8 text-xs"
+                placeholder="Optional"
+              />
+            </div>
+          </div>
+
+          {/* Variant Images */}
+          <div className="space-y-2">
+            {primaryImages && primaryImages.length > 0 ? (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary flex items-center gap-2">
+                <Check className="h-4 w-4 shrink-0" />
+                Images inherited from <strong>{primaryLabel}</strong> — set them on the primary attribute value above.
+              </div>
+            ) : (
+              <>
+                <Label className="text-xs font-medium text-slate-600">Variant Images</Label>
+                <ImageUploader
+                  images={variant.images ?? []}
+                  onChange={(imgs) => onUpdate({ images: imgs })}
+                  maxImages={5}
+                  folder="products/variants"
+                />
+              </>
+            )}
+          </div>
+
+          {/* Variant Dimensions */}
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
+              <Ruler className="h-3.5 w-3.5" />
+              Dimensions &amp; Weight
+            </Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Weight (kg)</Label>
+                <Input
+                  type="number" min="0" step="0.1"
+                  value={variant.weight ?? ""}
+                  onChange={(e) => onUpdate({ weight: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="h-8 text-xs" placeholder="0.0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Length (cm)</Label>
+                <Input
+                  type="number" min="0"
+                  value={variant.length ?? ""}
+                  onChange={(e) => onUpdate({ length: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="h-8 text-xs" placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Width (cm)</Label>
+                <Input
+                  type="number" min="0"
+                  value={variant.width ?? ""}
+                  onChange={(e) => onUpdate({ width: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="h-8 text-xs" placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Height (cm)</Label>
+                <Input
+                  type="number" min="0"
+                  value={variant.height ?? ""}
+                  onChange={(e) => onUpdate({ height: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  className="h-8 text-xs" placeholder="0"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function NewProductPage() {
@@ -99,6 +289,7 @@ export default function NewProductPage() {
   const [newValueName, setNewValueName] = useState("");
   const [newValueHex, setNewValueHex] = useState("");
   const [selectedAttributeId, setSelectedAttributeId] = useState<string | null>(null);
+  const [primaryAttributeId, setPrimaryAttributeId] = useState<string | null>(null);
 
   // Fetch categories
   useEffect(() => {
@@ -154,35 +345,45 @@ export default function NewProductPage() {
         
         // Load variant attributes if present
         if (p.variantAttributes) {
-          setVariantAttributes(p.variantAttributes.map((attr: any) => ({
+          const attrs = p.variantAttributes.map((attr: any) => ({
             id: attr.id,
             name: attr.name,
             displayOrder: attr.displayOrder,
+            isPrimary: attr.isPrimary ?? false,
             values: (attr.variantValues || []).map((v: any) => ({
               id: v.id,
               value: v.value,
               hexCode: v.hexCode,
+              images: v.images || [],
             })),
-          })));
+          }));
+          setVariantAttributes(attrs);
+          const primary = attrs.find((a: any) => a.isPrimary);
+          if (primary) setPrimaryAttributeId(primary.id);
         }
         
         // Load product variants if present
         if (p.productVariants) {
-          setProductVariants(p.productVariants.map((v: any) => ({
-            id: v.id,
-            sku: v.sku,
-            price: v.price,
-            comparePrice: v.comparePrice,
-            memberPrice: v.memberPrice,
-            stock: v.stock,
-            isActive: v.isActive,
-            valueIds: v.values?.map((val: any) => val.variantValueId) || [],
-            images: v.images?.map((img: any) => img.url) || [],
-            weight: v.weight,
-            length: v.length,
-            width: v.width,
-            height: v.height,
-          })));
+          setProductVariants(p.productVariants.map((v: any) => {
+            const valueIds: string[] = v.values?.map((val: any) => val.variantValueId) || [];
+            // Normalize ID to match makeVariantId() so isVariantActive() works correctly
+            const normalizedId = `var-${[...valueIds].sort().join("-")}`;
+            return {
+              id: normalizedId,
+              sku: v.sku,
+              price: v.price,
+              comparePrice: v.comparePrice,
+              memberPrice: v.memberPrice,
+              stock: v.stock,
+              isActive: v.isActive,
+              valueIds,
+              images: v.images?.map((img: any) => img.url) || [],
+              weight: v.weight,
+              length: v.length,
+              width: v.width,
+              height: v.height,
+            };
+          }));
         }
       })
       .catch((err) => {
@@ -197,75 +398,101 @@ export default function NewProductPage() {
     };
   }, [isEditMode, productId]);
 
-  // Generate variants when attributes change
+  // When attributes change, clean up orphan variants
   useEffect(() => {
     if (!hasVariants || variantAttributes.length === 0) {
       setProductVariants([]);
       return;
     }
+    const allValueIds = new Set(variantAttributes.flatMap((a) => a.values.map((v) => v.id)));
+    const expectedLength = variantAttributes.length;
+    setProductVariants((prev) =>
+      prev.filter(
+        (variant) =>
+          // Must reference only known value IDs
+          variant.valueIds.every((id) => allValueIds.has(id)) &&
+          // Must have exactly one value per attribute
+          variant.valueIds.length === expectedLength
+      )
+    );
+  }, [variantAttributes, hasVariants]);
 
-    // Get all combinations of variant values
+  const makeVariantId = (valueIds: string[]) => `var-${[...valueIds].sort().join("-")}`;
+
+  const isVariantActive = (valueIds: string[]) => {
+    const id = makeVariantId(valueIds);
+    return productVariants.some((v) => v.id === id);
+  };
+
+  const toggleVariant = (valueIds: string[]) => {
+    const id = makeVariantId(valueIds);
+    const exists = productVariants.find((v) => v.id === id);
+    if (exists) {
+      setProductVariants((prev) => prev.filter((v) => v.id !== id));
+    } else {
+      const suffix = valueIds
+        .map((vid) => {
+          for (const attr of variantAttributes) {
+            const val = attr.values.find((v) => v.id === vid);
+            if (val) return val.value.substring(0, 3).toUpperCase();
+          }
+          return "";
+        })
+        .join("-");
+      const ts = Date.now().toString(36).slice(-4).toUpperCase();
+      const variantSku = sku.trim() ? `${sku}-${suffix}-${ts}` : `VAR-${suffix}-${ts}`;
+      const newVariant: ProductVariant = {
+        id,
+        sku: variantSku,
+        price: parseFloat(basePrice) || 0,
+        stock: 0,
+        isActive: true,
+        valueIds,
+        images: [],
+      };
+      setProductVariants((prev) => [...prev, newVariant]);
+    }
+  };
+
+  const addAllCombinationsForValue = (primaryAttrId: string, primaryValueId: string) => {
+    // Find the secondary attribute (the one that isn't primary)
+    const secondaryAttrs = variantAttributes.filter((a) => a.id !== primaryAttrId);
+    if (secondaryAttrs.length === 0) {
+      // Single attribute product — just toggle the single value
+      toggleVariant([primaryValueId]);
+      return;
+    }
+    // Add all secondary combinations for this primary value
     const getCombinations = (attrs: VariantAttribute[]): string[][] => {
       if (attrs.length === 0) return [[]];
       const [first, ...rest] = attrs;
-      const restCombinations = getCombinations(rest);
-      return first.values.flatMap((val) =>
-        restCombinations.map((comb) => [val.id, ...comb])
-      );
+      return first.values.flatMap((v) => getCombinations(rest).map((c) => [v.id, ...c]));
     };
-
-    const combinations = getCombinations(variantAttributes);
-
-    // Use functional update to access current variants without dependency
-    setProductVariants((currentVariants) => {
-      // Create/update product variants
-      const newVariants: ProductVariant[] = combinations.map((valueIds) => {
-        // Check if variant already exists
-        const existing = currentVariants.find(
-          (v) => JSON.stringify(v.valueIds.sort()) === JSON.stringify(valueIds.sort())
-        );
-
-        if (existing) {
-          return existing;
-        }
-
-        // Generate SKU suffix from attribute values
-        const suffix = valueIds
-          .map((id) => {
-            for (const attr of variantAttributes) {
-              const val = attr.values.find((v) => v.id === id);
-              if (val) return val.value.substring(0, 3).toUpperCase();
-            }
-            return "";
-          })
-          .join("-");
-
-        // Create unique ID based on valueIds to avoid duplicate keys
-        const uniqueId = valueIds.sort().join("-");
-
-        // Generate variant SKU - ensure it's unique
-        const timestamp = Date.now().toString(36).slice(-4).toUpperCase(); // Last 4 chars of timestamp in base36
-        const variantSku = sku.trim() 
-          ? `${sku}-${suffix}-${timestamp}`
-          : `VAR-${suffix}-${timestamp}`;
-
-        return {
-          id: `var-${uniqueId}`,
-          sku: variantSku,
-          price: parseFloat(basePrice) || 0,
-          stock: 0,
-          isActive: true,
-          valueIds,
-          images: [],
-        };
-      });
-
-      return newVariants;
+    getCombinations(secondaryAttrs).forEach((secIds) => {
+      const valueIds = [primaryValueId, ...secIds];
+      if (!isVariantActive(valueIds)) toggleVariant(valueIds);
     });
-  }, [variantAttributes, hasVariants, sku, basePrice]);
+  };
+
+  const updateAttributeValueImages = (attrId: string, valueId: string, imgs: string[]) => {
+    setVariantAttributes((prev) =>
+      prev.map((attr) =>
+        attr.id !== attrId ? attr : {
+          ...attr,
+          values: attr.values.map((v) =>
+            v.id !== valueId ? v : { ...v, images: imgs }
+          ),
+        }
+      )
+    );
+  };
 
   const addVariantAttribute = () => {
     if (!newAttributeName.trim()) return;
+    if (variantAttributes.length >= 3) {
+      toast.error("Maximum 3 option types allowed");
+      return;
+    }
     const newAttr: VariantAttribute = {
       id: `attr-${Date.now()}`,
       name: newAttributeName,
@@ -336,54 +563,8 @@ export default function NewProductPage() {
   };
 
   // Security constants
-  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-  const MAX_IMAGES_COUNT = 10;
   const MAX_NAME_LENGTH = 200;
   const MAX_DESCRIPTION_LENGTH = 5000;
-  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-
-    const fileArray = Array.from(files);
-    
-    // Validate total image count
-    if (images.length + fileArray.length > MAX_IMAGES_COUNT) {
-      toast.error(`Maximum ${MAX_IMAGES_COUNT} images allowed`);
-      return;
-    }
-
-    // Validate each file
-    for (const file of fileArray) {
-      if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-        toast.error(`Invalid file type: ${file.name}. Only JPEG, PNG, WebP, GIF allowed.`);
-        return;
-      }
-      if (file.size > MAX_IMAGE_SIZE) {
-        toast.error(`File too large: ${file.name}. Maximum size is 5MB.`);
-        return;
-      }
-    }
-
-    // Convert files to base64 data URLs for preview
-    const base64Promises = fileArray.map((file) => {
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    });
-
-    try {
-      const base64Images = await Promise.all(base64Promises);
-      setImages((prev) => [...prev, ...base64Images]);
-      toast.success(`${base64Images.length} image(s) uploaded`);
-    } catch (error) {
-      toast.error("Failed to load images");
-    }
-  };
 
   // Sanitize string inputs to prevent XSS
   const sanitizeInput = (input: string): string => {
@@ -427,12 +608,6 @@ export default function NewProductPage() {
       return;
     }
     
-    // Validate max image count in submit
-    if (images.length > MAX_IMAGES_COUNT) {
-      toast.error(`Maximum ${MAX_IMAGES_COUNT} images allowed`);
-      return;
-    }
-
     setLoading(true);
     try {
       const productData = {
@@ -453,33 +628,49 @@ export default function NewProductPage() {
         length: length ? parseFloat(length) : undefined,
         width: width ? parseFloat(width) : undefined,
         height: height ? parseFloat(height) : undefined,
-        variantAttributes: hasVariants
+        // Always send variant arrays in edit mode so the API can clean up deleted variants.
+        // In create mode, omit when not needed to keep payload minimal.
+        variantAttributes: (hasVariants || isEditMode)
           ? variantAttributes.map((attr) => ({
               id: attr.id,
               name: attr.name,
               displayOrder: attr.displayOrder,
+              isPrimary: attr.id === primaryAttributeId,
               values: attr.values.map((v) => ({
                 id: v.id,
                 value: v.value,
                 hexCode: v.hexCode,
+                images: v.images ?? [],
               })),
             }))
           : undefined,
-        productVariants: hasVariants
-          ? productVariants.map((v) => ({
-              sku: v.sku,
-              price: v.price,
-              comparePrice: v.comparePrice,
-              memberPrice: v.memberPrice,
-              stock: v.stock,
-              isActive: v.isActive,
-              valueIds: v.valueIds, // These are the temp IDs
-              images: v.images,
-              weight: v.weight,
-              length: v.length,
-              width: v.width,
-              height: v.height,
-            }))
+        productVariants: (hasVariants || isEditMode)
+          ? productVariants.map((v) => {
+              // Propagate primary-value images into variant so the API stores them
+              const primaryAttr = primaryAttributeId
+                ? variantAttributes.find((a) => a.id === primaryAttributeId)
+                : null;
+              const primaryVal = primaryAttr
+                ? primaryAttr.values.find((pv) => v.valueIds.includes(pv.id))
+                : null;
+              const resolvedImages = primaryVal?.images?.length
+                ? primaryVal.images
+                : v.images;
+              return {
+                sku: v.sku,
+                price: v.price,
+                comparePrice: v.comparePrice,
+                memberPrice: v.memberPrice,
+                stock: v.stock,
+                isActive: v.isActive,
+                valueIds: v.valueIds,
+                images: resolvedImages,
+                weight: v.weight,
+                length: v.length,
+                width: v.width,
+                height: v.height,
+              };
+            })
           : undefined,
       };
 
@@ -760,36 +951,12 @@ export default function NewProductPage() {
               <CardTitle className="text-base">Product Images</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-wrap gap-4">
-                {images.map((img, i) => (
-                  <div
-                    key={i}
-                    className="relative h-24 w-24 rounded-lg border border-slate-200 overflow-hidden group"
-                  >
-                    <img src={img} alt="" className="h-full w-full object-cover" />
-                    <button
-                      onClick={() => setImages(images.filter((_, idx) => idx !== i))}
-                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))}
-                <label className="flex h-24 w-24 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 hover:border-primary hover:bg-slate-50 transition-colors">
-                  <Upload className="h-6 w-6 text-slate-400" />
-                  <span className="mt-1 text-xs text-slate-500">Add</span>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageUpload}
-                  />
-                </label>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">
-                First image will be used as the main product image
-              </p>
+              <ImageUploader
+                images={images}
+                onChange={setImages}
+                maxImages={10}
+                folder="products"
+              />
             </CardContent>
           </Card>
 
@@ -819,183 +986,305 @@ export default function NewProductPage() {
       {/* Variants Tab */}
       {activeTab === "variants" && hasVariants && (
         <div className="space-y-6">
-          {/* Variant Attributes */}
+
+          {/* Step 1 — Define option types */}
           <Card>
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Palette className="h-4 w-4" />
-                Variant Options
+                Step 1 — Define Option Types
               </CardTitle>
+              <p className="text-sm text-slate-500">Add the kinds of options your product has (e.g. Color, Size).</p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add new attribute */}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="e.g. Color, Size, Material"
-                  value={newAttributeName}
-                  onChange={(e) => setNewAttributeName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && addVariantAttribute()}
-                />
-                <Button onClick={addVariantAttribute} type="button">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Option
-                </Button>
-              </div>
-
-              {/* Attributes List */}
-              <div className="space-y-4">
-                {variantAttributes.map((attr) => (
-                  <div
-                    key={attr.id}
-                    className={cn(
-                      "rounded-lg border p-4",
-                      selectedAttributeId === attr.id
-                        ? "border-primary bg-primary/5"
-                        : "border-slate-200"
-                    )}
-                    onClick={() => setSelectedAttributeId(attr.id)}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-medium">{attr.name}</h4>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeVariantAttribute(attr.id);
-                        }}
-                        className="text-slate-400 hover:text-red-500"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    {/* Values */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {attr.values.map((val) => (
-                        <Badge
-                          key={val.id}
-                          variant="secondary"
-                          className="flex items-center gap-1"
-                        >
-                          {val.hexCode && (
-                            <span
-                              className="w-3 h-3 rounded-full border"
-                              style={{ backgroundColor: val.hexCode }}
-                            />
+            <CardContent className="space-y-3">
+              {variantAttributes.length < 3 ? (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. Color, Size, Material"
+                    value={newAttributeName}
+                    onChange={(e) => setNewAttributeName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && addVariantAttribute()}
+                  />
+                  <Button onClick={addVariantAttribute} type="button">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Option
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400 border border-dashed border-slate-200 rounded-lg px-4 py-2.5">
+                  Maximum of 3 option types added. Remove one to add a different type.
+                </p>
+              )}
+              {variantAttributes.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  <p className="text-xs text-slate-500">Select which option is <strong>Primary</strong> — its values will share images (e.g. all Black variants use one image set).</p>
+                  <div className="flex flex-wrap gap-2">
+                    {variantAttributes.map((attr) => {
+                      const isPrimary = primaryAttributeId === attr.id;
+                      return (
+                        <div
+                          key={attr.id}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium cursor-pointer transition-all",
+                            isPrimary
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
                           )}
-                          {val.value}
+                          onClick={() => setPrimaryAttributeId(isPrimary ? null : attr.id)}
+                        >
+                          {isPrimary && <Check className="h-3.5 w-3.5 shrink-0" />}
+                          {attr.name}
+                          {isPrimary && <span className="text-[10px] font-semibold bg-primary text-white rounded px-1 ml-0.5">PRIMARY</span>}
                           <button
-                            onClick={() => removeVariantValue(attr.id, val.id)}
-                            className="ml-1 hover:text-red-500"
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); removeVariantAttribute(attr.id); }}
+                            className="ml-1 text-slate-400 hover:text-red-500"
                           >
-                            <X className="h-3 w-3" />
+                            <X className="h-3.5 w-3.5" />
                           </button>
-                        </Badge>
-                      ))}
-                    </div>
-
-                    {/* Add value */}
-                    {selectedAttributeId === attr.id && (
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Value name (e.g. Red, Large)"
-                          value={newValueName}
-                          onChange={(e) => setNewValueName(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && addVariantValue()}
-                        />
-                        {attr.name.toLowerCase().includes("color") && (
-                          <input
-                            type="color"
-                            value={newValueHex}
-                            onChange={(e) => setNewValueHex(e.target.value)}
-                            className="h-10 w-10 rounded border"
-                          />
-                        )}
-                        <Button onClick={addVariantValue} type="button" size="sm">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Product Variants Table */}
+          {/* Step 2 — Add values and pick combinations */}
+          {variantAttributes.length > 0 && (() => {
+            const primaryAttr = variantAttributes[0];
+            const secondaryAttrs = variantAttributes.slice(1);
+            return (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    Step 2 — Add Values &amp; Select Combinations
+                  </CardTitle>
+                  <p className="text-sm text-slate-500">
+                    Add values for each option type, then tick which combinations exist for this product.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+
+                  {/* Value input panels for each attribute */}
+                  {variantAttributes.map((attr) => {
+                    const isThisPrimary = primaryAttributeId === attr.id;
+                    return (
+                    <div key={attr.id} className={cn("rounded-lg border border-dashed p-3 space-y-2", isThisPrimary ? "border-primary/40 bg-primary/5" : "border-slate-300")}>
+                      <div className="flex items-center justify-between">
+                        <p className={cn("text-xs font-semibold uppercase tracking-wide", isThisPrimary ? "text-primary" : "text-slate-500")}>
+                          {attr.name} Values
+                          {isThisPrimary && <span className="ml-2 normal-case font-normal text-primary/70">— images set per value below</span>}
+                        </p>
+                        {variantAttributes.indexOf(attr) > 0 && (
+                          <button type="button" onClick={() => removeVariantAttribute(attr.id)} className="text-slate-400 hover:text-red-500">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* If primary: show each value as a card with its own image uploader */}
+                      {isThisPrimary && attr.values.length > 0 ? (
+                        <div className="space-y-3">
+                          {attr.values.map((val) => (
+                            <div key={val.id} className="rounded-md border border-slate-200 bg-white p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                  {val.hexCode && <span className="h-4 w-4 rounded-full border border-slate-200 shrink-0" style={{ background: val.hexCode }} />}
+                                  {val.value}
+                                </div>
+                                <button type="button" onClick={() => removeVariantValue(attr.id, val.id)} className="text-slate-400 hover:text-red-500">
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <ImageUploader
+                                images={val.images ?? []}
+                                onChange={(imgs) => updateAttributeValueImages(attr.id, val.id, imgs)}
+                                maxImages={5}
+                                folder="products/variants"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : !isThisPrimary ? (
+                        <div className="flex flex-wrap gap-2">
+                          {attr.values.map((val) => (
+                            <Badge key={val.id} variant="secondary" className="gap-1.5 pr-1">
+                              {val.hexCode && <span className="inline-block h-3 w-3 rounded-full border border-white/50" style={{ background: val.hexCode }} />}
+                              {val.value}
+                              <button type="button" onClick={() => removeVariantValue(attr.id, val.id)} className="ml-0.5 hover:text-red-500">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
+
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder={`Add ${attr.name} value…`}
+                          value={selectedAttributeId === attr.id ? newValueName : ""}
+                          onFocus={() => setSelectedAttributeId(attr.id)}
+                          onChange={(e) => setNewValueName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAttributeId(attr.id); addVariantValue(); } }}
+                          className="h-8 text-sm"
+                        />
+                        {attr.name.toLowerCase().includes("color") && (
+                          <input type="color" value={newValueHex} onChange={(e) => setNewValueHex(e.target.value)} className="h-8 w-10 rounded border" />
+                        )}
+                        <Button type="button" size="sm" onClick={() => { setSelectedAttributeId(attr.id); addVariantValue(); }}>
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    );
+                  })}
+
+                  {/* Combination selector — single flat table of all cartesian combos */}
+                  {(() => {
+                    // Build all cartesian combinations across ALL attributes
+                    const getCombos = (attrs: VariantAttribute[]): string[][] => {
+                      if (attrs.length === 0) return [[]];
+                      const [first, ...rest] = attrs;
+                      return first.values.flatMap((v) => getCombos(rest).map((c) => [v.id, ...c]));
+                    };
+                    const allCombos = getCombos(variantAttributes);
+                    if (allCombos.length === 0 || allCombos[0].length === 0) return null;
+
+                    const allSelected = allCombos.every((ids) => isVariantActive(ids));
+                    const someSelected = allCombos.some((ids) => isVariantActive(ids));
+
+                    const toggleAll = () => {
+                      if (allSelected) {
+                        // deselect all
+                        allCombos.forEach((ids) => { if (isVariantActive(ids)) toggleVariant(ids); });
+                      } else {
+                        // select all
+                        allCombos.forEach((ids) => { if (!isVariantActive(ids)) toggleVariant(ids); });
+                      }
+                    };
+
+                    return (
+                      <div className="space-y-2 pt-1">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                            Available Combinations — tick what you sell
+                          </p>
+                          <button
+                            type="button"
+                            onClick={toggleAll}
+                            className="text-xs text-primary hover:underline font-medium"
+                          >
+                            {allSelected ? "Deselect All" : "Select All"}
+                          </button>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                              <tr>
+                                <th className="py-2.5 px-3 w-10">
+                                  <span className={cn(
+                                    "inline-flex h-5 w-5 items-center justify-center rounded border transition-all cursor-pointer",
+                                    allSelected ? "border-primary bg-primary text-white" :
+                                    someSelected ? "border-primary bg-primary/20 text-primary" :
+                                    "border-slate-300 bg-white"
+                                  )} onClick={toggleAll}>
+                                    {(allSelected || someSelected) && <Check className="h-3 w-3" />}
+                                  </span>
+                                </th>
+                                {variantAttributes.map((attr) => (
+                                  <th key={attr.id} className="py-2.5 px-4 text-left text-xs font-semibold text-slate-500">
+                                    {attr.name}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {allCombos.map((ids) => {
+                                const active = isVariantActive(ids);
+                                const label = ids.map((id) => {
+                                  for (const attr of variantAttributes) {
+                                    const v = attr.values.find((v) => v.id === id);
+                                    if (v) return v;
+                                  }
+                                  return null;
+                                });
+                                return (
+                                  <tr
+                                    key={ids.join("-")}
+                                    onClick={() => toggleVariant(ids)}
+                                    className={cn(
+                                      "cursor-pointer transition-colors",
+                                      active ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-slate-50"
+                                    )}
+                                  >
+                                    <td className="py-2.5 px-3">
+                                      <span className={cn(
+                                        "inline-flex h-5 w-5 items-center justify-center rounded border transition-all",
+                                        active ? "border-primary bg-primary text-white" : "border-slate-300 bg-white"
+                                      )}>
+                                        {active && <Check className="h-3 w-3" />}
+                                      </span>
+                                    </td>
+                                    {label.map((val, i) => (
+                                      <td key={i} className="py-2.5 px-4 text-slate-700">
+                                        <div className="flex items-center gap-2">
+                                          {val?.hexCode && (
+                                            <span className="h-4 w-4 rounded-full border border-slate-200 shrink-0" style={{ background: val.hexCode }} />
+                                          )}
+                                          <span className={active ? "font-medium" : ""}>{val?.value ?? "—"}</span>
+                                        </div>
+                                      </td>
+                                    ))}
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* Step 3 — Configure each selected variant */}
           {productVariants.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-base">
-                  Variant Combinations ({productVariants.length})
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Step 3 — Configure Variants ({productVariants.length})
                 </CardTitle>
+                <p className="text-sm text-slate-500">Click a variant to set price, stock, images, and dimensions.</p>
               </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-200">
-                        <th className="py-2 text-left text-xs font-medium text-slate-500">Variant</th>
-                        <th className="py-2 text-left text-xs font-medium text-slate-500">SKU</th>
-                        <th className="py-2 text-left text-xs font-medium text-slate-500">Price</th>
-                        <th className="py-2 text-left text-xs font-medium text-slate-500">Stock</th>
-                        <th className="py-2 text-left text-xs font-medium text-slate-500">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {productVariants.map((variant) => (
-                        <tr key={variant.id}>
-                          <td className="py-2 text-slate-700">{getVariantLabel(variant)}</td>
-                          <td className="py-2">
-                            <Input
-                              value={variant.sku}
-                              onChange={(e) =>
-                                updateVariant(variant.id, { sku: e.target.value })
-                              }
-                              className="w-32 h-8 text-xs"
-                            />
-                          </td>
-                          <td className="py-2">
-                            <Input
-                              type="number"
-                              value={variant.price}
-                              onChange={(e) =>
-                                updateVariant(variant.id, {
-                                  price: parseFloat(e.target.value) || 0,
-                                })
-                              }
-                              className="w-24 h-8 text-xs"
-                            />
-                          </td>
-                          <td className="py-2">
-                            <Input
-                              type="number"
-                              value={variant.stock}
-                              onFocus={(e) => {
-                                if (variant.stock === 0) {
-                                  e.target.select();
-                                }
-                              }}
-                              onChange={(e) =>
-                                updateVariant(variant.id, {
-                                  stock: parseInt(e.target.value) || 0,
-                                })
-                              }
-                              className="w-20 h-8 text-xs"
-                            />
-                          </td>
-                          <td className="py-2">
-                            <Switch
-                              checked={variant.isActive}
-                              onCheckedChange={(checked: boolean) =>
-                                updateVariant(variant.id, { isActive: checked })
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <CardContent className="space-y-3">
+                {productVariants.map((variant) => {
+                  // Look up the primary attribute value this variant belongs to
+                  const primaryAttr = primaryAttributeId
+                    ? variantAttributes.find((a) => a.id === primaryAttributeId)
+                    : null;
+                  const primaryVal = primaryAttr
+                    ? primaryAttr.values.find((v) => variant.valueIds.includes(v.id))
+                    : null;
+                  const primImgs = primaryVal?.images && primaryVal.images.length > 0
+                    ? primaryVal.images
+                    : undefined;
+                  return (
+                    <VariantCard
+                      key={variant.id}
+                      variant={variant}
+                      label={getVariantLabel(variant)}
+                      onUpdate={(updates) => updateVariant(variant.id, updates)}
+                      primaryImages={primImgs}
+                      primaryLabel={primaryVal?.value}
+                    />
+                  );
+                })}
               </CardContent>
             </Card>
           )}
@@ -1017,173 +1306,60 @@ export default function NewProductPage() {
       {/* Shipping Tab */}
       {activeTab === "shipping" && (
         <div className="space-y-6">
-          {/* Check if there's a size variant attribute */}
-          {(() => {
-            const hasSizeVariant = variantAttributes.some(
-              attr => attr.name.toLowerCase().includes('size') || attr.name.toLowerCase().includes('dimension')
-            );
-            const showVariantDimensions = hasVariants && productVariants.length > 0 && hasSizeVariant;
-            const showCommonDimensions = !hasVariants || productVariants.length === 0 || !hasSizeVariant;
-
-            return (
-              <>
-                {/* Common Dimensions - shown for simple products or when no size variant */}
-                {showCommonDimensions && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Ruler className="h-4 w-4" />
-                        Product Dimensions
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="weight">Weight (kg)</Label>
-                          <Input
-                            id="weight"
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={weight}
-                            onChange={(e) => setWeight(e.target.value)}
-                            placeholder="0.0"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="length">Length (cm)</Label>
-                          <Input
-                            id="length"
-                            type="number"
-                            min="0"
-                            value={length}
-                            onChange={(e) => setLength(e.target.value)}
-                            placeholder="0"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="width">Width (cm)</Label>
-                          <Input
-                            id="width"
-                            type="number"
-                            min="0"
-                            value={width}
-                            onChange={(e) => setWidth(e.target.value)}
-                            placeholder="0"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="height">Height (cm)</Label>
-                          <Input
-                            id="height"
-                            type="number"
-                            min="0"
-                            value={height}
-                            onChange={(e) => setHeight(e.target.value)}
-                            placeholder="0"
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Variant-specific Dimensions - only when size variant exists */}
-                {showVariantDimensions && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Ruler className="h-4 w-4" />
-                        Variant Dimensions (by Size)
-                      </CardTitle>
-                      <p className="text-sm text-slate-500">
-                        Set dimensions for each size variant
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-slate-200">
-                              <th className="py-2 text-left text-xs font-medium text-slate-500">Variant</th>
-                              <th className="py-2 text-left text-xs font-medium text-slate-500">Weight (kg)</th>
-                              <th className="py-2 text-left text-xs font-medium text-slate-500">Length (cm)</th>
-                              <th className="py-2 text-left text-xs font-medium text-slate-500">Width (cm)</th>
-                              <th className="py-2 text-left text-xs font-medium text-slate-500">Height (cm)</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100">
-                            {productVariants.map((variant) => (
-                              <tr key={variant.id}>
-                                <td className="py-2 text-slate-700 font-medium">{getVariantLabel(variant)}</td>
-                                <td className="py-2">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    step="0.1"
-                                    value={variant.weight || ""}
-                                    onChange={(e) =>
-                                      updateVariant(variant.id, {
-                                        weight: e.target.value ? parseFloat(e.target.value) : undefined,
-                                      })
-                                    }
-                                    className="w-24 h-8 text-xs"
-                                    placeholder="0.0"
-                                  />
-                                </td>
-                                <td className="py-2">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={variant.length || ""}
-                                    onChange={(e) =>
-                                      updateVariant(variant.id, {
-                                        length: e.target.value ? parseFloat(e.target.value) : undefined,
-                                      })
-                                    }
-                                    className="w-20 h-8 text-xs"
-                                    placeholder="0"
-                                  />
-                                </td>
-                                <td className="py-2">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={variant.width || ""}
-                                    onChange={(e) =>
-                                      updateVariant(variant.id, {
-                                        width: e.target.value ? parseFloat(e.target.value) : undefined,
-                                      })
-                                    }
-                                    className="w-20 h-8 text-xs"
-                                    placeholder="0"
-                                  />
-                                </td>
-                                <td className="py-2">
-                                  <Input
-                                    type="number"
-                                    min="0"
-                                    value={variant.height || ""}
-                                    onChange={(e) =>
-                                      updateVariant(variant.id, {
-                                        height: e.target.value ? parseFloat(e.target.value) : undefined,
-                                      })
-                                    }
-                                    className="w-20 h-8 text-xs"
-                                    placeholder="0"
-                                  />
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            );
-          })()}
+          {hasVariants && productVariants.length > 0 ? (
+            /* Variant product — dimensions live inside each VariantCard on the Variants tab */
+            <Card>
+              <CardContent className="py-10 text-center">
+                <Ruler className="mx-auto h-10 w-10 text-slate-300" />
+                <p className="mt-2 font-medium text-slate-600">Dimensions are set per variant</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  Open each variant card on the <strong>Variants</strong> tab to set its weight and dimensions.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            /* Simple product — single set of dimensions */
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Ruler className="h-4 w-4" />
+                  Product Dimensions
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Input
+                      id="weight" type="number" min="0" step="0.1"
+                      value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="length">Length (cm)</Label>
+                    <Input
+                      id="length" type="number" min="0"
+                      value={length} onChange={(e) => setLength(e.target.value)} placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="width">Width (cm)</Label>
+                    <Input
+                      id="width" type="number" min="0"
+                      value={width} onChange={(e) => setWidth(e.target.value)} placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="height">Height (cm)</Label>
+                    <Input
+                      id="height" type="number" min="0"
+                      value={height} onChange={(e) => setHeight(e.target.value)} placeholder="0"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
     </div>

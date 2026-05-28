@@ -10,24 +10,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    // Optional planId from request body
+    // Parse + validate body
     let requestedPlanId: string | undefined;
     try {
       const body = await req.json();
-      requestedPlanId = body?.planId;
-    } catch { /* no body is fine */ }
+      if (body?.planId && typeof body.planId === "string" && body.planId.length < 100) {
+        requestedPlanId = body.planId;
+      }
+    } catch { /* no body — fine */ }
 
-    // Fetch user + requested (or default) plan in parallel
+    // Fetch user + plan in parallel
     const [user, plan] = await Promise.all([
-      db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } }),
+      db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true, membershipExpiry: true },
+      }),
       requestedPlanId
         ? db.membershipPlan.findFirst({ where: { id: requestedPlanId, isActive: true } })
         : db.membershipPlan.findFirst({ where: { isActive: true, isDefault: true }, orderBy: { createdAt: "asc" } })
             .then((p) => p ?? db.membershipPlan.findFirst({ where: { isActive: true }, orderBy: { price: "asc" } })),
     ]);
 
-    if (user?.isMember) {
-      return NextResponse.json({ error: "You are already a member" }, { status: 400 });
+    // Auto-revoke expired memberships silently before checkout
+    const now = new Date();
+    if (user?.isMember && user.membershipExpiry && user.membershipExpiry < now) {
+      await db.user.update({
+        where: { id: session.user.id },
+        data: { isMember: false },
+      });
     }
 
     if (!plan) {

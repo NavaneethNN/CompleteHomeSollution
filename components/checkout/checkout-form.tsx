@@ -163,7 +163,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const discount = appliedCoupon ? subtotal * (appliedCoupon.discount / 100) : 0;
   const discountedSubtotal = subtotal - discount;
   const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode);
-  const freeShipping = discountedSubtotal >= 1200 || effectiveMember;
+  const freeShipping = discountedSubtotal >= 1200;
   const shippingCost = freeShipping ? 0 : (selectedRate?.price ?? null);
   const gst = Math.round(discountedSubtotal * 0.1 * 100) / 100;
   const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
@@ -376,8 +376,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       return;
     }
 
-    // Require a shipping rate when not free (members always get free shipping)
-    if (!effectiveMember && discountedSubtotal < 1200 && !selectedRateCode) {
+    // Require a shipping rate when not free
+    if (!freeShipping && !selectedRateCode) {
       toast({ title: "Select a shipping option", description: "Please choose a shipping service.", variant: "destructive" });
       return;
     }
@@ -449,7 +449,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       {/* Main Content */}
       <div className="space-y-6">
         {/* Order Items */}
-        <section className="rounded-2xl border border-border bg-card p-6">
+        <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
             Items ({itemCount})
@@ -501,7 +501,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         </section>
 
         {/* Shipping Address */}
-        <section className="rounded-2xl border border-border bg-card p-6">
+        <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
             <MapPin className="h-4 w-4 text-muted-foreground" />
             Shipping Address
@@ -611,7 +611,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         </section>
 
         {/* Coupon Code */}
-        <section className="rounded-2xl border border-border bg-card p-6">
+        <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground mb-4">
             <Tag className="h-4 w-4 text-muted-foreground" />
             Promo Code
@@ -654,7 +654,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
       {/* Order Summary Sidebar */}
       <aside className="lg:sticky lg:top-24 space-y-6">
-        <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="text-base font-semibold text-foreground">Order Summary</h2>
 
           <div className="mt-4 space-y-2.5">
@@ -719,14 +719,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
           {freeShipping && (
             <p className="mt-3 text-xs text-green-600 font-medium flex items-center gap-1">
-              {effectiveMember
-                ? <><Crown className="h-3 w-3" /> Free shipping — member benefit</>
-                : "Free shipping on orders over $1,200"}
+              Free shipping on orders over $1,200
             </p>
           )}
 
-          {/* Australia Post shipping options — hidden for members */}
-          {!freeShipping && discountedSubtotal < 1200 && (
+          {/* Australia Post shipping options */}
+          {!freeShipping && (
             <div className="mt-4">
               {isFetchingRates && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
@@ -797,10 +795,10 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                     {addMembership && <Check className="h-3 w-3 text-white" />}
                   </div>
                   <div>
-                    <div className="flex items-center gap-1.5">
-                      <Crown className="h-3.5 w-3.5 text-primary" />
+                    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <Crown className="h-3.5 w-3.5 text-primary shrink-0" />
                       <span className="text-sm font-bold text-foreground">Add CHS Membership</span>
-                      <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">+{currencyFormatter.format(MEMBERSHIP_PRICE)}</span>
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">+{currencyFormatter.format(MEMBERSHIP_PRICE)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {memberSavings > 0
@@ -858,7 +856,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           <Button
             className="mt-5 w-full h-12 text-sm font-semibold"
             onClick={handlePlaceOrder}
-            disabled={isProcessing || items.length === 0 || (!freeShipping && discountedSubtotal < 1200 && shippingCost === null)}
+            disabled={isProcessing || items.length === 0 || (!freeShipping && shippingCost === null)}
           >
             {isProcessing ? (
               <>

@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   description:
     "Shop premium furniture for every room. Based in Paralowie SA, delivering quality pieces for living, dining, bedroom and office across Australia.",
   keywords: ["furniture", "Australian furniture", "home decor", "sofas", "beds", "dining tables", "South Australia", "Adelaide"],
+  icons: {
+    icon: "/chs-logo.png",
+    shortcut: "/chs-logo.png",
+    apple: "/chs-logo.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_AU",

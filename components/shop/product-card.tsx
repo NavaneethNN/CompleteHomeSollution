@@ -148,137 +148,127 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
 
   return (
     <>
-      <div className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300">
-      {/* Image Container */}
-      <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-        <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
-          <Image
-            src={displayImage}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
-          />
-        </Link>
+      <div className="group flex flex-col">
 
-        {/* Badges */}
-        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
-          {hasDiscount && (
-            <span className="px-2 py-1 bg-destructive text-white text-xs font-semibold rounded-md">
-              -{discountPercent}%
-            </span>
-          )}
-          {product.hasVariants && (
-            <span className="px-2 py-1 bg-primary/90 text-white text-xs font-medium rounded-md flex items-center gap-1">
-              <Layers className="w-3 h-3" />
-              Options
-            </span>
-          )}
-        </div>
+        {/* Image */}
+        <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
+          <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
+            <Image
+              src={displayImage}
+              alt={product.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw"
+            />
+          </Link>
 
-        <WishlistToggleButton
-          product={wishlistProduct}
-          className="absolute top-3 right-3 z-10 h-9 w-9"
-        />
-
-        {/* Out of Stock Overlay */}
-        {displayStock === 0 && (
-          <div className="absolute inset-0 z-0 flex items-center justify-center bg-black/50">
-            <span className="px-4 py-2 bg-white text-foreground font-semibold rounded-lg">
-              Out of Stock
-            </span>
+          {/* Badges */}
+          <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+            {hasDiscount && (
+              <span className="px-1.5 py-0.5 bg-destructive text-white text-[10px] font-bold rounded">
+                -{discountPercent}%
+              </span>
+            )}
+            {product.hasVariants && (
+              <span className="px-1.5 py-0.5 bg-black/70 text-white text-[10px] font-medium rounded flex items-center gap-0.5">
+                <Layers className="w-2.5 h-2.5" />
+                Options
+              </span>
+            )}
           </div>
-        )}
-      </div>
 
-      {/* Content */}
-      <div className="p-4">
-        {/* Category */}
-        <Link
-          href={`/categories/${product.category.slug}`}
-          className="text-xs text-muted-foreground hover:text-primary transition-colors"
-        >
-          {product.category.name}
-        </Link>
+          <WishlistToggleButton
+            product={wishlistProduct}
+            className="absolute top-2 right-2 z-10 h-7 w-7"
+          />
 
-        {/* Title */}
-        <Link href={`/products/${product.slug}`}>
-          <h3 className="mt-1 font-semibold text-foreground line-clamp-2 hover:text-primary transition-colors">
-            {product.name}
-          </h3>
-        </Link>
-
-        {/* Material */}
-        {product.material && (
-          <p className="mt-1 text-xs text-muted-foreground">{product.material}</p>
-        )}
-
-        {/* Price Section */}
-        <div className="mt-3 flex items-baseline gap-2">
-          {/* Main Price */}
-          <span className="text-lg font-bold text-foreground">
-            ${displayPrice.toLocaleString()}
-          </span>
-
-          {/* Compare Price */}
-          {hasDiscount && (
-            <span className="text-sm text-muted-foreground line-through">
-              ${displayComparePrice.toLocaleString()}
-            </span>
+          {displayStock === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
+              <span className="px-2.5 py-1 bg-white/90 text-foreground text-xs font-semibold rounded-full">
+                Out of Stock
+              </span>
+            </div>
           )}
+
+          {/* Quick add — visible on hover (desktop) */}
+          <div className="absolute bottom-0 inset-x-0 translate-y-full group-hover:translate-y-0 transition-transform duration-200 hidden sm:block">
+            <button
+              type="button"
+              onClick={() => setIsPopupOpen(true)}
+              disabled={displayStock === 0}
+              className={cn(
+                "w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors",
+                displayStock === 0
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : isInCart
+                  ? "bg-emerald-600 text-white"
+                  : "bg-foreground text-white hover:bg-primary"
+              )}
+            >
+              {isInCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
+              {isInCart ? "Added to Cart" : "Quick Add"}
+            </button>
+          </div>
         </div>
 
-        {/* Member Price */}
-        {displayMemberPrice && (
-          <p className="mt-1 text-sm text-primary font-medium">
-            Member: ${displayMemberPrice.toLocaleString()}
-          </p>
-        )}
+        {/* Info */}
+        <div className="mt-2.5 flex flex-col gap-0.5">
+          <Link
+            href={`/categories/${product.category.slug}`}
+            className="text-[10px] sm:text-xs text-muted-foreground hover:text-primary transition-colors uppercase tracking-wide"
+          >
+            {product.category.name}
+          </Link>
 
-        {/* Stock indicator */}
-        {displayStock > 0 && displayStock <= 5 && (
-          <p className="mt-2 text-xs text-amber-600 font-medium">
-            Only {displayStock} left!
-          </p>
-        )}
+          <Link href={`/products/${product.slug}`}>
+            <h3 className="text-xs sm:text-sm font-medium text-foreground line-clamp-2 hover:text-primary transition-colors leading-snug">
+              {product.name}
+            </h3>
+          </Link>
 
-        {/* Reviews */}
-        {product.reviewCount > 0 && (
-          <p className="mt-2 text-xs text-muted-foreground">
-            {product.reviewCount} {reviewLabel}
-          </p>
-        )}
+          {product.material && (
+            <p className="text-[10px] sm:text-xs text-muted-foreground">{product.material}</p>
+          )}
 
-        <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="mt-1 flex items-baseline gap-2 flex-wrap">
+            <span className="text-sm sm:text-base font-bold text-foreground">
+              ${displayPrice.toLocaleString()}
+            </span>
+            {hasDiscount && (
+              <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                ${displayComparePrice.toLocaleString()}
+              </span>
+            )}
+          </div>
+
+          {displayMemberPrice && (
+            <p className="text-[10px] sm:text-xs text-primary font-semibold">
+              Member: ${displayMemberPrice.toLocaleString()}
+            </p>
+          )}
+
+          {displayStock > 0 && displayStock <= 5 && (
+            <p className="text-[10px] text-amber-600 font-medium">Only {displayStock} left!</p>
+          )}
+
+          {/* Mobile add to cart */}
           <button
             type="button"
             onClick={() => setIsPopupOpen(true)}
             disabled={displayStock === 0}
             className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all duration-200",
-              addToCartButtonClassName
+              "sm:hidden mt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors",
+              displayStock === 0
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : isInCart
+                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                : "bg-primary text-white hover:bg-primary/90"
             )}
           >
-            {addToCartIcon}
+            {isInCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
             {addToCartLabel}
           </button>
-
-          <button
-            type="button"
-            onClick={handleBuyNow}
-            disabled={displayStock === 0}
-            className={cn(
-              "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-3 text-sm font-bold transition-all duration-200",
-              displayStock === 0
-                ? "cursor-not-allowed border border-border bg-muted text-muted-foreground"
-                : "border border-primary bg-primary/10 text-primary hover:bg-primary hover:text-white"
-            )}
-          >
-            <Zap className="h-4 w-4" />
-            Buy Now
-          </button>
         </div>
-      </div>
       </div>
 
       <ProductPopupModal
