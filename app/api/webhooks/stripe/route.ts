@@ -79,13 +79,14 @@ export async function POST(req: NextRequest) {
         // Re-check status inside transaction — atomic idempotency guard
         const freshOrder = await tx.order.findUnique({
           where: { id: orderId },
-          select: { id: true, status: true },
+          select: { id: true, status: true, stripePaymentId: true },
         });
         if (!freshOrder) {
           throw new Error(`Order not found: ${orderId}`);
         }
-        if (freshOrder.status === "PAID") {
-          return null; // already processed — signal caller to skip
+        // Idempotency: if stripePaymentId is already recorded, payment was already fully processed
+        if (freshOrder.stripePaymentId) {
+          return null; // already processed — skip stock decrement and status update
         }
 
         // Re-check stock for each item before decrementing
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
           where: { id: orderId },
           data: {
             status: "PAID",
-            stripePaymentId: session.payment_intent as string,
+            stripePaymentId: session.payment_intent as string ?? undefined,
           },
           include: {
             items: { include: { product: { select: { name: true } } } },

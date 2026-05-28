@@ -97,18 +97,18 @@ export default async function OrderConfirmationPage({
 
   // ── Confirm payment on redirect (webhook fallback) ──────────────────────────
   // Stripe webhooks may not fire in local dev or arrive after the redirect.
-  // This block mirrors the webhook transaction but is idempotent — the webhook
-  // won't double-process because it checks status === "PAID" before acting.
+  // This block is idempotent: both here and the webhook guard on stripePaymentId
+  // being absent, so whichever runs first wins without double-processing.
   let didConfirmPayment = false;
   if (stripeSession?.payment_status === "paid" && stripeSession.metadata?.orderId === orderId) {
     try {
       await db.$transaction(async (tx) => {
         const freshOrder = await tx.order.findUnique({
           where: { id: orderId },
-          select: { id: true, status: true },
+          select: { id: true, status: true, stripePaymentId: true },
         });
-        // Skip if already PAID (webhook already ran) or order not found
-        if (!freshOrder || freshOrder.status !== "PENDING") return;
+        // Skip if stripePaymentId already recorded (webhook already ran fully)
+        if (!freshOrder || freshOrder.stripePaymentId) return;
 
         const items = await tx.orderItem.findMany({ where: { orderId } });
         for (const item of items) {
