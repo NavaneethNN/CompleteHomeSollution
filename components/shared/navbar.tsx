@@ -4,32 +4,61 @@ import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cart";
 import {
   Search, ShoppingBag, Heart, User, ChevronDown, ChevronRight,
   Menu, X, Armchair, BedDouble, UtensilsCrossed, Monitor, Flower2,
   LayoutDashboard, Package, Crown, UserCircle, MapPin,
-  LogOut, LogIn, UserPlus,
+  LogOut, LogIn, UserPlus, ShieldCheck, LayoutGrid, Loader2,
 } from "lucide-react";
 
-/* ─── Static data ─────────────────────────────────────────────────── */
+/* ─── Types ──────────────────────────────────────────────────────── */
 
-const CATEGORIES = [
-  { label: "Living Room",     href: "/categories/living-room",      Icon: Armchair,        desc: "Sofas, coffee tables & more" },
-  { label: "Bedroom",         href: "/categories/bedroom",           Icon: BedDouble,       desc: "Beds, wardrobes & nightstands" },
-  { label: "Dining Room",     href: "/categories/dining-room",       Icon: UtensilsCrossed, desc: "Dining sets, chairs & buffets" },
-  { label: "Office Furniture",href: "/categories/office-furniture",  Icon: Monitor,         desc: "Desks, ergonomic chairs & shelves" },
-  { label: "Home Decor",      href: "/categories/home-decor",        Icon: Flower2,         desc: "Accents, rugs & accessories" },
-] as const;
+interface NavCategory {
+  id: string;
+  name: string;
+  slug: string;
+  image: string | null;
+  _count: { products: number };
+}
 
-const ACCOUNT_LINKS = [
+interface SearchSuggestion {
+  id: string;
+  name: string;
+  slug: string;
+  images: string[];
+  basePrice: number;
+  category: { name: string; slug: string };
+}
+
+/* ─── Category icon mapper ───────────────────────────────────────── */
+
+const SLUG_ICONS: Record<string, React.ElementType> = {
+  "living-room":      Armchair,
+  "bedroom":          BedDouble,
+  "dining-room":      UtensilsCrossed,
+  "office-furniture": Monitor,
+  "office":           Monitor,
+  "home-decor":       Flower2,
+};
+
+function getCatIcon(slug: string): React.ElementType {
+  for (const [key, Icon] of Object.entries(SLUG_ICONS)) {
+    if (slug.includes(key)) return Icon;
+  }
+  return LayoutGrid;
+}
+
+const BASE_ACCOUNT_LINKS = [
   { label: "My Dashboard",  href: "/account/dashboard",  Icon: LayoutDashboard },
   { label: "My Orders",     href: "/account/orders",     Icon: Package },
   { label: "Membership",    href: "/account/membership", Icon: Crown },
   { label: "Profile",       href: "/account/profile",    Icon: UserCircle },
   { label: "Addresses",     href: "/account/addresses",  Icon: MapPin },
-] as const;
+];
+
+const ADMIN_LINK = { label: "Admin Panel", href: "/admin", Icon: ShieldCheck };
 
 /* ─── Tiny hook: close on outside click ──────────────────────────── */
 
@@ -92,15 +121,25 @@ export function Navbar() {
   const [searchOpen,     setSearchOpen]     = useState(false);
   const [searchVal,      setSearchVal]      = useState("");
 
-  /* refs for click-outside */
-  const catsRef   = useRef<HTMLDivElement>(null);
-  const userRef   = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const searchInp = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+
+  /* refs */
+  const catsRef       = useRef<HTMLDivElement>(null);
+  const userRef       = useRef<HTMLDivElement>(null);
+  const searchRef     = useRef<HTMLDivElement>(null);
+  const searchInp     = useRef<HTMLInputElement>(null);
+  const suggestDebRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* dynamic data */
+  const [categories,    setCategories]    = useState<NavCategory[]>([]);
+  const [suggestions,   setSuggestions]   = useState<SearchSuggestion[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const { data: session } = useSession();
   const isLoggedIn = !!session?.user;
   const user       = session?.user;
+  const isAdmin    = user?.role === "ADMIN";
+  const ACCOUNT_LINKS = isAdmin ? [ADMIN_LINK, ...BASE_ACCOUNT_LINKS] : BASE_ACCOUNT_LINKS;
   const cartCount  = useCartStore((state) =>
     state.items.reduce((total, item) => total + item.quantity, 0)
   );
@@ -144,15 +183,43 @@ export function Navbar() {
     if (searchOpen) setTimeout(() => searchInp.current?.focus(), 60);
   }, [searchOpen]);
 
+  /* fetch categories from DB on mount */
+  useEffect(() => {
+    fetch("/api/categories")
+      .then(r => r.json())
+      .then(d => { if (Array.isArray(d.data)) setCategories(d.data); })
+      .catch(() => {});
+  }, []);
+
+  /* debounced search suggestions */
+  useEffect(() => {
+    if (suggestDebRef.current) clearTimeout(suggestDebRef.current);
+    const q = searchVal.trim();
+    if (q.length < 2) { setSuggestions([]); return; }
+    suggestDebRef.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res  = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=6`);
+        const data = await res.json();
+        setSuggestions(data.products ?? []);
+      } catch { setSuggestions([]); }
+      setSearchLoading(false);
+    }, 300);
+    return () => { if (suggestDebRef.current) clearTimeout(suggestDebRef.current); };
+  }, [searchVal]);
+
   /* click-outside handlers */
   useClickOutside(catsRef,   () => setCatsOpen(false));
   useClickOutside(userRef,   () => setUserOpen(false));
-  useClickOutside(searchRef, () => { if (!searchVal) setSearchOpen(false); });
+  useClickOutside(searchRef, () => { if (!searchVal) { setSearchOpen(false); setSuggestions([]); } });
 
   /* search submit */
   const handleSearch = (q: string) => {
     if (q.trim()) {
-      globalThis.location.href = `/search?q=${encodeURIComponent(q.trim())}`;
+      setSuggestions([]);
+      setSearchOpen(false);
+      setSearchVal("");
+      router.push(`/search?q=${encodeURIComponent(q.trim())}`);
     }
   };
 
@@ -164,7 +231,7 @@ export function Navbar() {
         className={`sticky top-0 z-50 bg-white transition-shadow duration-300
           ${scrolled ? "shadow-lg" : "shadow-sm border-b border-border"}`}
       >
-        <div className="flex items-center h-[68px] gap-4 xl:gap-8 overflow-visible lg:max-w-screen-xl lg:mx-auto lg:px-6 xl:px-10">
+        <div className="flex items-center h-[72px] lg:h-[68px] px-4 md:px-5 gap-4 xl:gap-8 overflow-visible lg:max-w-screen-xl lg:mx-auto lg:px-6 xl:px-10">
 
             {/* ── Logo (no frame, no text) ─────────────────── */}
             <Link href="/" className="shrink-0 flex items-center" aria-label="Complete Home Sollution – Home">
@@ -173,7 +240,7 @@ export function Navbar() {
                 alt="Complete Home Sollution"
                 width={430}
                 height={131}
-                className="h-[100px] lg:h-[131px] w-auto object-contain "
+                className="h-14 lg:h-[100px] xl:h-[131px] w-auto object-contain"
                 style={{ width: "auto" }}
                 priority
               />
@@ -212,24 +279,40 @@ export function Navbar() {
                       Browse by Category
                     </p>
                     <div className="grid grid-cols-2 gap-1.5">
-                      {CATEGORIES.map(({ label, href, Icon, desc }) => (
-                        <Link
-                          key={href}
-                          href={href}
-                          role="menuitem"
-                          className="group flex items-center gap-3 p-3 rounded-xl hover:bg-secondary transition-colors"
-                        >
-                          <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                            <Icon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-none mb-0.5">
-                              {label}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">{desc}</p>
-                          </div>
-                        </Link>
-                      ))}
+                      {categories.length === 0
+                        ? Array.from({ length: 4 }).map((_, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3 rounded-xl animate-pulse">
+                              <div className="w-10 h-10 rounded-xl bg-slate-100 shrink-0" />
+                              <div className="space-y-1.5 flex-1">
+                                <div className="h-3 w-20 bg-slate-100 rounded" />
+                                <div className="h-2.5 w-16 bg-slate-100 rounded" />
+                              </div>
+                            </div>
+                          ))
+                        : categories.map((cat) => {
+                            const CatIcon = getCatIcon(cat.slug);
+                            return (
+                              <Link
+                                key={cat.id}
+                                href={`/categories/${cat.slug}`}
+                                role="menuitem"
+                                className="group flex items-center gap-3 p-3 rounded-xl hover:bg-secondary transition-colors"
+                              >
+                                <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                                  <CatIcon className="h-5 w-5 text-primary" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors leading-none mb-0.5">
+                                    {cat.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {cat._count.products} product{cat._count.products !== 1 ? "s" : ""}
+                                  </p>
+                                </div>
+                              </Link>
+                            );
+                          })
+                      }
                     </div>
                     <div className="mt-3 pt-3 border-t border-border">
                       <Link
@@ -243,6 +326,8 @@ export function Navbar() {
                 )}
               </div>
 
+              <NavItem href="/blog" active={pathname.startsWith("/blog")}>BLOG</NavItem>
+              
               <NavItem
                 href="/account/membership"
                 active={pathname.startsWith("/account/membership")}
@@ -253,28 +338,73 @@ export function Navbar() {
 
             <div className="flex-1" />
 
-            {/* ── Search (expandable) ─────────────────────── */}
-            <div ref={searchRef} className="hidden md:flex items-center">
+            {/* ── Search (expandable + live suggestions) ─── */}
+            <div ref={searchRef} className="hidden md:flex items-center relative">
               {searchOpen ? (
-                <div className="flex items-center gap-2 bg-secondary border border-primary/25 rounded-full px-4 py-2 w-60">
-                  <Search className="h-4 w-4 text-primary shrink-0" />
-                  <input
-                    ref={searchInp}
-                    type="text"
-                    placeholder="Search furniture…"
-                    value={searchVal}
-                    onChange={e => setSearchVal(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleSearch(searchVal)}
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
-                    aria-label="Search"
-                  />
-                  <button
-                    onClick={() => { setSearchOpen(false); setSearchVal(""); }}
-                    aria-label="Close search"
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                <div className="relative">
+                  <div className="flex items-center gap-2 bg-secondary border border-primary/25 rounded-full px-4 py-2 w-64">
+                    <Search className="h-4 w-4 text-primary shrink-0" />
+                    <input
+                      ref={searchInp}
+                      type="text"
+                      placeholder="Search furniture…"
+                      value={searchVal}
+                      onChange={e => setSearchVal(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") handleSearch(searchVal);
+                        if (e.key === "Escape") { setSearchOpen(false); setSearchVal(""); setSuggestions([]); }
+                      }}
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground min-w-0"
+                      aria-label="Search"
+                    />
+                    {searchLoading
+                      ? <Loader2 className="h-3.5 w-3.5 text-muted-foreground animate-spin shrink-0" />
+                      : <button
+                          onClick={() => { setSearchOpen(false); setSearchVal(""); setSuggestions([]); }}
+                          aria-label="Close search"
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                    }
+                  </div>
+                  {/* Live suggestions dropdown */}
+                  {suggestions.length > 0 && (
+                    <div className="absolute top-[calc(100%+8px)] right-0 w-80 bg-white rounded-xl shadow-2xl border border-border z-50 overflow-hidden">
+                      <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">Results</p>
+                      {suggestions.map((item) => (
+                        <Link
+                          key={item.id}
+                          href={`/products/${item.slug}`}
+                          onClick={() => { setSearchOpen(false); setSearchVal(""); setSuggestions([]); }}
+                          className="flex items-center gap-3 px-3 py-2.5 hover:bg-secondary transition-colors group"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0">
+                            {item.images[0]
+                              ? <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center"><Package className="h-4 w-4 text-slate-300" /></div>
+                            }
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground group-hover:text-primary truncate leading-tight">{item.name}</p>
+                            <p className="text-xs text-muted-foreground">{item.category.name}</p>
+                          </div>
+                          <p className="text-sm font-bold text-foreground shrink-0">
+                            A${item.basePrice.toLocaleString()}
+                          </p>
+                        </Link>
+                      ))}
+                      <div className="border-t border-border p-2">
+                        <button
+                          onClick={() => handleSearch(searchVal)}
+                          className="w-full flex items-center justify-center gap-1.5 text-sm font-bold text-primary hover:bg-primary/5 rounded-lg py-1.5 transition-colors"
+                        >
+                          <Search className="h-3.5 w-3.5" />
+                          See all results for "{searchVal}"
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <button
@@ -356,17 +486,31 @@ export function Navbar() {
                         </div>
                       </div>
                       <div className="py-1.5">
-                        {ACCOUNT_LINKS.map(({ label, href, Icon }) => (
-                          <Link
-                            key={href}
-                            href={href}
-                            role="menuitem"
-                            className="group flex items-center gap-3 px-4 py-2.5 text-sm text-foreground hover:bg-secondary hover:text-primary transition-colors"
-                          >
-                            <Icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                            {label}
-                          </Link>
-                        ))}
+                        {ACCOUNT_LINKS.map(({ label, href, Icon }) => {
+                          const isAdminLink = href === "/admin";
+                          return (
+                            <Link
+                              key={href}
+                              href={href}
+                              role="menuitem"
+                              className={`group flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                                isAdminLink
+                                  ? "text-primary font-semibold hover:bg-primary/8 hover:text-primary"
+                                  : "text-foreground hover:bg-secondary hover:text-primary"
+                              }`}
+                            >
+                              <Icon className={`h-4 w-4 shrink-0 transition-colors ${
+                                isAdminLink ? "text-primary" : "text-muted-foreground group-hover:text-primary"
+                              }`} />
+                              {label}
+                              {isAdminLink && (
+                                <span className="ml-auto text-[10px] font-bold bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                                  Admin
+                                </span>
+                              )}
+                            </Link>
+                          );
+                        })}
                       </div>
                       <div className="border-t border-border py-1.5">
                         <button
@@ -406,7 +550,7 @@ export function Navbar() {
               onClick={() => setMobileOpen(true)}
               aria-label="Open menu"
               aria-expanded={mobileOpen}
-              className="lg:hidden flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center text-foreground transition-colors mr-4"
+              className="lg:hidden flex w-10 h-10 rounded-full hover:bg-secondary items-center justify-center text-foreground transition-colors"
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -431,7 +575,7 @@ export function Navbar() {
           ${mobileOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         {/* Drawer header */}
-        <div className="flex items-center justify-end h-[68px] px-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-end h-[72px] px-4 border-b border-border shrink-0">
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
@@ -478,6 +622,15 @@ export function Navbar() {
             Shop All Products <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </Link>
 
+          {/* Blog */}
+          <Link
+            href="/blog"
+            className={`flex items-center justify-between px-3.5 py-3.5 rounded-xl text-sm font-semibold mb-0.5 transition-colors
+              ${pathname.startsWith("/blog") ? "bg-primary/8 text-primary" : "text-foreground hover:bg-secondary"}`}
+          >
+            Blog <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+
           {/* Categories accordion */}
           <button
             onClick={() => setMobileCatsOpen(!mobileCatsOpen)}
@@ -490,17 +643,20 @@ export function Navbar() {
 
           {mobileCatsOpen && (
             <div className="mb-0.5 pl-2 space-y-0.5">
-              {CATEGORIES.map(({ label, href, Icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm text-foreground hover:bg-secondary hover:text-primary transition-colors group"
-                >
-                  <Icon className="h-4 w-4 text-primary shrink-0" />
-                  <span className="font-medium">{label}</span>
-                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground ml-auto" />
-                </Link>
-              ))}
+              {categories.map((cat) => {
+                const CatIcon = getCatIcon(cat.slug);
+                return (
+                  <Link
+                    key={cat.id}
+                    href={`/categories/${cat.slug}`}
+                    className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm text-foreground hover:bg-secondary hover:text-primary transition-colors group"
+                  >
+                    <CatIcon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-medium">{cat.name}</span>
+                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground ml-auto" />
+                  </Link>
+                );
+              })}
             </div>
           )}
 

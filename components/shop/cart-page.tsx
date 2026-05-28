@@ -7,30 +7,36 @@ import { useCartStore } from "@/store/cart";
 import { CartItem } from "./cart-item";
 import { CartSummary } from "./cart-summary";
 
+interface CartPageProps {
+  isMember?: boolean;
+}
+
 const emptyStateActions = [
   { label: "Continue Shopping", href: "/products" },
   { label: "Browse Categories", href: "/categories/living-room" },
 ];
 
-export function CartPage() {
+export function CartPage({ isMember = false }: CartPageProps) {
   const items = useCartStore((state) => state.items);
   const removeItem = useCartStore((state) => state.removeItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const clearCart = useCartStore((state) => state.clearCart);
 
   const subtotal = useMemo(
+    () => items.reduce((total, item) => {
+      const price = isMember && item.product.memberPrice && item.product.memberPrice > 0
+        ? item.product.memberPrice
+        : item.product.price;
+      return total + price * item.quantity;
+    }, 0),
+    [items, isMember]
+  );
+  const fullSubtotal = useMemo(
     () => items.reduce((total, item) => total + item.product.price * item.quantity, 0),
     [items]
   );
+  const memberSavings = isMember ? fullSubtotal - subtotal : 0;
 
-  const shipping = useMemo(() => {
-    if (subtotal <= 0) return 0;
-    return subtotal >= 1200 ? 0 : 79;
-  }, [subtotal]);
-
-  const tax = useMemo(() => subtotal * 0.1, [subtotal]);
-  const discount = useMemo(() => 0, []);
-  const grandTotal = subtotal + shipping + tax - discount;
 
   if (items.length === 0) {
     return (
@@ -69,21 +75,19 @@ export function CartPage() {
   return (
     <main className="bg-background py-8 md:py-12">
       <div className="container mx-auto px-4 md:px-6 xl:px-8">
-        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="mb-6 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Shopping Cart</p>
-            <h1 className="mt-2 text-3xl font-black text-foreground md:text-5xl">Review your items</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              Adjust quantities, remove items, and continue to checkout when you're ready.
+            <h1 className="text-xl font-bold text-foreground sm:text-2xl">Shopping Cart</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+              {items.reduce((t, i) => t + i.quantity, 0)} {items.reduce((t, i) => t + i.quantity, 0) === 1 ? "item" : "items"}
             </p>
           </div>
-
           <button
             type="button"
             onClick={clearCart}
-            className="inline-flex items-center justify-center rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+            className="shrink-0 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-destructive hover:underline transition-colors"
           >
-            Clear Cart
+            Clear all
           </button>
         </div>
 
@@ -93,6 +97,7 @@ export function CartPage() {
               <CartItem
                 key={`${item.product.id}:${item.product.variantId ?? "default"}`}
                 item={item}
+                isMember={isMember}
                 onUpdateQuantity={(quantity) => updateQuantity(item.product.id, quantity, item.product.variantId ?? null)}
                 onRemove={() => removeItem(item.product.id, item.product.variantId ?? null)}
               />
@@ -101,11 +106,9 @@ export function CartPage() {
 
           <CartSummary
             subtotal={subtotal}
-            shipping={shipping}
-            tax={tax}
-            discount={discount}
-            total={grandTotal}
             itemCount={items.reduce((total, item) => total + item.quantity, 0)}
+            isMember={isMember}
+            memberSavings={memberSavings}
           />
         </div>
       </div>

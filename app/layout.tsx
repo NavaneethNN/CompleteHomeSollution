@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/shared/providers";
 import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
+import { ShopShell } from "@/components/shared/shop-shell";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const dancingScript = Dancing_Script({
@@ -20,6 +21,11 @@ export const metadata: Metadata = {
   description:
     "Shop premium furniture for every room. Based in Paralowie SA, delivering quality pieces for living, dining, bedroom and office across Australia.",
   keywords: ["furniture", "Australian furniture", "home decor", "sofas", "beds", "dining tables", "South Australia", "Adelaide"],
+  icons: {
+    icon: "/chs-logo.png",
+    shortcut: "/chs-logo.png",
+    apple: "/chs-logo.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_AU",
@@ -44,9 +50,7 @@ export default function RootLayout({
     <html lang="en-AU" suppressHydrationWarning>
       <body className={`${inter.variable} ${dancingScript.variable} font-sans antialiased flex flex-col min-h-screen`}>
         <Providers>
-          <Navbar />
-          <main className="flex-1 flex flex-col">{children}</main>
-          <Footer />
+          <ShopShell>{children}</ShopShell>
         </Providers>
       </body>
     </html>

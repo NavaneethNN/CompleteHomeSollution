@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
@@ -54,7 +55,14 @@ async function getTrendingProducts() {
         category: { select: { name: true, slug: true } },
         productVariants: {
           where: { isActive: true },
-          include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
+          include: { 
+            images: { take: 1, orderBy: { displayOrder: "asc" } },
+            values: {
+              include: {
+                variantValue: true,
+              },
+            },
+          },
           orderBy: { price: "asc" },
           take: 1,
         },
@@ -91,6 +99,11 @@ async function getTrendingProducts() {
       const image = variant?.images[0]?.url ?? p.images[0];
       const stock = variant?.stock ?? p.stock; // Use variant stock if available
 
+      // Generate variant label from variant attribute values if available
+      const variantLabel = variant?.values
+        ?.map((v: { variantValue: { value: string } }) => v.variantValue.value)
+        .join(" / ");
+
       const discount = comparePrice && comparePrice > price 
         ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%`
         : null;
@@ -104,9 +117,13 @@ async function getTrendingProducts() {
         discount,
         rating: 4.5, // Could be calculated from reviews
         reviews: p._count.reviews,
+        variantId: variant?.id ?? null,
+        sku: variant?.sku ?? p.sku,
+        variantLabel,
+        hasVariants: p.hasVariants,
         img: image,
         description: p.description,
-        memberPrice: p.memberPrice,
+        memberPrice: variant?.memberPrice ?? p.memberPrice,
         stock,
         category: p.category,
       };
@@ -179,10 +196,15 @@ function StarRating({ rating, count }: StarRatingProps) {
 /* ─── Page ──────────────────────────────────────────────────────────── */
 
 export default async function HomePage() {
-  const [trendingProducts, categories] = await Promise.all([
+  const session = await auth();
+  const [trendingProducts, categories, dbUser] = await Promise.all([
     getTrendingProducts(),
     getCategories(),
+    session?.user?.id
+      ? db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
+      : Promise.resolve(null),
   ]);
+  const isMember = dbUser?.isMember ?? false;
 
   return (
     <div>
@@ -202,7 +224,7 @@ export default async function HomePage() {
 
         {/* Text column */}
         <div className="container mx-auto px-5 md:px-6 xl:px-8 relative z-10">
-          <div className="max-w-[520px] py-12 md:py-16 lg:py-20">
+          <div className="max-w-[520px] py-8 md:py-16 lg:py-20">
             <p className="text-[11px] md:text-xs font-semibold tracking-[0.25em] text-muted-foreground uppercase mb-3 md:mb-4">
               MAKE YOUR HOUSE A
             </p>
@@ -218,7 +240,7 @@ export default async function HomePage() {
             <p className="text-sm text-muted-foreground leading-relaxed mb-7 md:mb-8 max-w-[380px]">
               Discover premium quality furniture that combines elegance, comfort and functionality.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 mb-7 md:mb-8">
+            <div className="flex flex-col sm:flex-row gap-3">
               <Link
                 href="/products"
                 className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors shadow-md w-full sm:w-auto"
@@ -227,16 +249,10 @@ export default async function HomePage() {
               </Link>
               <Link
                 href="/products"
-                className="inline-flex items-center justify-center gap-2 border-2 border-foreground text-foreground hover:bg-foreground hover:text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors w-full sm:w-auto"
+                className="inline-flex items-center justify-center gap-2 border border-foreground/30 text-foreground hover:bg-foreground hover:text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors w-full sm:w-auto"
               >
                 EXPLORE COLLECTION
               </Link>
-            </div>
-            {/* Slider dots */}
-            <div className="flex items-center gap-2">
-              <span className="w-7 h-2.5 rounded-full bg-primary" />
-              <span className="w-2.5 h-2.5 rounded-full bg-border" />
-              <span className="w-2.5 h-2.5 rounded-full bg-border" />
             </div>
           </div>
         </div>
@@ -259,13 +275,13 @@ export default async function HomePage() {
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-4">
             {FEATURES.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-start gap-3 md:gap-4">
-                <div className="w-10 h-10 md:w-11 md:h-11 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center justify-center shrink-0">
+              <div key={title} className="flex items-center gap-3 md:gap-4">
+                <div className="w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center justify-center shrink-0">
                   <Icon className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-[13px] md:text-sm font-bold text-foreground leading-tight">{title}</p>
-                  <p className="text-[11px] md:text-xs text-muted-foreground mt-0.5 leading-snug hidden sm:block">{sub}</p>
+                <div className="min-w-0">
+                  <p className="text-[12px] md:text-sm font-bold text-foreground leading-tight">{title}</p>
+                  <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 leading-snug">{sub}</p>
                 </div>
               </div>
             ))}
@@ -362,7 +378,7 @@ export default async function HomePage() {
           <SectionHeading tag="TRENDING PRODUCTS" title="Popular Picks For You" />
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
             {trendingProducts.map((p) => (
-              <HomeTrendingProductCard key={p.id} product={p} />
+              <HomeTrendingProductCard key={p.id} product={p} isMember={isMember} />
             ))}
           </div>
 
@@ -379,17 +395,17 @@ export default async function HomePage() {
       </section>
 
       {/* ── Trust Bar ─────────────────────────────────────────────── */}
-      <section className="bg-navy py-6 md:py-8">
+      <section className="bg-slate-100 py-6 md:py-8 border-t border-slate-200">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {TRUST.map(({ icon: Icon, title, sub }) => (
               <div key={title} className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 flex items-center justify-center shrink-0">
-                  <Icon className="h-5 w-5 text-white" />
+                <div className="w-10 h-10 rounded-full border border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
+                  <Icon className="h-5 w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-white">{title}</p>
-                  <p className="text-xs text-white/50 mt-0.5">{sub}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-800 leading-tight">{title}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-snug">{sub}</p>
                 </div>
               </div>
             ))}

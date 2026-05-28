@@ -34,7 +34,7 @@ const furnitureImages = {
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // Clear existing data
+  // Clear existing data (order matters for FK constraints)
   await db.orderItem.deleteMany();
   await db.order.deleteMany();
   await db.cartItem.deleteMany();
@@ -46,6 +46,7 @@ async function main() {
   await db.variantAttribute.deleteMany();
   await db.product.deleteMany();
   await db.category.deleteMany();
+  await db.membershipPlan.deleteMany();
 
   // Create categories
   const categories = await Promise.all([
@@ -105,6 +106,10 @@ async function main() {
       material: "Velvet, Hardwood Frame",
       roomType: "Living Room",
       categoryId: categories[0].id,
+      weight: 45,
+      length: 220,
+      width: 90,
+      height: 85,
     },
   });
 
@@ -152,18 +157,18 @@ async function main() {
 
   // Create product variants with specific prices
   const sofaVariants = [
-    { sku: "LVS-SOF-BLK-2S", price: 1299, values: [black.id, twoSeater.id] },
-    { sku: "LVS-SOF-BLK-3S", price: 1599, values: [black.id, threeSeater.id] },
-    { sku: "LVS-SOF-BLK-LS", price: 2199, values: [black.id, lShape.id] },
-    { sku: "LVS-SOF-NVY-2S", price: 1299, values: [navy.id, twoSeater.id] },
-    { sku: "LVS-SOF-NVY-3S", price: 1599, values: [navy.id, threeSeater.id] },
-    { sku: "LVS-SOF-NVY-LS", price: 2199, values: [navy.id, lShape.id] },
-    { sku: "LVS-SOF-EMR-2S", price: 1399, values: [emerald.id, twoSeater.id] },
-    { sku: "LVS-SOF-EMR-3S", price: 1699, values: [emerald.id, threeSeater.id] },
-    { sku: "LVS-SOF-EMR-LS", price: 2299, values: [emerald.id, lShape.id] },
-    { sku: "LVS-SOF-BRG-2S", price: 1399, values: [burgundy.id, twoSeater.id] },
-    { sku: "LVS-SOF-BRG-3S", price: 1699, values: [burgundy.id, threeSeater.id] },
-    { sku: "LVS-SOF-BRG-LS", price: 2299, values: [burgundy.id, lShape.id] },
+    { sku: "LVS-SOF-BLK-2S", price: 1299, values: [black.id, twoSeater.id],   weight: 38, length: 180, width: 90, height: 85 },
+    { sku: "LVS-SOF-BLK-3S", price: 1599, values: [black.id, threeSeater.id], weight: 45, length: 220, width: 90, height: 85 },
+    { sku: "LVS-SOF-BLK-LS", price: 2199, values: [black.id, lShape.id],      weight: 68, length: 280, width: 180, height: 85 },
+    { sku: "LVS-SOF-NVY-2S", price: 1299, values: [navy.id, twoSeater.id],    weight: 38, length: 180, width: 90, height: 85 },
+    { sku: "LVS-SOF-NVY-3S", price: 1599, values: [navy.id, threeSeater.id],  weight: 45, length: 220, width: 90, height: 85 },
+    { sku: "LVS-SOF-NVY-LS", price: 2199, values: [navy.id, lShape.id],       weight: 68, length: 280, width: 180, height: 85 },
+    { sku: "LVS-SOF-EMR-2S", price: 1399, values: [emerald.id, twoSeater.id], weight: 38, length: 180, width: 90, height: 85 },
+    { sku: "LVS-SOF-EMR-3S", price: 1699, values: [emerald.id, threeSeater.id],weight: 45, length: 220, width: 90, height: 85 },
+    { sku: "LVS-SOF-EMR-LS", price: 2299, values: [emerald.id, lShape.id],    weight: 68, length: 280, width: 180, height: 85 },
+    { sku: "LVS-SOF-BRG-2S", price: 1399, values: [burgundy.id, twoSeater.id],weight: 38, length: 180, width: 90, height: 85 },
+    { sku: "LVS-SOF-BRG-3S", price: 1699, values: [burgundy.id, threeSeater.id],weight: 45, length: 220, width: 90, height: 85 },
+    { sku: "LVS-SOF-BRG-LS", price: 2299, values: [burgundy.id, lShape.id],   weight: 68, length: 280, width: 180, height: 85 },
   ];
 
   for (const variant of sofaVariants) {
@@ -174,6 +179,10 @@ async function main() {
         comparePrice: variant.price * 1.2,
         memberPrice: variant.price * 0.85,
         stock: 15,
+        weight: variant.weight,
+        length: variant.length,
+        width: variant.width,
+        height: variant.height,
         productId: sofa.id,
         values: {
           create: variant.values.map((vid) => ({ variantValueId: vid })),
@@ -207,6 +216,10 @@ async function main() {
       material: "Solid Wood / Tempered Glass",
       roomType: "Dining",
       categoryId: categories[2].id,
+      weight: 35,
+      length: 160,
+      width: 90,
+      height: 75,
     },
   });
 
@@ -239,14 +252,14 @@ async function main() {
   });
 
   const tableVariants = [
-    { sku: "MDN-TBL-OAK-4S", price: 799, values: [oak.id, table4Seat.id] },
-    { sku: "MDN-TBL-OAK-6S", price: 999, values: [oak.id, table6Seat.id] },
-    { sku: "MDN-TBL-OAK-8S", price: 1299, values: [oak.id, table8Seat.id] },
-    { sku: "MDN-TBL-WAL-4S", price: 899, values: [walnut.id, table4Seat.id] },
-    { sku: "MDN-TBL-WAL-6S", price: 1099, values: [walnut.id, table6Seat.id] },
-    { sku: "MDN-TBL-WAL-8S", price: 1399, values: [walnut.id, table8Seat.id] },
-    { sku: "MDN-TBL-GLS-4S", price: 699, values: [glassTop.id, table4Seat.id] },
-    { sku: "MDN-TBL-GLS-6S", price: 899, values: [glassTop.id, table6Seat.id] },
+    { sku: "MDN-TBL-OAK-4S", price: 799,  values: [oak.id, table4Seat.id],      weight: 28, length: 120, width: 80, height: 75 },
+    { sku: "MDN-TBL-OAK-6S", price: 999,  values: [oak.id, table6Seat.id],      weight: 35, length: 160, width: 90, height: 75 },
+    { sku: "MDN-TBL-OAK-8S", price: 1299, values: [oak.id, table8Seat.id],      weight: 48, length: 200, width: 100, height: 75 },
+    { sku: "MDN-TBL-WAL-4S", price: 899,  values: [walnut.id, table4Seat.id],   weight: 30, length: 120, width: 80, height: 75 },
+    { sku: "MDN-TBL-WAL-6S", price: 1099, values: [walnut.id, table6Seat.id],   weight: 38, length: 160, width: 90, height: 75 },
+    { sku: "MDN-TBL-WAL-8S", price: 1399, values: [walnut.id, table8Seat.id],   weight: 52, length: 200, width: 100, height: 75 },
+    { sku: "MDN-TBL-GLS-4S", price: 699,  values: [glassTop.id, table4Seat.id], weight: 32, length: 120, width: 80, height: 75 },
+    { sku: "MDN-TBL-GLS-6S", price: 899,  values: [glassTop.id, table6Seat.id], weight: 40, length: 160, width: 90, height: 75 },
   ];
 
   for (const variant of tableVariants) {
@@ -257,6 +270,10 @@ async function main() {
         comparePrice: variant.price * 1.15,
         memberPrice: variant.price * 0.9,
         stock: 10,
+        weight: variant.weight,
+        length: variant.length,
+        width: variant.width,
+        height: variant.height,
         productId: diningTable.id,
         values: {
           create: variant.values.map((vid) => ({ variantValueId: vid })),
@@ -281,141 +298,91 @@ async function main() {
       name: "Ergonomic Office Chair",
       slug: "ergonomic-office-chair",
       description: "Premium ergonomic office chair with lumbar support, adjustable armrests, and breathable mesh back.",
-      basePrice: 449,
-      comparePrice: 549,
-      memberPrice: 399,
-      stock: 25,
-      sku: "OF-CHR-001",
-      images: furnitureImages.chair,
-      material: "Mesh, Aluminum",
-      roomType: "Office",
-      categoryId: categories[3].id,
+      basePrice: 449, comparePrice: 549, memberPrice: 399, stock: 25,
+      sku: "OF-CHR-001", images: furnitureImages.chair,
+      material: "Mesh, Aluminum", roomType: "Office", categoryId: categories[3].id,
+      weight: 14, length: 68, width: 68, height: 120,
     },
     {
       name: "King Size Platform Bed",
       slug: "king-size-platform-bed",
       description: "Minimalist platform bed with solid wood slats. No box spring needed. Clean lines for modern bedrooms.",
-      basePrice: 899,
-      comparePrice: 1099,
-      memberPrice: 799,
-      stock: 20,
-      sku: "BD-KNG-001",
-      images: furnitureImages.bed,
-      material: "Solid Pine",
-      roomType: "Bedroom",
-      categoryId: categories[1].id,
+      basePrice: 899, comparePrice: 1099, memberPrice: 799, stock: 20,
+      sku: "BD-KNG-001", images: furnitureImages.bed,
+      material: "Solid Pine", roomType: "Bedroom", categoryId: categories[1].id,
+      weight: 62, length: 215, width: 195, height: 40,
     },
     {
       name: "Scandinavian Coffee Table",
       slug: "scandinavian-coffee-table",
       description: "Minimalist coffee table with clean lines and tapered legs. Perfect centerpiece for your living room.",
-      basePrice: 299,
-      comparePrice: 379,
-      memberPrice: 269,
-      stock: 40,
-      sku: "LV-TBL-001",
-      images: furnitureImages.table,
-      material: "Oak Veneer",
-      roomType: "Living Room",
-      categoryId: categories[0].id,
+      basePrice: 299, comparePrice: 379, memberPrice: 269, stock: 40,
+      sku: "LV-TBL-001", images: furnitureImages.table,
+      material: "Oak Veneer", roomType: "Living Room", categoryId: categories[0].id,
+      weight: 18, length: 110, width: 60, height: 45,
     },
     {
       name: "Modular Wardrobe System",
       slug: "modular-wardrobe-system",
       description: "Customizable wardrobe system with adjustable shelves, hanging rods, and drawers. Build your perfect storage.",
-      basePrice: 599,
-      comparePrice: 749,
-      memberPrice: 539,
-      stock: 15,
-      sku: "ST-WDR-001",
-      images: furnitureImages.storage,
-      material: "Melamine Coated Particle Board",
-      roomType: "Bedroom",
-      categoryId: categories[4].id,
+      basePrice: 599, comparePrice: 749, memberPrice: 539, stock: 15,
+      sku: "ST-WDR-001", images: furnitureImages.storage,
+      material: "Melamine Coated Particle Board", roomType: "Bedroom", categoryId: categories[4].id,
+      weight: 55, length: 150, width: 60, height: 200,
     },
     {
       name: "Executive Desk",
       slug: "executive-desk",
       description: "Spacious executive desk with built-in cable management and storage drawers. Professional workspace solution.",
-      basePrice: 699,
-      comparePrice: 849,
-      memberPrice: 629,
-      stock: 18,
-      sku: "OF-DSK-001",
-      images: furnitureImages.table,
-      material: "Engineered Wood",
-      roomType: "Office",
-      categoryId: categories[3].id,
+      basePrice: 699, comparePrice: 849, memberPrice: 629, stock: 18,
+      sku: "OF-DSK-001", images: furnitureImages.table,
+      material: "Engineered Wood", roomType: "Office", categoryId: categories[3].id,
+      weight: 42, length: 160, width: 75, height: 76,
     },
     {
       name: "Curved Accent Chair",
       slug: "curved-accent-chair",
       description: "Soft upholstered accent chair with a sculpted silhouette, ideal for reading corners and lounge spaces.",
-      basePrice: 379,
-      comparePrice: 459,
-      memberPrice: 339,
-      stock: 22,
-      sku: "LV-CHR-002",
-      images: furnitureImages.chair,
-      material: "Boucle Fabric",
-      roomType: "Living Room",
-      categoryId: categories[0].id,
+      basePrice: 379, comparePrice: 459, memberPrice: 339, stock: 22,
+      sku: "LV-CHR-002", images: furnitureImages.chair,
+      material: "Boucle Fabric", roomType: "Living Room", categoryId: categories[0].id,
+      weight: 16, length: 75, width: 72, height: 88,
     },
     {
       name: "Floating Nightstand",
       slug: "floating-nightstand",
       description: "Wall-mounted nightstand with a slim drawer and open shelf for a compact, modern bedside setup.",
-      basePrice: 189,
-      comparePrice: 239,
-      memberPrice: 169,
-      stock: 35,
-      sku: "BD-NTS-002",
-      images: furnitureImages.storage,
-      material: "Oak Veneer",
-      roomType: "Bedroom",
-      categoryId: categories[1].id,
+      basePrice: 189, comparePrice: 239, memberPrice: 169, stock: 35,
+      sku: "BD-NTS-002", images: furnitureImages.storage,
+      material: "Oak Veneer", roomType: "Bedroom", categoryId: categories[1].id,
+      weight: 8, length: 45, width: 30, height: 35,
     },
     {
       name: "Six-Seater Dining Set",
       slug: "six-seater-dining-set",
       description: "Complete dining set with a rectangular table and matching chairs for everyday family meals and hosting.",
-      basePrice: 1499,
-      comparePrice: 1799,
-      memberPrice: 1349,
-      stock: 8,
-      sku: "DN-SET-002",
-      images: furnitureImages.dining,
-      material: "Solid Ash",
-      roomType: "Dining Room",
-      categoryId: categories[2].id,
+      basePrice: 1499, comparePrice: 1799, memberPrice: 1349, stock: 8,
+      sku: "DN-SET-002", images: furnitureImages.dining,
+      material: "Solid Ash", roomType: "Dining Room", categoryId: categories[2].id,
+      weight: 95, length: 180, width: 90, height: 76,
     },
     {
       name: "Open Bookshelf",
       slug: "open-bookshelf",
       description: "Tall open shelving unit with five adjustable shelves for books, decor, and storage baskets.",
-      basePrice: 429,
-      comparePrice: 519,
-      memberPrice: 389,
-      stock: 16,
-      sku: "ST-SHF-002",
-      images: furnitureImages.storage,
-      material: "Laminate MDF",
-      roomType: "Office",
-      categoryId: categories[4].id,
+      basePrice: 429, comparePrice: 519, memberPrice: 389, stock: 16,
+      sku: "ST-SHF-002", images: furnitureImages.storage,
+      material: "Laminate MDF", roomType: "Office", categoryId: categories[4].id,
+      weight: 30, length: 80, width: 30, height: 180,
     },
     {
       name: "Entry Console Table",
       slug: "entry-console-table",
       description: "Slim console table designed for hallways and entryways with a drawer and lower shelf for essentials.",
-      basePrice: 269,
-      comparePrice: 329,
-      memberPrice: 239,
-      stock: 28,
-      sku: "LV-CNS-002",
-      images: furnitureImages.table,
-      material: "Walnut Veneer",
-      roomType: "Living Room",
-      categoryId: categories[0].id,
+      basePrice: 269, comparePrice: 329, memberPrice: 239, stock: 28,
+      sku: "LV-CNS-002", images: furnitureImages.table,
+      material: "Walnut Veneer", roomType: "Living Room", categoryId: categories[0].id,
+      weight: 12, length: 120, width: 35, height: 80,
     },
   ];
 
@@ -442,6 +409,10 @@ async function main() {
       material: "Solid Wood",
       roomType: "Bedroom",
       categoryId: categories[1].id,
+      weight: 85,
+      length: 215,
+      width: 160,
+      height: 120,
     },
   });
 
@@ -471,12 +442,12 @@ async function main() {
   });
 
   const bedVariants = [
-    { sku: "BD-SET-WHT-QN", price: 1299, values: [queen.id, whiteFinish.id] },
-    { sku: "BD-SET-WHT-KG", price: 1499, values: [king.id, whiteFinish.id] },
-    { sku: "BD-SET-ESP-QN", price: 1299, values: [queen.id, espresso.id] },
-    { sku: "BD-SET-ESP-KG", price: 1499, values: [king.id, espresso.id] },
-    { sku: "BD-SET-GRY-QN", price: 1399, values: [queen.id, greyFinish.id] },
-    { sku: "BD-SET-GRY-KG", price: 1599, values: [king.id, greyFinish.id] },
+    { sku: "BD-SET-WHT-QN", price: 1299, values: [queen.id, whiteFinish.id], weight: 75, length: 205, width: 158, height: 120 },
+    { sku: "BD-SET-WHT-KG", price: 1499, values: [king.id, whiteFinish.id],  weight: 85, length: 215, width: 196, height: 120 },
+    { sku: "BD-SET-ESP-QN", price: 1299, values: [queen.id, espresso.id],    weight: 75, length: 205, width: 158, height: 120 },
+    { sku: "BD-SET-ESP-KG", price: 1499, values: [king.id, espresso.id],     weight: 85, length: 215, width: 196, height: 120 },
+    { sku: "BD-SET-GRY-QN", price: 1399, values: [queen.id, greyFinish.id],  weight: 75, length: 205, width: 158, height: 120 },
+    { sku: "BD-SET-GRY-KG", price: 1599, values: [king.id, greyFinish.id],   weight: 85, length: 215, width: 196, height: 120 },
   ];
 
   for (const variant of bedVariants) {
@@ -487,6 +458,10 @@ async function main() {
         comparePrice: variant.price * 1.25,
         memberPrice: variant.price * 0.88,
         stock: 8,
+        weight: variant.weight,
+        length: variant.length,
+        width: variant.width,
+        height: variant.height,
         productId: bedroomSet.id,
         values: {
           create: variant.values.map((vid) => ({ variantValueId: vid })),
@@ -505,11 +480,47 @@ async function main() {
 
   console.log("✅ Created Complete Bedroom Set with 6 variants");
 
+  // 5. Membership plans
+  await db.membershipPlan.createMany({
+    data: [
+      {
+        name: "Monthly Premium",
+        description: "Full access to member pricing and perks, billed monthly.",
+        price: 9.99,
+        durationDays: 30,
+        discountPercent: 10,
+        isActive: true,
+        isDefault: false,
+      },
+      {
+        name: "Annual Premium",
+        description: "Best value — full member benefits for a full year.",
+        price: 89.99,
+        durationDays: 365,
+        discountPercent: 20,
+        isActive: true,
+        isDefault: true,
+      },
+      {
+        name: "6-Month Premium",
+        description: "6 months of member pricing, free express delivery and more.",
+        price: 49.99,
+        durationDays: 180,
+        discountPercent: 15,
+        isActive: true,
+        isDefault: false,
+      },
+    ],
+  });
+
+  console.log("✅ Created 3 membership plans");
+
   console.log("\n🎉 Database seeded successfully!");
   console.log(`📊 Summary:`);
   console.log(`   - ${categories.length} Categories`);
-  console.log(`   - 8 Products (4 with variants, 4 simple)`);
+  console.log(`   - 13 Products (3 with variants, 10 simple)`);
   console.log(`   - 26 Product Variants`);
+  console.log(`   - 3 Membership Plans`);
 }
 
 main()

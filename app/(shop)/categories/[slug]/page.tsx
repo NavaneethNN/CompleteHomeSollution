@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { ProductCard } from "@/components/shop/product-card";
-import { Breadcrumbs } from "@/components/shop/breadcrumbs";
+import { auth } from "@/auth";
+import { CategoryProductsClient } from "@/components/shop/category-products-client";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 
 export const revalidate = 3600;
@@ -101,54 +103,50 @@ export async function generateMetadata({
   };
 }
 
-export default async function CategoryPage({
-  params,
-}: CategoryPageProps) {
+export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const data = await getCategory(slug);
+  const [data, session] = await Promise.all([getCategory(slug), auth()]);
 
-  if (!data) {
-    notFound();
-  }
+  if (!data) notFound();
 
   const { category, products } = data;
+  const dbUser = session?.user?.id
+    ? await db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
+    : null;
+  const isMember = dbUser?.isMember ?? false;
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Breadcrumbs */}
-      <div className="container mx-auto px-4 py-3">
-        <Breadcrumbs
-          items={[
-            { label: "Home", href: "/" },
-            { label: "Products", href: "/products" },
-            { label: category.name },
-          ]}
-        />
+
+      {/* ── Page header ───────────────────────────────────────── */}
+      <div className="bg-white border-b border-border">
+        <div className="container mx-auto px-4 md:px-6 xl:px-8 py-6 md:py-8 flex items-center gap-4">
+          <Link href="/" className="shrink-0">
+            <Image
+              src="/chs-logo.png"
+              alt="Complete Home Sollution"
+              width={430}
+              height={131}
+              className="h-10 md:h-12 w-auto object-contain"
+            />
+          </Link>
+          <div className="h-8 w-px bg-border hidden sm:block" />
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-xl font-bold text-foreground leading-tight truncate">{category.name}</h1>
+            <nav className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5 flex-wrap">
+              <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+              <span>/</span>
+              <Link href="/products" className="hover:text-primary transition-colors">Products</Link>
+              <span>/</span>
+              <span className="text-foreground">{category.name}</span>
+            </nav>
+          </div>
+        </div>
       </div>
 
-      {/* Hero */}
-      <section className="bg-navy py-12 md:py-16">
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">{category.name}</h1>
-          <p className="text-white/70">
-            Browse our collection of {products.length} {products.length === 1 ? "product" : "products"} in this category.
-          </p>
-        </div>
-      </section>
-
-      {/* Products Grid */}
-      <div className="container mx-auto px-4 py-8">
-        {products.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-            {products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No products found in this category.</p>
-          </div>
-        )}
+      {/* ── Products ──────────────────────────────────────────── */}
+      <div className="container mx-auto px-4 md:px-6 xl:px-8 py-6 md:py-8">
+        <CategoryProductsClient products={products} isMember={isMember} categoryName={category.name} />
       </div>
     </main>
   );

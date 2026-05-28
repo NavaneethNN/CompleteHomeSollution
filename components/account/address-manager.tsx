@@ -69,9 +69,10 @@ const AUSTRALIAN_STATES = [
 interface AddressManagerProps {
   addresses: Address[];
   error?: string;
+  userProfile?: { name: string; phone: string };
 }
 
-export function AddressManager({ addresses: initialAddresses, error }: AddressManagerProps) {
+export function AddressManager({ addresses: initialAddresses, error, userProfile }: AddressManagerProps) {
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
@@ -89,6 +90,8 @@ export function AddressManager({ addresses: initialAddresses, error }: AddressMa
   } = useForm<AddressInput>({
     resolver: zodResolver(addressSchema),
     defaultValues: {
+      name: userProfile?.name || "",
+      phone: userProfile?.phone || "",
       line1: "",
       line2: undefined,
       suburb: "",
@@ -103,6 +106,8 @@ export function AddressManager({ addresses: initialAddresses, error }: AddressMa
   const openAddDialog = () => {
     setEditingAddress(null);
     reset({
+      name: userProfile?.name || "",
+      phone: userProfile?.phone || "",
       line1: "",
       line2: undefined,
       suburb: "",
@@ -116,6 +121,8 @@ export function AddressManager({ addresses: initialAddresses, error }: AddressMa
   const openEditDialog = (address: Address) => {
     setEditingAddress(address);
     reset({
+      name: address.name || userProfile?.name || "",
+      phone: address.phone || userProfile?.phone || "",
       line1: address.line1,
       line2: address.line2 || undefined,
       suburb: address.suburb,
@@ -274,11 +281,17 @@ export function AddressManager({ addresses: initialAddresses, error }: AddressMa
                     <Home className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
+                    {(address.name || address.phone) && (
+                      <div className="mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                        {address.name && <p className="text-sm font-semibold text-foreground">{address.name}</p>}
+                        {address.phone && <p className="text-sm text-muted-foreground">{address.phone}</p>}
+                      </div>
+                    )}
                     <div className="space-y-0.5">
                       {formatAddress(address).map((line, i) => (
                         <p
                           key={i}
-                          className={`text-sm ${i === 0 ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                          className={`text-sm ${i === 0 ? "font-medium text-foreground" : "text-muted-foreground"}`}
                         >
                           {line}
                         </p>
@@ -331,6 +344,29 @@ export function AddressManager({ addresses: initialAddresses, error }: AddressMa
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-4 pt-4">
+            {/* Name & Phone */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="addr-name" className="text-sm font-medium">Full Name</Label>
+                <Input
+                  id="addr-name"
+                  placeholder="John Smith"
+                  {...register("name")}
+                />
+                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="addr-phone" className="text-sm font-medium">Phone</Label>
+                <Input
+                  id="addr-phone"
+                  type="tel"
+                  placeholder="0412 345 678"
+                  {...register("phone")}
+                />
+                {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
+              </div>
+            </div>
+
             {/* Street Address Line 1 with Google Places Autocomplete */}
             <AddressAutocomplete
               value={watch("line1")}

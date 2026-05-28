@@ -36,7 +36,12 @@ export async function deleteObject(key: string): Promise<void> {
 }
 
 export function getPublicUrl(key: string): string {
-  return `${process.env.R2_PUBLIC_URL}/${key}`;
+  const base = process.env.R2_PUBLIC_URL;
+  if (base) {
+    return `${base.replace(/\/$/, "")}/${key}`;
+  }
+  // Fallback: use the R2 storage endpoint directly (works if bucket is public)
+  return `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET_NAME}/${key}`;
 }
 
 export function generateImageKey(folder: string, filename: string): string {

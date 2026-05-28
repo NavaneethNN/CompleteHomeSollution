@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import Image from "next/image";
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { ProductsClient } from "@/components/shop/products-client";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 
@@ -73,13 +76,48 @@ async function getCategories() {
 }
 
 export default async function ProductsPage() {
-  const [products, categories] = await Promise.all([getProducts(), getCategories()]);
+  const session = await auth();
+  const [products, categories, dbUser] = await Promise.all([
+    getProducts(),
+    getCategories(),
+    session?.user?.id
+      ? db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
+      : Promise.resolve(null),
+  ]);
+  const isMember = dbUser?.isMember ?? false;
 
   return (
     <main className="min-h-screen bg-background">
+
+      {/* ── Page header ───────────────────────────────────────── */}
+      <div className="bg-white border-b border-border">
+        <div className="container mx-auto px-4 md:px-6 xl:px-8 py-6 md:py-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="shrink-0">
+              <Image
+                src="/chs-logo.png"
+                alt="Complete Home Sollution"
+                width={430}
+                height={131}
+                className="h-10 md:h-12 w-auto object-contain"
+              />
+            </Link>
+            <div className="h-8 w-px bg-border hidden sm:block" />
+            <div>
+              <h1 className="text-lg md:text-xl font-bold text-foreground leading-tight">All Products</h1>
+              <nav className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+                <span>/</span>
+                <span className="text-foreground">Products</span>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Products with Client-side Filtering */}
-      <div className="container mx-auto px-4 py-6">
-        <ProductsClient categories={categories} products={products} />
+      <div className="container mx-auto px-4 md:px-6 xl:px-8 py-6 md:py-8">
+        <ProductsClient categories={categories} products={products} isMember={isMember} />
       </div>
     </main>
   );

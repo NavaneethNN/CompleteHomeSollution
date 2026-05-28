@@ -16,6 +16,7 @@ export interface ProductPopupModalProduct {
   id: string;
   name: string;
   slug: string;
+  sku?: string | null;
   price: number;
   memberPrice?: number | null;
   images: string[];

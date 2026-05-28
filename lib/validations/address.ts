@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const addressSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters").max(50, "Name is too long"),
+  phone: z.string().min(1, "Phone number is required").max(20, "Phone number is too long"),
   line1: z.string().min(1, "Street address is required").max(100, "Address is too long"),
   line2: z.string().max(100, "Address is too long").optional(),
   suburb: z.string().min(1, "Suburb is required").max(50, "Suburb name is too long"),

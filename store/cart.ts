@@ -126,7 +126,7 @@ export const useCartStore = create<CartState>()(
         get().getItemQuantity(productId, variantId) > 0,
     }),
     {
-      name: "chs-cart-v2",
+      name: "chs-cart-v3",
       storage: createJSONStorage(() => localStorage),
     }
   )

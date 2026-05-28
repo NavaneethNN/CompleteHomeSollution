@@ -21,21 +21,24 @@ export const stripe = new Proxy({} as Stripe, {
 export const CURRENCY = "aud";
 
 export async function createCheckoutSession(params: {
-  lineItems: { price_data?: { currency: string; product_data: { name: string }; unit_amount: number }; quantity?: number }[];
+  lineItems: { price_data: { currency: string; product_data: { name: string }; unit_amount: number }; quantity: number }[];
   orderId: string;
   customerEmail?: string;
   successUrl: string;
   cancelUrl: string;
+  addMembership?: boolean;
+  userId?: string;
 }): Promise<Stripe.Checkout.Session> {
   return stripe.checkout.sessions.create({
     mode: "payment",
-    currency: CURRENCY,
     line_items: params.lineItems,
     customer_email: params.customerEmail,
-    metadata: { orderId: params.orderId },
+    metadata: {
+      orderId: params.orderId,
+      ...(params.addMembership && params.userId ? { addMembership: "1", userId: params.userId } : {}),
+    },
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
-    shipping_address_collection: { allowed_countries: ["AU"] },
     payment_method_types: ["card"],
   });
 }
