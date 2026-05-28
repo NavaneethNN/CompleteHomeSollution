@@ -217,7 +217,7 @@ export default async function OrderConfirmationPage({
           <div className="flex items-center justify-between border-b border-border pb-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Order Number</p>
-              <p className="mt-1 text-sm font-mono font-semibold text-foreground">{orderId}</p>
+              <p className="mt-1 text-sm font-mono font-semibold text-foreground">#{orderId.slice(-8).toUpperCase()}</p>
             </div>
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
               <Package className="h-5 w-5 text-primary" />

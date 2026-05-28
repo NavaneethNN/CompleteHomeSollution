@@ -30,7 +30,8 @@ export function AnimateIn({
   as: Tag = "div",
   threshold = 0.15,
 }: AnimateInProps) {
-  const ref = useRef<HTMLElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ref = useRef<any>(null);
   const [triggered, setTriggered] = useState(false);
 
   useEffect(() => {
@@ -51,9 +52,10 @@ export function AnimateIn({
     return () => observer.disconnect();
   }, [threshold]);
 
+  const Component = Tag as React.ElementType;
+
   return (
-    // @ts-expect-error dynamic tag
-    <Tag
+    <Component
       ref={ref}
       className={cn(
         triggered ? VARIANT_CLASS[variant] : "opacity-0",
@@ -62,6 +64,6 @@ export function AnimateIn({
       style={triggered && delay > 0 ? { animationDelay: `${delay}ms` } : undefined}
     >
       {children}
-    </Tag>
+    </Component>
   );
 }

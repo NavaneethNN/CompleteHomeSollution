@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,24 +17,13 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Save, 
-  Eye, 
-  Upload, 
-  X, 
-  Plus,
-  Image as ImageIcon,
-  Video,
-  Link2,
-  Bold,
-  Italic,
-  List,
-  Quote,
-  Code,
-  Heading
-} from "lucide-react";
+import { Save, Eye, Upload, X, Plus } from "lucide-react";
 import { toast } from "sonner";
+
+const BlogRichEditor = dynamic(
+  () => import("@/components/admin/blog-rich-editor"),
+  { ssr: false, loading: () => <div className="h-[500px] border border-slate-200 rounded-xl bg-slate-50 animate-pulse" /> }
+);
 
 interface BlogCategory {
   id: string;
@@ -79,7 +69,6 @@ interface BlogPostEditorProps {
 export default function BlogPostEditor({ categories, tags, mode, initialData }: BlogPostEditorProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -153,56 +142,6 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
     } finally {
       setLoading(false);
     }
-  };
-
-  const insertContent = (type: string, value?: string) => {
-    const textarea = document.getElementById("content-textarea") as HTMLTextAreaElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = textarea.value.substring(start, end);
-    
-    let insertion = "";
-    
-    switch (type) {
-      case "bold":
-        insertion = `<strong>${selectedText || "Bold text"}</strong>`;
-        break;
-      case "italic":
-        insertion = `<em>${selectedText || "Italic text"}</em>`;
-        break;
-      case "heading":
-        insertion = `<h2>${selectedText || "Heading"}</h2>`;
-        break;
-      case "list":
-        insertion = `<ul>\n  <li>${selectedText || "List item"}</li>\n  <li>Another item</li>\n</ul>`;
-        break;
-      case "quote":
-        insertion = `<blockquote>${selectedText || "Quote text"}</blockquote>`;
-        break;
-      case "code":
-        insertion = `<code>${selectedText || "Code"}</code>`;
-        break;
-      case "image":
-        insertion = `<img src="${value || "/placeholder.jpg"}" alt="Image" />`;
-        break;
-      case "video":
-        insertion = `<iframe src="${value || "https://www.youtube.com/embed/VIDEO_ID"}" frameborder="0" allowfullscreen class="w-full aspect-video rounded-lg"></iframe>`;
-        break;
-      case "link":
-        insertion = `<a href="${value || "#"}">${selectedText || "Link text"}</a>`;
-        break;
-    }
-    
-    const newContent = textarea.value.substring(0, start) + insertion + textarea.value.substring(end);
-    setFormData(prev => ({ ...prev, content: newContent }));
-    
-    // Refocus and set cursor position
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + insertion.length, start + insertion.length);
-    }, 0);
   };
 
   const handleSave = async (publish = false) => {
@@ -340,108 +279,14 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
           </div>
 
           {/* Content Editor */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Content</CardTitle>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertContent("bold")}
-                >
-                  <Bold className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertContent("italic")}
-                >
-                  <Italic className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertContent("heading")}
-                >
-                  <Heading className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertContent("list")}
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertContent("quote")}
-                >
-                  <Quote className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => insertContent("code")}
-                >
-                  <Code className="h-4 w-4" />
-                </Button>
-                <Separator orientation="vertical" className="h-6" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const url = prompt("Enter image URL:");
-                    if (url) insertContent("image", url);
-                  }}
-                >
-                  <ImageIcon className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const url = prompt("Enter YouTube URL or embed code:");
-                    if (url) insertContent("video", url);
-                  }}
-                >
-                  <Video className="h-4 w-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const url = prompt("Enter link URL:");
-                    if (url) insertContent("link", url);
-                  }}
-                >
-                  <Link2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                id="content-textarea"
-                value={formData.content}
-                onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
-                placeholder="Write your post content here... You can use HTML tags for formatting."
-                rows={20}
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-slate-500 mt-2">
-                Supports HTML formatting. YouTube URLs will be automatically converted to embeds.
-              </p>
-            </CardContent>
-          </Card>
+          <div>
+            <Label className="mb-2 block">Content</Label>
+            <BlogRichEditor
+              value={formData.content}
+              onChange={(html) => setFormData(prev => ({ ...prev, content: html }))}
+              onImageUpload={handleImageUpload}
+            />
+          </div>
         </div>
 
         {/* Sidebar */}
