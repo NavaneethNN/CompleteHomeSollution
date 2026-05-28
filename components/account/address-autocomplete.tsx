@@ -110,7 +110,6 @@ export function AddressAutocomplete({
     abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
-    console.log("[AddressAutocomplete] Fetching suggestions for:", input);
 
     try {
       const requestBody: Record<string, unknown> = {
@@ -118,8 +117,6 @@ export function AddressAutocomplete({
         includedRegionCodes: ["au"],
         sessionToken: sessionTokenRef.current,
       };
-
-      console.log("[AddressAutocomplete] Request body:", JSON.stringify(requestBody));
 
       const response = await fetch(
         `https://places.googleapis.com/v1/places:autocomplete`,
@@ -134,11 +131,8 @@ export function AddressAutocomplete({
         }
       );
 
-      console.log("[AddressAutocomplete] Response status:", response.status);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("[AddressAutocomplete] API error:", response.status, errorText);
         if (response.status === 403) {
           setLoadError("API access denied - check Places API (New) is enabled");
           toast({
@@ -146,16 +140,12 @@ export function AddressAutocomplete({
             description: "Please enable Places API (New) in Google Cloud Console",
             variant: "destructive",
           });
-        } else if (response.status === 400) {
-          console.error("[AddressAutocomplete] Bad request - check request format");
         }
         setSuggestions([]);
         return;
       }
 
       const data: SuggestionResponse = await response.json();
-      console.log("[AddressAutocomplete] Full response:", JSON.stringify(data, null, 2));
-      console.log("[AddressAutocomplete] Got suggestions:", data.suggestions?.length || 0);
       
       setSuggestions(data.suggestions || []);
       setShowSuggestions(true);
@@ -163,7 +153,6 @@ export function AddressAutocomplete({
       if (err instanceof Error && err.name === "AbortError") {
         return; // Request was cancelled, ignore
       }
-      console.error("[AddressAutocomplete] Fetch error:", err);
       setSuggestions([]);
     } finally {
       setIsLoading(false);

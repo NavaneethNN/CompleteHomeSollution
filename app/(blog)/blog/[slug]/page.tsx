@@ -214,8 +214,8 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-amber-100 rounded-full mb-6">
-              <Lock className="h-10 w-10 text-amber-600" />
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-primary/10 rounded-full mb-6">
+              <Lock className="h-10 w-10 text-primary" />
             </div>
             <h1 className="text-3xl font-bold text-slate-900 mb-4">
               This is a Member-Only Article
@@ -235,7 +235,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             </div>
             
             <Link href="/membership">
-              <Button size="lg" className="bg-amber-600 hover:bg-amber-700">
+              <Button size="lg" className="bg-primary hover:bg-primary/90">
                 <Crown className="h-5 w-5 mr-2" />
                 Become a Member
               </Button>
@@ -315,9 +315,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 <div>
                   <p className="font-medium text-slate-900 text-sm">{post.author.name}</p>
                   {post.author.isMember && (
-                    <div className="flex items-center gap-1 text-amber-600">
-                      <Crown className="h-3 w-3" />
-                      <span className="text-xs">Member</span>
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/30 rounded-full">
+                      <Crown className="h-3 w-3 text-amber-500" />
+                      <span className="text-xs font-semibold text-amber-600">Member</span>
                     </div>
                   )}
                 </div>
@@ -403,7 +403,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
           {/* Article Content */}
           <div 
-            className="prose prose-lg max-w-none prose-slate prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-strong:text-slate-900 prose-code:text-slate-900 prose-pre:bg-slate-50 prose-blockquote:border-l-amber-500 prose-blockquote:bg-amber-50 prose-blockquote:text-slate-700"
+            className="prose prose-lg max-w-none prose-slate prose-headings:text-slate-900 prose-p:text-slate-600 prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline prose-strong:text-slate-900 prose-code:text-slate-900 prose-pre:bg-slate-50 prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:text-slate-700"
             dangerouslySetInnerHTML={{ __html: post.processedContent }}
           />
 

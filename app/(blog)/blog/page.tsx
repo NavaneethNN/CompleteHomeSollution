@@ -113,9 +113,9 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
               Discover the latest in home furniture, design trends, and expert tips from our team.
             </p>
             {!isMember && (
-              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-full">
-                <Crown className="h-4 w-4 text-amber-600" />
-                <span className="text-sm font-medium text-amber-700">
+              <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full">
+                <Crown className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-primary">
                   Become a member to unlock all articles
                 </span>
               </div>
@@ -176,16 +176,16 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
 
             {/* Member-only content notice */}
             {!isMember && memberPosts.length > 0 && (
-              <div className="mt-8 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
+              <div className="mt-8 p-6 bg-primary/5 border border-primary/20 rounded-xl">
                 <div className="flex items-center gap-3 mb-2">
-                  <Lock className="h-5 w-5 text-amber-600" />
-                  <h3 className="font-semibold text-amber-900">Member Exclusive Content</h3>
+                  <Lock className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">Member Exclusive Content</h3>
                 </div>
-                <p className="text-amber-700 mb-4">
+                <p className="text-muted-foreground mb-4">
                   There are {memberPosts.length} premium articles available exclusively for our members.
                 </p>
                 <Link href="/membership">
-                  <Button className="bg-amber-600 hover:bg-amber-700">
+                  <Button className="bg-primary hover:bg-primary/90">
                     <Crown className="h-4 w-4 mr-2" />
                     Become a Member
                   </Button>

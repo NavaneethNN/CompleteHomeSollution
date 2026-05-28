@@ -133,7 +133,7 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
     editorProps: {
       attributes: {
         class:
-          "prose prose-slate max-w-none min-h-[400px] focus:outline-none px-5 py-4 text-slate-800 prose-headings:text-slate-900 prose-a:text-primary prose-blockquote:border-l-amber-400 prose-blockquote:bg-amber-50 prose-blockquote:py-1 prose-code:bg-slate-100 prose-code:rounded prose-code:px-1",
+          "prose prose-slate max-w-none min-h-[400px] focus:outline-none px-5 py-4 text-slate-800 prose-headings:text-slate-900 prose-a:text-primary prose-blockquote:border-l-primary prose-blockquote:bg-primary/5 prose-blockquote:py-1 prose-code:bg-slate-100 prose-code:rounded prose-code:px-1",
       },
     },
     onUpdate({ editor }) {
