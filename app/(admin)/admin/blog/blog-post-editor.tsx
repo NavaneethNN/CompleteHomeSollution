@@ -108,23 +108,27 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.title, mode]);
 
-  const handleImageUpload = async (file: File) => {
-    const formData = new FormData();
-    formData.append("file", file);
+  const handleImageUpload = async (file: File): Promise<string | null> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", "blog");
 
     try {
-      const response = await fetch("/api/admin/upload", {
+      const response = await fetch("/api/upload", {
         method: "POST",
         credentials: "include",
-        body: formData,
+        body: fd,
       });
 
-      if (!response.ok) throw new Error("Upload failed");
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Upload failed");
+      }
       
       const data = await response.json();
-      return data.url;
+      return data.publicUrl ?? data.url ?? null;
     } catch (error) {
-      toast.error("Failed to upload image");
+      toast.error(error instanceof Error ? error.message : "Failed to upload image");
       return null;
     }
   };
@@ -315,7 +319,7 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
                   </Button>
                 </div>
               ) : (
-                <div>
+                <div className="space-y-2">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -323,15 +327,45 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
                     onChange={handleCoverImageUpload}
                     className="hidden"
                   />
-                  <Button
-                    variant="outline"
+                  {/* Drag & drop / click zone */}
+                  <div
+                    className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-colors"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={loading}
-                    className="w-full"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={async (e) => {
+                      e.preventDefault();
+                      const file = e.dataTransfer.files?.[0];
+                      if (!file || !file.type.startsWith("image/")) return;
+                      setLoading(true);
+                      try {
+                        const url = await handleImageUpload(file);
+                        if (url) setFormData(prev => ({ ...prev, coverImage: url }));
+                      } finally { setLoading(false); }
+                    }}
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    {loading ? "Uploading..." : "Upload Image"}
-                  </Button>
+                    <Upload className="h-6 w-6 mx-auto mb-2 text-slate-400" />
+                    <p className="text-sm text-slate-500">{loading ? "Uploading…" : "Click or drag & drop an image"}</p>
+                    <p className="text-xs text-slate-400 mt-1">JPG, PNG, WebP up to 5MB</p>
+                  </div>
+                  {/* Paste URL */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Or paste image URL…"
+                      onPaste={(e) => {
+                        const text = e.clipboardData.getData("text");
+                        if (text.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?.*)?$/i) || text.startsWith("https://")) {
+                          e.preventDefault();
+                          setFormData(prev => ({ ...prev, coverImage: text }));
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          const val = (e.target as HTMLInputElement).value.trim();
+                          if (val) setFormData(prev => ({ ...prev, coverImage: val }));
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               )}
             </CardContent>

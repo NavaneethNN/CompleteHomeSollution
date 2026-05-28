@@ -208,6 +208,21 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
     setYoutubeUrl("");
   };
 
+  // Handle paste of image files directly into the editor
+  const handleEditorPaste = useCallback(async (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!editor || !onImageUpload) return;
+    const items = Array.from(e.clipboardData.items);
+    const imageItem = items.find(item => item.type.startsWith("image/"));
+    if (!imageItem) return;
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    const url = await onImageUpload(file);
+    if (url) {
+      editor.chain().focus().setImage({ src: url, alt: "Pasted image" }).run();
+    }
+  }, [editor, onImageUpload]);
+
   // Handle clicks inside the editor content (for yt-embed delete)
   const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
@@ -318,7 +333,7 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
       </div>
 
       {/* Editor */}
-      <div onClick={handleEditorClick}>
+      <div onClick={handleEditorClick} onPaste={handleEditorPaste}>
         <EditorContent editor={editor} />
       </div>
 

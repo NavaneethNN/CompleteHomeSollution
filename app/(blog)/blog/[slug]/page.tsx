@@ -33,27 +33,58 @@ function calculateReadingTime(content: string): number {
 }
 
 function makeYoutubeEmbed(videoId: string): string {
-  return `<div class="relative w-full aspect-video rounded-xl overflow-hidden my-6">
+  return `<div style="position:relative;width:100%;padding-bottom:56.25%;border-radius:0.75rem;overflow:hidden;margin:1.5rem 0;">
     <iframe
       src="https://www.youtube-nocookie.com/embed/${videoId}"
       frameborder="0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
       allowfullscreen
-      class="absolute inset-0 w-full h-full"
+      style="position:absolute;inset:0;width:100%;height:100%;border:0;"
     ></iframe>
   </div>`;
 }
 
 // Helper function to extract YouTube URLs and convert to embed
 function processContent(content: string): string {
-  // 1. Convert yt-embed thumbnail divs (inserted by the rich editor)
-  let processed = content.replace(
-    /<div[^>]*class="yt-embed[^"]*"[^>]*data-yt-id="([a-zA-Z0-9_-]{11})"[^>]*>[\s\S]*?<\/div>/g,
-    (_match, videoId) => makeYoutubeEmbed(videoId)
-  );
+  let processed = content;
 
-  // 2. Convert bare YouTube URLs in text
-  const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/g;
+  // 1. Find all yt-embed blocks by scanning for their opening tag and data-yt-id,
+  //    then consume until the matching closing </div> at the same nesting depth.
+  const ytEmbedOpenRe = /<div[^>]*class="yt-embed[^"]*"[^>]*data-yt-id="([a-zA-Z0-9_-]{11})"[^>]*>/gi;
+  let match: RegExpExecArray | null;
+  const replacements: Array<{ from: number; to: number; videoId: string }> = [];
+
+  while ((match = ytEmbedOpenRe.exec(processed)) !== null) {
+    const videoId = match[1];
+    const openTagEnd = match.index + match[0].length;
+    let depth = 1;
+    let i = openTagEnd;
+    // Walk forward counting <div and </div to find the matching close
+    while (i < processed.length && depth > 0) {
+      const nextOpen = processed.indexOf("<div", i);
+      const nextClose = processed.indexOf("</div>", i);
+      if (nextClose === -1) break;
+      if (nextOpen !== -1 && nextOpen < nextClose) {
+        depth++;
+        i = nextOpen + 4;
+      } else {
+        depth--;
+        if (depth === 0) {
+          replacements.push({ from: match.index, to: nextClose + 6, videoId });
+        }
+        i = nextClose + 6;
+      }
+    }
+  }
+
+  // Apply replacements in reverse order so indices stay valid
+  for (let r = replacements.length - 1; r >= 0; r--) {
+    const { from, to, videoId } = replacements[r];
+    processed = processed.slice(0, from) + makeYoutubeEmbed(videoId) + processed.slice(to);
+  }
+
+  // 2. Convert bare YouTube URLs in text (not already inside an iframe)
+  const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(?![^<]*<\/iframe>)/g;
   processed = processed.replace(youtubeRegex, (_match, videoId) => makeYoutubeEmbed(videoId));
 
   return processed;
