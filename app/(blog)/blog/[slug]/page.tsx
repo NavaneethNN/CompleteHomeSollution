@@ -83,7 +83,13 @@ function processContent(content: string): string {
     processed = processed.slice(0, from) + makeYoutubeEmbed(videoId) + processed.slice(to);
   }
 
-  // 2. Convert bare YouTube URLs in text (not already inside an iframe)
+  // 2. Convert new img-based yt embeds (data-yt-id on <img> tag)
+  processed = processed.replace(
+    /<img[^>]*data-yt-id="([a-zA-Z0-9_-]{11})"[^>]*\/?>/gi,
+    (_match, videoId) => makeYoutubeEmbed(videoId)
+  );
+
+  // 3. Convert bare YouTube URLs in text (not already inside an iframe)
   const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})(?![^<]*<\/iframe>)/g;
   processed = processed.replace(youtubeRegex, (_match, videoId) => makeYoutubeEmbed(videoId));
 

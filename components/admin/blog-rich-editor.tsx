@@ -113,7 +113,16 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
         openOnClick: false,
         HTMLAttributes: { class: "text-primary underline cursor-pointer" },
       }),
-      Image.configure({
+      Image.extend({
+        addAttributes() {
+          return {
+            ...this.parent?.(),
+            "data-yt-id": { default: null },
+            style: { default: null },
+            title: { default: null },
+          };
+        },
+      }).configure({
         HTMLAttributes: { class: "rounded-lg max-w-full h-auto my-4" },
       }),
       Placeholder.configure({
@@ -202,7 +211,13 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
       alert("Invalid YouTube URL. Please use a youtube.com/watch or youtu.be link.");
       return;
     }
-    const embedHtml = `<div class="yt-embed" data-yt-id="${id}" style="position:relative;margin:1rem 0;cursor:pointer;" title="Click to remove this video"><img src="https://img.youtube.com/vi/${id}/hqdefault.jpg" alt="YouTube video" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;border:2px solid #e2e8f0;display:block;" /><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);border-radius:0.75rem;pointer-events:none;"><div style="width:3.5rem;height:3.5rem;background:#dc2626;border-radius:9999px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.4);"><svg viewBox="0 0 24 24" fill="white" style="width:1.5rem;height:1.5rem;margin-left:3px;"><path d="M8 5v14l11-7z"/></svg></div></div><div style="position:absolute;top:8px;right:8px;background:#dc2626;color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;pointer-events:none;">✕ Click to remove</div></div>`;
+    const embedHtml = `<img
+      src="https://img.youtube.com/vi/${id}/hqdefault.jpg"
+      data-yt-id="${id}"
+      alt="YouTube video — click to remove"
+      title="YouTube video — click thumbnail to remove"
+      style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;border:3px solid #dc2626;cursor:pointer;display:block;margin:1rem 0;"
+    />`;
     editor.chain().focus().insertContent(embedHtml).run();
     setModal(null);
     setYoutubeUrl("");
@@ -226,13 +241,13 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
   // Handle clicks inside the editor content (for yt-embed delete)
   const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
-    const ytDiv = target.closest(".yt-embed") as HTMLElement | null;
-    if (!ytDiv) return;
+    const ytImg = target.closest("img[data-yt-id]") as HTMLImageElement | null;
+    if (!ytImg) return;
     if (window.confirm("Remove this YouTube video?")) {
-      // Find and remove the outer yt-embed div from editor HTML
+      const ytId = ytImg.dataset.ytId;
       const currentHtml = editor?.getHTML() ?? "";
       const cleaned = currentHtml.replace(
-        new RegExp(`<div[^>]*class="yt-embed[^"]*"[^>]*data-yt-id="${ytDiv.dataset.ytId}"[^>]*>[\\s\\S]*?<\/div>`, "g"),
+        new RegExp(`<img[^>]*data-yt-id="${ytId}"[^>]*/?>`, "g"),
         ""
       );
       editor?.commands.setContent(cleaned);
