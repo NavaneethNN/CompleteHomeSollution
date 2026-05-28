@@ -15,14 +15,6 @@ class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
 }
 
-// Log Google OAuth configuration at startup
-if (typeof window === "undefined") {
-  console.log("[auth] Google OAuth config:", {
-    hasClientId: !!process.env.AUTH_GOOGLE_ID,
-    hasClientSecret: !!process.env.AUTH_GOOGLE_SECRET,
-    authUrl: process.env.AUTH_URL,
-  });
-}
 
 export type UserRole = "ADMIN" | "MEMBER" | "CUSTOMER";
 
@@ -136,8 +128,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               data: { emailVerified: new Date() },
             });
           }
-        } catch (err) {
-          console.error("[signIn callback] emailVerified update failed:", err);
+        } catch {
+          // Silently ignore email verification update failures
         }
       }
       return true;
@@ -191,8 +183,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token["role"] = undefined;
             token["isMember"] = undefined;
           }
-        } catch (err) {
-          console.error("[jwt callback] fresh user lookup failed:", err);
+        } catch {
+          // Silently ignore user lookup failures
         }
       }
       

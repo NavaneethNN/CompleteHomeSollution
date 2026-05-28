@@ -446,32 +446,34 @@ export function Navbar() {
 
               {/* ── User dropdown ───────────────────────────── */}
             <div ref={userRef} className="hidden md:block relative">
-              <button
-                onClick={() => { setUserOpen(!userOpen); setCatsOpen(false); setSearchOpen(false); }}
-                aria-label="Account"
-                aria-expanded={userOpen}
-                className={`relative w-8 h-8 rounded-full flex items-center justify-center overflow-hidden transition-all
-                  ${userOpen ? "ring-2 ring-primary ring-offset-1" : "hover:ring-2 hover:ring-primary/40 hover:ring-offset-1"}
-                  ${user?.isMember ? "ring-2 ring-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]" : ""}`}
-              >
-                {user?.image ? (
-                  <Image src={user.image} alt={user.name ?? "Account"} width={32} height={32} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className={`w-full h-full rounded-full flex items-center justify-center ${user?.isMember ? "bg-gradient-to-br from-amber-400 to-orange-500" : "bg-primary/10"}`}>
-                    {user?.name ? (
-                      <span className={`text-[13px] font-bold ${user?.isMember ? "text-white" : "text-primary"}`}>{user.name.charAt(0).toUpperCase()}</span>
-                    ) : (
-                      <User className={`h-[18px] w-[18px] ${user?.isMember ? "text-white" : "text-foreground"}`} />
-                    )}
-                  </div>
-                )}
-                {/* Member Crown Badge */}
+              <div className="relative">
+                <button
+                  onClick={() => { setUserOpen(!userOpen); setCatsOpen(false); setSearchOpen(false); }}
+                  aria-label="Account"
+                  aria-expanded={userOpen}
+                  className={`relative w-8 h-8 rounded-full flex items-center justify-center overflow-hidden transition-all
+                    ${userOpen ? "ring-2 ring-primary ring-offset-1" : "hover:ring-2 hover:ring-primary/40 hover:ring-offset-1"}
+                    ${user?.isMember ? "ring-2 ring-primary" : ""}`}
+                >
+                  {user?.image ? (
+                    <Image src={user.image} alt={user.name ?? "Account"} width={32} height={32} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                  ) : (
+                    <div className={`w-full h-full rounded-full flex items-center justify-center ${user?.isMember ? "bg-primary" : "bg-primary/10"}`}>
+                      {user?.name ? (
+                        <span className={`text-[13px] font-bold ${user?.isMember ? "text-white" : "text-primary"}`}>{user.name.charAt(0).toUpperCase()}</span>
+                      ) : (
+                        <User className={`h-[18px] w-[18px] ${user?.isMember ? "text-white" : "text-foreground"}`} />
+                      )}
+                    </div>
+                  )}
+                </button>
+                {/* Member Crown Badge - positioned outside the button */}
                 {user?.isMember && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center shadow-md border border-white">
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center shadow-md border border-white z-10">
                     <Crown className="w-2.5 h-2.5 text-white" />
                   </div>
                 )}
-              </button>
+              </div>
 
               {userOpen && (
                 <div
@@ -492,7 +494,7 @@ export function Navbar() {
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-semibold text-foreground truncate">{user?.name ?? "My Account"}</p>
                             {user?.isMember && (
-                              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-500">
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-primary">
                                 <Crown className="w-3 h-3" /> Member
                               </span>
                             )}
@@ -525,7 +527,7 @@ export function Navbar() {
                                 </span>
                               )}
                               {isMembershipLink && user?.isMember && (
-                                <span className="ml-auto text-[10px] font-bold bg-gradient-to-r from-amber-400 to-orange-500 text-white px-1.5 py-0.5 rounded-full">
+                                <span className="ml-auto text-[10px] font-bold bg-primary text-white px-1.5 py-0.5 rounded-full">
                                   Active
                                 </span>
                               )}

@@ -315,9 +315,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 <div>
                   <p className="font-medium text-slate-900 text-sm">{post.author.name}</p>
                   {post.author.isMember && (
-                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gradient-to-r from-amber-400/20 to-orange-500/20 border border-amber-400/30 rounded-full">
-                      <Crown className="h-3 w-3 text-amber-500" />
-                      <span className="text-xs font-semibold text-amber-600">Member</span>
+                    <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded-full">
+                      <Crown className="h-3 w-3 text-primary" />
+                      <span className="text-xs font-semibold text-primary">Member</span>
                     </div>
                   )}
                 </div>
