@@ -55,6 +55,9 @@ export async function getAdminCustomers(search?: string): Promise<AdminCustomer[
         where: { status: { not: "CANCELLED" } },
         select: { total: true },
       },
+      membershipPayments: {
+        select: { amount: true },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -70,7 +73,9 @@ export async function getAdminCustomers(search?: string): Promise<AdminCustomer[
     emailVerified: u.emailVerified,
     createdAt: u.createdAt,
     _count: u._count,
-    totalSpend: u.orders.reduce((sum, o) => sum + o.total, 0),
+    totalSpend:
+      u.orders.reduce((sum, o) => sum + o.total, 0) +
+      u.membershipPayments.reduce((sum, m) => sum + m.amount, 0),
   }));
 }
 
@@ -109,10 +114,16 @@ export async function getAdminCustomerDetail(userId: string): Promise<AdminCusto
 
   if (!user) return null;
 
-  const totalSpend = await db.order.aggregate({
-    where: { userId, status: { not: "CANCELLED" } },
-    _sum: { total: true },
-  });
+  const [orderSpend, membershipSpend] = await Promise.all([
+    db.order.aggregate({
+      where: { userId, status: { not: "CANCELLED" } },
+      _sum: { total: true },
+    }),
+    db.membershipPayment.aggregate({
+      where: { userId },
+      _sum: { amount: true },
+    }),
+  ]);
 
   return {
     id: user.id,
@@ -125,7 +136,7 @@ export async function getAdminCustomerDetail(userId: string): Promise<AdminCusto
     emailVerified: user.emailVerified,
     createdAt: user.createdAt,
     _count: user._count,
-    totalSpend: totalSpend._sum.total ?? 0,
+    totalSpend: (orderSpend._sum.total ?? 0) + (membershipSpend._sum.amount ?? 0),
     recentOrders: user.orders,
   };
 }

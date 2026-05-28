@@ -53,12 +53,13 @@ model User {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  orders    Order[]
-  reviews   Review[]
-  addresses Address[]
-  cart      CartItem[]
-  blogPosts BlogPost[]
-  blogLikes BlogLike[]
+  orders             Order[]
+  reviews            Review[]
+  addresses          Address[]
+  cart               CartItem[]
+  blogPosts          BlogPost[]
+  blogLikes          BlogLike[]
+  membershipPayments MembershipPayment[]
 
   // NextAuth required fields
   accounts Account[]
@@ -334,6 +335,17 @@ model MembershipPlan {
   isDefault       Boolean  @default(false) // the plan shown in checkout
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model MembershipPayment {
+  id              String   @id @default(cuid())
+  userId          String
+  planId          String?
+  amount          Float
+  stripeSessionId String?  @unique
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model StockAlert {

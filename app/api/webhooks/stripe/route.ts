@@ -54,6 +54,15 @@ export async function POST(req: NextRequest) {
             membershipExpiry: expiry,
           },
         });
+        // Record payment for spend tracking (idempotent via stripeSessionId unique)
+        const amountPaid = (session.amount_total ?? 0) / 100;
+        if (amountPaid > 0) {
+          await db.membershipPayment.upsert({
+            where: { stripeSessionId: session.id },
+            create: { userId, planId: planId ?? null, amount: amountPaid, stripeSessionId: session.id },
+            update: {},
+          });
+        }
         console.log(`[Stripe webhook] Membership activated/renewed for user ${userId}, expires ${expiry.toISOString()}`);
         return NextResponse.json({ received: true });
       }
@@ -149,6 +158,17 @@ export async function POST(req: NextRequest) {
             data: { isMember: true, memberSince: orderNow, membershipExpiry: orderExpiry },
           });
           console.log(`[Stripe webhook] Membership activated (via order) for user ${userId}`);
+        }
+        // Record membership add-on payment separately for spend tracking
+        const membershipPlanPrice = orderPlan
+          ? await db.membershipPlan.findFirst({ where: { isActive: true, isDefault: true }, select: { price: true } })
+          : null;
+        if (membershipPlanPrice?.price) {
+          await db.membershipPayment.upsert({
+            where: { stripeSessionId: `${session.id}-membership` },
+            create: { userId, planId: null, amount: membershipPlanPrice.price, stripeSessionId: `${session.id}-membership` },
+            update: {},
+          });
         }
       }
 
