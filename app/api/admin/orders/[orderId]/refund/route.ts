@@ -8,6 +8,7 @@ import { sendOrderCancellationEmail } from "@/lib/brevo";
 const refundSchema = z.object({
   amount: z.number().positive(),   // amount in AUD dollars
   restoreStock: z.boolean().optional().default(false),
+  manual: z.boolean().optional().default(false), // skip Stripe, just mark in DB
 });
 
 export async function POST(
@@ -22,7 +23,7 @@ export async function POST(
 
     const { orderId } = await params;
     const body = await req.json();
-    const { amount, restoreStock } = refundSchema.parse(body);
+    const { amount, restoreStock, manual } = refundSchema.parse(body);
 
     const order = await db.order.findUnique({
       where: { id: orderId },
@@ -33,9 +34,6 @@ export async function POST(
     });
 
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    if (!order.stripePaymentId) {
-      return NextResponse.json({ error: "No Stripe payment ID on this order" }, { status: 400 });
-    }
     if (order.status === "REFUNDED") {
       return NextResponse.json({ error: "Order already refunded" }, { status: 400 });
     }
@@ -43,18 +41,23 @@ export async function POST(
       return NextResponse.json({ error: `Refund amount cannot exceed order total (A$${order.total.toFixed(2)})` }, { status: 400 });
     }
 
-    // Issue Stripe refund
-    let stripeRefundId: string;
-    try {
-      const refund = await getStripe().refunds.create({
-        payment_intent: order.stripePaymentId,
-        amount: Math.round(amount * 100), // cents
-        reason: "requested_by_customer",
-      });
-      stripeRefundId = refund.id;
-    } catch (e: any) {
-      console.error("[admin refund] Stripe error", e);
-      return NextResponse.json({ error: e?.message ?? "Stripe refund failed" }, { status: 502 });
+    let stripeRefundId: string | null = null;
+
+    if (!manual && order.stripePaymentId) {
+      // Issue Stripe refund
+      try {
+        const refund = await getStripe().refunds.create({
+          payment_intent: order.stripePaymentId,
+          amount: Math.round(amount * 100), // cents
+          reason: "requested_by_customer",
+        });
+        stripeRefundId = refund.id;
+      } catch (e: any) {
+        console.error("[admin refund] Stripe error", e);
+        return NextResponse.json({ error: e?.message ?? "Stripe refund failed" }, { status: 502 });
+      }
+    } else if (!manual && !order.stripePaymentId) {
+      return NextResponse.json({ error: "No Stripe payment ID — use manual refund" }, { status: 400 });
     }
 
     const isFullRefund = Math.abs(amount - order.total) < 0.01;
@@ -80,11 +83,11 @@ export async function POST(
       await tx.order.update({
         where: { id: orderId },
         data: {
-          status: isFullRefund ? "REFUNDED" : order.status, // partial refund keeps current status
-          refundRequested: false, // resolved
+          status: isFullRefund ? "REFUNDED" : order.status,
+          refundRequested: false,
           refundAmount: amount,
           refundedAt: new Date(),
-          refundStripeId: stripeRefundId,
+          ...(stripeRefundId ? { refundStripeId: stripeRefundId } : {}),
         },
       });
     });
@@ -104,7 +107,7 @@ export async function POST(
       }).catch((e) => console.error("[admin refund] email failed", e));
     }
 
-    return NextResponse.json({ success: true, refundAmount: amount, stripeRefundId });
+    return NextResponse.json({ success: true, refundAmount: amount, stripeRefundId, manual: !stripeRefundId });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0].message }, { status: 400 });

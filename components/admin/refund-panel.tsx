@@ -31,6 +31,7 @@ export function AdminRefundPanel({
   const [restoreStock, setRestoreStock] = useState(false);
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const isManual = !hasStripePayment;
 
   if (alreadyRefunded && refundAmount != null) {
     return (
@@ -60,7 +61,7 @@ export function AdminRefundPanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ amount: parsed, restoreStock }),
+        body: JSON.stringify({ amount: parsed, restoreStock, manual: isManual }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Refund failed");
@@ -74,13 +75,90 @@ export function AdminRefundPanel({
     }
   }
 
-  if (!hasStripePayment) {
-    return (
-      <div className="text-sm text-slate-500 bg-slate-50 rounded-xl border border-slate-200 p-4">
-        No Stripe payment on record — refund must be handled manually.
+  // Shared refund form used for both Stripe and manual refunds
+  const refundForm = (
+    <div className="space-y-3">
+      {/* Manual refund notice */}
+      {isManual && (
+        <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
+          <span>No Stripe payment ID found. This will mark the order as refunded in the system only — process the actual payment return externally.</span>
+        </div>
+      )}
+
+      <div>
+        <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
+          Refund Amount (AUD)
+        </label>
+        <div className="relative">
+          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="number"
+            min="0.01"
+            max={orderTotal}
+            step="0.01"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="w-full pl-8 pr-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+        </div>
+        <div className="flex gap-2 mt-1.5">
+          <button
+            onClick={() => setAmount(orderTotal.toFixed(2))}
+            className="text-xs text-blue-600 hover:underline"
+          >
+            Full refund (A${orderTotal.toFixed(2)})
+          </button>
+        </div>
       </div>
-    );
-  }
+
+      <label className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={restoreStock}
+          onChange={(e) => setRestoreStock(e.target.checked)}
+          className="rounded border-slate-300"
+        />
+        <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+        Restore stock to inventory
+      </label>
+
+      {!confirmed ? (
+        <button
+          onClick={() => setConfirmed(true)}
+          className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors"
+        >
+          {isManual ? "Mark as Refunded (Manual)" : "Issue Refund"}
+        </button>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            {isManual
+              ? <>Confirm marking <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> as refunded? Ensure you process the payment return externally.</>
+              : <>Confirm issuing a <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> refund via Stripe? This cannot be undone.</>
+            }
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setConfirmed(false)}
+              disabled={loading}
+              className="flex-1 py-2.5 border border-slate-200 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleRefund}
+              disabled={loading}
+              className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirm
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -94,78 +172,7 @@ export function AdminRefundPanel({
           </div>
         </div>
       )}
-
-      {/* Refund form */}
-      <div className="space-y-3">
-        <div>
-          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1.5">
-            Refund Amount (AUD)
-          </label>
-          <div className="relative">
-            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="number"
-              min="0.01"
-              max={orderTotal}
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full pl-8 pr-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
-            />
-          </div>
-          <div className="flex gap-2 mt-1.5">
-            <button
-              onClick={() => setAmount(orderTotal.toFixed(2))}
-              className="text-xs text-blue-600 hover:underline"
-            >
-              Full refund (A${orderTotal.toFixed(2)})
-            </button>
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2.5 text-sm text-slate-700 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={restoreStock}
-            onChange={(e) => setRestoreStock(e.target.checked)}
-            className="rounded border-slate-300"
-          />
-          <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-          Restore stock to inventory
-        </label>
-
-        {!confirmed ? (
-          <button
-            onClick={() => setConfirmed(true)}
-            className="w-full py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors"
-          >
-            Issue Refund
-          </button>
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs text-slate-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              Confirm issuing a <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> refund via Stripe? This cannot be undone.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmed(false)}
-                disabled={loading}
-                className="flex-1 py-2.5 border border-slate-200 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRefund}
-                disabled={loading}
-                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-              >
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                Confirm Refund
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+      {refundForm}
     </div>
   );
 }
