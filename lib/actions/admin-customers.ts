@@ -26,43 +26,61 @@ export type AdminCustomer = {
   totalSpend: number;
 };
 
-export async function getAdminCustomers(search?: string): Promise<AdminCustomer[]> {
+const CUSTOMERS_PER_PAGE = 20;
+
+export type PaginatedCustomers = {
+  customers: AdminCustomer[];
+  totalCount: number;
+  totalPages: number;
+};
+
+export async function getAdminCustomers(
+  page: number = 1,
+  search?: string
+): Promise<PaginatedCustomers> {
   await requireAdmin();
 
-  const users = await db.user.findMany({
-    where: {
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { email: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      image: true,
-      role: true,
-      isMember: true,
-      memberSince: true,
-      emailVerified: true,
-      createdAt: true,
-      _count: { select: { orders: true } },
-      orders: {
-        where: { status: { not: "CANCELLED" } },
-        select: { total: true },
-      },
-      membershipPayments: {
-        select: { amount: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const skip = (page - 1) * CUSTOMERS_PER_PAGE;
 
-  return users.map((u) => ({
+  const where = search
+    ? {
+        OR: [
+          { name: { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const [users, totalCount] = await Promise.all([
+    db.user.findMany({
+      where,
+      skip,
+      take: CUSTOMERS_PER_PAGE,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        image: true,
+        role: true,
+        isMember: true,
+        memberSince: true,
+        emailVerified: true,
+        createdAt: true,
+        _count: { select: { orders: true } },
+        orders: {
+          where: { status: { not: "CANCELLED" } },
+          select: { total: true },
+        },
+        membershipPayments: {
+          select: { amount: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.user.count({ where }),
+  ]);
+
+  const customers = users.map((u) => ({
     id: u.id,
     name: u.name,
     email: u.email,
@@ -77,6 +95,12 @@ export async function getAdminCustomers(search?: string): Promise<AdminCustomer[
       u.orders.reduce((sum, o) => sum + o.total, 0) +
       u.membershipPayments.reduce((sum, m) => sum + m.amount, 0),
   }));
+
+  return {
+    customers,
+    totalCount,
+    totalPages: Math.ceil(totalCount / CUSTOMERS_PER_PAGE),
+  };
 }
 
 export type AdminCustomerDetail = AdminCustomer & {
