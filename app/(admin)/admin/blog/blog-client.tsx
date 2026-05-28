@@ -198,8 +198,73 @@ export default function BlogClient({ initialPosts, categories, tags }: BlogClien
         </Select>
       </div>
 
-      {/* Posts Table */}
-      <div className="rounded-lg border border-slate-200 overflow-hidden">
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-3">
+        {filteredPosts.length === 0 ? (
+          <div className="text-center py-12 text-slate-500 text-sm">No posts found</div>
+        ) : (
+          filteredPosts.map((post) => (
+            <div key={post.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              <div className="flex items-start gap-3">
+                {post.coverImage && (
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                    <Image src={post.coverImage} alt={post.title} fill className="object-cover" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-slate-900 text-sm leading-snug line-clamp-2">{post.title}</h3>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    {getStatusBadge(post.status)}
+                    {post.featured && <Badge variant="secondary" className="text-xs">Featured</Badge>}
+                    {post.isMemberOnly && (
+                      <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                        <Crown className="h-3 w-3 mr-1" />Member
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 shrink-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/blog/${post.slug}`} target="_blank"><Eye className="h-4 w-4 mr-2" />View</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={`/admin/blog/${post.id}/edit`}><Edit className="h-4 w-4 mr-2" />Edit</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="text-red-600" onClick={() => handleDeletePost(post.id)} disabled={loading}>
+                      <Trash2 className="h-4 w-4 mr-2" />Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 pt-1 border-t border-slate-100">
+                {post.category && (
+                  <Badge variant="outline" className="text-xs" style={{ borderColor: post.category.color || undefined, color: post.category.color || undefined }}>
+                    {post.category.name}
+                  </Badge>
+                )}
+                <span className="flex items-center gap-1"><ViewIcon className="h-3 w-3" />{post.viewCount} views</span>
+                {post.publishedAt && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(post.publishedAt).toLocaleDateString("en-AU", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                )}
+                <span>{post.author?.name || "Unknown"}</span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden md:block rounded-lg border border-slate-200 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -207,17 +272,15 @@ export default function BlogClient({ initialPosts, categories, tags }: BlogClien
               <TableHead>Author</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Stats</TableHead>
+              <TableHead>Views</TableHead>
               <TableHead>Published</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
+              <TableHead className="w-[60px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredPosts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                  No posts found
-                </TableCell>
+                <TableCell colSpan={7} className="text-center py-8 text-slate-500">No posts found</TableCell>
               </TableRow>
             ) : (
               filteredPosts.map((post) => (
@@ -225,133 +288,78 @@ export default function BlogClient({ initialPosts, categories, tags }: BlogClien
                   <TableCell>
                     <div className="flex items-center gap-3">
                       {post.coverImage && (
-                        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                          <Image
-                            src={post.coverImage}
-                            alt={post.title}
-                            fill
-                            className="object-cover"
-                          />
+                        <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
+                          <Image src={post.coverImage} alt={post.title} fill className="object-cover" />
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-slate-900 truncate max-w-[200px]">
-                            {post.title}
-                          </h3>
-                          {post.featured && (
-                            <Badge variant="secondary" className="text-xs">
-                              Featured
-                            </Badge>
-                          )}
+                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                          <h3 className="font-medium text-slate-900 truncate max-w-[180px] text-sm">{post.title}</h3>
+                          {post.featured && <Badge variant="secondary" className="text-xs shrink-0">Featured</Badge>}
                           {post.isMemberOnly && (
-                            <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                              <Crown className="h-3 w-3 mr-1" />
-                              Member
+                            <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 shrink-0">
+                              <Crown className="h-3 w-3 mr-1" />Member
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-slate-500">
-                          {post._count.tags} tags • {post.readTime || 0} min read
-                        </p>
+                        <p className="text-xs text-slate-400">{post._count.tags} tags · {post.readTime || 0} min read</p>
                       </div>
                     </div>
                   </TableCell>
-                  
                   <TableCell>
                     <div className="flex items-center gap-2">
                       {post.author?.image ? (
-                        <Image
-                          src={post.author.image}
-                          alt={post.author.name || ""}
-                          width={24}
-                          height={24}
-                          className="rounded-full"
-                        />
+                        <Image src={post.author.image} alt={post.author.name || ""} width={20} height={20} className="rounded-full" />
                       ) : (
-                        <div className="w-6 h-6 bg-slate-200 rounded-full" />
+                        <div className="w-5 h-5 bg-slate-200 rounded-full shrink-0" />
                       )}
-                      <span className="text-sm text-slate-700">
-                        {post.author?.name || "Unknown"}
-                      </span>
+                      <span className="text-sm text-slate-700 truncate max-w-[100px]">{post.author?.name || "Unknown"}</span>
                     </div>
                   </TableCell>
-                  
                   <TableCell>
                     {post.category ? (
-                      <Badge
-                        variant="outline"
-                        className="text-xs"
-                        style={{
-                          borderColor: post.category.color || undefined,
-                          color: post.category.color || undefined,
-                        }}
-                      >
+                      <Badge variant="outline" className="text-xs" style={{ borderColor: post.category.color || undefined, color: post.category.color || undefined }}>
                         {post.category.name}
                       </Badge>
                     ) : (
                       <span className="text-sm text-slate-400">—</span>
                     )}
                   </TableCell>
-                  
+                  <TableCell>{getStatusBadge(post.status)}</TableCell>
                   <TableCell>
-                    {getStatusBadge(post.status)}
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex items-center gap-3 text-sm text-slate-600">
-                      <div className="flex items-center gap-1">
-                        <ViewIcon className="h-3 w-3" />
-                        {post.viewCount}
-                      </div>
+                    <div className="flex items-center gap-1 text-sm text-slate-600">
+                      <ViewIcon className="h-3 w-3" />{post.viewCount}
                     </div>
                   </TableCell>
-                  
                   <TableCell>
-                    <div className="text-sm text-slate-600">
+                    <div className="text-xs text-slate-600">
                       {post.publishedAt ? (
                         <div className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(post.publishedAt).toLocaleDateString("en-AU", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {new Date(post.publishedAt).toLocaleDateString("en-AU", { month: "short", day: "numeric", year: "numeric" })}
                         </div>
                       ) : (
                         <span className="text-slate-400">—</span>
                       )}
                     </div>
                   </TableCell>
-                  
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/blog/${post.slug}`} target="_blank">
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </Link>
+                          <Link href={`/blog/${post.slug}`} target="_blank"><Eye className="h-4 w-4 mr-2" />View</Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/admin/blog/${post.id}/edit`}>
-                            <Edit className="h-4 w-4 mr-2" />
-                            Edit
-                          </Link>
+                          <Link href={`/admin/blog/${post.id}/edit`}><Edit className="h-4 w-4 mr-2" />Edit</Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDeletePost(post.id)}
-                          disabled={loading}
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
+                        <DropdownMenuItem className="text-red-600" onClick={() => handleDeletePost(post.id)} disabled={loading}>
+                          <Trash2 className="h-4 w-4 mr-2" />Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

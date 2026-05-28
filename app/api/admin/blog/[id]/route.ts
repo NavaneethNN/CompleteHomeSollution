@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { sendNewBlogPostNotifications } from "@/lib/blog-notifications";
 
 // PUT /api/admin/blog/[id] - Update blog post
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -86,6 +87,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         },
       },
     });
+
+    // Send email notifications if post is being published for the first time
+    const wasAlreadyPublished = existingPost.status === "PUBLISHED";
+    if (post.status === "PUBLISHED" && !wasAlreadyPublished && post.publishedAt) {
+      sendNewBlogPostNotifications({
+        id: post.id,
+        title: post.title,
+        slug: post.slug,
+        excerpt: post.excerpt,
+        author: post.author,
+        publishedAt: post.publishedAt,
+      }).catch((e) => console.error("[blog PUT] notification failed:", e));
+    }
 
     return NextResponse.json(post);
   } catch (error) {

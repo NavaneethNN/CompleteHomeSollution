@@ -50,7 +50,7 @@ interface BlogTag {
 }
 
 interface BlogPostData {
-  id?: string;
+  id: string;
   title: string;
   slug: string;
   excerpt: string | null;
@@ -88,6 +88,7 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
   );
   
   const [formData, setFormData] = useState<BlogPostData>({
+    id: initialData?.id || "",
     title: initialData?.title || "",
     slug: initialData?.slug || "",
     excerpt: initialData?.excerpt || "",
@@ -106,16 +107,17 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
     tags: initialData?.tags || [],
   });
 
-  // Auto-generate slug from title
+  // Auto-generate slug from title — only in create mode
   useEffect(() => {
-    if (mode === "create" || !initialData?.slug) {
+    if (mode === "create") {
       const slug = formData.title
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "");
       setFormData(prev => ({ ...prev, slug }));
     }
-  }, [formData.title, mode, initialData?.slug]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.title, mode]);
 
   const handleImageUpload = async (file: File) => {
     const formData = new FormData();
@@ -204,19 +206,24 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
   };
 
   const handleSave = async (publish = false) => {
+    if (!formData.title.trim() || !formData.content.trim()) {
+      toast.error("Title and content are required");
+      return;
+    }
     setSaving(true);
     try {
+      const status = publish ? "PUBLISHED" : formData.status;
       const payload = {
         ...formData,
-        status: publish ? "PUBLISHED" : "DRAFT",
+        status,
         publishedAt: publish && !formData.publishedAt ? new Date().toISOString() : formData.publishedAt,
         tags: selectedTags.map(tagId => ({ tagId })),
       };
 
-      const url = mode === "create" 
-        ? "/api/admin/blog" 
+      const url = mode === "create"
+        ? "/api/admin/blog"
         : `/api/admin/blog/${formData.id}`;
-      
+
       const method = mode === "create" ? "POST" : "PUT";
 
       const response = await fetch(url, {
@@ -232,11 +239,17 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
       }
 
       const savedPost = await response.json();
-      
+
       if (mode === "create") {
         toast.success(`Post ${publish ? "published" : "saved"} successfully!`);
         router.push(`/admin/blog/${savedPost.id}/edit`);
       } else {
+        setFormData(prev => ({
+          ...prev,
+          status: savedPost.status,
+          publishedAt: savedPost.publishedAt,
+          slug: savedPost.slug,
+        }));
         toast.success(`Post ${publish ? "published" : "updated"} successfully!`);
       }
     } catch (error: any) {
@@ -257,12 +270,13 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Header Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             onClick={() => handleSave(false)}
             disabled={saving}
+            size="sm"
           >
             <Save className="h-4 w-4 mr-2" />
             {saving ? "Saving..." : "Save Draft"}
@@ -270,14 +284,15 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
           <Button
             onClick={() => handleSave(true)}
             disabled={saving}
+            size="sm"
           >
             <Eye className="h-4 w-4 mr-2" />
             {saving ? "Publishing..." : "Publish"}
           </Button>
         </div>
-        
+
         {mode === "edit" && formData.slug && (
-          <Button variant="outline" asChild>
+          <Button variant="outline" size="sm" asChild>
             <a href={`/blog/${formData.slug}`} target="_blank" rel="noopener noreferrer">
               <Eye className="h-4 w-4 mr-2" />
               Preview
@@ -286,9 +301,9 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
         {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 min-w-0">
           {/* Title */}
           <div>
             <Label htmlFor="title">Title</Label>

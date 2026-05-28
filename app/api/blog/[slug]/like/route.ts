@@ -71,34 +71,21 @@ export async function POST(
     });
 
     if (existingLike) {
-      // Unlike the post
-      await db.blogLike.delete({
-        where: { id: existingLike.id },
-      });
-
-      // Update like count
-      await db.blogPost.update({
+      await db.blogLike.delete({ where: { id: existingLike.id } });
+      const updated = await db.blogPost.update({
         where: { id: post.id },
         data: { likeCount: { decrement: 1 } },
+        select: { likeCount: true },
       });
-
-      return NextResponse.json({ liked: false, likeCount: Math.max(0, post.likeCount - 1) });
+      return NextResponse.json({ liked: false, likeCount: Math.max(0, updated.likeCount) });
     } else {
-      // Like the post
-      await db.blogLike.create({
-        data: {
-          postId: post.id,
-          userId: session.user.id,
-        },
-      });
-
-      // Update like count
-      await db.blogPost.update({
+      await db.blogLike.create({ data: { postId: post.id, userId: session.user.id } });
+      const updated = await db.blogPost.update({
         where: { id: post.id },
         data: { likeCount: { increment: 1 } },
+        select: { likeCount: true },
       });
-
-      return NextResponse.json({ liked: true, likeCount: post.likeCount + 1 });
+      return NextResponse.json({ liked: true, likeCount: updated.likeCount });
     }
   } catch (error) {
     console.error("Blog like error:", error);

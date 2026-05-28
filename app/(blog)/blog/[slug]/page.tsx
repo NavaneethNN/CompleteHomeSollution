@@ -12,9 +12,6 @@ import {
   Calendar, 
   Clock, 
   Eye, 
-  Share2, 
-  Heart, 
-  Bookmark, 
   ChevronLeft,
   User,
   Globe,
@@ -224,7 +221,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {/* Article Header */}
         <article className="mb-12">
           {/* Category */}
@@ -246,7 +243,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           )}
 
           {/* Title */}
-          <h1 className="text-4xl sm:text-5xl font-bold text-slate-900 mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-tight">
             {post.title}
           </h1>
 
@@ -258,18 +255,18 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           )}
 
           {/* Article Meta */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500 mb-8">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-slate-500 mb-8">
             {/* Author */}
             {post.author && (
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
+              <div className="flex items-center gap-2.5">
+                <Avatar className="h-9 w-9 shrink-0">
                   <AvatarImage src={post.author.image || undefined} alt={post.author.name || undefined} />
                   <AvatarFallback>
                     {post.author.name?.charAt(0) || <User className="h-4 w-4" />}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-medium text-slate-900">{post.author.name}</p>
+                  <p className="font-medium text-slate-900 text-sm">{post.author.name}</p>
                   {post.author.isMember && (
                     <div className="flex items-center gap-1 text-amber-600">
                       <Crown className="h-3 w-3" />
@@ -280,11 +277,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
               </div>
             )}
 
-            <Separator orientation="vertical" className="h-8" />
+            <div className="hidden sm:block w-px h-6 bg-slate-200" />
 
             {/* Date */}
             <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
+              <Calendar className="h-4 w-4 shrink-0" />
               <time dateTime={publishDate.toISOString()}>
                 {publishDate.toLocaleDateString("en-AU", {
                   day: "numeric",
@@ -297,14 +294,14 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             {/* Read Time */}
             {post.readTime && (
               <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-4 w-4 shrink-0" />
                 <span>{post.readTime} min read</span>
               </div>
             )}
 
             {/* Views */}
             <div className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4 shrink-0" />
               <span>{post.viewCount} views</span>
             </div>
           </div>
@@ -341,22 +338,17 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           )}
 
           {/* Social Share */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
             <BlogSocialShare 
               title={post.title}
               url={`${process.env.NEXT_PUBLIC_APP_URL}/blog/${post.slug}`}
             />
-            
             <div className="flex items-center gap-2">
               <BlogLikeButton 
                 postSlug={post.slug}
                 initialLikeCount={post.likeCount}
                 initialUserLiked={post.userLiked}
               />
-              <Button variant="outline" size="sm">
-                <Bookmark className="h-4 w-4 mr-1" />
-                Save
-              </Button>
             </div>
           </div>
 

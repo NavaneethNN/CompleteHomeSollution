@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Calendar, Clock, Eye, Lock, Search, User, ChevronRight, Crown } from "lucide-react";
+import { Calendar, Lock, Search, Crown } from "lucide-react";
 import BlogPostCard from "@/components/blog/blog-post-card";
 import BlogCategoryFilter from "@/components/blog/blog-category-filter";
 import BecomeMemberCTA from "@/components/blog/become-member-cta";
@@ -124,23 +124,32 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col lg:flex-row gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
           {/* Main Content */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {/* Search Bar */}
-            <div className="mb-8">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                <Input
-                  type="search"
-                  placeholder="Search articles..."
-                  className="pl-10 h-12 text-base"
-                  name="search"
-                  defaultValue={search}
-                />
+            <form action="/blog" method="GET" className="mb-8">
+              {category && <input type="hidden" name="category" value={category} />}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                  <Input
+                    type="search"
+                    name="search"
+                    placeholder="Search articles..."
+                    className="pl-10 h-12 text-base"
+                    defaultValue={search}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="h-12 px-5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shrink-0"
+                >
+                  Search
+                </button>
               </div>
-            </div>
+            </form>
 
             {/* Posts Grid */}
             {previewPosts.length > 0 ? (
@@ -186,7 +195,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
           </div>
 
           {/* Sidebar */}
-          <aside className="lg:w-80">
+          <aside className="w-full lg:w-72 xl:w-80 shrink-0">
             {/* Categories */}
             <BlogCategoryFilter 
               categories={categories} 

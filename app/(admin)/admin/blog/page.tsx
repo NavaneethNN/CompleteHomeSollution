@@ -4,8 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Eye, Trash2, Calendar, Clock, Eye as ViewIcon } from "lucide-react";
+import { Plus, Edit, Eye, Calendar } from "lucide-react";
 import Link from "next/link";
 import BlogClient from "./blog-client";
 
