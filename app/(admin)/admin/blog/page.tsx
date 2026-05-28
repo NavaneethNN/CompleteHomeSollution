@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Edit, Eye, Calendar } from "lucide-react";
 import Link from "next/link";
 import BlogClient from "./blog-client";
+import { CategoryManager } from "@/components/admin/blog-category-manager";
+import { TagManager } from "@/components/admin/blog-tag-manager";
 
 export const metadata: Metadata = {
   title: "Blog Management — Admin",
@@ -173,6 +175,12 @@ export default async function AdminBlogPage() {
           />
         </CardContent>
       </Card>
+
+      {/* Categories & Tags Management */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CategoryManager initialCategories={categories} />
+        <TagManager initialTags={tags} />
+      </div>
     </div>
   );
 }
