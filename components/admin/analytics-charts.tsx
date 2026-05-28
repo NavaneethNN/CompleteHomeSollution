@@ -225,17 +225,25 @@ export interface HorizontalBarItem {
   color?: string;
 }
 
+const audFormatter = new Intl.NumberFormat("en-AU", {
+  style: "currency",
+  currency: "AUD",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+});
+
 interface HorizontalBarChartProps {
   items: HorizontalBarItem[];
-  formatter?: (v: number) => string;
+  format?: "currency" | "number";
   colorClass?: string;
 }
 
 export function HorizontalBarChart({
   items,
-  formatter = (v) => v.toLocaleString(),
+  format = "number",
   colorClass = "bg-primary",
 }: HorizontalBarChartProps) {
+  const formatter = format === "currency" ? (v: number) => audFormatter.format(v) : (v: number) => v.toLocaleString();
   const max = Math.max(...items.map((i) => i.value), 1);
   const [hovered, setHovered] = useState<string | null>(null);
 

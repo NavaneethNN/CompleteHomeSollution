@@ -473,7 +473,7 @@ export default async function AdminAnalyticsPage() {
             {topProductItems.length > 0 ? (
               <HorizontalBarChart
                 items={topProductItems}
-                formatter={(v) => currencyFormatter.format(v)}
+                format="currency"
                 colorClass="bg-primary"
               />
             ) : (
@@ -496,7 +496,7 @@ export default async function AdminAnalyticsPage() {
             {categoryItems.length > 0 ? (
               <HorizontalBarChart
                 items={categoryItems}
-                formatter={(v) => currencyFormatter.format(v)}
+                format="currency"
                 colorClass="bg-violet-500"
               />
             ) : (
