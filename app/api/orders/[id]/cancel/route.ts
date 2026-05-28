@@ -5,11 +5,11 @@ import { getStripe } from "@/lib/stripe";
 import { sendOrderCancellationEmail, sendRefundRequestEmail } from "@/lib/brevo";
 
 // Statuses where we auto-refund immediately (order not yet shipped)
-const AUTO_REFUND_STATUSES = ["PAID", "CONFIRMED", "PROCESSING"];
+const AUTO_REFUND_STATUSES = ["PAID", "PROCESSING"];
 // Statuses where we can only request a refund (admin decides)
 const REFUND_REQUEST_STATUSES = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
 // Statuses that cannot be cancelled at all
-const NON_CANCELLABLE_STATUSES = ["CANCELLED", "REFUNDED", "PENDING"];
+const NON_CANCELLABLE_STATUSES = ["CANCELLED", "REFUNDED"];
 
 export async function POST(
   req: NextRequest,

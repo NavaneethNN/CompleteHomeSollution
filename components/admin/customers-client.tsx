@@ -20,7 +20,6 @@ const currencyFmt = new Intl.NumberFormat("en-AU", {
 });
 
 const ORDER_STATUS_COLOURS: Record<string, string> = {
-  PENDING:    "bg-amber-100 text-amber-700",
   PAID:       "bg-blue-100 text-blue-700",
   PROCESSING: "bg-indigo-100 text-indigo-700",
   SHIPPED:    "bg-violet-100 text-violet-700",

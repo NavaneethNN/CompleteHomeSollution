@@ -35,9 +35,7 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING:          "#f59e0b",
   PAID:             "#3b82f6",
-  CONFIRMED:        "#8b5cf6",
   PROCESSING:       "#6366f1",
   SHIPPED:          "#0ea5e9",
   OUT_FOR_DELIVERY: "#10b981",
@@ -47,9 +45,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING:          "Pending",
   PAID:             "Paid",
-  CONFIRMED:        "Confirmed",
   PROCESSING:       "Processing",
   SHIPPED:          "Shipped",
   OUT_FOR_DELIVERY: "Out for Delivery",

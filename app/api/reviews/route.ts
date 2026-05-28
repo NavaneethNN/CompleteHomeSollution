@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         productId,
         order: {
           userId,
-          status: { in: ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
+          status: { in: ["PAID", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
         },
       },
       select: { id: true },
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
         productId: data.productId,
         order: {
           userId,
-          status: { in: ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
+          status: { in: ["PAID", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
         },
       },
       select: { id: true },

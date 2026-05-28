@@ -6,9 +6,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
 const STATUS_OPTIONS = [
-  { value: "PENDING",          label: "Pending" },
   { value: "PAID",             label: "Paid" },
-  { value: "CONFIRMED",        label: "Confirmed" },
   { value: "PROCESSING",       label: "Processing" },
   { value: "SHIPPED",          label: "Shipped" },
   { value: "OUT_FOR_DELIVERY", label: "Out for Delivery" },

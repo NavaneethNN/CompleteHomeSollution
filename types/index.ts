@@ -16,7 +16,6 @@ export interface PaginatedResponse<T> {
 
 export type UserRole = "ADMIN" | "MEMBER" | "CUSTOMER";
 export type OrderStatus =
-  | "PENDING"
   | "PAID"
   | "PROCESSING"
   | "SHIPPED"

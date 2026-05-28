@@ -41,9 +41,7 @@ const ORDER_STATUS_CONFIG: Record<
   string,
   { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline"; className: string }
 > = {
-  PENDING:          { label: "Pending",          icon: Clock,          variant: "outline",     className: "border-amber-300 text-amber-700 bg-amber-50" },
   PAID:             { label: "Paid",             icon: CreditCard,     variant: "outline",     className: "border-blue-300 text-blue-700 bg-blue-50" },
-  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "outline",     className: "border-teal-300 text-teal-700 bg-teal-50" },
   PROCESSING:       { label: "Processing",       icon: Package,        variant: "outline",     className: "border-indigo-300 text-indigo-700 bg-indigo-50" },
   SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "outline",     className: "border-purple-300 text-purple-700 bg-purple-50" },
   OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "outline",     className: "border-violet-300 text-violet-700 bg-violet-50" },
@@ -116,8 +114,7 @@ async function getOrderStats() {
     todayRevenue,
   ] = await Promise.all([
     db.order.count(),
-    // Count all paid/confirmed/active orders (PAID = payment received, CONFIRMED = admin confirmed)
-    db.order.count({ where: { status: { in: ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] } } }),
+    db.order.count({ where: { status: { in: ["PAID", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] } } }),
     db.order.count({ where: { status: "PROCESSING" } }),
     db.order.count({ 
       where: { 
@@ -128,7 +125,7 @@ async function getOrderStats() {
     }),
     db.order.aggregate({
       where: { 
-        status: { notIn: ["CANCELLED", "PENDING", "REFUNDED"] },
+        status: { notIn: ["CANCELLED", "REFUNDED"] },
         createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
       },
       _sum: { total: true },
@@ -185,7 +182,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     },
   ];
 
-  const statusOptions = ["ALL", "PENDING", "PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"];
+  const statusOptions = ["ALL", "PAID", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"];
 
   return (
     <div className="space-y-6 p-4 sm:p-6 w-full max-w-none">

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { sendOrderStatusNotification } from "@/lib/order-status-notifications";
 
 const updateStatusSchema = z.object({
-  status: z.enum(["PENDING", "PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"]),
+  status: z.enum(["PAID", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"]),
   trackingNumber: z.string().optional(),
   carrier: z.string().optional(),
 });

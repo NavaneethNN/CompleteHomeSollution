@@ -37,9 +37,7 @@ const ORDER_STATUS_CONFIG: Record<
   string,
   { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline"; color: string }
 > = {
-  PENDING:          { label: "Pending",          icon: Clock,          variant: "outline",     color: "text-amber-600" },
   PAID:             { label: "Paid",             icon: CheckCircle2,   variant: "secondary",   color: "text-blue-600" },
-  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "secondary",   color: "text-teal-600" },
   PROCESSING:       { label: "Processing",       icon: Package,        variant: "default",     color: "text-indigo-600" },
   SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "default",     color: "text-purple-600" },
   OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "default",     color: "text-violet-600" },
@@ -103,7 +101,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
     notFound();
   }
 
-  const StatusConfig = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.PENDING;
+  const StatusConfig = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.PAID;
   const StatusIcon = StatusConfig.icon;
 
   return (
@@ -367,8 +365,8 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                   <div className="flex gap-3">
                     <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
                     <div>
-                      <p className="font-medium text-slate-900">Payment Confirmed</p>
-                      <p className="text-slate-500">Order paid and confirmed</p>
+                      <p className="font-medium text-slate-900">Payment Received</p>
+                      <p className="text-slate-500">Order paid successfully</p>
                     </div>
                   </div>
                 )}
