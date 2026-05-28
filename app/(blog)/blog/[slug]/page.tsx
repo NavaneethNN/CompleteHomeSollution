@@ -32,21 +32,31 @@ function calculateReadingTime(content: string): number {
   return Math.ceil(words / wordsPerMinute);
 }
 
+function makeYoutubeEmbed(videoId: string): string {
+  return `<div class="relative w-full aspect-video rounded-xl overflow-hidden my-6">
+    <iframe
+      src="https://www.youtube-nocookie.com/embed/${videoId}"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen
+      class="absolute inset-0 w-full h-full"
+    ></iframe>
+  </div>`;
+}
+
 // Helper function to extract YouTube URLs and convert to embed
 function processContent(content: string): string {
-  // Convert YouTube URLs to embed format
+  // 1. Convert yt-embed thumbnail divs (inserted by the rich editor)
+  let processed = content.replace(
+    /<div[^>]*class="yt-embed[^"]*"[^>]*data-yt-id="([a-zA-Z0-9_-]{11})"[^>]*>[\s\S]*?<\/div>/g,
+    (_match, videoId) => makeYoutubeEmbed(videoId)
+  );
+
+  // 2. Convert bare YouTube URLs in text
   const youtubeRegex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/g;
-  return content.replace(youtubeRegex, (match, videoId) => {
-    return `<div class="video-container">
-      <iframe 
-        src="https://www.youtube.com/embed/${videoId}" 
-        frameborder="0" 
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-        allowfullscreen
-        class="w-full aspect-video rounded-lg"
-      ></iframe>
-    </div>`;
-  });
+  processed = processed.replace(youtubeRegex, (_match, videoId) => makeYoutubeEmbed(videoId));
+
+  return processed;
 }
 
 async function getBlogPost(slug: string, userId?: string) {
