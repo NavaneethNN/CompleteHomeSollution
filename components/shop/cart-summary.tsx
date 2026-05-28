@@ -17,7 +17,7 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
 
 export function CartSummary({ subtotal, itemCount, isMember = false, memberSavings = 0 }: Readonly<CartSummaryProps>) {
   return (
-    <aside className="rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5 lg:sticky lg:top-24">
+    <aside className="rounded-xl sm:rounded-2xl border border-border bg-white p-4 shadow-sm sm:p-5 lg:sticky lg:top-24">
       <h2 className="text-base font-bold text-foreground border-b border-border pb-3 mb-3">Order Summary</h2>
 
       <div className="space-y-2 text-sm">

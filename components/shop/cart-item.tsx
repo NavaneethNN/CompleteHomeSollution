@@ -80,17 +80,19 @@ export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }:
         </div>
 
         {/* Bottom row: price + qty stepper */}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-end justify-between gap-2">
           {/* Price */}
-          <div>
+          <div className="min-w-0">
             {hasMemberPrice ? (
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-primary">{currencyFormatter.format(subtotal)}</span>
-                <span className="text-xs text-muted-foreground line-through">{currencyFormatter.format(product.price * quantity)}</span>
-                <span className="flex items-center gap-0.5 text-[10px] font-semibold text-primary">
+              <>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-sm font-bold text-primary">{currencyFormatter.format(subtotal)}</span>
+                  <span className="text-[11px] text-muted-foreground line-through">{currencyFormatter.format(product.price * quantity)}</span>
+                </div>
+                <span className="flex items-center gap-0.5 text-[10px] font-semibold text-primary mt-0.5">
                   <Crown className="h-2.5 w-2.5" /> Member
                 </span>
-              </div>
+              </>
             ) : (
               <span className="text-sm font-bold text-foreground">{currencyFormatter.format(subtotal)}</span>
             )}
@@ -103,7 +105,7 @@ export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }:
 
           {/* Qty stepper */}
           <div className={cn(
-            "flex items-center rounded-lg border border-border bg-secondary/30",
+            "flex items-center rounded-lg border border-border bg-secondary/30 shrink-0",
             isOutOfStock && "opacity-50"
           )}>
             <button

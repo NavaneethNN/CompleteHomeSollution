@@ -42,11 +42,11 @@ export function CartPage({ isMember = false }: CartPageProps) {
     return (
       <main className="bg-background py-12 md:py-16">
         <div className="container mx-auto px-4 md:px-6 xl:px-8">
-          <div className="mx-auto max-w-3xl rounded-[2rem] border border-border bg-white p-8 text-center shadow-sm md:p-12">
+          <div className="mx-auto max-w-3xl rounded-2xl sm:rounded-[2rem] border border-border bg-white p-5 text-center shadow-sm sm:p-8 md:p-12">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <ShoppingBag className="h-7 w-7" />
             </div>
-            <h1 className="mt-5 text-3xl font-black text-foreground md:text-4xl">Your cart is empty</h1>
+            <h1 className="mt-5 text-2xl font-black text-foreground sm:text-3xl md:text-4xl">Your cart is empty</h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
               Add items to your cart from the product listing or product page to start building your order.
             </p>
@@ -91,8 +91,8 @@ export function CartPage({ isMember = false }: CartPageProps) {
           </button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-          <section className="space-y-4">
+        <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <section className="min-w-0 space-y-3 sm:space-y-4">
             {items.map((item) => (
               <CartItem
                 key={`${item.product.id}:${item.product.variantId ?? "default"}`}
