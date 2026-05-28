@@ -379,7 +379,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                             )}
                             
                             <Link href={`/admin/orders/${order.id}`}>
-                              <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3">
+                              <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3 cursor-pointer">
                                 <Eye className="h-4 w-4 sm:mr-1" />
                                 <span className="hidden sm:inline">View</span>
                               </Button>

@@ -16,6 +16,7 @@ import {
   XCircle,
   ShoppingBag,
   RefreshCw,
+  Phone,
 } from "lucide-react";
 import { AdminRefundPanel } from "@/components/admin/refund-panel";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
@@ -316,7 +317,10 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                   </p>
                   <p className="text-slate-600">{order.address.country}</p>
                   {order.address.phone && (
-                    <p className="text-slate-600 mt-2">📞 {order.address.phone}</p>
+                    <p className="text-slate-600 mt-2 flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      {order.address.phone}
+                    </p>
                   )}
                 </div>
               ) : (

@@ -2,9 +2,9 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Bell, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { cn } from "@/lib/utils";
+import { AdminNotificationPanel } from "@/components/admin/notification-panel";
 
 const ROUTE_LABELS: Record<string, string> = {
   "/admin": "Dashboard",
@@ -59,13 +59,7 @@ export function AdminHeader() {
 
       {/* Right actions */}
       <div className="flex items-center gap-3">
-        <button
-          className="relative flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-muted/30 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
-        </button>
+        <AdminNotificationPanel />
 
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-2.5 py-1.5">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold uppercase text-primary-foreground">
