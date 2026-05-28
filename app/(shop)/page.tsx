@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
+import { AnimateIn } from "@/components/shared/animate-in";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 import {
   ArrowRight,
@@ -225,22 +226,22 @@ export default async function HomePage() {
         {/* Text column */}
         <div className="container mx-auto px-5 md:px-6 xl:px-8 relative z-10">
           <div className="max-w-[520px] py-8 md:py-16 lg:py-20">
-            <p className="text-[11px] md:text-xs font-semibold tracking-[0.25em] text-muted-foreground uppercase mb-3 md:mb-4">
+            <p className="text-[11px] md:text-xs font-semibold tracking-[0.25em] text-muted-foreground uppercase mb-3 md:mb-4 animate-fade-in delay-0">
               MAKE YOUR HOUSE A
             </p>
-            <h1 className="text-[42px] md:text-6xl xl:text-[72px] font-black leading-[1.05] text-foreground">
+            <h1 className="text-[42px] md:text-6xl xl:text-[72px] font-black leading-[1.05] text-foreground animate-fade-up delay-100">
               Complete
             </h1>
-            <h1 className="text-[42px] md:text-6xl xl:text-[72px] font-black leading-[1.05] text-foreground mb-2">
+            <h1 className="text-[42px] md:text-6xl xl:text-[72px] font-black leading-[1.05] text-foreground mb-2 animate-fade-up delay-200">
               Comfort
             </h1>
-            <p className="text-2xl md:text-4xl font-script text-primary italic mb-4 md:mb-5 leading-snug">
+            <p className="text-2xl md:text-4xl font-script text-primary italic mb-4 md:mb-5 leading-snug animate-fade-up delay-300">
               Live Beautifully
             </p>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-7 md:mb-8 max-w-[380px]">
+            <p className="text-sm text-muted-foreground leading-relaxed mb-7 md:mb-8 max-w-[380px] animate-fade-in delay-400">
               Discover premium quality furniture that combines elegance, comfort and functionality.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-3 animate-fade-up delay-500">
               <Link
                 href="/products"
                 className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors shadow-md w-full sm:w-auto"
@@ -258,7 +259,7 @@ export default async function HomePage() {
         </div>
 
         {/* Hero image — right side, edge-to-edge (desktop only) */}
-        <div className="absolute inset-y-0 right-0 hidden lg:block w-[58%]">
+        <div className="absolute inset-y-0 right-0 hidden lg:block w-[58%] animate-fade-in delay-0">
           <Image
             src="/hero_bg.webp"
             alt="Modern living room with premium furniture"
@@ -274,8 +275,8 @@ export default async function HomePage() {
       <section className="bg-white border-y border-border py-6 md:py-8 shadow-sm">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-4">
-            {FEATURES.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-center gap-3 md:gap-4">
+            {FEATURES.map(({ icon: Icon, title, sub }, i) => (
+              <AnimateIn key={title} variant="fade-up" delay={i * 80} className="flex items-center gap-3 md:gap-4">
                 <div className="w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center justify-center shrink-0">
                   <Icon className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                 </div>
@@ -283,7 +284,7 @@ export default async function HomePage() {
                   <p className="text-[12px] md:text-sm font-bold text-foreground leading-tight">{title}</p>
                   <p className="text-[10px] md:text-xs text-muted-foreground mt-0.5 leading-snug">{sub}</p>
                 </div>
-              </div>
+              </AnimateIn>
             ))}
           </div>
         </div>
@@ -292,8 +293,12 @@ export default async function HomePage() {
       {/* ── Shop By Category ──────────────────────────────────────── */}
       <section className="py-10 md:py-16 bg-white">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <SectionHeading tag="BROWSE BY CATEGORY" title="Shop By Category" />
-          <CategorySlider categories={categories} />
+          <AnimateIn variant="fade-up">
+            <SectionHeading tag="BROWSE BY CATEGORY" title="Shop By Category" />
+          </AnimateIn>
+          <AnimateIn variant="fade-in" delay={150}>
+            <CategorySlider categories={categories} />
+          </AnimateIn>
         </div>
       </section>
 
@@ -303,7 +308,7 @@ export default async function HomePage() {
           <div className="grid md:grid-cols-2 gap-4 md:gap-6">
 
             {/* Dark card — Custom Furniture */}
-            <div className="relative rounded-2xl overflow-hidden bg-navy min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
+            <AnimateIn variant="slide-left" className="relative rounded-2xl overflow-hidden bg-navy min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
               <div className="relative z-10 max-w-[260px]">
                 <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">
                   — CUSTOM FURNITURE
@@ -331,10 +336,10 @@ export default async function HomePage() {
                 />
                 <div className="absolute inset-y-0 left-0 w-32 bg-gradient-to-r from-navy to-transparent" />
               </div>
-            </div>
+            </AnimateIn>
 
             {/* Light card — Special Offer */}
-            <div className="relative rounded-2xl overflow-hidden bg-secondary min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
+            <AnimateIn variant="slide-right" delay={100} className="relative rounded-2xl overflow-hidden bg-secondary min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
               <div className="relative z-10 max-w-[calc(100%-5rem)] sm:max-w-[260px]">
                 <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">
                   — SPECIAL OFFER
@@ -367,7 +372,7 @@ export default async function HomePage() {
                 />
                 <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-secondary to-transparent" />
               </div>
-            </div>
+            </AnimateIn>
           </div>
         </div>
       </section>
@@ -375,22 +380,26 @@ export default async function HomePage() {
       {/* ── Popular Products ──────────────────────────────────────── */}
       <section className="py-4 pb-14 md:pb-20 bg-white">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <SectionHeading tag="TRENDING PRODUCTS" title="Popular Picks For You" />
+          <AnimateIn variant="fade-up">
+            <SectionHeading tag="TRENDING PRODUCTS" title="Popular Picks For You" />
+          </AnimateIn>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-            {trendingProducts.map((p) => (
-              <HomeTrendingProductCard key={p.id} product={p} isMember={isMember} />
+            {trendingProducts.map((p, i) => (
+              <AnimateIn key={p.id} variant="fade-up" delay={i * 80}>
+                <HomeTrendingProductCard product={p} isMember={isMember} />
+              </AnimateIn>
             ))}
           </div>
 
           {/* View all */}
-          <div className="text-center mt-10">
+          <AnimateIn variant="fade-in" className="text-center mt-10">
             <Link
               href="/products"
               className="inline-flex items-center gap-2 border-2 border-primary text-primary hover:bg-primary hover:text-white font-bold text-sm px-8 py-3.5 rounded transition-colors"
             >
               VIEW ALL PRODUCTS <ArrowRight className="h-4 w-4" />
             </Link>
-          </div>
+          </AnimateIn>
         </div>
       </section>
 
@@ -398,8 +407,8 @@ export default async function HomePage() {
       <section className="bg-slate-100 py-6 md:py-8 border-t border-slate-200">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {TRUST.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-center gap-3.5">
+            {TRUST.map(({ icon: Icon, title, sub }, i) => (
+              <AnimateIn key={title} variant="fade-up" delay={i * 80} className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-full border border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
                   <Icon className="h-5 w-5 text-primary" />
                 </div>
@@ -407,7 +416,7 @@ export default async function HomePage() {
                   <p className="text-sm font-bold text-slate-800 leading-tight">{title}</p>
                   <p className="text-xs text-slate-500 mt-0.5 leading-snug">{sub}</p>
                 </div>
-              </div>
+              </AnimateIn>
             ))}
           </div>
         </div>
