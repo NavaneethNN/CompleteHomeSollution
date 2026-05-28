@@ -41,6 +41,7 @@ const ORDER_STATUS_CONFIG: Record<
   string,
   { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline"; className: string }
 > = {
+  PENDING:          { label: "Pending",          icon: Clock,          variant: "outline",     className: "border-amber-300 text-amber-700 bg-amber-50" },
   PAID:             { label: "Paid",             icon: CreditCard,     variant: "outline",     className: "border-blue-300 text-blue-700 bg-blue-50" },
   PROCESSING:       { label: "Processing",       icon: Package,        variant: "outline",     className: "border-indigo-300 text-indigo-700 bg-indigo-50" },
   SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "outline",     className: "border-purple-300 text-purple-700 bg-purple-50" },
@@ -303,7 +304,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                   </tr>
                 ) : (
                   orders.map((order) => {
-                    const StatusConfig = ORDER_STATUS_CONFIG[order.status] ?? ORDER_STATUS_CONFIG.PENDING;
+                    const StatusConfig = ORDER_STATUS_CONFIG[order.status] ?? ORDER_STATUS_CONFIG.PAID;
                     const StatusIcon = StatusConfig.icon;
                     const isTerminal = ["CANCELLED", "REFUNDED"].includes(order.status);
                     const hasRefundRequest = order.refundRequested && order.status !== "REFUNDED";
