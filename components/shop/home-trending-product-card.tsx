@@ -3,8 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState as useStateHook } from "react";
-import { useRouter } from "next/navigation";
-import { Check, ShoppingCart, Zap } from "lucide-react";
+import { Check, ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import { cn } from "@/lib/utils";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
@@ -32,7 +31,6 @@ interface HomeTrendingProductCardProps {
 }
 
 export function HomeTrendingProductCard({ product, isMember = false }: HomeTrendingProductCardProps) {
-  const router = useRouter();
   const [mounted, setMounted] = useStateHook(false);
   useEffect(() => { setMounted(true); }, []);
   const isInCartRaw = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
@@ -63,31 +61,6 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
     );
   };
 
-  const handleBuyNow = () => {
-    if (outOfStock) {
-      return;
-    }
-
-    addItem(
-      {
-        id: product.id,
-        name: product.name,
-        slug: product.slug,
-        sku: product.sku,
-        price: product.price,
-        memberPrice: product.memberPrice,
-        images: [product.img],
-        stock: product.stock,
-        description: product.description,
-        variantId: product.variantId ?? null,
-        variantLabel: product.variantLabel,
-      },
-      1
-    );
-
-    router.push("/checkout");
-  };
-
   let addToCartClassName = "bg-primary text-white hover:bg-primary/90 shadow-md";
   let addToCartLabel = "Add to Cart";
   let addToCartIcon: React.ReactNode = <ShoppingCart className="h-3.5 w-3.5" />;
@@ -103,10 +76,6 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
   } else if (product.hasVariants && !product.variantId) {
     addToCartLabel = "Choose Options";
   }
-
-  const buyNowClassName = outOfStock
-    ? "cursor-not-allowed border border-border bg-muted text-muted-foreground"
-    : "border border-primary bg-primary/10 text-primary hover:bg-primary hover:text-white";
 
   const wishlistProduct = {
     id: product.id,
@@ -126,7 +95,7 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
 
   return (
     <div className="group block h-full">
-      <div className="bg-white rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden h-full flex flex-col">
+      <div className="overflow-hidden h-full flex flex-col">
         <div className="relative aspect-square bg-secondary overflow-hidden">
           <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
           <Image
@@ -200,31 +169,18 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
             )}
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="mt-3">
             <button
               type="button"
               onClick={handleAddToCart}
               disabled={outOfStock}
               className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors",
+                "w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors",
                 addToCartClassName
               )}
             >
               {addToCartIcon}
               {addToCartLabel}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleBuyNow}
-              disabled={outOfStock}
-              className={cn(
-                "inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors",
-                buyNowClassName
-              )}
-            >
-              <Zap className="h-3.5 w-3.5" />
-              Buy Now
             </button>
           </div>
         </div>

@@ -334,28 +334,28 @@ export default async function HomePage() {
             </div>
 
             {/* Light card — Special Offer */}
-            <div className="relative rounded-2xl overflow-hidden bg-secondary min-h-[260px] flex items-center p-8 md:p-10">
-              <div className="relative z-10">
+            <div className="relative rounded-2xl overflow-hidden bg-secondary min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
+              <div className="relative z-10 max-w-[calc(100%-5rem)] sm:max-w-[260px]">
                 <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">
                   — SPECIAL OFFER
                 </p>
-                <h3 className="text-4xl font-black text-foreground leading-tight mb-1">
+                <h3 className="text-3xl md:text-4xl font-black text-foreground leading-tight mb-1">
                   Up to 30% Off
                 </h3>
-                <p className="text-base font-semibold text-foreground/70 mb-6">
+                <p className="text-sm md:text-base font-semibold text-foreground/70 mb-5">
                   on Selected Items
                 </p>
                 <Link
                   href="/products"
-                  className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-6 py-3.5 rounded transition-colors"
+                  className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-5 py-3 md:px-6 md:py-3.5 rounded transition-colors"
                 >
                   SHOP NOW
                 </Link>
               </div>
               {/* 30% OFF badge */}
-              <div className="absolute top-6 right-6 w-16 h-16 bg-primary rounded-full flex flex-col items-center justify-center text-white shadow-lg z-20">
-                <span className="text-lg font-black leading-none">30%</span>
-                <span className="text-[9px] font-bold tracking-widest">OFF</span>
+              <div className="absolute top-5 right-5 w-14 h-14 md:w-16 md:h-16 bg-primary rounded-full flex flex-col items-center justify-center text-white shadow-lg z-20">
+                <span className="text-base md:text-lg font-black leading-none">30%</span>
+                <span className="text-[8px] md:text-[9px] font-bold tracking-widest">OFF</span>
               </div>
               {/* Sideboard image */}
               <div className="absolute right-0 bottom-0 h-full w-[50%] hidden sm:block">

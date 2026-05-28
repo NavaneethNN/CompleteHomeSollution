@@ -576,7 +576,17 @@ export function Navbar() {
           ${mobileOpen ? "translate-x-0" : "translate-x-full"}`}
       >
         {/* Drawer header */}
-        <div className="flex items-center justify-end h-[72px] px-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between h-[72px] px-4 border-b border-border shrink-0">
+          <Link href="/" onClick={() => setMobileOpen(false)} aria-label="Home">
+            <Image
+              src="/chs-logo.png"
+              alt="Complete Home Sollution"
+              width={180}
+              height={55}
+              className="h-10 w-auto object-contain"
+              style={{ width: "auto" }}
+            />
+          </Link>
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
@@ -725,17 +735,6 @@ export function Navbar() {
             </div>
           )}
         </nav>
-
-        <div className="shrink-0 flex justify-center px-4 py-5">
-          <Image
-            src="/Chs-logo.png"
-            alt="Complete Home Sollution"
-            width={360}
-            height={110}
-            className="h-[110px] w-auto object-contain"
-            style={{ width: "auto" }}
-          />
-        </div>
 
         {/* Drawer footer */}
         <div className="shrink-0 px-5 py-4 border-t border-border bg-secondary/40">
