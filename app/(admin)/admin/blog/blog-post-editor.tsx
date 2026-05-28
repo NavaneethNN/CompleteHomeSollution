@@ -155,7 +155,7 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
     }
     setSaving(true);
     try {
-      const status = publish ? "PUBLISHED" : formData.status;
+      const status = publish ? "PUBLISHED" : "DRAFT";
       const payload = {
         ...formData,
         status,
@@ -222,7 +222,7 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
             size="sm"
           >
             <Save className="h-4 w-4 mr-2" />
-            {saving ? "Saving..." : "Save Draft"}
+            {saving ? "Saving..." : formData.status === "PUBLISHED" ? "Save as Draft" : "Save Draft"}
           </Button>
           <Button
             onClick={() => handleSave(true)}
