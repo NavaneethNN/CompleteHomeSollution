@@ -17,17 +17,16 @@ import {
   Bookmark, 
   ChevronLeft,
   User,
-  Facebook,
-  Twitter,
-  Instagram,
-  Youtube,
+  Globe,
+  MessageCircle,
+  Camera,
+  Play,
   Lock,
   Crown
 } from "lucide-react";
 import BlogRelatedPosts from "@/components/blog/blog-related-posts";
 import BlogSocialShare from "@/components/blog/blog-social-share";
 import BlogLikeButton from "@/components/blog/blog-like-button";
-import { formatDistanceToNow } from "date-fns";
 
 // Helper function to calculate reading time
 function calculateReadingTime(content: string): number {
@@ -207,7 +206,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
     );
   }
 
-  const relatedPosts = await getRelatedPosts(post.id, post.categoryId);
+  const relatedPosts = await getRelatedPosts(post.id, post.categoryId ?? undefined);
   const publishDate = post.publishedAt || post.createdAt;
 
   return (
@@ -377,16 +376,16 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                 <div className="flex gap-3">
                   {/* Parse social links from JSON and display icons */}
                   <Button variant="outline" size="sm">
-                    <Facebook className="h-4 w-4" />
+                    <Globe className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm">
-                    <Twitter className="h-4 w-4" />
+                    <MessageCircle className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm">
-                    <Instagram className="h-4 w-4" />
+                    <Camera className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" size="sm">
-                    <Youtube className="h-4 w-4" />
+                    <Play className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>

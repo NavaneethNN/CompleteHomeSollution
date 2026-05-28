@@ -58,6 +58,8 @@ async function getOrder(id: string) {
       shippingCost: true,
       tax: true,
       stripePaymentId: true,
+      trackingNumber: true,
+      carrier: true,
       refundRequested: true,
       refundReason: true,
       refundAmount: true,

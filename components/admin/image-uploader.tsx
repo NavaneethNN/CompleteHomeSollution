@@ -298,6 +298,7 @@ export function ImageUploader({
               className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
             >
               {/* Image */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={url} alt="" className="h-full w-full object-cover" />
 
               {/* First image badge */}

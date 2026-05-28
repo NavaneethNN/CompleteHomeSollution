@@ -24,6 +24,7 @@ function durationLabel(days: number) {
 
 function Avatar({ name, image }: { name: string | null; image: string | null }) {
   const initials = name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?";
+  // eslint-disable-next-line @next/next/no-img-element
   return image ? (
     <img src={image} alt={name ?? ""} referrerPolicy="no-referrer" className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-border" />
   ) : (

@@ -87,6 +87,7 @@ function VariantCard({
         {/* Thumbnail */}
         <div className="h-10 w-10 shrink-0 rounded-md overflow-hidden border border-slate-200 bg-white flex items-center justify-center">
           {hasImages ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img src={effectiveImages[0]} alt="" className="h-full w-full object-cover" />
           ) : (
             <Package className="h-5 w-5 text-slate-300" />

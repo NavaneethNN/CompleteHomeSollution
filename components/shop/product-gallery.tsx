@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface ProductGalleryProps {
@@ -23,10 +24,13 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
     <div className="space-y-2.5">
       {/* Main Image */}
       <div className="relative w-full bg-muted rounded-lg overflow-hidden" style={{ aspectRatio: "1/1", maxHeight: "420px" }}>
-        <img
+        <Image
           src={images[selectedIndex]}
           alt={`${productName} - Image ${selectedIndex + 1}`}
-          className="h-full w-full object-cover"
+          fill
+          className="object-cover"
+          sizes="(max-width: 768px) 100vw, 480px"
+          priority
         />
       </div>
 
@@ -45,10 +49,12 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
               )}
               aria-label={`View image ${index + 1}`}
             >
-              <img
+              <Image
                 src={image}
                 alt={`${productName} thumbnail ${index + 1}`}
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
+                sizes="56px"
               />
             </button>
           ))}

@@ -256,8 +256,8 @@ function ImageLightbox({ images, startAt, onClose }: { images: string[]; startAt
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
       onClick={onClose}
     >
-      <div className="relative max-w-3xl w-full max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
-        <img src={images[idx]} alt="" className="w-full h-full max-h-[80vh] object-contain rounded-xl" />
+      <div className="relative max-w-3xl w-full h-[75vh]" onClick={(e) => e.stopPropagation()}>
+        <Image src={images[idx]} alt="" fill className="object-contain rounded-xl" sizes="(max-width: 768px) 100vw, 768px" />
         <button
           onClick={onClose}
           className="absolute top-2 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
@@ -393,7 +393,7 @@ export function ProductReviews({ productId, reviews: initialReviews, reviewCount
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-semibold text-primary text-sm shrink-0">
                   {review.user.image ? (
-                    <img src={review.user.image} alt="" className="w-full h-full rounded-full object-cover" />
+                    <Image src={review.user.image} alt="" width={36} height={36} className="w-full h-full rounded-full object-cover" />
                   ) : (
                     review.user.name?.charAt(0).toUpperCase() ?? "A"
                   )}

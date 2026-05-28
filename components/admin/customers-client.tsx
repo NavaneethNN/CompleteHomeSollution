@@ -32,6 +32,7 @@ const ORDER_STATUS_COLOURS: Record<string, string> = {
 function Avatar({ name, image, size = "md" }: { name: string | null; image: string | null; size?: "sm" | "md" | "lg" }) {
   const sz = size === "lg" ? "h-14 w-14 text-xl" : size === "sm" ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm";
   const initials = name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?";
+  // eslint-disable-next-line @next/next/no-img-element
   return image ? (
     <img src={image} alt={name ?? ""} referrerPolicy="no-referrer" className={`${sz} rounded-full object-cover shrink-0 ring-2 ring-border`} />
   ) : (

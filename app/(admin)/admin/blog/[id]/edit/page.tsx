@@ -65,7 +65,7 @@ export default async function EditBlogPostPage({ params }: EditBlogPostPageProps
         categories={categories}
         tags={tags}
         mode="edit"
-        initialData={post}
+        initialData={post ? { ...post, publishedAt: post.publishedAt instanceof Date ? post.publishedAt.toISOString() : post.publishedAt } : undefined}
       />
     </div>
   );

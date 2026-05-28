@@ -381,6 +381,7 @@ export function Navbar() {
                         >
                           <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0">
                             {item.images[0]
+                              // eslint-disable-next-line @next/next/no-img-element
                               ? <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
                               : <div className="w-full h-full flex items-center justify-center"><Package className="h-4 w-4 text-slate-300" /></div>
                             }
@@ -453,7 +454,7 @@ export function Navbar() {
                   ${userOpen ? "ring-2 ring-primary ring-offset-1" : "hover:ring-2 hover:ring-primary/40 hover:ring-offset-1"}`}
               >
                 {user?.image ? (
-                  <img src={user.image} alt={user.name ?? "Account"} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
+                  <Image src={user.image} alt={user.name ?? "Account"} width={32} height={32} className="w-full h-full object-cover rounded-full" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center">
                     {user?.name ? (
@@ -474,7 +475,7 @@ export function Navbar() {
                     <>
                       <div className="px-5 py-4 bg-secondary/60 border-b border-border flex items-center gap-3">
                         {user?.image ? (
-                          <img src={user.image} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />
+                          <Image src={user.image} alt="" width={36} height={36} className="w-9 h-9 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />
                         ) : (
                           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0">
                             <span className="text-sm font-bold text-white">{user?.name?.charAt(0)?.toUpperCase() ?? "U"}</span>

@@ -70,7 +70,7 @@ async function getCategories() {
 }
 
 interface BlogPageProps {
-  searchParams: { search?: string; category?: string };
+  searchParams: Promise<{ search?: string; category?: string }>;
 }
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
