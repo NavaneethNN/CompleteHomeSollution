@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     }
 
     const priceCents = Math.round(plan.price * 100);
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
     const stripe = getStripe();
 
     const checkoutSession = await stripe.checkout.sessions.create({

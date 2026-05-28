@@ -279,7 +279,7 @@ export async function POST(req: NextRequest) {
       session?.user?.email || input.guestEmail || undefined;
 
     // Security: use server-configured URL, never trust client-supplied origin header
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
     const checkoutSession = await createCheckoutSession({
       lineItems,
       orderId: order.id,
