@@ -99,6 +99,7 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
   const [imageAlt, setImageAlt] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [, forceUpdate] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const editor = useEditor({
@@ -128,6 +129,10 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
     },
     onUpdate({ editor }) {
       onChange(editor.getHTML());
+      forceUpdate(n => n + 1);
+    },
+    onSelectionUpdate() {
+      forceUpdate(n => n + 1);
     },
   });
 
@@ -197,11 +202,28 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
       alert("Invalid YouTube URL. Please use a youtube.com/watch or youtu.be link.");
       return;
     }
-    const embedHtml = `<div class="yt-embed my-4" data-yt-id="${id}"><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener noreferrer" class="block relative rounded-xl overflow-hidden border border-slate-200 no-underline group"><img src="https://img.youtube.com/vi/${id}/hqdefault.jpg" alt="YouTube video" class="w-full aspect-video object-cover m-0" /><div class="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors"><div class="w-14 h-14 bg-red-600 rounded-full flex items-center justify-center shadow-lg"><svg viewBox="0 0 24 24" fill="white" class="w-6 h-6 ml-1"><path d="M8 5v14l11-7z"/></svg></div></div></a></div>`;
+    const embedHtml = `<div class="yt-embed" data-yt-id="${id}" style="position:relative;margin:1rem 0;cursor:pointer;" title="Click to remove this video"><img src="https://img.youtube.com/vi/${id}/hqdefault.jpg" alt="YouTube video" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:0.75rem;border:2px solid #e2e8f0;display:block;" /><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);border-radius:0.75rem;pointer-events:none;"><div style="width:3.5rem;height:3.5rem;background:#dc2626;border-radius:9999px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.4);"><svg viewBox="0 0 24 24" fill="white" style="width:1.5rem;height:1.5rem;margin-left:3px;"><path d="M8 5v14l11-7z"/></svg></div></div><div style="position:absolute;top:8px;right:8px;background:#dc2626;color:white;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;pointer-events:none;">✕ Click to remove</div></div>`;
     editor.chain().focus().insertContent(embedHtml).run();
     setModal(null);
     setYoutubeUrl("");
   };
+
+  // Handle clicks inside the editor content (for yt-embed delete)
+  const handleEditorClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const ytDiv = target.closest(".yt-embed") as HTMLElement | null;
+    if (!ytDiv) return;
+    if (window.confirm("Remove this YouTube video?")) {
+      // Find and remove the outer yt-embed div from editor HTML
+      const currentHtml = editor?.getHTML() ?? "";
+      const cleaned = currentHtml.replace(
+        new RegExp(`<div[^>]*class="yt-embed[^"]*"[^>]*data-yt-id="${ytDiv.dataset.ytId}"[^>]*>[\\s\\S]*?<\/div>`, "g"),
+        ""
+      );
+      editor?.commands.setContent(cleaned);
+      onChange(cleaned);
+    }
+  }, [editor, onChange]);
 
   const closeModal = () => {
     setModal(null);
@@ -216,8 +238,8 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
 
   return (
     <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
-      {/* Toolbar */}
-      <div className="border-b border-slate-200 bg-slate-50 px-2 py-1.5 flex flex-wrap items-center gap-0.5">
+      {/* Toolbar — sticky so it stays visible while scrolling */}
+      <div className="sticky top-0 z-10 border-b border-slate-200 bg-slate-50 px-2 py-1.5 flex flex-wrap items-center gap-0.5 shadow-sm">
         <ToolbarButton onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} title="Undo (Ctrl+Z)">
           <Undo className="h-4 w-4" />
         </ToolbarButton>
@@ -296,7 +318,9 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
       </div>
 
       {/* Editor */}
-      <EditorContent editor={editor} />
+      <div onClick={handleEditorClick}>
+        <EditorContent editor={editor} />
+      </div>
 
       {/* Status bar */}
       <div className="border-t border-slate-100 px-4 py-1.5 flex items-center justify-between text-xs text-slate-400 bg-slate-50">
