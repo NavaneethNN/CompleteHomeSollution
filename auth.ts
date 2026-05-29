@@ -28,6 +28,11 @@ class RateLimitError extends CredentialsSignin {
   code = "RateLimited";
 }
 
+// Custom error for invalid credentials
+class InvalidCredentialsError extends CredentialsSignin {
+  code = "CredentialsSignin";
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   trustHost: true,
@@ -69,7 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user || !user.passwordHash) {
           // Record failed attempt even for non-existent users
           recordFailedAttempt(rateLimitKey);
-          return null;
+          throw new InvalidCredentialsError();
         }
 
         if (!user.emailVerified) throw new EmailNotVerifiedError();
@@ -78,7 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!valid) {
           // Record failed attempt for wrong password
           recordFailedAttempt(rateLimitKey);
-          return null;
+          throw new InvalidCredentialsError();
         }
 
         // Reset rate limit on successful login
