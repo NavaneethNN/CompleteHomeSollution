@@ -46,6 +46,7 @@ async function getBlogPosts(search?: string, category?: string) {
       author: { select: { id: true, name: true, image: true } },
       category: { select: { id: true, name: true, slug: true, color: true } },
       tags: { include: { tag: { select: { id: true, name: true, slug: true, color: true } } } },
+      _count: { select: { likes: true } },
     },
     orderBy: [
       { featured: "desc" },
@@ -57,6 +58,7 @@ async function getBlogPosts(search?: string, category?: string) {
   return posts.map(post => ({
     ...post,
     readTime: calculateReadingTime(post.content),
+    likeCount: post._count.likes,
   }));
 }
 

@@ -89,6 +89,13 @@ export async function POST(req: NextRequest) {
       addressId = address.id;
     }
 
+    // Fetch products early - needed for both coupon validation and line items
+    const productIds = [...new Set(input.items.map((i) => i.productId))];
+    const products = await db.product.findMany({
+      where: { id: { in: productIds }, isActive: true },
+      include: { productVariants: { where: { isActive: true } } },
+    });
+
     // Validate coupon server-side from database
     let coupon: any = null;
     let couponDiscount = 0;
@@ -219,13 +226,6 @@ export async function POST(req: NextRequest) {
       });
       isMemberFromDb = currentUser?.isMember ?? false;
     }
-
-    // Fetch products and calculate prices — only active products/variants
-    const productIds = [...new Set(input.items.map((i) => i.productId))];
-    const products = await db.product.findMany({
-      where: { id: { in: productIds }, isActive: true },
-      include: { productVariants: { where: { isActive: true } } },
-    });
 
     let subtotal = 0;
     const lineItems: {

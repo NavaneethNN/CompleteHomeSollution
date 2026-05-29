@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Eye, Lock, User, ChevronRight } from "lucide-react";
+import { Calendar, Clock, Eye, Lock, User, ChevronRight, Heart } from "lucide-react";
 
 interface BlogPostCardProps {
   post: {
@@ -14,6 +14,7 @@ interface BlogPostCardProps {
     createdAt: Date;
     readTime: number | null;
     viewCount: number;
+    likeCount: number;
     author?: {
       id: string;
       name: string | null;
@@ -166,6 +167,12 @@ export default function BlogPostCard({ post, isMember, showLockIcon }: BlogPostC
           <div className="flex items-center gap-1">
             <Eye className="h-3 w-3" />
             <span>{post.viewCount}</span>
+          </div>
+
+          {/* Likes */}
+          <div className="flex items-center gap-1">
+            <Heart className="h-3 w-3" />
+            <span>{post.likeCount}</span>
           </div>
         </div>
 

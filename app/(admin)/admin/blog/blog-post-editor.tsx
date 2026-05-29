@@ -185,7 +185,11 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
 
       if (mode === "create") {
         toast.success(`Post ${publish ? "published" : "saved"} successfully!`);
-        router.push(`/admin/blog/${savedPost.id}/edit`);
+        if (publish) {
+          router.push("/admin/blog");
+        } else {
+          router.push(`/admin/blog/${savedPost.id}/edit`);
+        }
       } else {
         setFormData(prev => ({
           ...prev,
@@ -194,6 +198,10 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
           slug: savedPost.slug,
         }));
         toast.success(`Post ${publish ? "published" : "updated"} successfully!`);
+        // Redirect to blog listing after publishing from edit mode
+        if (publish && savedPost.status === "PUBLISHED") {
+          router.push("/admin/blog");
+        }
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to save post");
