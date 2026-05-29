@@ -40,8 +40,23 @@ export function getPublicUrl(key: string): string {
   if (base) {
     return `${base.replace(/\/$/, "")}/${key}`;
   }
+  
+  // Log warning in production if R2_PUBLIC_URL is not set
+  if (process.env.NODE_ENV === "production") {
+    console.warn("[R2] R2_PUBLIC_URL environment variable is not set. Images may not display correctly.");
+  }
+  
   // Fallback: use the R2 storage endpoint directly (works if bucket is public)
-  return `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET_NAME}/${key}`;
+  // This requires the R2 bucket to have public access enabled
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const bucketName = process.env.R2_BUCKET_NAME;
+  
+  if (!accountId || !bucketName) {
+    console.error("[R2] Missing R2_ACCOUNT_ID or R2_BUCKET_NAME environment variables");
+    return "";
+  }
+  
+  return `https://${accountId}.r2.cloudflarestorage.com/${bucketName}/${key}`;
 }
 
 export function generateImageKey(folder: string, filename: string): string {

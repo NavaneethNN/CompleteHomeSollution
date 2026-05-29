@@ -131,6 +131,23 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Coupon usage limit reached" }, { status: 400 });
       }
 
+      // Check per-user limit (only for authenticated users)
+      if (coupon.perUserLimit && session?.user?.id) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const userUsageCount = await (db as any).userCoupon.count({
+          where: {
+            userId: session.user.id,
+            couponId: coupon.id,
+          },
+        });
+        if (userUsageCount >= coupon.perUserLimit) {
+          return NextResponse.json(
+            { error: `You have already used this coupon ${userUsageCount} time(s) (limit: ${coupon.perUserLimit})` },
+            { status: 400 }
+          );
+        }
+      }
+
       // Calculate applicable subtotal based on coupon type
       if (coupon.type === "PRODUCT") {
         const applicableProductIds = coupon.products.map((p: any) => p.productId);
@@ -398,12 +415,27 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Increment coupon usage count
+    // Increment coupon usage count and track per-user usage
     if (coupon) {
+      // Use transaction to prevent race conditions
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).coupon.update({
-        where: { id: coupon.id },
-        data: { usageCount: { increment: 1 } },
+      await (db as any).$transaction(async (tx: any) => {
+        // Increment total usage count
+        await tx.coupon.update({
+          where: { id: coupon.id },
+          data: { usageCount: { increment: 1 } },
+        });
+
+        // Track per-user usage (only for authenticated users)
+        if (session?.user?.id) {
+          await tx.userCoupon.create({
+            data: {
+              userId: session.user.id,
+              couponId: coupon.id,
+              orderId: order.id,
+            },
+          });
+        }
       });
     }
 

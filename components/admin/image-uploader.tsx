@@ -95,7 +95,13 @@ export function ImageUploader({
             throw new Error(err.error ?? `Server error ${res.status}`);
           }
 
-          const { publicUrl } = await res.json();
+          const { publicUrl, key } = await res.json();
+          
+          // Validate the public URL
+          if (!publicUrl) {
+            throw new Error("Server returned empty image URL. Check R2_PUBLIC_URL environment variable.");
+          }
+          
           uploadedUrls.push(publicUrl);
           setUploading((prev) =>
             prev.map((u, idx) => (idx === i ? { ...u, progress: "done" } : u))
@@ -299,7 +305,15 @@ export function ImageUploader({
             >
               {/* Image */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="h-full w-full object-cover" />
+              <img 
+                src={url} 
+                alt="" 
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  console.error(`[ImageUploader] Failed to load image: ${url}`);
+                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" text-anchor="middle" fill="%23999" font-size="12">Error</text></svg>';
+                }}
+              />
 
               {/* First image badge */}
               {index === 0 && (

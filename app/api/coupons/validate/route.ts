@@ -68,6 +68,24 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "This coupon has reached its usage limit" }, { status: 400 });
     }
 
+    // Check per-user limit (requires authentication)
+    const userId = searchParams.get("userId");
+    if (coupon.perUserLimit && userId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const userUsageCount = await (db as any).userCoupon.count({
+        where: {
+          userId: userId,
+          couponId: coupon.id,
+        },
+      });
+      if (userUsageCount >= coupon.perUserLimit) {
+        return NextResponse.json(
+          { error: `You have already used this coupon ${userUsageCount} time(s) (limit: ${coupon.perUserLimit})` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check minimum order amount
     if (coupon.minOrderAmount && subtotal < coupon.minOrderAmount) {
       return NextResponse.json(

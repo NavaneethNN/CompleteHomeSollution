@@ -78,6 +78,7 @@ interface CheckoutFormProps {
   readonly savedAddresses: Address[];
   readonly addressesError?: string;
   readonly isAuthenticated: boolean;
+  readonly userId?: string;
   readonly userProfile?: { name: string; phone: string };
   readonly isMember?: boolean;
   readonly memberPriceMap?: Record<string, number | null>;
@@ -96,7 +97,7 @@ interface ShippingRate {
   deliveryTime: string | null;
 }
 
-export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userProfile, isMember, memberPriceMap, activePlan }: CheckoutFormProps) {
+export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userId, userProfile, isMember, memberPriceMap, activePlan }: CheckoutFormProps) {
   const MEMBERSHIP_PRICE = activePlan?.price ?? 30;
   const membershipLabel = activePlan ? `${activePlan.name} (${activePlan.durationDays >= 365 ? `${Math.round(activePlan.durationDays / 365)}yr` : `${activePlan.durationDays}d`})` : "CHS Membership";
   const router = useRouter();
@@ -407,6 +408,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     params.set("code", couponCode.trim());
     params.set("subtotal", subtotal.toString());
     params.set("items", JSON.stringify(itemsForValidation));
+    if (userId) {
+      params.set("userId", userId);
+    }
 
     try {
       const res = await fetch(`/api/coupons/validate?${params.toString()}`);

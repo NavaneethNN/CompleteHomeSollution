@@ -59,9 +59,23 @@ export async function POST(req: NextRequest) {
     );
 
     const publicUrl = getPublicUrl(key);
+    
+    // Validate the public URL was generated
+    if (!publicUrl) {
+      return NextResponse.json(
+        { error: "Failed to generate public URL. Check R2 environment variables." },
+        { status: 500 }
+      );
+    }
+    
+    console.log(`[Upload] Successfully uploaded ${key} to ${publicUrl}`);
+    
     return NextResponse.json({ key, publicUrl });
   } catch (error) {
     console.error("[POST /api/upload]", error);
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Upload failed" },
+      { status: 500 }
+    );
   }
 }

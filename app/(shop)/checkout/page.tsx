@@ -66,6 +66,7 @@ export default async function CheckoutPage() {
           savedAddresses={addresses || []}
           addressesError={addressError}
           isAuthenticated={!!session}
+          userId={session?.user?.id}
           userProfile={userProfile}
           isMember={isMember}
           memberPriceMap={memberPriceMap}
