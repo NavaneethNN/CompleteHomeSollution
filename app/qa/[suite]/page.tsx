@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { SUITE_META, type Suite } from "@/lib/qa-test-data";
 import SuiteRunner from "./_components/suite-runner";
 
+export const dynamic = "force-dynamic"; // Always fetch fresh results from database
+
 const VALID_SUITES: Suite[] = [
   "login",
   "signup",
