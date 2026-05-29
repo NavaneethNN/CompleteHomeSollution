@@ -154,23 +154,30 @@ function LoginFormInner() {
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
 
-    const result = await signIn("credentials", {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    });
+    try {
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
 
-    if (!result?.ok) {
-      setServerError(
-        result?.error
+      console.log("[Login] signIn result:", result);
+
+      if (!result?.ok) {
+        const errorMessage = result?.error
           ? (AUTH_ERRORS[result.error] ?? AUTH_ERRORS.Default)
-          : AUTH_ERRORS.Default
-      );
-      return;
-    }
+          : AUTH_ERRORS.Default;
+        console.log("[Login] Setting error:", errorMessage);
+        setServerError(errorMessage);
+        return;
+      }
 
-    router.push(callbackUrl);
-    router.refresh();
+      router.push(callbackUrl);
+      router.refresh();
+    } catch (err) {
+      console.error("[Login] Unexpected error:", err);
+      setServerError("An unexpected error occurred. Please try again.");
+    }
   };
 
   /* ── Render ───────────────────────────────────────────────────────── */

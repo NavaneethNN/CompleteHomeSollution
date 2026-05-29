@@ -16,7 +16,11 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("[Upload] Starting upload request");
+    
     const session = await auth();
+    console.log("[Upload] Session:", session?.user?.id ? `User ${session.user.id}` : "No session");
+    
     // Allow authenticated users to upload images (for reviews, profile pictures)
     // Admins can upload for products
     if (!session?.user?.id) {
@@ -27,6 +31,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string | null) ?? "products";
+    
+    console.log(`[Upload] File: ${file?.name}, Folder: ${folder}, Admin: ${isAdmin}`);
     
     // Non-admin users can only upload to specific folders
     if (!isAdmin && !["reviews", "profile"].includes(folder)) {
@@ -46,8 +52,12 @@ export async function POST(req: NextRequest) {
     }
 
     const key = generateImageKey(folder, file.name);
+    console.log(`[Upload] Generated key: ${key}`);
+    
     const buffer = Buffer.from(await file.arrayBuffer());
+    console.log(`[Upload] Buffer size: ${buffer.length} bytes`);
 
+    console.log(`[Upload] Uploading to R2 bucket: ${process.env.R2_BUCKET_NAME}`);
     await r2.send(
       new PutObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME!,
@@ -57,8 +67,10 @@ export async function POST(req: NextRequest) {
         ContentLength: buffer.length,
       })
     );
+    console.log(`[Upload] R2 upload successful`);
 
     const publicUrl = getPublicUrl(key);
+    console.log(`[Upload] Generated public URL: ${publicUrl}`);
     
     // Validate the public URL was generated
     if (!publicUrl) {
