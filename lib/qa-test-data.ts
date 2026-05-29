@@ -1,4 +1,4 @@
-export type Suite = "login" | "signup" | "profile";
+export type Suite = "login" | "signup" | "profile" | "products" | "cart" | "wishlist" | "checkout" | "orders" | "membership" | "admin-products" | "admin-orders" | "admin-customers" | "admin-coupons" | "blog";
 export type TestStatus = "PENDING" | "PASSED" | "FAILED";
 
 export interface TestCase {
@@ -11,237 +11,187 @@ export interface TestCase {
 }
 
 export const TEST_CASES: TestCase[] = [
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // AUTHENTICATION & USER MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════════════════════
+
   // ─── LOGIN: Form Validation ──────────────────────────────────────────────────
-  { id: "L-001", suite: "login", category: "Form Validation", description: "Empty email submission", steps: "Leave email field blank, enter password, click \"Sign In\"", expected: "Email validation error: \"Email is required\"" },
-  { id: "L-002", suite: "login", category: "Form Validation", description: "Empty password submission", steps: "Enter valid email, leave password blank, click \"Sign In\"", expected: "Password validation error: \"Password is required\"" },
-  { id: "L-003", suite: "login", category: "Form Validation", description: "Invalid email format", steps: "Enter \"invalid-email\" in email field, enter password, click \"Sign In\"", expected: "Email validation error: \"Invalid email address\"" },
-  { id: "L-004", suite: "login", category: "Form Validation", description: "Short password (<1 char)", steps: "Enter valid email, enter password with <1 character, click \"Sign In\"", expected: "Password validation error: \"Password is required\"" },
-  { id: "L-005", suite: "login", category: "Form Validation", description: "Whitespace-only email", steps: "Enter \"   \" in email field, enter password, click \"Sign In\"", expected: "Email validation error: \"Invalid email address\"" },
-  { id: "L-006", suite: "login", category: "Form Validation", description: "Whitespace-only password", steps: "Enter valid email, enter \"   \" in password, click \"Sign In\"", expected: "Password validation error: \"Password is required\"" },
-  { id: "L-007", suite: "login", category: "Form Validation", description: "Special characters in email", steps: "Enter \"test+tag@example.com\" in email, valid password, click \"Sign In\"", expected: "Email accepted (valid format)" },
-  { id: "L-008", suite: "login", category: "Form Validation", description: "Very long email (100+ chars)", steps: "Enter 100+ character email, valid password, click \"Sign In\"", expected: "Email accepted if valid format" },
-  { id: "L-009", suite: "login", category: "Form Validation", description: "Very long password (200+ chars)", steps: "Enter valid email, enter 200+ character password, click \"Sign In\"", expected: "Password accepted (no max length enforced)" },
+  { id: "L-001", suite: "login", category: "Form Validation", description: "Empty email submission", steps: "Leave email field blank, enter password, click \"Sign In\"", expected: "Email validation error displayed" },
+  { id: "L-002", suite: "login", category: "Form Validation", description: "Empty password submission", steps: "Enter valid email, leave password blank, click \"Sign In\"", expected: "Password validation error displayed" },
+  { id: "L-003", suite: "login", category: "Form Validation", description: "Invalid email format", steps: "Enter \"invalid-email\" in email field, enter password, click \"Sign In\"", expected: "Email format validation error" },
+  { id: "L-004", suite: "login", category: "Form Validation", description: "Whitespace-only email", steps: "Enter \"   \" in email field, enter password, click \"Sign In\"", expected: "Email validation error for empty input" },
+  { id: "L-005", suite: "login", category: "Form Validation", description: "Whitespace-only password", steps: "Enter valid email, enter \"   \" in password, click \"Sign In\"", expected: "Password validation error" },
 
-  // ─── LOGIN: Email/Password ───────────────────────────────────────────────────
-  { id: "L-010", suite: "login", category: "Email/Password Login", description: "Successful login with correct credentials", steps: "Enter registered email and correct password, click \"Sign In\"", expected: "Redirect to /account/dashboard, navbar shows user avatar" },
-  { id: "L-011", suite: "login", category: "Email/Password Login", description: "Login with unregistered email", steps: "Enter unregistered email, any password, click \"Sign In\"", expected: "Error: \"Invalid email or password\"" },
-  { id: "L-012", suite: "login", category: "Email/Password Login", description: "Login with wrong password", steps: "Enter registered email, incorrect password, click \"Sign In\"", expected: "Error: \"Invalid email or password\"" },
-  { id: "L-013", suite: "login", category: "Email/Password Login", description: "Case-insensitive email login", steps: "Enter registered email in different case (e.g., User@Example.com), correct password", expected: "Login should work (email comparison is case-insensitive)" },
-  { id: "L-014", suite: "login", category: "Email/Password Login", description: "Login with trailing/leading spaces in email", steps: "Enter \" user@example.com \" with spaces, correct password", expected: "Should trim spaces and login if email exists" },
-  { id: "L-015", suite: "login", category: "Email/Password Login", description: "Login with OAuth-only user (no password)", steps: "Enter OAuth-only email, any password, click \"Sign In\"", expected: "Error: \"Invalid email or password\" (no password set)" },
+  // ─── LOGIN: Authentication ───────────────────────────────────────────────────
+  { id: "L-010", suite: "login", category: "Authentication", description: "Successful login with email/password", steps: "Enter registered email and correct password, click \"Sign In\"", expected: "Redirect to /account/dashboard" },
+  { id: "L-011", suite: "login", category: "Authentication", description: "Login with unregistered email", steps: "Enter unregistered email, any password, click \"Sign In\"", expected: "Error: \"Invalid email or password\"" },
+  { id: "L-012", suite: "login", category: "Authentication", description: "Login with wrong password", steps: "Enter registered email, incorrect password, click \"Sign In\"", expected: "Error: \"Invalid email or password\"" },
+  { id: "L-013", suite: "login", category: "Authentication", description: "Google OAuth sign in", steps: "Click \"Continue with Google\", authorize with Google account", expected: "Redirect to /account/dashboard, user logged in" },
+  { id: "L-014", suite: "login", category: "Authentication", description: "Password visibility toggle", steps: "Click eye icon in password field", expected: "Password toggles between visible and hidden" },
+  { id: "L-015", suite: "login", category: "Authentication", description: "Redirect to signup page", steps: "Click \"Create account\" link", expected: "Redirect to /register" },
 
-  // ─── LOGIN: Google OAuth ─────────────────────────────────────────────────────
-  { id: "L-020", suite: "login", category: "Google OAuth", description: "Successful Google Sign In", steps: "Click \"Continue with Google\", authorize with Google account", expected: "Redirect to /account/dashboard, user logged in with Google profile" },
-  { id: "L-021", suite: "login", category: "Google OAuth", description: "Google Sign In with new account", steps: "Click \"Continue with Google\", authorize with new Google account not in DB", expected: "User created in DB with OAuth data, redirect to /account/dashboard" },
-  { id: "L-022", suite: "login", category: "Google OAuth", description: "Google Sign In with existing account", steps: "Click \"Continue with Google\", authorize with previously used Google account", expected: "Login to existing user account, redirect to /account/dashboard" },
-  { id: "L-023", suite: "login", category: "Google OAuth", description: "Google Sign In — user cancels authorization", steps: "Click \"Continue with Google\", click \"Cancel\" on Google consent screen", expected: "Redirect to /login with no error (or OAuthCancelled error)" },
-  { id: "L-024", suite: "login", category: "Google OAuth", description: "Google Sign In — user denies email permission", steps: "Click \"Continue with Google\", deny email permission on Google consent screen", expected: "Error: \"AccessDenied\" or similar OAuth error" },
-  { id: "L-025", suite: "login", category: "Google OAuth", description: "Google Sign In without Google session", steps: "Click \"Continue with Google\" when not logged into Google", expected: "Google login prompt appears, then OAuth flow proceeds" },
-  { id: "L-026", suite: "login", category: "Google OAuth", description: "Google Sign In with Google Workspace account", steps: "Click \"Continue with Google\", authorize with Google Workspace account", expected: "Should work if domain is allowed in Google Cloud Console" },
-  { id: "L-027", suite: "login", category: "Google OAuth", description: "Google Sign In with restricted domain", steps: "Click \"Continue with Google\", try to authorize with non-allowed domain", expected: "Error: \"AccessDenied\" or \"Unauthorized domain\"" },
-  { id: "L-028", suite: "login", category: "Google OAuth", description: "Google Sign In with multiple Google accounts", steps: "Click \"Continue with Google\", select one account from account chooser", expected: "OAuth flow proceeds with selected account" },
+  // ─── SIGNUP: Form Validation ───────────────────────────────────────────────
+  { id: "S-001", suite: "signup", category: "Form Validation", description: "Empty name field", steps: "Leave name blank, fill other fields, click \"Create Account\"", expected: "Name validation error" },
+  { id: "S-002", suite: "signup", category: "Form Validation", description: "Empty email field", steps: "Leave email blank, fill other fields, click \"Create Account\"", expected: "Email validation error" },
+  { id: "S-003", suite: "signup", category: "Form Validation", description: "Empty password field", steps: "Leave password blank, fill other fields, click \"Create Account\"", expected: "Password validation error" },
+  { id: "S-004", suite: "signup", category: "Form Validation", description: "Password confirmation mismatch", steps: "Enter different passwords in password and confirm fields", expected: "Password mismatch error" },
+  { id: "S-005", suite: "signup", category: "Form Validation", description: "Invalid email format", steps: "Enter \"invalid-email\" in email field", expected: "Email format validation error" },
+  { id: "S-006", suite: "signup", category: "Form Validation", description: "Weak password validation", steps: "Enter short/simple password", expected: "Password strength warning" },
+  { id: "S-007", suite: "signup", category: "Form Validation", description: "Terms not accepted", steps: "Fill all fields, leave terms unchecked, click \"Create Account\"", expected: "Terms acceptance required error" },
 
-  // ─── LOGIN: Error Handling ───────────────────────────────────────────────────
-  { id: "L-030", suite: "login", category: "Error Handling", description: "Network error during login", steps: "Disconnect network, enter credentials, click \"Sign In\"", expected: "Error: \"Something went wrong\" or network error message" },
-  { id: "L-031", suite: "login", category: "Error Handling", description: "Server error (500) during login", steps: "(Mock) Server returns 500 on login request", expected: "Error: \"Something went wrong\"" },
-  { id: "L-032", suite: "login", category: "Error Handling", description: "Google OAuth callback error", steps: "(Mock) Google returns error in callback", expected: "Error message displayed based on error code" },
-  { id: "L-033", suite: "login", category: "Error Handling", description: "Missing AUTH_SECRET env var", steps: "Set AUTH_SECRET to empty, restart dev server, try Google Sign In", expected: "Error: \"Configuration\" — AUTH_SECRET missing" },
-  { id: "L-034", suite: "login", category: "Error Handling", description: "Missing Google OAuth credentials", steps: "Unset AUTH_GOOGLE_ID or AUTH_GOOGLE_SECRET, restart dev server, try Google Sign In", expected: "Error: \"Google sign-in is not configured yet\"" },
-  { id: "L-035", suite: "login", category: "Error Handling", description: "Database connection error during login", steps: "(Mock) DB unavailable during login", expected: "Error: \"Something went wrong\" or database error message" },
-  { id: "L-036", suite: "login", category: "Error Handling", description: "Prisma schema mismatch (missing emailVerified)", steps: "Remove emailVerified from User schema, try Google Sign In", expected: "Error: \"Something went wrong\" (DB constraint error)" },
+  // ─── SIGNUP: Registration ────────────────────────────────────────────────────
+  { id: "S-010", suite: "signup", category: "Registration", description: "Successful registration", steps: "Enter valid name, email, strong password, confirm, check terms, click \"Create Account\"", expected: "Account created, redirect to /account/dashboard" },
+  { id: "S-011", suite: "signup", category: "Registration", description: "Duplicate email registration", steps: "Enter email that already exists in DB", expected: "Error: \"Email already registered\"" },
+  { id: "S-012", suite: "signup", category: "Registration", description: "Google OAuth registration", steps: "Click \"Continue with Google\", authorize with new account", expected: "User created, redirect to dashboard" },
+  { id: "S-013", suite: "signup", category: "Registration", description: "Password strength meter", steps: "Type password in password field", expected: "Strength meter updates in real-time" },
 
-  // ─── LOGIN: UI/UX ────────────────────────────────────────────────────────────
-  { id: "L-040", suite: "login", category: "UI / UX", description: "Password show/hide toggle", steps: "Click eye icon in password field", expected: "Password toggles between visible and hidden (••••)" },
-  { id: "L-041", suite: "login", category: "UI / UX", description: "\"Remember me\" checkbox", steps: "Check \"Remember me\", login, close browser, reopen", expected: "Session persists (if configured with cookie maxAge)" },
-  { id: "L-042", suite: "login", category: "UI / UX", description: "\"Forgot password?\" link", steps: "Click \"Forgot password?\" link", expected: "Redirect to password reset page (or show \"coming soon\" message)" },
-  { id: "L-043", suite: "login", category: "UI / UX", description: "\"Create account\" link", steps: "Click \"Create account\" link", expected: "Redirect to /register" },
-  { id: "L-044", suite: "login", category: "UI / UX", description: "Google button hover state", steps: "Hover over \"Continue with Google\" button", expected: "Visual hover effect (color change, shadow, etc.)" },
-  { id: "L-045", suite: "login", category: "UI / UX", description: "Submit button loading state", steps: "Click \"Sign In\" with valid credentials", expected: "Button shows loading spinner or disabled state during API call" },
-  { id: "L-046", suite: "login", category: "UI / UX", description: "Form reset on error", steps: "Submit with invalid credentials, then fix and submit again", expected: "Form submits correctly without page reload" },
-  { id: "L-047", suite: "login", category: "UI / UX", description: "Responsive design — mobile", steps: "View login page on mobile viewport", expected: "Layout adapts (stacked, full width, etc.)" },
-  { id: "L-048", suite: "login", category: "UI / UX", description: "Responsive design — tablet", steps: "View login page on tablet viewport", expected: "Layout adapts appropriately" },
-  { id: "L-049", suite: "login", category: "UI / UX", description: "Keyboard navigation (Tab)", steps: "Use Tab to navigate form fields", expected: "Focus moves logically through form" },
-  { id: "L-050", suite: "login", category: "UI / UX", description: "Enter key to submit", steps: "Enter email and password, press Enter", expected: "Form submits (same as clicking \"Sign In\")" },
+  // ─── PROFILE: User Profile ───────────────────────────────────────────────────
+  { id: "P-001", suite: "profile", category: "Profile Management", description: "View profile page", steps: "Login and navigate to /account/profile", expected: "Profile page loads with user data pre-filled" },
+  { id: "P-002", suite: "profile", category: "Profile Management", description: "Update name", steps: "Change name field, click Save Changes", expected: "Name updated successfully, success toast shown" },
+  { id: "P-003", suite: "profile", category: "Profile Management", description: "Update phone number", steps: "Add/change phone, click Save", expected: "Phone saved successfully" },
+  { id: "P-004", suite: "profile", category: "Profile Management", description: "Update profile image", steps: "Enter image URL, click Save", expected: "Image preview shown, saved to database" },
+  { id: "P-005", suite: "profile", category: "Profile Management", description: "Unauthenticated access blocked", steps: "Navigate to /account/profile while not logged in", expected: "Redirect to /login page" },
 
-  // ─── LOGIN: Security ─────────────────────────────────────────────────────────
-  { id: "L-060", suite: "login", category: "Security", description: "SQL injection attempt in email", steps: "Enter `' OR '1'='1` as email, any password, click \"Sign In\"", expected: "Login fails, no SQL injection vulnerability" },
-  { id: "L-061", suite: "login", category: "Security", description: "XSS attempt in email", steps: "Enter `<script>alert(1)</script>@example.com` as email", expected: "Input sanitized/escaped, no script execution" },
-  { id: "L-062", suite: "login", category: "Security", description: "Brute force protection", steps: "Attempt login with wrong password 5+ times in quick succession", expected: "Account locked or rate limited after threshold" },
-  { id: "L-063", suite: "login", category: "Security", description: "Session cookie — HttpOnly flag", steps: "Login, inspect browser cookies", expected: "Session cookie has HttpOnly flag" },
-  { id: "L-064", suite: "login", category: "Security", description: "Session cookie — Secure flag", steps: "Login over HTTPS, inspect cookies", expected: "Session cookie has Secure flag" },
-  { id: "L-065", suite: "login", category: "Security", description: "CSRF token validation", steps: "Submit login form without CSRF token", expected: "Request rejected" },
-  { id: "L-066", suite: "login", category: "Security", description: "Password hashing in DB", steps: "Check DB after user registration", expected: "Password is hashed, not stored in plain text" },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PRODUCTS & CATALOG
+  // ═══════════════════════════════════════════════════════════════════════════════
 
-  // ─── LOGIN: Redirect/Callback ────────────────────────────────────────────────
-  { id: "L-070", suite: "login", category: "Redirect / Callback", description: "Redirect after login with callbackUrl", steps: "Navigate to /account/orders (protected), redirect to /login, login", expected: "Redirect back to /account/orders after successful login" },
-  { id: "L-071", suite: "login", category: "Redirect / Callback", description: "Default redirect after login", steps: "Navigate to /login, login with no callbackUrl", expected: "Redirect to /account/dashboard (default)" },
-  { id: "L-072", suite: "login", category: "Redirect / Callback", description: "Redirect with invalid/external callbackUrl", steps: "Add ?callbackUrl=//evil.com to login URL, login", expected: "Should redirect to safe default, ignore external URL" },
-  { id: "L-073", suite: "login", category: "Redirect / Callback", description: "Google OAuth redirect mismatch", steps: "Change AUTH_URL to different port, try Google Sign In", expected: "Error: \"Configuration\" or redirect_uri mismatch" },
+  // ─── PRODUCTS: Browse & Search ───────────────────────────────────────────────
+  { id: "PR-001", suite: "products", category: "Product Browsing", description: "View product list", steps: "Navigate to /shop or homepage", expected: "Products displayed with images, names, prices" },
+  { id: "PR-002", suite: "products", category: "Product Browsing", description: "Search products", steps: "Enter search term in search box, press Enter", expected: "Search results displayed matching query" },
+  { id: "PR-003", suite: "products", category: "Product Browsing", description: "Filter by category", steps: "Click on category link in navigation", expected: "Products filtered by selected category" },
+  { id: "PR-004", suite: "products", category: "Product Browsing", description: "View product details", steps: "Click on a product card", expected: "Product detail page with full info displayed" },
+  { id: "PR-005", suite: "products", category: "Product Browsing", description: "View product variants", steps: "Open product with variants, select different options", expected: "Price/stock updates based on variant selection" },
 
-  // ─── SIGNUP: Form Validation ─────────────────────────────────────────────────
-  { id: "S-001", suite: "signup", category: "Form Validation", description: "Empty name submission", steps: "Leave name blank, fill other fields, click \"Create Account\"", expected: "Validation error: \"Name is required\"" },
-  { id: "S-002", suite: "signup", category: "Form Validation", description: "Empty email submission", steps: "Leave email blank, fill other fields, click \"Create Account\"", expected: "Validation error: \"Email is required\"" },
-  { id: "S-003", suite: "signup", category: "Form Validation", description: "Empty password submission", steps: "Leave password blank, fill other fields, click \"Create Account\"", expected: "Validation error: \"Password is required\"" },
-  { id: "S-004", suite: "signup", category: "Form Validation", description: "Empty confirm password", steps: "Fill name, email, password, leave confirm blank, click \"Create Account\"", expected: "Validation error: \"Please confirm your password\"" },
-  { id: "S-005", suite: "signup", category: "Form Validation", description: "Invalid email format", steps: "Enter \"invalid-email\" in email field", expected: "Validation error: \"Invalid email address\"" },
-  { id: "S-006", suite: "signup", category: "Form Validation", description: "Weak password — too short (<8 chars)", steps: "Enter password with <8 characters", expected: "Password strength meter shows \"Weak\" or validation error" },
-  { id: "S-007", suite: "signup", category: "Form Validation", description: "Weak password — no uppercase", steps: "Enter password with only lowercase letters", expected: "Password strength meter shows \"Weak\"" },
-  { id: "S-008", suite: "signup", category: "Form Validation", description: "Weak password — no lowercase", steps: "Enter password with only uppercase letters", expected: "Password strength meter shows \"Weak\"" },
-  { id: "S-009", suite: "signup", category: "Form Validation", description: "Weak password — no number", steps: "Enter password with only letters", expected: "Password strength meter shows \"Weak\"" },
-  { id: "S-010", suite: "signup", category: "Form Validation", description: "Weak password — no special character", steps: "Enter password with only letters and numbers", expected: "Password strength meter shows \"Weak\"" },
-  { id: "S-011", suite: "signup", category: "Form Validation", description: "Strong password", steps: "Enter password with uppercase, lowercase, number, special char, 8+ chars", expected: "Password strength meter shows \"Strong\"" },
-  { id: "S-012", suite: "signup", category: "Form Validation", description: "Passwords do not match", steps: "Enter different passwords in password and confirm fields", expected: "Validation error: \"Passwords do not match\"" },
-  { id: "S-013", suite: "signup", category: "Form Validation", description: "Terms checkbox unchecked", steps: "Fill all fields, leave terms checkbox unchecked, click \"Create Account\"", expected: "Validation error: \"You must agree to the terms\"" },
-  { id: "S-014", suite: "signup", category: "Form Validation", description: "Very long name (100+ chars)", steps: "Enter 100+ character name", expected: "Should accept or show max length error" },
-  { id: "S-015", suite: "signup", category: "Form Validation", description: "Name with special/unicode characters", steps: "Enter name with accents or special chars (e.g., \"José María\")", expected: "Should accept valid Unicode characters" },
+  // ─── PRODUCTS: Reviews ───────────────────────────────────────────────────────
+  { id: "PR-010", suite: "products", category: "Product Reviews", description: "View product reviews", steps: "Scroll to reviews section on product page", expected: "Existing reviews displayed with ratings" },
+  { id: "PR-011", suite: "products", category: "Product Reviews", description: "Submit review (authenticated)", steps: "Login, write review, add rating, click Submit", expected: "Review submitted and displayed" },
+  { id: "PR-012", suite: "products", category: "Product Reviews", description: "Submit review (unauthenticated)", steps: "Try to submit review without logging in", expected: "Login prompt or error shown" },
+  { id: "PR-013", suite: "products", category: "Product Reviews", description: "Review with images", steps: "Submit review with uploaded images", expected: "Images displayed in review" },
 
-  // ─── SIGNUP: Email/Password Registration ────────────────────────────────────
-  { id: "S-020", suite: "signup", category: "Email/Password Registration", description: "Successful registration with valid data", steps: "Enter valid name, email, strong password, confirm, check terms, click \"Create Account\"", expected: "Account created, success message, redirect to /account/dashboard" },
-  { id: "S-021", suite: "signup", category: "Email/Password Registration", description: "Registration with already registered email", steps: "Enter email that already exists in DB", expected: "Error: \"Email already registered\"" },
-  { id: "S-022", suite: "signup", category: "Email/Password Registration", description: "Case-variant of existing email", steps: "Enter existing email with different case (e.g., User@Example.com vs user@example.com)", expected: "Error: \"Email already registered\" (case-insensitive check)" },
-  { id: "S-023", suite: "signup", category: "Email/Password Registration", description: "Trailing/leading spaces in email", steps: "Enter \" user@example.com \" with spaces", expected: "Should trim and check if email exists" },
-  { id: "S-024", suite: "signup", category: "Email/Password Registration", description: "Password hashing verification", steps: "Register new user, check DB", expected: "Password is hashed, not stored in plain text" },
-  { id: "S-025", suite: "signup", category: "Email/Password Registration", description: "User role default", steps: "Register new user, check DB", expected: "User role defaults to \"CUSTOMER\"" },
-  { id: "S-026", suite: "signup", category: "Email/Password Registration", description: "isMember default", steps: "Register new user, check DB", expected: "isMember defaults to false" },
-  { id: "S-027", suite: "signup", category: "Email/Password Registration", description: "emailVerified default", steps: "Register new user, check DB", expected: "emailVerified is null (not verified)" },
+  // ─── PRODUCTS: Wishlist ──────────────────────────────────────────────────────
+  { id: "W-001", suite: "wishlist", category: "Wishlist", description: "Add to wishlist", steps: "Click heart icon on product", expected: "Product added to wishlist, heart filled" },
+  { id: "W-002", suite: "wishlist", category: "Wishlist", description: "Remove from wishlist", steps: "Click filled heart icon on product", expected: "Product removed from wishlist" },
+  { id: "W-003", suite: "wishlist", category: "Wishlist", description: "View wishlist", steps: "Navigate to /shop/wishlist", expected: "Wishlist items displayed" },
+  { id: "W-004", suite: "wishlist", category: "Wishlist", description: "Add to cart from wishlist", steps: "Click \"Add to Cart\" on wishlist item", expected: "Item added to cart" },
+  { id: "W-005", suite: "wishlist", category: "Wishlist", description: "Wishlist persists after logout", steps: "Add to wishlist, logout, login again", expected: "Wishlist items still present" },
 
-  // ─── SIGNUP: Google OAuth Registration ──────────────────────────────────────
-  { id: "S-030", suite: "signup", category: "Google OAuth Registration", description: "Google Sign In with new account", steps: "Click \"Continue with Google\", authorize with new Google account not in DB", expected: "User created in DB with Google profile data, redirect to /account/dashboard" },
-  { id: "S-031", suite: "signup", category: "Google OAuth Registration", description: "Google Sign In links to existing email account", steps: "Register with email/password first, then Google Sign In with same email", expected: "Accounts should link (allowDangerousEmailAccountLinking: true)" },
-  { id: "S-032", suite: "signup", category: "Google OAuth Registration", description: "Name from Google profile", steps: "Authorize with Google account that has name", expected: "User name in DB matches Google profile name" },
-  { id: "S-033", suite: "signup", category: "Google OAuth Registration", description: "Email from Google profile", steps: "Authorize with Google account", expected: "User email in DB matches Google profile email" },
-  { id: "S-034", suite: "signup", category: "Google OAuth Registration", description: "Profile image from Google", steps: "Authorize with Google account that has profile photo", expected: "User image in DB stores Google profile photo URL" },
-  { id: "S-035", suite: "signup", category: "Google OAuth Registration", description: "Google Sign In without name in profile", steps: "Authorize with Google account that has no name set", expected: "User name should be derived from email or set to null" },
-  { id: "S-036", suite: "signup", category: "Google OAuth Registration", description: "Google Workspace account sign-in", steps: "Authorize with Google Workspace account", expected: "Should work if domain is allowed in Google Cloud Console" },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // CART & CHECKOUT
+  // ═══════════════════════════════════════════════════════════════════════════════
 
-  // ─── SIGNUP: Password Strength Meter ────────────────────────────────────────
-  { id: "S-040", suite: "signup", category: "Password Strength Meter", description: "Empty password", steps: "Clear password field", expected: "Strength meter shows \"Very Weak\" or empty" },
-  { id: "S-041", suite: "signup", category: "Password Strength Meter", description: "1-5 characters", steps: "Enter 5 character password", expected: "Strength meter shows \"Very Weak\"" },
-  { id: "S-042", suite: "signup", category: "Password Strength Meter", description: "6-7 characters", steps: "Enter 7 character password", expected: "Strength meter shows \"Weak\"" },
-  { id: "S-043", suite: "signup", category: "Password Strength Meter", description: "8+ chars, only lowercase", steps: "Enter 8 lowercase letters", expected: "Strength meter shows \"Weak\"" },
-  { id: "S-044", suite: "signup", category: "Password Strength Meter", description: "8+ chars, lowercase + uppercase", steps: "Enter 8 mixed case letters", expected: "Strength meter shows \"Medium\"" },
-  { id: "S-045", suite: "signup", category: "Password Strength Meter", description: "Mixed case + number", steps: "Enter password with letters and numbers", expected: "Strength meter shows \"Medium\" or \"Strong\"" },
-  { id: "S-046", suite: "signup", category: "Password Strength Meter", description: "Full complexity password", steps: "Enter password with mixed case + number + special char", expected: "Strength meter shows \"Strong\"" },
-  { id: "S-047", suite: "signup", category: "Password Strength Meter", description: "Strength meter color coding", steps: "Enter passwords of varying strength", expected: "Color changes (red → yellow → green)" },
-  { id: "S-048", suite: "signup", category: "Password Strength Meter", description: "Real-time strength update", steps: "Type password character by character", expected: "Strength meter updates in real-time" },
+  // ─── CART: Cart Management ───────────────────────────────────────────────────
+  { id: "C-001", suite: "cart", category: "Cart", description: "Add product to cart", steps: "Click \"Add to Cart\" on product page", expected: "Product added, cart count updated" },
+  { id: "C-002", suite: "cart", category: "Cart", description: "Add variant to cart", steps: "Select variant options, click \"Add to Cart\"", expected: "Specific variant added to cart" },
+  { id: "C-003", suite: "cart", category: "Cart", description: "Update quantity", steps: "Change quantity in cart", expected: "Quantity updated, totals recalculated" },
+  { id: "C-004", suite: "cart", category: "Cart", description: "Remove from cart", steps: "Click remove button on cart item", expected: "Item removed from cart" },
+  { id: "C-005", suite: "cart", category: "Cart", description: "View cart", steps: "Navigate to /shop/cart", expected: "Cart items displayed with prices" },
+  { id: "C-006", suite: "cart", category: "Cart", description: "Member pricing in cart", steps: "Login as member, view cart", expected: "Member prices shown for applicable items" },
+  { id: "C-007", suite: "cart", category: "Cart", description: "Cart persists after refresh", steps: "Add items, refresh page", expected: "Cart items still present" },
+  { id: "C-008", suite: "cart", category: "Cart", description: "Empty cart state", steps: "Remove all items from cart", expected: "Empty cart message with continue shopping link" },
+  { id: "C-009", suite: "cart", category: "Cart", description: "Proceed to checkout", steps: "Click \"Proceed to Checkout\"", expected: "Redirect to checkout page" },
 
-  // ─── SIGNUP: Error Handling ──────────────────────────────────────────────────
-  { id: "S-050", suite: "signup", category: "Error Handling", description: "Network error during registration", steps: "Disconnect network, fill form, click \"Create Account\"", expected: "Error: \"Something went wrong\" or network error message" },
-  { id: "S-051", suite: "signup", category: "Error Handling", description: "Server error (500) during registration", steps: "(Mock) Server returns 500 on registration", expected: "Error: \"Something went wrong\"" },
-  { id: "S-052", suite: "signup", category: "Error Handling", description: "Database connection error", steps: "(Mock) DB unavailable during registration", expected: "Error: \"Something went wrong\" or database error message" },
-  { id: "S-053", suite: "signup", category: "Error Handling", description: "Duplicate key error (email)", steps: "Try to register with email that already exists", expected: "Error: \"Email already registered\"" },
-  { id: "S-054", suite: "signup", category: "Error Handling", description: "Prisma schema mismatch (missing passwordHash)", steps: "Remove passwordHash from User schema, try registration", expected: "Error: \"Something went wrong\" (DB constraint error)" },
-  { id: "S-055", suite: "signup", category: "Error Handling", description: "Google OAuth callback error", steps: "(Mock) Google returns error in callback", expected: "Error message displayed based on error code" },
+  // ─── CHECKOUT: Checkout Flow ───────────────────────────────────────────────────
+  { id: "CH-001", suite: "checkout", category: "Checkout", description: "View checkout page", steps: "Navigate to checkout with items in cart", expected: "Checkout form with order summary displayed" },
+  { id: "CH-002", suite: "checkout", category: "Checkout", description: "Add new address", steps: "Fill address form, click Save", expected: "Address saved and selected" },
+  { id: "CH-003", suite: "checkout", category: "Checkout", description: "Select saved address", steps: "Click on saved address card", expected: "Address selected, shipping rates fetched" },
+  { id: "CH-004", suite: "checkout", category: "Checkout", description: "Calculate shipping rates", steps: "Enter valid postcode", expected: "Australia Post shipping rates displayed" },
+  { id: "CH-005", suite: "checkout", category: "Checkout", description: "Apply coupon code", steps: "Enter valid coupon code, click Apply", expected: "Discount applied, total recalculated" },
+  { id: "CH-006", suite: "checkout", category: "Checkout", description: "Invalid coupon code", steps: "Enter invalid coupon code, click Apply", expected: "Error message: invalid coupon" },
+  { id: "CH-007", suite: "checkout", category: "Checkout", description: "Remove coupon", steps: "Click Remove on applied coupon", expected: "Discount removed, total updated" },
+  { id: "CH-008", suite: "checkout", category: "Checkout", description: "Member gets free shipping", steps: "Login as member, check shipping", expected: "Free shipping displayed" },
+  { id: "CH-009", suite: "checkout", category: "Checkout", description: "Add membership during checkout", steps: "Check \"Add Membership\" checkbox", expected: "Membership fee added to total" },
+  { id: "CH-010", suite: "checkout", category: "Checkout", description: "Place order", steps: "Fill all required fields, click Place Order", expected: "Redirect to Stripe checkout" },
+  { id: "CH-011", suite: "checkout", category: "Checkout", description: "Guest checkout", steps: "Checkout without logging in", expected: "Guest email field shown, order placed successfully" },
+  { id: "CH-012", suite: "checkout", category: "Checkout", description: "Validation errors", steps: "Submit with empty fields", expected: "Validation errors on required fields" },
 
-  // ─── SIGNUP: UI/UX ───────────────────────────────────────────────────────────
-  { id: "S-060", suite: "signup", category: "UI / UX", description: "Password show/hide toggle", steps: "Click eye icon in password field", expected: "Password toggles between visible and hidden" },
-  { id: "S-061", suite: "signup", category: "UI / UX", description: "Confirm password show/hide toggle", steps: "Click eye icon in confirm password field", expected: "Confirm password toggles between visible and hidden" },
-  { id: "S-062", suite: "signup", category: "UI / UX", description: "Terms checkbox interaction", steps: "Click terms checkbox", expected: "Checkbox toggles checked/unchecked state" },
-  { id: "S-063", suite: "signup", category: "UI / UX", description: "\"Already have an account?\" link", steps: "Click \"Sign in\" link", expected: "Redirect to /login" },
-  { id: "S-064", suite: "signup", category: "UI / UX", description: "Google button hover state", steps: "Hover over \"Continue with Google\" button", expected: "Visual hover effect" },
-  { id: "S-065", suite: "signup", category: "UI / UX", description: "Submit button loading state", steps: "Click \"Create Account\" with valid data", expected: "Button shows loading spinner or disabled state" },
-  { id: "S-066", suite: "signup", category: "UI / UX", description: "Form reset on error", steps: "Submit with existing email, then try new email", expected: "Form submits correctly without page reload" },
-  { id: "S-067", suite: "signup", category: "UI / UX", description: "Success animation", steps: "Complete registration successfully", expected: "Success message/animation displayed" },
-  { id: "S-068", suite: "signup", category: "UI / UX", description: "Responsive design — mobile", steps: "View signup page on mobile viewport", expected: "Layout adapts (stacked, full width)" },
-  { id: "S-069", suite: "signup", category: "UI / UX", description: "Responsive design — tablet", steps: "View signup page on tablet viewport", expected: "Layout adapts appropriately" },
-  { id: "S-070", suite: "signup", category: "UI / UX", description: "Keyboard navigation (Tab)", steps: "Use Tab to navigate form fields", expected: "Focus moves logically through form" },
-  { id: "S-071", suite: "signup", category: "UI / UX", description: "Enter key to submit", steps: "Enter all fields, press Enter", expected: "Form submits (same as clicking \"Create Account\")" },
-  { id: "S-072", suite: "signup", category: "UI / UX", description: "Terms link opens in new tab", steps: "Click \"Terms and Conditions\" link", expected: "Opens in new tab/window" },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // ORDERS & MEMBERSHIP
+  // ═══════════════════════════════════════════════════════════════════════════════
 
-  // ─── SIGNUP: Security ────────────────────────────────────────────────────────
-  { id: "S-080", suite: "signup", category: "Security", description: "SQL injection in email", steps: "Enter `' OR '1'='1` as email", expected: "Registration fails, no SQL injection" },
-  { id: "S-081", suite: "signup", category: "Security", description: "XSS in name field", steps: "Enter `<script>alert(1)</script>` as name", expected: "Input sanitized/escaped, no script execution" },
-  { id: "S-082", suite: "signup", category: "Security", description: "XSS in email field", steps: "Enter `<script>alert(1)</script>@example.com` as email", expected: "Input sanitized/escaped, no script execution" },
-  { id: "S-083", suite: "signup", category: "Security", description: "Password strength enforcement", steps: "Try to submit with weak password", expected: "Should be rejected or show warning" },
-  { id: "S-084", suite: "signup", category: "Security", description: "Email verification default state", steps: "Register, check DB", expected: "emailVerified should be null until verified" },
-  { id: "S-085", suite: "signup", category: "Security", description: "Rate limiting on registration", steps: "Attempt registration with same email multiple times quickly", expected: "Rate limit after threshold" },
-  { id: "S-086", suite: "signup", category: "Security", description: "CSRF token validation", steps: "Submit form without CSRF token", expected: "Request rejected" },
+  // ─── ORDERS: Order Management ────────────────────────────────────────────────
+  { id: "O-001", suite: "orders", category: "Orders", description: "View order history", steps: "Navigate to /account/orders", expected: "List of orders with status displayed" },
+  { id: "O-002", suite: "orders", category: "Orders", description: "View order details", steps: "Click on an order", expected: "Order details page with items, totals, status" },
+  { id: "O-003", suite: "orders", category: "Orders", description: "Order confirmation page", steps: "Complete checkout, redirect to confirmation", expected: "Order summary displayed with thank you message" },
+  { id: "O-004", suite: "orders", category: "Orders", description: "Cancel order", steps: "Click Cancel Order on pending order", expected: "Order cancelled, confirmation shown" },
+  { id: "O-005", suite: "orders", category: "Orders", description: "Request refund", steps: "Click Request Refund on eligible order", expected: "Refund request submitted" },
+  { id: "O-006", suite: "orders", category: "Orders", description: "Track order status", steps: "View order details", expected: "Current status and tracking info displayed" },
+  { id: "O-007", suite: "orders", category: "Orders", description: "Order status notifications", steps: "Place order, wait for updates", expected: "Email/SMS notifications received" },
+  { id: "O-008", suite: "orders", category: "Orders", description: "Reorder items", steps: "Click \"Buy Again\" on past order", expected: "Items added to cart" },
 
-  // ─── SIGNUP: Redirect/Callback ───────────────────────────────────────────────
-  { id: "S-090", suite: "signup", category: "Redirect / Callback", description: "Redirect after registration", steps: "Register successfully", expected: "Redirect to /account/dashboard" },
-  { id: "S-091", suite: "signup", category: "Redirect / Callback", description: "Google OAuth redirect after registration", steps: "Register via Google Sign In", expected: "Redirect to /account/dashboard" },
-  { id: "S-092", suite: "signup", category: "Redirect / Callback", description: "Redirect with callbackUrl", steps: "Navigate to /register?callbackUrl=/account/orders, register", expected: "Redirect to /account/orders after registration" },
-  { id: "S-093", suite: "signup", category: "Redirect / Callback", description: "Login link preserves context", steps: "Click \"Sign in\" from registration page", expected: "Redirect to /login with appropriate context" },
+  // ─── MEMBERSHIP: Membership Plans ────────────────────────────────────────────
+  { id: "M-001", suite: "membership", category: "Membership", description: "View membership page", steps: "Navigate to /account/membership", expected: "Membership plans and benefits displayed" },
+  { id: "M-002", suite: "membership", category: "Membership", description: "Purchase membership", steps: "Click \"Buy Membership\", complete payment", expected: "Membership activated, user marked as member" },
+  { id: "M-003", suite: "membership", category: "Membership", description: "Member pricing on products", steps: "Login as member, view products", expected: "Member prices shown on products" },
+  { id: "M-004", suite: "membership", category: "Membership", description: "Member gets free shipping", steps: "Login as member, checkout", expected: "Free shipping applied" },
+  { id: "M-005", suite: "membership", category: "Membership", description: "Membership status in profile", steps: "View profile as member", expected: "Active Member badge displayed" },
 
-  // ─── PROFILE: Authentication & Access ────────────────────────────────────────────
-  { id: "P-001", suite: "profile", category: "Authentication", description: "Unauthenticated access to profile page", steps: "Navigate to /account/profile while not logged in", expected: "Redirect to /login page" },
-  { id: "P-002", suite: "profile", category: "Authentication", description: "Authenticated access to profile page", steps: "Login and navigate to /account/profile", expected: "Profile page loads with user data pre-filled" },
-  { id: "P-003", suite: "profile", category: "Authentication", description: "Session expires while on profile page", steps: "Login, go to profile, wait for session to expire, try to save", expected: "Error message about session expiration, redirect to login" },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // ADMIN PANEL
+  // ═══════════════════════════════════════════════════════════════════════════════
 
-  // ─── PROFILE: Name Field Validation ─────────────────────────────────────────────
-  { id: "P-010", suite: "profile", category: "Form Validation", description: "Empty name field", steps: "Clear name field, click Save Changes", expected: "Validation error: \"Name is required\"" },
-  { id: "P-011", suite: "profile", category: "Form Validation", description: "Name with only whitespace", steps: "Enter spaces in name field, click Save", expected: "Validation error or trimmed to empty\"" },
-  { id: "P-012", suite: "profile", category: "Form Validation", description: "Name with 1 character", steps: "Enter single character name \"A\", click Save", expected: "Accepted or validation error based on min length" },
-  { id: "P-013", suite: "profile", category: "Form Validation", description: "Name with 100+ characters", steps: "Enter very long name (100+ chars), click Save", expected: "Accepted or max length validation error" },
-  { id: "P-014", suite: "profile", category: "Form Validation", description: "Name with special characters", steps: "Enter name with emojis and special chars: \"John 🎉 O'Connor\"", expected: "Name accepted and saved correctly" },
-  { id: "P-015", suite: "profile", category: "Form Validation", description: "Name with numbers", steps: "Enter name with numbers: \"User123\"", expected: "Name accepted" },
+  // ─── ADMIN: Authentication ─────────────────────────────────────────────────────
+  { id: "A-001", suite: "admin-products", category: "Admin Auth", description: "Admin access required", steps: "Navigate to /admin without admin role", expected: "Redirect to login or access denied" },
+  { id: "A-002", suite: "admin-products", category: "Admin Auth", description: "Admin login success", steps: "Login with admin credentials", expected: "Redirect to admin dashboard" },
 
-  // ─── PROFILE: Phone Field Validation ────────────────────────────────────────────
-  { id: "P-020", suite: "profile", category: "Phone Validation", description: "Empty phone field", steps: "Leave phone blank, click Save", expected: "Accepted (optional field)" },
-  { id: "P-021", suite: "profile", category: "Phone Validation", description: "Valid Australian mobile number", steps: "Enter \"+61 412 345 678\", click Save", expected: "Phone saved successfully" },
-  { id: "P-022", suite: "profile", category: "Phone Validation", description: "Valid Australian landline", steps: "Enter \"+61 2 1234 5678\", click Save", expected: "Phone saved successfully" },
-  { id: "P-023", suite: "profile", category: "Phone Validation", description: "Invalid phone format", steps: "Enter \"not-a-phone\", click Save", expected: "Validation error about invalid phone format" },
-  { id: "P-024", suite: "profile", category: "Phone Validation", description: "Phone with letters", steps: "Enter \"ABC123456\", click Save", expected: "Validation error" },
-  { id: "P-025", suite: "profile", category: "Phone Validation", description: "International phone number", steps: "Enter \"+1 555-555-5555\" (US number), click Save", expected: "Accepted or validation error based on requirements" },
-  { id: "P-026", suite: "profile", category: "Phone Validation", description: "Phone with spaces and dashes", steps: "Enter \"0412 345 678\", click Save", expected: "Formatted and saved correctly" },
+  // ─── ADMIN: Products ───────────────────────────────────────────────────────────
+  { id: "AP-001", suite: "admin-products", category: "Product Management", description: "View products list", steps: "Navigate to /admin/products", expected: "Products table with pagination displayed" },
+  { id: "AP-002", suite: "admin-products", category: "Product Management", description: "Search products", steps: "Enter search term in products search", expected: "Filtered products displayed" },
+  { id: "AP-003", suite: "admin-products", category: "Product Management", description: "Create new product", steps: "Click New Product, fill form, save", expected: "Product created, success message shown" },
+  { id: "AP-004", suite: "admin-products", category: "Product Management", description: "Edit product", steps: "Click Edit on product, modify, save", expected: "Product updated, changes persisted" },
+  { id: "AP-005", suite: "admin-products", category: "Product Management", description: "Delete product", steps: "Click Delete, confirm deletion", expected: "Product deleted, removed from list" },
+  { id: "AP-006", suite: "admin-products", category: "Product Management", description: "Upload product images", steps: "Add images via image uploader", expected: "Images uploaded and previewed" },
+  { id: "AP-007", suite: "admin-products", category: "Product Management", description: "Manage variants", steps: "Create variant attributes and values", expected: "Variants created successfully" },
+  { id: "AP-008", suite: "admin-products", category: "Product Management", description: "Set member pricing", steps: "Enter member price for product", expected: "Member price saved" },
 
-  // ─── PROFILE: Profile Image URL ──────────────────────────────────────────────────
-  { id: "P-030", suite: "profile", category: "Profile Image", description: "Empty image URL", steps: "Leave image URL blank, click Save", expected: "Accepted, profile shows initials avatar" },
-  { id: "P-031", suite: "profile", category: "Profile Image", description: "Valid image URL (HTTPS)", steps: "Enter valid HTTPS image URL, click Save", expected: "Image preview shown, saved successfully" },
-  { id: "P-032", suite: "profile", category: "Profile Image", description: "Invalid URL format", steps: "Enter \"not-a-url\", click Save", expected: "Validation error about invalid URL" },
-  { id: "P-033", suite: "profile", category: "Profile Image", description: "HTTP URL (non-secure)", steps: "Enter HTTP image URL, click Save", expected: "Warning or accepted based on security settings" },
-  { id: "P-034", suite: "profile", category: "Profile Image", description: "Image URL returns 404", steps: "Enter URL that doesn't exist, click Save", expected: "Error handling with fallback to initials" },
-  { id: "P-035", suite: "profile", category: "Profile Image", description: "Non-image URL", steps: "Enter link to PDF or text file, click Save", expected: "Error or fallback when image fails to load" },
+  // ─── ADMIN: Categories ───────────────────────────────────────────────────────
+  { id: "AC-001", suite: "admin-products", category: "Category Management", description: "View categories", steps: "Navigate to /admin/categories", expected: "Categories list displayed" },
+  { id: "AC-002", suite: "admin-products", category: "Category Management", description: "Create category", steps: "Click New Category, fill form, save", expected: "Category created" },
+  { id: "AC-003", suite: "admin-products", category: "Category Management", description: "Edit category", steps: "Click Edit on category, modify, save", expected: "Category updated" },
+  { id: "AC-004", suite: "admin-products", category: "Category Management", description: "Delete category", steps: "Click Delete, confirm", expected: "Category deleted" },
 
-  // ─── PROFILE: Update Functionality ──────────────────────────────────────────────
-  { id: "P-040", suite: "profile", category: "Update", description: "Update name successfully", steps: "Change name, click Save Changes", expected: "Success toast, name updated in sidebar and dashboard" },
-  { id: "P-041", suite: "profile", category: "Update", description: "Update phone successfully", steps: "Add/change phone, click Save", expected: "Success toast, phone saved to database" },
-  { id: "P-042", suite: "profile", category: "Update", description: "Update profile image successfully", steps: "Change image URL, click Save", expected: "New image preview shown, saved to database" },
-  { id: "P-043", suite: "profile", category: "Update", description: "Update multiple fields at once", steps: "Change name, phone, and image, click Save", expected: "All fields saved successfully, success message" },
-  { id: "P-044", suite: "profile", category: "Update", description: "No changes - save button disabled", steps: "Open profile, don't change anything", expected: "Save Changes button is disabled" },
-  { id: "P-045", suite: "profile", category: "Update", description: "Cancel button resets changes", steps: "Make changes, click Cancel, confirm", expected: "Form resets to original values" },
+  // ─── ADMIN: Orders ─────────────────────────────────────────────────────────────
+  { id: "AO-001", suite: "admin-orders", category: "Order Management", description: "View orders list", steps: "Navigate to /admin/orders", expected: "Orders table with status displayed" },
+  { id: "AO-002", suite: "admin-orders", category: "Order Management", description: "Filter orders by status", steps: "Select status filter", expected: "Orders filtered by status" },
+  { id: "AO-003", suite: "admin-orders", category: "Order Management", description: "Search orders", steps: "Enter order ID or customer name", expected: "Matching orders displayed" },
+  { id: "AO-004", suite: "admin-orders", category: "Order Management", description: "View order details", steps: "Click on order", expected: "Order details with items, customer info displayed" },
+  { id: "AO-005", suite: "admin-orders", category: "Order Management", description: "Update order status", steps: "Change status dropdown, save", expected: "Order status updated" },
+  { id: "AO-006", suite: "admin-orders", category: "Order Management", description: "Add tracking number", steps: "Enter carrier and tracking number, save", expected: "Tracking info saved, customer notified" },
+  { id: "AO-007", suite: "admin-orders", category: "Order Management", description: "Process refund", steps: "Click Refund, enter amount, confirm", expected: "Refund processed, status updated" },
 
-  // ─── PROFILE: Session & Data Persistence ─────────────────────────────────────────
-  { id: "P-050", suite: "profile", category: "Data Persistence", description: "Name persists after logout/login", steps: "Update name, logout, login again", expected: "Updated name shown in dashboard and profile" },
-  { id: "P-051", suite: "profile", category: "Data Persistence", description: "Changes reflect immediately in dashboard", steps: "Update profile from profile page, navigate to dashboard", expected: "New name/image visible in dashboard sidebar" },
-  { id: "P-052", suite: "profile", category: "Data Persistence", description: "Changes reflect in navbar", steps: "Update profile, check main navigation", expected: "Avatar/name updated in top navigation" },
-  { id: "P-053", suite: "profile", category: "Data Persistence", description: "Database update verification", steps: "Update profile, check database directly", expected: "User record has updated values in DB" },
+  // ─── ADMIN: Customers ────────────────────────────────────────────────────────
+  { id: "ACU-001", suite: "admin-customers", category: "Customer Management", description: "View customers list", steps: "Navigate to /admin/customers", expected: "Customers table displayed" },
+  { id: "ACU-002", suite: "admin-customers", category: "Customer Management", description: "Search customers", steps: "Enter name or email in search", expected: "Matching customers displayed" },
+  { id: "ACU-003", suite: "admin-customers", category: "Customer Management", description: "View customer details", steps: "Click on customer", expected: "Customer profile with orders displayed" },
+  { id: "ACU-004", suite: "admin-customers", category: "Customer Management", description: "Toggle admin role", steps: "Click Admin toggle on customer", expected: "Customer role changed to/from admin" },
+  { id: "ACU-005", suite: "admin-customers", category: "Customer Management", description: "Toggle membership", steps: "Click Member toggle on customer", expected: "Membership status toggled" },
+  { id: "ACU-006", suite: "admin-customers", category: "Customer Management", description: "View customer orders", steps: "Click View Orders on customer", expected: "Customer's order history displayed" },
 
-  // ─── PROFILE: Error Handling ───────────────────────────────────────────────────
-  { id: "P-060", suite: "profile", category: "Error Handling", description: "Network error during save", steps: "Disconnect network, click Save", expected: "Error toast: \"Something went wrong\"" },
-  { id: "P-061", suite: "profile", category: "Error Handling", description: "Server error (500)", steps: "(Mock) Server error on updateProfile action", expected: "Error message displayed" },
-  { id: "P-062", suite: "profile", category: "Error Handling", description: "Database unavailable", steps: "(Mock) Database connection lost", expected: "Appropriate error message" },
-  { id: "P-063", suite: "profile", category: "Error Handling", description: "Concurrent update conflict", steps: "Update from two browser tabs simultaneously", expected: "Last write wins or conflict error" },
+  // ─── ADMIN: Coupons ──────────────────────────────────────────────────────────
+  { id: "ACP-001", suite: "admin-coupons", category: "Coupon Management", description: "View coupons list", steps: "Navigate to /admin/coupons", expected: "Coupons with usage stats displayed" },
+  { id: "ACP-002", suite: "admin-coupons", category: "Coupon Management", description: "Create global coupon", steps: "Create coupon with type GLOBAL, set discount", expected: "Coupon created, applicable to all products" },
+  { id: "ACP-003", suite: "admin-coupons", category: "Coupon Management", description: "Create product coupon", steps: "Create coupon, select specific products", expected: "Coupon created for selected products" },
+  { id: "ACP-004", suite: "admin-coupons", category: "Coupon Management", description: "Create category coupon", steps: "Create coupon, select categories", expected: "Coupon created for selected categories" },
+  { id: "ACP-005", suite: "admin-coupons", category: "Coupon Management", description: "Set coupon expiry", steps: "Set start and end dates for coupon", expected: "Coupon validity period set" },
+  { id: "ACP-006", suite: "admin-coupons", category: "Coupon Management", description: "Set usage limits", steps: "Set total and per-user usage limits", expected: "Limits enforced during checkout" },
+  { id: "ACP-007", suite: "admin-coupons", category: "Coupon Management", description: "Deactivate coupon", steps: "Toggle coupon active status", expected: "Coupon deactivated, cannot be used" },
+  { id: "ACP-008", suite: "admin-coupons", category: "Coupon Management", description: "Delete coupon", steps: "Click Delete on coupon", expected: "Coupon deleted or deactivated if used" },
 
-  // ─── PROFILE: UI/UX ──────────────────────────────────────────────────────────────
-  { id: "P-070", suite: "profile", category: "UI / UX", description: "Profile picture preview", steps: "Enter image URL", expected: "Image preview updates in real-time" },
-  { id: "P-071", suite: "profile", category: "UI / UX", description: "Loading state on save", steps: "Click Save Changes", expected: "Button shows loading spinner, disabled during save" },
-  { id: "P-072", suite: "profile", category: "UI / UX", description: "Success toast message", steps: "Save profile successfully", expected: "Green success toast appears" },
-  { id: "P-073", suite: "profile", category: "UI / UX", description: "Error toast message", steps: "Trigger an error", expected: "Red error toast with clear message" },
-  { id: "P-074", suite: "profile", category: "UI / UX", description: "Responsive design - mobile", steps: "View profile page on mobile viewport", expected: "Form is usable, fields are accessible" },
-  { id: "P-075", suite: "profile", category: "UI / UX", description: "Responsive design - tablet", steps: "View profile page on tablet viewport", expected: "Layout adapts appropriately" },
-  { id: "P-076", suite: "profile", category: "UI / UX", description: "Form field focus states", steps: "Click through each form field", expected: "Clear focus indicators on active field" },
-  { id: "P-077", suite: "profile", category: "UI / UX", description: "Back button navigation", steps: "Click Back button", expected: "Returns to previous page or dashboard" },
-  { id: "P-078", suite: "profile", category: "UI / UX", description: "Breadcrumb navigation", steps: "Click breadcrumb links", expected: "Navigate to Dashboard or other pages" },
-  { id: "P-079", suite: "profile", category: "UI / UX", description: "Sidebar active state", steps: "Navigate to profile page", expected: "Profile link highlighted in sidebar" },
+  // ─── ADMIN: Dashboard ────────────────────────────────────────────────────────
+  { id: "AD-001", suite: "admin-products", category: "Dashboard", description: "View admin dashboard", steps: "Navigate to /admin", expected: "Dashboard with stats and recent orders" },
+  { id: "AD-002", suite: "admin-products", category: "Dashboard", description: "View sales statistics", steps: "Check dashboard charts", expected: "Sales, orders, revenue stats displayed" },
+  { id: "AD-003", suite: "admin-products", category: "Dashboard", description: "Quick navigation", steps: "Click quick links on dashboard", expected: "Navigate to respective admin sections" },
 
-  // ─── PROFILE: Security ──────────────────────────────────────────────────────────
-  { id: "P-080", suite: "profile", category: "Security", description: "XSS in name field", steps: "Enter `<script>alert(1)</script>` as name", expected: "Input sanitized, no script execution" },
-  { id: "P-081", suite: "profile", category: "Security", description: "XSS in phone field", steps: "Enter `<img src=x onerror=alert(1)>`", expected: "Input sanitized/escaped" },
-  { id: "P-082", suite: "profile", category: "Security", description: "SQL injection in name", steps: "Enter `' OR '1'='1`", expected: "No SQL injection vulnerability" },
-  { id: "P-083", suite: "profile", category: "Security", description: "Update another user's profile", steps: "Try to call updateProfile with different userId", expected: "Unauthorized error (can only update own profile)" },
-  { id: "P-084", suite: "profile", category: "Security", description: "CSRF protection", steps: "Submit form without valid CSRF token", expected: "Request rejected" },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // BLOG (if implemented)
+  // ═══════════════════════════════════════════════════════════════════════════════
 
-  // ─── PROFILE: Email Display ───────────────────────────────────────────────────────
-  { id: "P-090", suite: "profile", category: "Email Display", description: "Email shown as read-only", steps: "View profile page", expected: "Email displayed but cannot be edited" },
-  { id: "P-091", suite: "profile", category: "Email Display", description: "Email from OAuth provider", steps: "Login with Google, view profile", expected: "Google email shown correctly" },
-  { id: "P-092", suite: "profile", category: "Email Display", description: "Email update restriction message", steps: "View profile, look for email field message", expected: "Message: \"Email cannot be changed\" or similar" },
-
-  // ─── PROFILE: Membership Info ───────────────────────────────────────────────────
-  { id: "P-100", suite: "profile", category: "Membership", description: "Non-member status display", steps: "View profile as non-member", expected: "Shows \"Not a member yet\" with upgrade button" },
-  { id: "P-101", suite: "profile", category: "Membership", description: "Member status display", steps: "View profile as member", expected: "Shows \"Active Member\" with member since date" },
-  { id: "P-102", suite: "profile", category: "Membership", description: "Member since date format", steps: "View member profile", expected: "Date shown in AU format (e.g., \"1 Jan 2024\")" },
-  { id: "P-103", suite: "profile", category: "Membership", description: "Become a Member button", steps: "Click \"Become a Member\" button as non-member", expected: "Navigate to /account/membership" },
+  // ─── BLOG: Blog Management ───────────────────────────────────────────────────
+  { id: "B-001", suite: "blog", category: "Blog", description: "View blog posts", steps: "Navigate to /blog", expected: "Blog posts list displayed" },
+  { id: "B-002", suite: "blog", category: "Blog", description: "View single post", steps: "Click on blog post", expected: "Full blog post content displayed" },
+  { id: "B-003", suite: "blog", category: "Blog", description: "Create blog post (admin)", steps: "Create new post with title, content, category", expected: "Post published successfully" },
+  { id: "B-004", suite: "blog", category: "Blog", description: "Edit blog post (admin)", steps: "Edit existing post content", expected: "Post updated successfully" },
+  { id: "B-005", suite: "blog", category: "Blog", description: "Like blog post", steps: "Click like button on post", expected: "Like count increased" },
 ];
 
 export function getTestsBysuites(suite: Suite): TestCase[] {
@@ -271,5 +221,71 @@ export const SUITE_META: Record<Suite, { label: string; color: string; accent: s
     color: "bg-emerald-50 border-emerald-200",
     accent: "text-emerald-700",
     total: TEST_CASES.filter((t) => t.suite === "profile").length,
+  },
+  products: {
+    label: "Products & Catalog",
+    color: "bg-amber-50 border-amber-200",
+    accent: "text-amber-700",
+    total: TEST_CASES.filter((t) => t.suite === "products").length,
+  },
+  cart: {
+    label: "Shopping Cart",
+    color: "bg-pink-50 border-pink-200",
+    accent: "text-pink-700",
+    total: TEST_CASES.filter((t) => t.suite === "cart").length,
+  },
+  wishlist: {
+    label: "Wishlist",
+    color: "bg-rose-50 border-rose-200",
+    accent: "text-rose-700",
+    total: TEST_CASES.filter((t) => t.suite === "wishlist").length,
+  },
+  checkout: {
+    label: "Checkout",
+    color: "bg-cyan-50 border-cyan-200",
+    accent: "text-cyan-700",
+    total: TEST_CASES.filter((t) => t.suite === "checkout").length,
+  },
+  orders: {
+    label: "Orders",
+    color: "bg-indigo-50 border-indigo-200",
+    accent: "text-indigo-700",
+    total: TEST_CASES.filter((t) => t.suite === "orders").length,
+  },
+  membership: {
+    label: "Membership",
+    color: "bg-purple-50 border-purple-200",
+    accent: "text-purple-700",
+    total: TEST_CASES.filter((t) => t.suite === "membership").length,
+  },
+  "admin-products": {
+    label: "Admin - Products",
+    color: "bg-slate-50 border-slate-200",
+    accent: "text-slate-700",
+    total: TEST_CASES.filter((t) => t.suite === "admin-products").length,
+  },
+  "admin-orders": {
+    label: "Admin - Orders",
+    color: "bg-slate-50 border-slate-200",
+    accent: "text-slate-700",
+    total: TEST_CASES.filter((t) => t.suite === "admin-orders").length,
+  },
+  "admin-customers": {
+    label: "Admin - Customers",
+    color: "bg-slate-50 border-slate-200",
+    accent: "text-slate-700",
+    total: TEST_CASES.filter((t) => t.suite === "admin-customers").length,
+  },
+  "admin-coupons": {
+    label: "Admin - Coupons",
+    color: "bg-slate-50 border-slate-200",
+    accent: "text-slate-700",
+    total: TEST_CASES.filter((t) => t.suite === "admin-coupons").length,
+  },
+  blog: {
+    label: "Blog",
+    color: "bg-orange-50 border-orange-200",
+    accent: "text-orange-700",
+    total: TEST_CASES.filter((t) => t.suite === "blog").length,
   },
 };

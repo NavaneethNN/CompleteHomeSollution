@@ -12,6 +12,7 @@ interface SavedResult {
   testId: string;
   status: TestStatus;
   notes: string;
+  comments: string;
 }
 
 interface Props {
@@ -29,6 +30,17 @@ const SUITE_LABELS: Record<Suite, string> = {
   login: "Login Page",
   signup: "Signup Page",
   profile: "Profile Page",
+  products: "Products & Catalog",
+  cart: "Shopping Cart",
+  wishlist: "Wishlist",
+  checkout: "Checkout",
+  orders: "Orders",
+  membership: "Membership",
+  "admin-products": "Admin - Products",
+  "admin-orders": "Admin - Orders",
+  "admin-customers": "Admin - Customers",
+  "admin-coupons": "Admin - Coupons",
+  blog: "Blog",
 };
 
 export default function SuiteRunner({ suite, initialResults }: Props) {
@@ -38,10 +50,10 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
   const [results, setResults] = useState<Record<string, SavedResult>>(() => {
     const map: Record<string, SavedResult> = {};
     cases.forEach((c) => {
-      map[c.id] = { testId: c.id, status: "PENDING", notes: "" };
+      map[c.id] = { testId: c.id, status: "PENDING", notes: "", comments: "" };
     });
     initialResults.forEach((r) => {
-      map[r.testId] = r;
+      map[r.testId] = { ...map[r.testId], ...r, comments: r.comments ?? "" };
     });
     return map;
   });
@@ -49,6 +61,7 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
   const [, startTransition] = useTransition();
 
@@ -63,7 +76,7 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
       await fetch("/api/qa/results", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ testId, suite, status, notes: current.notes }),
+        body: JSON.stringify({ testId, suite, status, notes: current.notes, comments: current.comments }),
       });
       setSaved((prev) => ({ ...prev, [testId]: true }));
       setTimeout(() => setSaved((prev) => ({ ...prev, [testId]: false })), 1500);
@@ -76,6 +89,10 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
     setResults((prev) => ({ ...prev, [testId]: { ...prev[testId], notes } }));
   }, []);
 
+  const updateComments = useCallback((testId: string, comments: string) => {
+    setResults((prev) => ({ ...prev, [testId]: { ...prev[testId], comments } }));
+  }, []);
+
   const saveNotes = useCallback(async (testId: string) => {
     const current = results[testId];
     setSaving((prev) => ({ ...prev, [testId]: true }));
@@ -83,7 +100,23 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
       await fetch("/api/qa/results", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ testId, suite, status: current.status, notes: current.notes }),
+        body: JSON.stringify({ testId, suite, status: current.status, notes: current.notes, comments: current.comments }),
+      });
+      setSaved((prev) => ({ ...prev, [testId]: true }));
+      setTimeout(() => setSaved((prev) => ({ ...prev, [testId]: false })), 1500);
+    } finally {
+      setSaving((prev) => ({ ...prev, [testId]: false }));
+    }
+  }, [results, suite]);
+
+  const saveComments = useCallback(async (testId: string) => {
+    const current = results[testId];
+    setSaving((prev) => ({ ...prev, [testId]: true }));
+    try {
+      await fetch("/api/qa/results", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ testId, suite, status: current.status, notes: current.notes, comments: current.comments }),
       });
       setSaved((prev) => ({ ...prev, [testId]: true }));
       setTimeout(() => setSaved((prev) => ({ ...prev, [testId]: false })), 1500);
@@ -94,6 +127,10 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
 
   const toggleNotes = useCallback((testId: string) => {
     setExpandedNotes((prev) => ({ ...prev, [testId]: !prev[testId] }));
+  }, []);
+
+  const toggleComments = useCallback((testId: string) => {
+    setExpandedComments((prev) => ({ ...prev, [testId]: !prev[testId] }));
   }, []);
 
   const toggleCategory = useCallback((cat: string) => {
@@ -252,6 +289,14 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
                                 <StickyNote className="h-3.5 w-3.5" />
                               </button>
 
+                              <button
+                                onClick={() => toggleComments(tc.id)}
+                                title="Add issue comments"
+                                className={`p-1.5 rounded-lg border transition-colors ${expandedComments[tc.id] || res.comments ? "bg-red-50 text-red-600 border-red-200" : "bg-secondary text-muted-foreground border-border hover:text-foreground"}`}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                              </button>
+
                               {isSaved && (
                                 <span className="text-[10px] text-green-600 font-bold">Saved ✓</span>
                               )}
@@ -276,6 +321,36 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
                                 <Save className="h-3 w-3" />
                                 Save
                               </button>
+                            </div>
+                          )}
+
+                          {/* Comments panel - for issue/bug reports */}
+                          {expandedComments[tc.id] && (
+                            <div className="mt-3 flex gap-2">
+                              <textarea
+                                value={res.comments ?? ""}
+                                onChange={(e) => updateComments(tc.id, e.target.value)}
+                                placeholder="Describe the issue, bug, or problem found during testing…"
+                                rows={3}
+                                className="flex-1 text-xs border border-red-200 rounded-xl px-3 py-2 resize-none outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 bg-red-50/50 placeholder:text-muted-foreground"
+                              />
+                              <button
+                                onClick={() => saveComments(tc.id)}
+                                disabled={isSaving}
+                                className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50 self-start mt-0.5"
+                              >
+                                <Save className="h-3 w-3" />
+                                Save
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Show existing comments if any */}
+                          {!expandedComments[tc.id] && res.comments && (
+                            <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg">
+                              <p className="text-xs text-red-700">
+                                <span className="font-bold">Issue:</span> {res.comments}
+                              </p>
                             </div>
                           )}
                         </div>

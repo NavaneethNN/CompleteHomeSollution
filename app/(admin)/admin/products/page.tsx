@@ -434,7 +434,7 @@ export default function AdminProductsPage() {
                         </p>
                         {product.memberPrice && (
                           <p className="text-xs text-emerald-600 mt-0.5">
-                            ₹{product.memberPrice.toLocaleString()} member
+                            {currencyFormatter.format(product.memberPrice)} member
                           </p>
                         )}
                       </td>

@@ -98,6 +98,7 @@ export async function GET(req: Request) {
   const skip = (page - 1) * limit;
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {};
 
     if (search) {

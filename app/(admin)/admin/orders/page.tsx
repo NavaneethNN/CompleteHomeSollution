@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
+import type { OrderStatus } from "@prisma/client";
 import {
   ShoppingCart,
   Package,
@@ -63,13 +64,14 @@ const ORDERS_PER_PAGE = 20;
 
 async function getOrders({ page = 1, status, search }: { page: number; status?: string; search?: string }) {
   const skip = (page - 1) * ORDERS_PER_PAGE;
-  
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = {};
-  
+
   if (status && status !== "ALL") {
-    where.status = status;
+    where.status = status as OrderStatus;
   }
-  
+
   if (search) {
     where.OR = [
       { id: { contains: search, mode: "insensitive" } },

@@ -205,8 +205,14 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal</span>
-                    <span>{currencyFormatter.format(order.subtotal)}</span>
+                    <span>{currencyFormatter.format((order as any).subtotal + ((order as any).discount ?? 0))}</span>
                   </div>
+                  {(order as any).discount > 0 && (
+                    <div className="flex justify-between text-emerald-600">
+                      <span>Discount {(order as any).couponCode && `(${(order as any).couponCode})`}</span>
+                      <span>-{currencyFormatter.format((order as any).discount)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-slate-600">
                     <span>Shipping</span>
                     <span>{order.shippingCost > 0 ? currencyFormatter.format(order.shippingCost) : "Free"}</span>

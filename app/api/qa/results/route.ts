@@ -32,11 +32,12 @@ export async function PUT(req: NextRequest) {
       // ignore
     }
     const body = await req.json();
-    const { testId, suite, status, notes } = body as {
+    const { testId, suite, status, notes, comments } = body as {
       testId: string;
       suite: string;
       status: "PENDING" | "PASSED" | "FAILED";
       notes?: string;
+      comments?: string;
     };
 
     if (!testId || !suite || !status) {
@@ -45,8 +46,8 @@ export async function PUT(req: NextRequest) {
 
     const result = await db.testResult.upsert({
       where: { testId },
-      create: { testId, suite, status, notes: notes ?? null },
-      update: { status, notes: notes ?? null },
+      create: { testId, suite, status, notes: notes ?? null, comments: comments ?? null },
+      update: { status, notes: notes ?? null, comments: comments ?? null },
     });
 
     return NextResponse.json(result);

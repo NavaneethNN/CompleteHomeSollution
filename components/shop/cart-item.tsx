@@ -20,9 +20,11 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
 
 export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }: Readonly<CartItemProps>) {
   const { product, quantity } = item;
-  const image = product.images[0] ?? "/placeholder.jpg";
-  const hasMemberPrice = isMember && product.memberPrice != null && product.memberPrice > 0 && product.memberPrice < product.price;
-  const effectivePrice = hasMemberPrice ? product.memberPrice! : product.price;
+  const image = product.images?.[0] ?? "/placeholder.jpg";
+  const safePrice = Math.max(0, product.price ?? 0);
+  const safeMemberPrice = product.memberPrice && product.memberPrice > 0 ? product.memberPrice : null;
+  const hasMemberPrice = isMember && safeMemberPrice !== null && safeMemberPrice < safePrice;
+  const effectivePrice = hasMemberPrice ? safeMemberPrice : safePrice;
   const subtotal = effectivePrice * quantity;
   const isLowStock = product.stock > 0 && product.stock <= 5;
   const isOutOfStock = product.stock <= 0;
@@ -87,7 +89,7 @@ export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }:
               <>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-sm font-bold text-primary">{currencyFormatter.format(subtotal)}</span>
-                  <span className="text-[11px] text-muted-foreground line-through">{currencyFormatter.format(product.price * quantity)}</span>
+                  <span className="text-[11px] text-muted-foreground line-through">{currencyFormatter.format(safePrice * quantity)}</span>
                 </div>
                 <span className="flex items-center gap-0.5 text-[10px] font-semibold text-primary mt-0.5">
                   <Crown className="h-2.5 w-2.5" /> Member

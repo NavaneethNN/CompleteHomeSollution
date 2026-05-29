@@ -4,7 +4,22 @@ import { db } from "@/lib/db";
 import { SUITE_META, type Suite } from "@/lib/qa-test-data";
 import SuiteRunner from "./_components/suite-runner";
 
-const VALID_SUITES: Suite[] = ["login", "signup"];
+const VALID_SUITES: Suite[] = [
+  "login",
+  "signup",
+  "profile",
+  "products",
+  "cart",
+  "wishlist",
+  "checkout",
+  "orders",
+  "membership",
+  "admin-products",
+  "admin-orders",
+  "admin-customers",
+  "admin-coupons",
+  "blog",
+];
 
 export async function generateMetadata({
   params,
@@ -28,7 +43,7 @@ export default async function SuitePage({
 
   const rawResults = await db.testResult.findMany({
     where: { suite },
-    select: { testId: true, status: true, notes: true },
+    select: { testId: true, status: true, notes: true, comments: true },
   });
 
   try {
@@ -44,6 +59,7 @@ export default async function SuitePage({
     testId: r.testId,
     status: r.status as "PENDING" | "PASSED" | "FAILED",
     notes: r.notes ?? "",
+    comments: (r as any).comments ?? "",
   }));
 
   return <SuiteRunner suite={suite as Suite} initialResults={initialResults} />;

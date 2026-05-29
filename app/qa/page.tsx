@@ -2,39 +2,51 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { TEST_CASES, SUITE_META, type Suite } from "@/lib/qa-test-data";
-import { CheckCircle2, XCircle, Clock, ArrowRight, FlaskConical } from "lucide-react";
+import { CheckCircle2, XCircle, ArrowRight, FlaskConical } from "lucide-react";
 
 export const metadata: Metadata = { title: "QA Test Dashboard — CHS" };
 
 async function getSuiteStats(suite: Suite) {
-  const results = await db.testResult.findMany({ where: { suite } });
-  const total = TEST_CASES.filter((t) => t.suite === suite).length;
-  const passed = results.filter((r) => r.status === "PASSED").length;
-  const failed = results.filter((r) => r.status === "FAILED").length;
-  const pending = total - passed - failed;
-  return { total, passed, failed, pending };
+  try {
+    const results = await db.testResult.findMany({ where: { suite } });
+    const total = TEST_CASES.filter((t) => t.suite === suite).length;
+    const passed = results.filter((r) => r.status === "PASSED").length;
+    const failed = results.filter((r) => r.status === "FAILED").length;
+    const pending = total - passed - failed;
+    return { total, passed, failed, pending };
+  } catch {
+    // Return default stats if DB table doesn't exist
+    const total = TEST_CASES.filter((t) => t.suite === suite).length;
+    return { total, passed: 0, failed: 0, pending: total };
+  }
 }
 
+const ALL_SUITES: Suite[] = [
+  "login",
+  "signup",
+  "profile",
+  "products",
+  "cart",
+  "wishlist",
+  "checkout",
+  "orders",
+  "membership",
+  "admin-products",
+  "admin-orders",
+  "admin-customers",
+  "admin-coupons",
+  "blog",
+];
+
 export default async function QADashboardPage() {
-  const [loginStats, signupStats, profileStats] = await Promise.all([
-    getSuiteStats("login"),
-    getSuiteStats("signup"),
-    getSuiteStats("profile"),
-  ]);
+  const allStats = await Promise.all(ALL_SUITES.map((suite) => getSuiteStats(suite)));
+  
+  const statsMap = Object.fromEntries(ALL_SUITES.map((suite, i) => [suite, allStats[i]])) as Record<Suite, { total: number; passed: number; failed: number; pending: number }>;
 
-  try {
-    // Non-sensitive runtime info for debugging: which DB host and counts
-    const url = process.env.DATABASE_URL ?? process.env.DATABASE_URL_UNPOOLED ?? "";
-    const hostMatch = url.match(/@(.*?)\//);
-    // eslint-disable-next-line no-console
-    console.log("[qa/dashboard] dbHost=", hostMatch ? hostMatch[1] : "(none)", "loginPassed=", loginStats.passed, "signupPassed=", signupStats.passed, "profilePassed=", profileStats.passed);
-  } catch (e) {
-    // ignore logging failures in production
-  }
-
-  const statsMap = { login: loginStats, signup: signupStats, profile: profileStats };
-
-  const suites: Suite[] = ["login", "signup", "profile"];
+  const totalPassed = Object.values(statsMap).reduce((sum, s) => sum + s.passed, 0);
+  const totalFailed = Object.values(statsMap).reduce((sum, s) => sum + s.failed, 0);
+  const totalPending = Object.values(statsMap).reduce((sum, s) => sum + s.pending, 0);
+  const grandTotal = Object.values(statsMap).reduce((sum, s) => sum + s.total, 0);
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -42,7 +54,7 @@ export default async function QADashboardPage() {
 
         {/* Header */}
         <div className="mb-10">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-xs font-bold px-3 py-1.5 rounded-full mb-4">
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-xs font-bold px-3 py-1.5 rounded-full mb-4" suppressHydrationWarning>
             <FlaskConical className="h-3.5 w-3.5" />
             QA TEST DASHBOARD
           </div>
@@ -55,31 +67,26 @@ export default async function QADashboardPage() {
         </div>
 
         {/* Overall summary */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          {(() => {
-            const total = loginStats.total + signupStats.total + profileStats.total;
-            const passed = loginStats.passed + signupStats.passed + profileStats.passed;
-            const failed = loginStats.failed + signupStats.failed + profileStats.failed;
-            const pending = loginStats.pending + signupStats.pending + profileStats.pending;
-            return [
-              { label: "Total Cases", value: total, Icon: FlaskConical, bg: "bg-secondary", color: "text-foreground" },
-              { label: "Passed", value: passed, Icon: CheckCircle2, bg: "bg-green-50", color: "text-green-600" },
-              { label: "Failed", value: failed, Icon: XCircle, bg: "bg-red-50", color: "text-red-600" },
-            ].map(({ label, value, Icon, bg, color }) => (
-              <div key={label} className="bg-white rounded-2xl border border-border p-5 shadow-sm text-center">
-                <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
-                  <Icon className={`h-5 w-5 ${color}`} />
-                </div>
-                <p className="text-2xl font-black text-foreground">{value}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[
+            { label: "Total Cases", value: grandTotal, Icon: FlaskConical, bg: "bg-secondary", color: "text-foreground" },
+            { label: "Passed", value: totalPassed, Icon: CheckCircle2, bg: "bg-green-50", color: "text-green-600" },
+            { label: "Failed", value: totalFailed, Icon: XCircle, bg: "bg-red-50", color: "text-red-600" },
+            { label: "Pending", value: totalPending, Icon: FlaskConical, bg: "bg-amber-50", color: "text-amber-600" },
+          ].map(({ label, value, Icon, bg, color }) => (
+            <div key={label} className="bg-white rounded-2xl border border-border p-5 shadow-sm text-center">
+              <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
+                <Icon className={`h-5 w-5 ${color}`} />
               </div>
-            ));
-          })()}
+              <p className="text-2xl font-black text-foreground">{value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+            </div>
+          ))}
         </div>
 
         {/* Suite cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {suites.map((suite) => {
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {ALL_SUITES.map((suite) => {
             const meta = SUITE_META[suite];
             const stats = statsMap[suite];
             const pct = stats.total > 0 ? Math.round((stats.passed / stats.total) * 100) : 0;
@@ -87,7 +94,7 @@ export default async function QADashboardPage() {
             return (
               <Link
                 key={suite}
-                href={`/qa/${suite}`}
+                href={`/qa/${encodeURIComponent(suite)}`}
                 className="group bg-white rounded-2xl border border-border shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 overflow-hidden"
               >
                 {/* Card header */}
@@ -138,7 +145,7 @@ export default async function QADashboardPage() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-8">
-          All test results are persisted in the Neon PostgreSQL database.
+          {grandTotal} test cases across {ALL_SUITES.length} suites. Click any card to view and run tests.
         </p>
       </div>
     </div>

@@ -24,15 +24,15 @@ export function CartPage({ isMember = false }: CartPageProps) {
 
   const subtotal = useMemo(
     () => items.reduce((total, item) => {
-      const price = isMember && item.product.memberPrice && item.product.memberPrice > 0
-        ? item.product.memberPrice
-        : item.product.price;
-      return total + price * item.quantity;
+      const basePrice = Math.max(0, item.product.price ?? 0);
+      const memberPrice = item.product.memberPrice && item.product.memberPrice > 0 ? item.product.memberPrice : null;
+      const effectivePrice = isMember && memberPrice !== null ? memberPrice : basePrice;
+      return total + effectivePrice * item.quantity;
     }, 0),
     [items, isMember]
   );
   const fullSubtotal = useMemo(
-    () => items.reduce((total, item) => total + item.product.price * item.quantity, 0),
+    () => items.reduce((total, item) => total + Math.max(0, item.product.price ?? 0) * item.quantity, 0),
     [items]
   );
   const memberSavings = isMember ? fullSubtotal - subtotal : 0;
@@ -93,15 +93,18 @@ export function CartPage({ isMember = false }: CartPageProps) {
 
         <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
           <section className="min-w-0 space-y-3 sm:space-y-4">
-            {items.map((item) => (
-              <CartItem
-                key={`${item.product.id}:${item.product.variantId ?? "default"}`}
-                item={item}
-                isMember={isMember}
-                onUpdateQuantity={(quantity) => updateQuantity(item.product.id, quantity, item.product.variantId ?? null)}
-                onRemove={() => removeItem(item.product.id, item.product.variantId ?? null)}
-              />
-            ))}
+            {items.map((item, index) => {
+              const itemKey = `${item.product.id ?? 'unknown'}-${item.product.variantId ?? 'default'}-${index}`;
+              return (
+                <CartItem
+                  key={itemKey}
+                  item={item}
+                  isMember={isMember}
+                  onUpdateQuantity={(quantity) => updateQuantity(item.product.id, quantity, item.product.variantId ?? null)}
+                  onRemove={() => removeItem(item.product.id, item.product.variantId ?? null)}
+                />
+              );
+            })}
           </section>
 
           <CartSummary

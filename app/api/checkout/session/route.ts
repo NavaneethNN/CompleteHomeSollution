@@ -15,7 +15,7 @@ const addressSchema = z.object({
   country: z.string().default("AU"),
 });
 
-const VALID_COUPONS: Record<string, number> = { SAVE10: 10 };
+// VALID_COUPONS removed - using database coupons now
 
 const checkoutSchema = z
   .object({
@@ -89,10 +89,126 @@ export async function POST(req: NextRequest) {
       addressId = address.id;
     }
 
-    // Validate coupon server-side
+    // Validate coupon server-side from database
+    let coupon: any = null;
+    let couponDiscount = 0;
+    let applicableSubtotal = 0;
+
     const couponCode = input.couponCode?.trim().toUpperCase();
-    const couponDiscountPct = couponCode ? (VALID_COUPONS[couponCode] ?? 0) : 0;
-    const discountFactor = 1 - couponDiscountPct / 100;
+
+    if (couponCode) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      coupon = await (db as any).coupon.findUnique({
+        where: { code: couponCode },
+        include: {
+          products: { select: { productId: true } },
+          categories: { select: { categoryId: true } },
+        },
+      });
+
+      if (!coupon || !coupon.isActive) {
+        return NextResponse.json({ error: "Invalid or inactive coupon" }, { status: 400 });
+      }
+
+      // Check date validity
+      const now = new Date();
+      if (coupon.startDate && now < new Date(coupon.startDate)) {
+        return NextResponse.json({ error: "Coupon not yet valid" }, { status: 400 });
+      }
+      if (coupon.endDate && now > new Date(coupon.endDate)) {
+        return NextResponse.json({ error: "Coupon expired" }, { status: 400 });
+      }
+
+      // Check usage limit
+      if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
+        return NextResponse.json({ error: "Coupon usage limit reached" }, { status: 400 });
+      }
+
+      // Calculate applicable subtotal based on coupon type
+      if (coupon.type === "PRODUCT") {
+        const applicableProductIds = coupon.products.map((p: any) => p.productId);
+        applicableSubtotal = input.items
+          .filter((item) => applicableProductIds.includes(item.productId))
+          .reduce((sum, item) => {
+            const product = products.find((p) => p.id === item.productId);
+            let unitPrice = product?.basePrice ?? 0;
+            if (item.variantId && product?.productVariants) {
+              const variant = product.productVariants.find((v) => v.id === item.variantId);
+              unitPrice = variant?.price ?? unitPrice;
+            }
+            return sum + unitPrice * item.quantity;
+          }, 0);
+      } else if (coupon.type === "CATEGORY") {
+        const applicableCategoryIds = coupon.categories.map((c: any) => c.categoryId);
+        const productIds = [...new Set(input.items.map((i) => i.productId))];
+        const productsWithCategories = await db.product.findMany({
+          where: { id: { in: productIds } },
+          select: { id: true, categoryId: true },
+        });
+        const applicableProductIds = productsWithCategories
+          .filter((p) => applicableCategoryIds.includes(p.categoryId))
+          .map((p) => p.id);
+
+        applicableSubtotal = input.items
+          .filter((item) => applicableProductIds.includes(item.productId))
+          .reduce((sum, item) => {
+            const product = products.find((p) => p.id === item.productId);
+            let unitPrice = product?.basePrice ?? 0;
+            if (item.variantId && product?.productVariants) {
+              const variant = product.productVariants.find((v) => v.id === item.variantId);
+              unitPrice = variant?.price ?? unitPrice;
+            }
+            return sum + unitPrice * item.quantity;
+          }, 0);
+      } else {
+        // GLOBAL - apply to all items
+        applicableSubtotal = input.items.reduce((sum, item) => {
+          const product = products.find((p) => p.id === item.productId);
+          let unitPrice = product?.basePrice ?? 0;
+          if (item.variantId && product?.productVariants) {
+            const variant = product.productVariants.find((v) => v.id === item.variantId);
+            unitPrice = variant?.price ?? unitPrice;
+          }
+          return sum + unitPrice * item.quantity;
+        }, 0);
+      }
+
+      // Check minimum order amount
+      if (coupon.minOrderAmount && applicableSubtotal < coupon.minOrderAmount) {
+        return NextResponse.json(
+          { error: `Minimum order amount of $${coupon.minOrderAmount.toFixed(2)} required for this coupon` },
+          { status: 400 }
+        );
+      }
+
+      // Calculate discount
+      if (coupon.discountType === "PERCENTAGE") {
+        couponDiscount = (applicableSubtotal * coupon.discountValue) / 100;
+        if (coupon.maxDiscount && couponDiscount > coupon.maxDiscount) {
+          couponDiscount = coupon.maxDiscount;
+        }
+      } else {
+        // FIXED
+        couponDiscount = Math.min(coupon.discountValue, applicableSubtotal);
+      }
+
+      couponDiscount = Math.round(couponDiscount * 100) / 100;
+    }
+
+    // For per-item discount factor (if we need to distribute discount across items)
+    const totalBeforeDiscount = input.items.reduce((sum, item) => {
+      const product = products.find((p) => p.id === item.productId);
+      let unitPrice = product?.basePrice ?? 0;
+      if (item.variantId && product?.productVariants) {
+        const variant = product.productVariants.find((v) => v.id === item.variantId);
+        unitPrice = variant?.price ?? unitPrice;
+      }
+      return sum + unitPrice * item.quantity;
+    }, 0);
+
+    const discountFactor = couponDiscount > 0 && totalBeforeDiscount > 0
+      ? (totalBeforeDiscount - couponDiscount) / totalBeforeDiscount
+      : 1;
 
     // FIX: Always fetch isMember fresh from DB for billing — never trust JWT for financial decisions
     let isMemberFromDb = false;
@@ -160,7 +276,7 @@ export async function POST(req: NextRequest) {
             : product.basePrice;
       }
 
-      // Apply coupon discount factor
+      // Apply coupon discount factor (distributes discount proportionally across items)
       const discountedUnitPrice = Math.round(unitPrice * discountFactor * 100) / 100;
       subtotal += discountedUnitPrice * item.quantity;
       lineItems.push({
@@ -192,8 +308,11 @@ export async function POST(req: NextRequest) {
     // FIX: Round subtotal to 2dp before computing tax/total (avoids float accumulation)
     subtotal = Math.round(subtotal * 100) / 100;
 
+    // Calculate totals after coupon discount
+    const discountedSubtotal = Math.max(0, subtotal - couponDiscount);
+
     // Calculate totals — members always get free shipping; otherwise use AusPost rate
-    const freeShipping = effectiveMember || subtotal >= 1200;
+    const freeShipping = effectiveMember || discountedSubtotal >= 1200;
 
     // FIX: Reject non-free orders that send shippingCost=0 — prevents shipping fee bypass
     if (!freeShipping && (!input.shippingCost || input.shippingCost <= 0)) {
@@ -204,9 +323,9 @@ export async function POST(req: NextRequest) {
     }
     const shippingCost = freeShipping ? 0 : Math.round(input.shippingCost! * 100) / 100;
 
-    const tax = Math.round(subtotal * 0.1 * 100) / 100; // 10% GST
+    const tax = Math.round(discountedSubtotal * 0.1 * 100) / 100; // 10% GST on discounted amount
     // FIX: Round total to 2dp so DB value matches Stripe integer-cent charge
-    const total = Math.round((subtotal + shippingCost + tax + membershipCharge) * 100) / 100;
+    const total = Math.round((discountedSubtotal + shippingCost + tax + membershipCharge) * 100) / 100;
 
     // Add shipping as line item if not free
     if (shippingCost > 0) {
@@ -235,7 +354,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Create the order in DB — store addMembership flag in metadata
+    // Create the order in DB — store coupon and addMembership flag
     const order = await db.order.create({
       data: {
         ...(session?.user?.id ? { userId: session.user.id } : {}),
@@ -245,8 +364,13 @@ export async function POST(req: NextRequest) {
         subtotal,
         shippingCost,
         tax,
+        discount: couponDiscount,
         total,
         status: "PENDING",
+        ...(coupon ? {
+          couponId: coupon.id,
+          couponCode: coupon.code,
+        } : {}),
         items: {
           create: input.items.map((item) => {
             const product = products.find((p) => p.id === item.productId)!;
@@ -273,6 +397,15 @@ export async function POST(req: NextRequest) {
         },
       },
     });
+
+    // Increment coupon usage count
+    if (coupon) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (db as any).coupon.update({
+        where: { id: coupon.id },
+        data: { usageCount: { increment: 1 } },
+      });
+    }
 
     // Determine customer email
     const customerEmail =

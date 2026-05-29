@@ -131,6 +131,7 @@ model Product {
   cartItems         CartItem[]
   variantAttributes VariantAttribute[] // Custom variant categories (Color, Size, etc.)
   productVariants   ProductVariant[]   // Actual sellable variants with prices
+  couponProducts    CouponProduct[]    // Coupons applicable to this product
 
   embedding Unsupported("vector(1536)")?
 
@@ -231,6 +232,7 @@ model Category {
   slug     String    @unique
   image    String?
   products Product[]
+  couponCategories CouponCategory[] // Coupons applicable to this category
 }
 
 model Order {
@@ -243,10 +245,14 @@ model Order {
   subtotal        Float
   shippingCost    Float
   tax             Float
+  discount        Float       @default(0) // Coupon discount amount
   total           Float
   stripePaymentId String?
   trackingNumber  String?
   carrier         String?
+  // Coupon fields
+  couponId        String?
+  couponCode      String?     // Store the code used at time of order
   // Refund / cancellation fields
   refundRequested   Boolean   @default(false)
   refundReason      String?
@@ -259,6 +265,79 @@ model Order {
   user    User?       @relation(fields: [userId], references: [id])
   address Address     @relation(fields: [addressId], references: [id])
   items   OrderItem[]
+  coupon  Coupon?     @relation(fields: [couponId], references: [id])
+
+  @@index([couponId])
+}
+
+// ─── Coupon Models ───────────────────────────────────────────────────────────
+
+enum CouponType {
+  GLOBAL       // Applies to all products
+  PRODUCT      // Applies to specific products only
+  CATEGORY     // Applies to specific categories only
+}
+
+enum CouponDiscountType {
+  PERCENTAGE   // Percentage off (e.g., 10%)
+  FIXED        // Fixed amount off (e.g., $10)
+}
+
+model Coupon {
+  id              String            @id @default(cuid())
+  code            String            @unique // e.g., "SAVE10", "SUMMER2024"
+  name            String            // Display name
+  description     String?           @db.Text
+  type            CouponType        // GLOBAL, PRODUCT, CATEGORY
+  discountType    CouponDiscountType // PERCENTAGE or FIXED
+  discountValue   Float             // Percentage (e.g., 10) or fixed amount (e.g., 10.00)
+  minOrderAmount  Float?            // Minimum order amount to use coupon
+  maxDiscount     Float?            // Maximum discount cap (for percentage coupons)
+  usageLimit      Int?              // Total usage limit across all users
+  usageCount      Int               @default(0) // Current usage count
+  perUserLimit    Int?              // Max uses per user
+  startDate       DateTime?         // When coupon becomes valid
+  endDate         DateTime?         // When coupon expires
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relations for specific coupon types
+  products        CouponProduct[]
+  categories      CouponCategory[]
+  orders          Order[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([type])
+}
+
+// Join table: Coupons for specific products
+model CouponProduct {
+  id        String   @id @default(cuid())
+  couponId  String
+  productId String
+
+  coupon  Coupon  @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, productId])
+  @@index([couponId])
+  @@index([productId])
+}
+
+// Join table: Coupons for specific categories
+model CouponCategory {
+  id         String   @id @default(cuid())
+  couponId   String
+  categoryId String
+
+  coupon   Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, categoryId])
+  @@index([couponId])
+  @@index([categoryId])
 }
 
 model OrderItem {
@@ -363,6 +442,7 @@ model TestResult {
   suite     String
   status    TestStatus @default(PENDING)
   notes     String?    @db.Text
+  comments  String?    @db.Text
   updatedAt DateTime   @updatedAt
   createdAt DateTime   @default(now())
 }

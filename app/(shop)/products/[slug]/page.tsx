@@ -126,13 +126,13 @@ export default async function ProductDetailPage({
     name: product.name,
     slug: product.slug,
     sku: product.sku,
-    price: product.basePrice,
-    comparePrice: product.comparePrice,
-    memberPrice: product.memberPrice,
-    images: product.images,
-    stock: product.stock,
-    description: product.description,
-    material: product.material,
+    price: product.basePrice ?? 0,
+    comparePrice: product.comparePrice ?? null,
+    memberPrice: product.memberPrice ?? null,
+    images: product.images?.length ? product.images : ["/placeholder.jpg"],
+    stock: product.stock ?? 0,
+    description: product.description ?? "",
+    material: product.material ?? null,
     category: { name: product.category.name, slug: product.category.slug },
   };
 
@@ -246,13 +246,13 @@ export default async function ProductDetailPage({
                   id: product.id,
                   name: product.name,
                   slug: product.slug,
-                  price: product.basePrice,
-                  memberPrice: product.memberPrice,
-                  images: product.images,
-                  stock: product.stock,
-                  description: product.description,
+                  price: product.basePrice ?? 0,
+                  memberPrice: product.memberPrice ?? null,
+                  images: product.images?.length ? product.images : ["/placeholder.jpg"],
+                  stock: product.stock ?? 0,
+                  description: product.description ?? "",
                 }}
-                disabled={product.stock === 0}
+                disabled={!product.stock || product.stock <= 0}
                 hasVariants={false}
               />
 

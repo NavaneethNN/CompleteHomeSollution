@@ -104,7 +104,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discountType: "PERCENTAGE" | "FIXED";
+    discountValue: number;
+    discount: number;
+    name?: string;
+  } | null>(null);
   const [addMembership, setAddMembership] = useState(false);
   const [membershipPerksOpen, setMembershipPerksOpen] = useState(false);
 
@@ -122,6 +128,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   // Guest: store address locally since it won't be saved to DB
   const [guestAddress, setGuestAddress] = useState<(AddressInput & { email?: string }) | null>(null);
   const [guestEmail, setGuestEmail] = useState("");
+  const [guestEmailError, setGuestEmailError] = useState<string | null>(null);
+
+  // Email validation helper
+  const isValidEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) && email.length <= 254;
+  };
 
   // Australia Post shipping rates
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
@@ -145,22 +158,36 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   const subtotal = items.reduce((total, item) => {
     const memberPrice = getMemberPrice(item);
-    const price = effectiveMember && memberPrice ? memberPrice : item.product.price;
-    return total + price * item.quantity;
+    const basePrice = Math.max(0, item.product.price ?? 0);
+    const effectivePrice = effectiveMember && memberPrice && memberPrice > 0 ? memberPrice : basePrice;
+    return total + effectivePrice * item.quantity;
   }, 0);
   // Full (non-member) subtotal for savings display
-  const fullSubtotal = items.reduce((total, item) => total + item.product.price * item.quantity, 0);
+  const fullSubtotal = items.reduce((total, item) => total + Math.max(0, item.product.price ?? 0) * item.quantity, 0);
   const memberSavings = fullSubtotal - subtotal;
   const itemCount = items.reduce((total, item) => total + item.quantity, 0);
 
   // Estimate total weight from cart (fallback 2 kg per item if no weight data)
-  const estimatedWeightKg = items.reduce(
-    (sum, item) => sum + ((item.product as { weight?: number }).weight ?? 2) * item.quantity,
-    0
+  // Cap individual item weight at 100kg and total at 500kg to prevent abuse
+  const estimatedWeightKg = Math.min(
+    500,
+    items.reduce(
+      (sum, item) => sum + Math.min(100, Math.max(0.1, (item.product as { weight?: number }).weight ?? 2)) * Math.min(item.quantity, 20),
+      0
+    )
   );
 
-  // Calculate totals
-  const discount = appliedCoupon ? subtotal * (appliedCoupon.discount / 100) : 0;
+  // Calculate totals with proper coupon discount
+  let discount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.discountType === "PERCENTAGE") {
+      discount = subtotal * (appliedCoupon.discountValue / 100);
+    } else {
+      // FIXED - capped at subtotal
+      discount = Math.min(appliedCoupon.discountValue, subtotal);
+    }
+  }
+  discount = Math.round(discount * 100) / 100;
   const discountedSubtotal = subtotal - discount;
   const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode);
   const freeShipping = discountedSubtotal >= 1200;
@@ -288,11 +315,25 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   };
 
   const onAddressDialogSubmit = async (data: AddressInput) => {
+    // Validate guest email before proceeding
+    if (!isAuthenticated) {
+      if (!guestEmail.trim()) {
+        setGuestEmailError("Email address is required");
+        toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
+        return;
+      }
+      if (!isValidEmail(guestEmail)) {
+        setGuestEmailError("Please enter a valid email address");
+        toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+        return;
+      }
+    }
+
     setIsLoading(true);
     try {
       if (!isAuthenticated) {
         // Guest: just store locally, don't hit the DB
-        setGuestAddress({ ...data, email: guestEmail });
+        setGuestAddress({ ...data, email: guestEmail.trim().toLowerCase() });
         setIsAddressDialogOpen(false);
         toast({ title: "Address saved", description: "Your delivery address has been set." });
         return;
@@ -346,13 +387,46 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     }
   };
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     if (!couponCode.trim()) return;
-    if (couponCode.toUpperCase() === "SAVE10") {
-      setAppliedCoupon({ code: couponCode.toUpperCase(), discount: 10 });
-      toast({ title: "Coupon Applied", description: "10% discount applied." });
-    } else {
-      toast({ title: "Invalid Coupon", description: "The coupon code is not valid.", variant: "destructive" });
+
+    // Prepare items for coupon validation
+    const itemsForValidation = items.map((item) => {
+      const memberPrice = getMemberPrice(item);
+      const basePrice = Math.max(0, item.product.price ?? 0);
+      const effectivePrice = isMember && memberPrice ? memberPrice : basePrice;
+      return {
+        productId: item.product.id,
+        variantId: item.product.variantId,
+        quantity: item.quantity,
+        price: effectivePrice,
+      };
+    });
+
+    const params = new URLSearchParams();
+    params.set("code", couponCode.trim());
+    params.set("subtotal", subtotal.toString());
+    params.set("items", JSON.stringify(itemsForValidation));
+
+    try {
+      const res = await fetch(`/api/coupons/validate?${params.toString()}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast({ title: "Invalid Coupon", description: data.error || "The coupon code is not valid.", variant: "destructive" });
+        return;
+      }
+
+      setAppliedCoupon({
+        code: data.coupon.code,
+        discountType: data.coupon.discountType,
+        discountValue: data.coupon.discountValue,
+        discount: data.coupon.discount,
+        name: data.coupon.name,
+      });
+      toast({ title: "Coupon Applied", description: `${data.coupon.name} - ${data.coupon.discountType === "PERCENTAGE" ? data.coupon.discountValue + "%" : "$" + data.coupon.discountValue} off` });
+    } catch {
+      toast({ title: "Error", description: "Failed to validate coupon. Please try again.", variant: "destructive" });
     }
   };
 
@@ -366,6 +440,20 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     if (items.length === 0) {
       toast({ title: "Cart is empty", description: "Add items to your cart first.", variant: "destructive" });
       return;
+    }
+
+    // Validate guest email for non-authenticated users
+    if (!isAuthenticated) {
+      if (!guestEmail.trim()) {
+        setIsAddressDialogOpen(true);
+        toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
+        return;
+      }
+      if (!isValidEmail(guestEmail)) {
+        setIsAddressDialogOpen(true);
+        toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+        return;
+      }
     }
 
     // Validate address
@@ -396,7 +484,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           ...(isAuthenticated
             ? { savedAddressId: selectedAddressId }
             : { address: guestAddress }),
-          guestEmail: !isAuthenticated ? guestAddress?.email : undefined,
+          guestEmail: !isAuthenticated ? guestEmail.trim().toLowerCase() : undefined,
           shippingRateCode: selectedRateCode ?? undefined,
           shippingCost: shippingCost ?? 0,
           couponCode: appliedCoupon?.code || undefined,
@@ -455,12 +543,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             Items ({itemCount})
           </h2>
           <div className="mt-4 divide-y divide-border">
-            {items.map((item) => {
+            {items.map((item, index) => {
               const memberPrice = getMemberPrice(item);
-              const effectivePrice = effectiveMember && memberPrice ? memberPrice : item.product.price;
-              const hasMemberDiscount = effectiveMember && memberPrice && memberPrice < item.product.price;
+              const basePrice = Math.max(0, item.product.price ?? 0);
+              const effectivePrice = effectiveMember && memberPrice && memberPrice > 0 ? memberPrice : basePrice;
+              const hasMemberDiscount = effectiveMember && memberPrice && memberPrice > 0 && memberPrice < basePrice;
+              const itemKey = `${item.product.id ?? 'unknown'}-${item.product.variantId ?? 'default'}-${index}`;
               return (
-                <div key={`${item.product.id}-${item.product.variantId}`} className="flex gap-4 py-4 first:pt-0 last:pb-0">
+                <div key={itemKey} className="flex gap-4 py-4 first:pt-0 last:pb-0">
                   <Link href={`/products/${item.product.slug}`} className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted shrink-0 block hover:opacity-80 transition-opacity">
                     {item.product.images?.[0] && (
                       <Image
@@ -490,7 +580,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                     </p>
                     {hasMemberDiscount && (
                       <p className="text-xs text-muted-foreground line-through">
-                        {currencyFormatter.format(item.product.price * item.quantity)}
+                        {currencyFormatter.format(basePrice * item.quantity)}
                       </p>
                     )}
                   </div>
@@ -622,7 +712,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-green-600" />
                 <span className="text-sm font-medium text-green-800">
-                  {appliedCoupon.code} &mdash; {appliedCoupon.discount}% off
+                  {appliedCoupon.code} &mdash; {appliedCoupon.discountType === "PERCENTAGE" ? appliedCoupon.discountValue + "%" : "$" + appliedCoupon.discountValue} off
                 </span>
               </div>
               <Button type="button" variant="ghost" size="sm" onClick={removeCoupon} className="text-xs h-7">
@@ -670,9 +760,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                 <span className="font-medium text-primary">-{currencyFormatter.format(memberSavings)}</span>
               </div>
             )}
-            {discount > 0 && (
+            {discount > 0 && appliedCoupon && (
               <div className="flex justify-between text-sm">
-                <span className="text-green-600">Discount ({appliedCoupon?.code})</span>
+                <span className="text-green-600">Discount ({appliedCoupon.code})</span>
                 <span className="font-medium text-green-600">-{currencyFormatter.format(discount)}</span>
               </div>
             )}
@@ -911,15 +1001,34 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             {/* Email — guests only */}
             {!isAuthenticated && (
               <div className="space-y-2">
-                <Label htmlFor="dlg-email" className="text-sm font-medium">Email Address</Label>
+                <Label htmlFor="dlg-email" className="text-sm font-medium">Email Address <span className="text-destructive">*</span></Label>
                 <Input
                   id="dlg-email"
                   type="email"
                   placeholder="you@example.com"
                   value={guestEmail}
-                  onChange={(e) => setGuestEmail(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setGuestEmail(value);
+                    if (value && !isValidEmail(value)) {
+                      setGuestEmailError("Please enter a valid email address");
+                    } else {
+                      setGuestEmailError(null);
+                    }
+                  }}
+                  onBlur={() => {
+                    if (guestEmail && !isValidEmail(guestEmail)) {
+                      setGuestEmailError("Please enter a valid email address");
+                    }
+                  }}
                   required
+                  aria-invalid={!!guestEmailError}
+                  aria-describedby={guestEmailError ? "email-error" : undefined}
+                  className={guestEmailError ? "border-destructive" : ""}
                 />
+                {guestEmailError && (
+                  <p id="email-error" className="text-sm text-destructive">{guestEmailError}</p>
+                )}
               </div>
             )}
 
