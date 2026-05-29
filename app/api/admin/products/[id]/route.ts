@@ -12,11 +12,23 @@ const MAX_NAME_LENGTH = 200;
 const MAX_DESCRIPTION_LENGTH = 5000;
 const MAX_SKU_LENGTH = 50;
 
-// Custom validation for base64 image size
-const validateBase64ImageSize = (base64String: string): boolean => {
-  const base64 = base64String.replace(/^data:image\/\w+;base64,/, '');
-  const sizeInBytes = (base64.length * 3) / 4;
-  return sizeInBytes <= MAX_IMAGE_SIZE_BYTES;
+// Custom validation for image size (handles both base64 and URLs)
+const validateImageSize = (imageString: string): boolean => {
+  // If it's a URL (starts with http), skip size validation
+  // (images are already uploaded to R2 and size-checked during upload)
+  if (imageString.startsWith('http://') || imageString.startsWith('https://')) {
+    return true;
+  }
+  
+  // Handle base64 images (legacy support)
+  if (imageString.startsWith('data:image/')) {
+    const base64 = imageString.replace(/^data:image\/\w+;base64,/, '');
+    const sizeInBytes = (base64.length * 3) / 4;
+    return sizeInBytes <= MAX_IMAGE_SIZE_BYTES;
+  }
+  
+  // Unknown format, reject
+  return false;
 };
 
 const variantValueSchema = z.object({
@@ -65,8 +77,8 @@ const updateProductSchema = z.object({
   images: z.array(z.string())
     .max(MAX_IMAGES_COUNT, `Maximum ${MAX_IMAGES_COUNT} images allowed`)
     .refine(
-      (images) => images.every(img => validateBase64ImageSize(img)),
-      `Each image must be under ${MAX_IMAGE_SIZE_MB}MB`
+      (images) => images.every(img => validateImageSize(img)),
+      `Each image must be under ${MAX_IMAGE_SIZE_MB}MB or a valid URL`
     )
     .optional(),
   weight: z.number().optional().nullable(),

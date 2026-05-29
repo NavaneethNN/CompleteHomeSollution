@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { getOrders } from "@/lib/actions/orders";
 import { AccountSidebar } from "@/components/account/account-sidebar";
+import { BuyAgainButton } from "@/components/shop/buy-again-button";
 import {
   Package,
   ChevronRight,
@@ -185,12 +186,15 @@ export default async function OrdersPage() {
                             {order.address.suburb}, {order.address.state} {order.address.postcode}
                           </span>
                         </div>
-                        <Link
-                          href={`/account/orders/${order.id}`}
-                          className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-                        >
-                          View Details <ChevronRight className="h-4 w-4" />
-                        </Link>
+                        <div className="flex items-center gap-3">
+                          <BuyAgainButton items={order.items} variant="outline" size="sm" />
+                          <Link
+                            href={`/account/orders/${order.id}`}
+                            className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                          >
+                            View Details <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>

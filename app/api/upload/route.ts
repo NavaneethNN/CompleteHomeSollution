@@ -17,13 +17,21 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session || session.user.role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Allow authenticated users to upload images (for reviews, profile pictures)
+    // Admins can upload for products
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized - Please sign in" }, { status: 401 });
     }
-
+    
+    const isAdmin = session.user.role === "ADMIN";
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const folder = (formData.get("folder") as string | null) ?? "products";
+    
+    // Non-admin users can only upload to specific folders
+    if (!isAdmin && !["reviews", "profile"].includes(folder)) {
+      return NextResponse.json({ error: "Unauthorized folder for non-admin users" }, { status: 403 });
+    }
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });

@@ -20,6 +20,7 @@ import {
   Hash,
 } from "lucide-react";
 import { CancelOrderButton } from "@/components/shop/cancel-order-button";
+import { BuyAgainButton } from "@/components/shop/buy-again-button";
 
 export const metadata: Metadata = { title: "Order Details — Complete Home Sollution" };
 
@@ -72,7 +73,10 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               Placed on {formattedDate} at {formattedTime}
             </p>
           </div>
-          <span className={getStatusStyle(order.status)}>{order.status}</span>
+          <div className="flex items-center gap-3">
+            <BuyAgainButton items={order.items} variant="outline" size="sm" />
+            <span className={getStatusStyle(order.status)}>{order.status}</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

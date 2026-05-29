@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Camera, User, Mail, Phone, Check, Loader2 } from "lucide-react";
+import { Camera, User, Mail, Phone, Check, Loader2, Upload, X } from "lucide-react";
 import { profileSchema, ProfileInput } from "@/lib/validations/address";
 import { updateProfile } from "@/lib/actions/profile";
 import { useToast } from "@/hooks/use-toast";
@@ -28,7 +28,9 @@ interface ProfileFormProps {
 
 export function ProfileForm({ profile }: ProfileFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [previewImage, setPreviewImage] = useState(profile?.image || "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const {
@@ -82,6 +84,75 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     setPreviewImage(url);
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Error",
+        description: "Please upload a valid image file (JPEG, PNG, WebP, or GIF)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (2MB max for profile)
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Image size should be less than 2MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "profile");
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Upload failed");
+      }
+
+      const { publicUrl } = await res.json();
+      setValue("image", publicUrl, { shouldDirty: true });
+      setPreviewImage(publicUrl);
+      toast({
+        title: "Success",
+        description: "Profile picture uploaded successfully",
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to upload image",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImage(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setValue("image", "", { shouldDirty: true });
+    setPreviewImage("");
+  };
+
   const initials = profile?.name
     ? profile.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : (profile?.email?.[0] ?? "U").toUpperCase();
@@ -119,25 +190,65 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                   <span className="text-3xl font-black text-white">{initials}</span>
                 </div>
               )}
-              <div className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md border border-border">
-                <Camera className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
-            <div className="flex-1 max-w-md">
-              <Label htmlFor="image" className="text-sm font-medium">
-                Image URL
-              </Label>
-              <Input
-                id="image"
-                type="url"
-                placeholder="https://example.com/avatar.jpg"
-                className="mt-1.5"
-                {...register("image")}
-                onChange={handleImageChange}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="absolute -bottom-1 -right-1 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md border border-border hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                {uploadingImage ? (
+                  <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleFileUpload}
               />
-              <p className="text-xs text-muted-foreground mt-1.5">
-                Enter a URL for your profile picture (e.g., from Gravatar or Google)
-              </p>
+            </div>
+            <div className="flex-1 max-w-md space-y-3">
+              <div>
+                <Label htmlFor="image" className="text-sm font-medium">
+                  Profile Picture
+                </Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Upload a photo or enter an image URL
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  id="image"
+                  type="url"
+                  placeholder="https://example.com/avatar.jpg"
+                  {...register("image")}
+                  onChange={handleImageChange}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="shrink-0"
+                >
+                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                </Button>
+                {previewImage && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={handleRemoveImage}
+                    className="shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </CardContent>
