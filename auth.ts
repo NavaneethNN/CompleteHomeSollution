@@ -74,16 +74,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user || !user.passwordHash) {
           // Record failed attempt even for non-existent users
           recordFailedAttempt(rateLimitKey);
-          throw new InvalidCredentialsError();
+          return null;
         }
 
-        if (!user.emailVerified) throw new EmailNotVerifiedError();
+        if (!user.emailVerified) {
+          throw new CredentialsSignin("EmailNotVerified");
+        }
 
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) {
           // Record failed attempt for wrong password
           recordFailedAttempt(rateLimitKey);
-          throw new InvalidCredentialsError();
+          return null;
         }
 
         // Reset rate limit on successful login

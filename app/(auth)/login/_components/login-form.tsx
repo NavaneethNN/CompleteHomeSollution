@@ -163,20 +163,33 @@ function LoginFormInner() {
 
       console.log("[Login] signIn result:", result);
 
-      if (!result?.ok) {
-        const errorMessage = result?.error
-          ? (AUTH_ERRORS[result.error] ?? AUTH_ERRORS.Default)
-          : AUTH_ERRORS.Default;
+      if (result?.error) {
+        // Handle specific string matching or use default
+        let errorKey = result.error;
+        if (result.error.includes("EmailNotVerified")) errorKey = "EmailNotVerified";
+        if (result.error.includes("RateLimited")) errorKey = "RateLimited";
+        
+        const errorMessage = AUTH_ERRORS[errorKey] ?? AUTH_ERRORS.Default;
         console.log("[Login] Setting error:", errorMessage);
         setServerError(errorMessage);
         return;
       }
 
-      router.push(callbackUrl);
-      router.refresh();
+      // Handle NextAuth v5 bug where redirect: false still follows redirects and returns ok: true
+      if (result?.url && result.url.includes("error=")) {
+        console.log("[Login] Caught redirected error in URL:", result.url);
+        setServerError("Invalid email or password. Please try again.");
+        return;
+      }
+
+      if (result?.ok) {
+        router.push(callbackUrl);
+        router.refresh();
+      }
     } catch (err) {
       console.error("[Login] Unexpected error:", err);
-      setServerError("An unexpected error occurred. Please try again.");
+      // Fallback for when signIn throws an error instead of returning it
+      setServerError("Invalid email or password. Please try again.");
     }
   };
 
