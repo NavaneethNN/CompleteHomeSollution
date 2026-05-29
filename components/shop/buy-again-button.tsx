@@ -5,6 +5,7 @@ import { ShoppingCart, Loader2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useCartStore } from "@/store/cart";
 
 interface OrderItem {
   id: string;
@@ -16,6 +17,7 @@ interface OrderItem {
   };
   productVariantId?: string | null;
   quantity: number;
+  unitPrice: number;
   productVariant?: {
     id: string;
     sku: string;
@@ -46,44 +48,42 @@ export function BuyAgainButton({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const router = useRouter();
+  const addItem = useCartStore((state) => state.addItem);
 
   const handleBuyAgain = async () => {
     setLoading(true);
     setSuccess(false);
     
     try {
-      // Add each item to cart
-      const results = await Promise.allSettled(
-        items.map(async (item) => {
-          const res = await fetch("/api/cart", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              productId: item.product.id,
-              variantId: item.productVariantId || undefined,
-              quantity: item.quantity,
-            }),
-          });
-          
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `Failed to add ${item.product.name}`);
-          }
-          
-          return res.json();
-        })
-      );
+      // Small artificial delay to show feedback
+      await new Promise(resolve => setTimeout(resolve, 600));
 
-      const failed = results.filter((r) => r.status === "rejected");
-      const succeeded = results.filter((r) => r.status === "fulfilled");
+      let addedCount = 0;
 
-      if (failed.length > 0) {
-        console.error("Some items failed to add:", failed);
+      for (const item of items) {
+        // Construct variant label if applicable
+        const variantLabel = item.productVariant?.values
+          ?.map((v) => `${v.variantValue.variantAttribute.name}: ${v.variantValue.value}`)
+          .join(" · ");
+
+        addItem({
+          id: item.product.id,
+          name: item.product.name,
+          slug: item.product.slug,
+          price: item.unitPrice,
+          images: item.product.images || [],
+          stock: 99, // Allow adding to cart, stock will be verified at checkout
+          variantId: item.productVariantId,
+          variantLabel: variantLabel,
+          sku: item.productVariant?.sku,
+        }, item.quantity);
+        
+        addedCount++;
       }
 
-      if (succeeded.length > 0) {
+      if (addedCount > 0) {
         setSuccess(true);
-        toast.success(`${succeeded.length} item(s) added to cart`, {
+        toast.success(`${addedCount} item(s) added to cart`, {
           action: {
             label: "View Cart",
             onClick: () => router.push("/cart"),
@@ -93,7 +93,7 @@ export function BuyAgainButton({
         // Reset success state after 2 seconds
         setTimeout(() => setSuccess(false), 2000);
       } else {
-        toast.error("Failed to add items to cart");
+        toast.error("No items could be added to cart");
       }
     } catch (error) {
       console.error("Buy again error:", error);

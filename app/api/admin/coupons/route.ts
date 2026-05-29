@@ -14,8 +14,9 @@ const couponSchema = z.object({
   maxDiscount: z.number().positive().optional(),
   usageLimit: z.number().int().positive().optional(),
   perUserLimit: z.number().int().positive().optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  // Accept empty string, date string, or datetime string
+  startDate: z.union([z.string().datetime(), z.string().date(), z.literal("")]).optional().transform((v) => v || undefined),
+  endDate: z.union([z.string().datetime(), z.string().date(), z.literal("")]).optional().transform((v) => v || undefined),
   isActive: z.boolean().default(true),
   productIds: z.array(z.string()).optional(),
   categoryIds: z.array(z.string()).optional(),
@@ -64,7 +65,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+    console.log("[POST /api/admin/coupons] Received body:", JSON.stringify(body, null, 2));
+    
     const data = couponSchema.parse(body);
+    console.log("[POST /api/admin/coupons] Parsed data:", JSON.stringify(data, null, 2));
 
     // Check for duplicate code
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,7 +123,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[POST /api/admin/coupons]", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+      const issues = error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(', ');
+      console.error("[POST /api/admin/coupons] Validation errors:", issues);
+      return NextResponse.json({ error: `Invalid input: ${issues}` }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to create coupon" }, { status: 500 });
   }
