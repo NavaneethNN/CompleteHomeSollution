@@ -27,10 +27,19 @@ const footerLinks = [
     heading: "Help",
     links: [
       { label: "Search", href: "/search" },
-      { label: "Shipping Info", href: "#" },
-      { label: "Returns & Refunds", href: "#" },
-      { label: "Contact Us", href: "#" },
+      { label: "Shipping Info", href: "/shipping-policy" },
+      { label: "Returns & Refunds", href: "/refund-policy" },
+      { label: "Contact Us", href: "mailto:support@completehomesolution.com" },
       { label: "FAQs", href: "#" },
+    ],
+  },
+  {
+    heading: "Legal",
+    links: [
+      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms of Service", href: "/terms-of-service" },
+      { label: "Refund Policy", href: "/refund-policy" },
+      { label: "Shipping Policy", href: "/shipping-policy" },
     ],
   },
 ];
