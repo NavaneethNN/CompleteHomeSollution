@@ -2,6 +2,8 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Star, X, Loader2, Camera, CheckCircle2, LogIn, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -278,6 +280,7 @@ function ImageLightbox({ images, startAt, onClose }: { images: string[]; startAt
 
 // ── Main component ─────────────────────────────────────────────────────────────
 export function ProductReviews({ productId, reviews: initialReviews, reviewCount }: ProductReviewsProps) {
+  const pathname = usePathname();
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [eligibility, setEligibility] = useState<{
     hasPurchased: boolean;
@@ -365,7 +368,7 @@ export function ProductReviews({ productId, reviews: initialReviews, reviewCount
           <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 p-4">
             <LogIn className="h-5 w-5 text-muted-foreground shrink-0" />
             <p className="text-sm text-muted-foreground">
-              <a href="/login" className="font-semibold text-primary hover:underline">Sign in</a> to leave a review.
+              <Link href={`/login?callbackUrl=${encodeURIComponent(pathname || "/")}`} className="font-semibold text-primary hover:underline">Sign in</Link> to leave a review.
             </p>
           </div>
         ) : !eligibility.hasPurchased ? (

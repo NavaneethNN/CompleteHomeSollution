@@ -548,13 +548,13 @@ export function Navbar() {
                   ) : (
                     <div className="p-4 space-y-2.5">
                       <Link
-                        href="/login"
+                        href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}
                         className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary/90 text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
                       >
                         <LogIn className="h-4 w-4" /> Sign In
                       </Link>
                       <Link
-                        href="/register"
+                        href={`/register?callbackUrl=${encodeURIComponent(pathname)}`}
                         className="flex items-center justify-center gap-2 w-full border-2 border-foreground text-foreground hover:bg-foreground hover:text-white text-sm font-bold py-2.5 rounded-xl transition-colors"
                       >
                         <UserPlus className="h-4 w-4" /> Create Account
@@ -743,13 +743,13 @@ export function Navbar() {
           ) : (
             <div className="px-1 space-y-2.5">
               <Link
-                href="/login"
+                href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}
                 className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary/90 text-white text-sm font-bold py-3 rounded-xl transition-colors"
               >
                 <LogIn className="h-4 w-4" /> Sign In
               </Link>
               <Link
-                href="/register"
+                href={`/register?callbackUrl=${encodeURIComponent(pathname)}`}
                 className="flex items-center justify-center gap-2 w-full border-2 border-foreground text-foreground hover:bg-foreground hover:text-white text-sm font-bold py-3 rounded-xl transition-colors"
               >
                 <UserPlus className="h-4 w-4" /> Create Account
