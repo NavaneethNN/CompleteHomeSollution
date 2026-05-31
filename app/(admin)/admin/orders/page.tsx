@@ -25,7 +25,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { MobileStatusDropdown } from "@/components/admin/mobile-status-dropdown";
-import { OrderRowStatusForm } from "@/components/admin/order-row-status-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 
@@ -66,7 +65,10 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
   const skip = (page - 1) * ORDERS_PER_PAGE;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = {};
+  const where: any = {
+    // Exclude pending orders (payment not completed)
+    status: { not: "PENDING" },
+  };
 
   if (status && status !== "ALL") {
     where.status = status as OrderStatus;
@@ -308,15 +310,16 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                   orders.map((order) => {
                     const StatusConfig = ORDER_STATUS_CONFIG[order.status] ?? ORDER_STATUS_CONFIG.PAID;
                     const StatusIcon = StatusConfig.icon;
-                    const isTerminal = ["CANCELLED", "REFUNDED"].includes(order.status);
                     const hasRefundRequest = order.refundRequested && order.status !== "REFUNDED";
                     
                     return (
                       <tr key={order.id} className="hover:bg-slate-50">
                         <td className="py-2 sm:py-3 px-2 sm:px-4">
-                          <span className="font-mono text-xs text-slate-500">
-                            #{order.id.slice(-8).toUpperCase()}
-                          </span>
+                          <Link href={`/admin/orders/${order.id}`} className="hover:underline">
+                            <span className="font-mono text-xs text-slate-500 hover:text-primary transition-colors">
+                              #{order.id.slice(-8).toUpperCase()}
+                            </span>
+                          </Link>
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4">
                           <div className="flex items-center gap-2">
@@ -367,24 +370,12 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           )}
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 text-right">
-                          <div className="flex items-center justify-end gap-1 sm:gap-2">
-                            {/* Status Change Form */}
-                            {isTerminal ? (
-                              <span className="text-xs text-slate-400 italic px-1">—</span>
-                            ) : (
-                              <OrderRowStatusForm
-                                orderId={order.id}
-                                currentStatus={order.status}
-                              />
-                            )}
-                            
-                            <Link href={`/admin/orders/${order.id}`}>
-                              <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3 cursor-pointer">
-                                <Eye className="h-4 w-4 sm:mr-1" />
-                                <span className="hidden sm:inline">View</span>
-                              </Button>
-                            </Link>
-                          </div>
+                          <Link href={`/admin/orders/${order.id}`}>
+                            <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3 cursor-pointer">
+                              <Eye className="h-4 w-4 sm:mr-1" />
+                              <span className="hidden sm:inline">View</span>
+                            </Button>
+                          </Link>
                         </td>
                       </tr>
                     );
