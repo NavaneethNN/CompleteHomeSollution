@@ -546,7 +546,7 @@ export default function AdminCouponsPage() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!formData.code || !formData.name || !formData.discountValue}>
+            <Button onClick={handleCreate} disabled={!formData.code || !formData.name || !formData.description || !formData.discountValue || !formData.maxDiscount || !formData.minOrderAmount || !formData.usageLimit || !formData.perUserLimit || !formData.startDate || !formData.endDate || (formData.type === 'PRODUCT' && formData.productIds.length === 0) || (formData.type === 'CATEGORY' && formData.categoryIds.length === 0)}>
               Create Coupon
             </Button>
           </DialogFooter>
@@ -570,7 +570,7 @@ export default function AdminCouponsPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdate} disabled={!formData.code || !formData.name || !formData.discountValue}>
+            <Button onClick={handleUpdate} disabled={!formData.code || !formData.name || !formData.description || !formData.discountValue || !formData.maxDiscount || !formData.minOrderAmount || !formData.usageLimit || !formData.perUserLimit || !formData.startDate || !formData.endDate || (formData.type === 'PRODUCT' && formData.productIds.length === 0) || (formData.type === 'CATEGORY' && formData.categoryIds.length === 0)}>
               Save Changes
             </Button>
           </DialogFooter>
@@ -634,17 +634,17 @@ function CouponForm({
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">Description</label>
+        <label className="text-sm font-medium">Description *</label>
         <Input
           value={formData.description}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Optional description"
+          placeholder="Enter coupon description"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Coupon Type</label>
+          <label className="text-sm font-medium">Coupon Type *</label>
           <Select
             value={formData.type}
             onValueChange={(value) => setFormData({ ...formData, type: value })}
@@ -660,7 +660,7 @@ function CouponForm({
           </Select>
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Discount Type</label>
+          <label className="text-sm font-medium">Discount Type *</label>
           <Select
             value={formData.discountType}
             onValueChange={(value) => setFormData({ ...formData, discountType: value })}
@@ -691,7 +691,7 @@ function CouponForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Max Discount Cap</label>
+          <label className="text-sm font-medium">Max Discount Cap *</label>
           <Input
             type="number"
             min="0"
@@ -706,37 +706,37 @@ function CouponForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Minimum Order Amount</label>
+          <label className="text-sm font-medium">Minimum Order Amount *</label>
           <Input
             type="number"
             min="0"
             step="0.01"
             value={formData.minOrderAmount}
             onChange={(e) => setFormData({ ...formData, minOrderAmount: e.target.value })}
-            placeholder="Optional"
+            placeholder="e.g., 50.00"
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">Usage Limit (Total)</label>
+          <label className="text-sm font-medium">Usage Limit (Total) *</label>
           <Input
             type="number"
             min="0"
             value={formData.usageLimit}
             onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
-            placeholder="Optional"
+            placeholder="e.g., 100"
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Per User Limit</label>
+          <label className="text-sm font-medium">Per User Limit *</label>
           <Input
             type="number"
             min="0"
             value={formData.perUserLimit}
             onChange={(e) => setFormData({ ...formData, perUserLimit: e.target.value })}
-            placeholder="Optional"
+            placeholder="e.g., 1"
           />
         </div>
         <div className="flex items-center gap-2 pt-6">
@@ -750,7 +750,7 @@ function CouponForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Start Date</label>
+          <label className="text-sm font-medium">Start Date *</label>
           <Input
             type="date"
             value={formData.startDate}
@@ -758,7 +758,7 @@ function CouponForm({
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium">End Date</label>
+          <label className="text-sm font-medium">End Date *</label>
           <Input
             type="date"
             value={formData.endDate}
