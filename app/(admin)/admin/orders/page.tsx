@@ -313,15 +313,21 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                     const hasRefundRequest = order.refundRequested && order.status !== "REFUNDED";
                     
                     return (
-                      <tr key={order.id} className="hover:bg-slate-50">
-                        <td className="py-2 sm:py-3 px-2 sm:px-4">
-                          <Link href={`/admin/orders/${order.id}`} className="hover:underline">
-                            <span className="font-mono text-xs text-slate-500 hover:text-primary transition-colors">
-                              #{order.id.slice(-8).toUpperCase()}
-                            </span>
-                          </Link>
+                      <tr key={order.id} className="hover:bg-slate-50 relative group">
+                        {/* Clickable overlay for entire row */}
+                        <td className="p-0">
+                          <Link 
+                            href={`/admin/orders/${order.id}`} 
+                            className="absolute inset-0 z-0"
+                            aria-hidden="true"
+                          />
                         </td>
-                        <td className="py-2 sm:py-3 px-2 sm:px-4">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 relative z-10">
+                          <span className="font-mono text-xs text-slate-500">
+                            #{order.id.slice(-8).toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 relative z-10">
                           <div className="flex items-center gap-2">
                             <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
                               <Users className="h-4 w-4 text-slate-500" />
@@ -336,17 +342,17 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                             </div>
                           </div>
                         </td>
-                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-slate-600 hidden sm:table-cell">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-slate-600 hidden sm:table-cell relative z-10">
                           {new Date(order.createdAt).toLocaleDateString("en-AU", {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
                           })}
                         </td>
-                        <td className="py-2 sm:py-3 px-2 sm:px-4 font-medium text-slate-900">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 font-medium text-slate-900 relative z-10">
                           {currencyFormatter.format(order.total)}
                         </td>
-                        <td className="py-2 sm:py-3 px-2 sm:px-4">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 relative z-10">
                           <div className="flex flex-col gap-1">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold w-fit whitespace-nowrap ${StatusConfig.className}`}>
                               <StatusIcon className="h-3 w-3" />
@@ -360,7 +366,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                             )}
                           </div>
                         </td>
-                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-slate-600 hidden lg:table-cell">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-slate-600 hidden lg:table-cell relative z-10">
                           {order.items?.length || 0} items
                           {order.items?.[0]?.product?.name && (
                             <p className="text-xs text-slate-500 truncate max-w-[120px]">
@@ -369,9 +375,9 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                             </p>
                           )}
                         </td>
-                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-right">
+                        <td className="py-2 sm:py-3 px-2 sm:px-4 text-right relative z-10">
                           <Link href={`/admin/orders/${order.id}`}>
-                            <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3 cursor-pointer">
+                            <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3 cursor-pointer relative z-10">
                               <Eye className="h-4 w-4 sm:mr-1" />
                               <span className="hidden sm:inline">View</span>
                             </Button>
