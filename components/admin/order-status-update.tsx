@@ -35,7 +35,9 @@ const ORDER_STATUS_CONFIG: Record<
   string,
   { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline" }
 > = {
+  PENDING:          { label: "Pending",          icon: Clock,            variant: "outline" },
   PAID:             { label: "Paid",             icon: CheckCircle2,   variant: "secondary" },
+  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "secondary" },
   PROCESSING:       { label: "Processing",       icon: Package,        variant: "default" },
   SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "default" },
   OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "default" },
