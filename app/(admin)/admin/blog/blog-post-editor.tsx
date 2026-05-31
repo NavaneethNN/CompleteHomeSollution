@@ -355,25 +355,6 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
                     <p className="text-sm text-slate-500">{loading ? "Uploading…" : "Click or drag & drop an image"}</p>
                     <p className="text-xs text-slate-400 mt-1">JPG, PNG, WebP up to 5MB</p>
                   </div>
-                  {/* Paste URL */}
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Or paste image URL…"
-                      onPaste={(e) => {
-                        const text = e.clipboardData.getData("text");
-                        if (text.match(/\.(jpg|jpeg|png|webp|gif|avif)(\?.*)?$/i) || text.startsWith("https://")) {
-                          e.preventDefault();
-                          setFormData(prev => ({ ...prev, coverImage: text }));
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          const val = (e.target as HTMLInputElement).value.trim();
-                          if (val) setFormData(prev => ({ ...prev, coverImage: val }));
-                        }
-                      }}
-                    />
-                  </div>
                 </div>
               )}
             </CardContent>

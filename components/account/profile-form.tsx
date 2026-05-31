@@ -48,8 +48,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     },
   });
 
-  const imageUrl = watch("image");
-
   const onSubmit = async (data: ProfileInput) => {
     setIsLoading(true);
     try {
@@ -76,12 +74,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const url = e.target.value;
-    setValue("image", url, { shouldDirty: true });
-    setPreviewImage(url);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,26 +208,19 @@ export function ProfileForm({ profile }: ProfileFormProps) {
                   Profile Picture
                 </Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Upload a photo or enter an image URL
+                  Upload a photo (JPEG, PNG, WebP, GIF)
                 </p>
               </div>
               <div className="flex gap-2">
-                <Input
-                  id="image"
-                  type="url"
-                  placeholder="https://example.com/avatar.jpg"
-                  {...register("image")}
-                  onChange={handleImageChange}
-                />
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
                   className="shrink-0"
                 >
-                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {uploadingImage ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+                  Upload Photo
                 </Button>
                 {previewImage && (
                   <Button

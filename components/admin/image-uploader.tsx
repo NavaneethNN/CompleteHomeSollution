@@ -5,7 +5,6 @@ import {
   Upload,
   X,
   Loader2,
-  Link as LinkIcon,
   ChevronLeft,
   ChevronRight,
   Star,
@@ -37,8 +36,6 @@ export function ImageUploader({
   maxImages = 10,
   folder = "products",
 }: ImageUploaderProps) {
-  const [tab, setTab] = useState<"upload" | "url">("upload");
-  const [urlInput, setUrlInput] = useState("");
   const [uploading, setUploading] = useState<UploadingFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -147,28 +144,6 @@ export function ImageUploader({
     [uploadFiles]
   );
 
-  const handleAddUrl = () => {
-    const url = urlInput.trim();
-    if (!url) return;
-    try {
-      new URL(url);
-    } catch {
-      toast.error("Enter a valid URL (must start with http:// or https://)");
-      return;
-    }
-    if (images.includes(url)) {
-      toast.error("This URL is already added");
-      return;
-    }
-    if (!canAddMore) {
-      toast.error(`Maximum ${maxImages} images allowed`);
-      return;
-    }
-    onChange([...images, url]);
-    setUrlInput("");
-    toast.success("Image URL added");
-  };
-
   const removeImage = (index: number) => onChange(images.filter((_, i) => i !== index));
 
   const moveImage = (from: number, to: number) => {
@@ -180,38 +155,8 @@ export function ImageUploader({
 
   return (
     <div className="space-y-4">
-      {/* Tab switcher */}
-      <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-1 gap-1 w-fit">
-        <button
-          type="button"
-          onClick={() => setTab("upload")}
-          className={cn(
-            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            tab === "upload"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          )}
-        >
-          <Upload className="h-3.5 w-3.5" />
-          Upload Files
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("url")}
-          className={cn(
-            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            tab === "url"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          )}
-        >
-          <LinkIcon className="h-3.5 w-3.5" />
-          Paste URL
-        </button>
-      </div>
-
       {/* Upload area */}
-      {tab === "upload" && canAddMore && (
+      {canAddMore && (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
@@ -267,31 +212,6 @@ export function ImageUploader({
               {f.progress === "error" && <span className="ml-auto text-red-500">{f.error ?? "Failed"}</span>}
             </div>
           ))}
-        </div>
-      )}
-
-      {/* URL input */}
-      {tab === "url" && (
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
-              placeholder="https://example.com/image.jpg"
-              className="pl-9"
-              disabled={!canAddMore}
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleAddUrl}
-            disabled={!urlInput.trim() || !canAddMore}
-          >
-            Add
-          </Button>
         </div>
       )}
 
@@ -365,7 +285,7 @@ export function ImageUploader({
           ))}
 
           {/* Add more tile */}
-          {canAddMore && tab === "upload" && (
+          {canAddMore && (
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
