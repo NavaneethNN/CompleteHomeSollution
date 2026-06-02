@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
 import { ProductReviews } from "@/components/shop/product-reviews";
@@ -8,6 +9,7 @@ import { Breadcrumbs } from "@/components/shop/breadcrumbs";
 import { ProductDetailsClient } from "@/components/shop/product-details-client";
 import { RecommendedProducts } from "@/components/shop/recommended-products";
 import { WishlistToggleButton } from "@/components/shop/wishlist-toggle-button";
+import { MembershipUpsellBanner } from "@/components/shop/membership-upsell-banner";
 import { Truck, RotateCcw, ShieldCheck, Star } from "lucide-react";
 
 export const revalidate = 3600;
@@ -107,11 +109,22 @@ export default async function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }>) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const [product, session] = await Promise.all([
+    getProduct(slug),
+    auth(),
+  ]);
 
   if (!product) {
     return notFound();
   }
+
+  // Check if user is a member
+  const isMember = session?.user?.id 
+    ? await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true },
+      }).then(u => u?.isMember ?? false)
+    : false;
 
   // Default to first variant if product has variants
   const defaultVariant = product.hasVariants ? product.productVariants[0] : null;
@@ -120,6 +133,11 @@ export default async function ProductDetailPage({
     product.reviews.length > 0
       ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / product.reviews.length
       : null;
+
+  // Calculate potential member savings
+  const potentialSavings = product.memberPrice && product.memberPrice < product.basePrice
+    ? product.basePrice - product.memberPrice
+    : 0;
 
   const wishlistProduct = {
     id: product.id,
@@ -227,6 +245,11 @@ export default async function ProductDetailPage({
                   Member price: ${product.memberPrice.toLocaleString()}
                   <span className="text-xs text-muted-foreground font-normal ml-1">(Save ${(product.basePrice - product.memberPrice).toLocaleString()})</span>
                 </p>
+              )}
+
+              {/* Membership Upsell for Non-Members */}
+              {!isMember && potentialSavings > 0 && (
+                <MembershipUpsellBanner savings={potentialSavings} />
               )}
 
               {/* Description */}

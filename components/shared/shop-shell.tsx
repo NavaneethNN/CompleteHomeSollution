@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
 import { PagePreloader } from "@/components/shared/page-preloader";
+import { StickyCartBar } from "@/components/shop/sticky-cart-bar";
 
 export function ShopShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -22,6 +23,7 @@ export function ShopShell({ children }: { children: React.ReactNode }) {
       <Navbar />
       <main className="flex-1 flex flex-col">{children}</main>
       <Footer />
+      <StickyCartBar />
     </>
   );
 }

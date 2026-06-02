@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Crown } from "lucide-react";
+import { ArrowRight, Crown, Sparkles } from "lucide-react";
+import { MembershipUpsellBanner } from "./membership-upsell-banner";
 
 interface CartSummaryProps {
   readonly subtotal: number;
@@ -43,6 +44,13 @@ export function CartSummary({ subtotal, itemCount, isMember = false, memberSavin
         <span className="text-sm font-bold text-foreground">Total</span>
         <span className="text-lg font-black text-foreground">{currencyFormatter.format(subtotal)}</span>
       </div>
+
+      {/* Membership Upsell for Non-Members */}
+      {!isMember && memberSavings > 0 && (
+        <div className="mt-4">
+          <MembershipUpsellBanner savings={memberSavings} isCompact />
+        </div>
+      )}
 
       <Link
         href="/checkout"

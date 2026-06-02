@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { useCartStore } from "@/store/cart";
 import { CartItem } from "./cart-item";
 import { CartSummary } from "./cart-summary";
+import { CartUpsell } from "./cart-upsell";
 
 interface CartPageProps {
   isMember?: boolean;
@@ -107,12 +108,15 @@ export function CartPage({ isMember = false }: CartPageProps) {
             })}
           </section>
 
-          <CartSummary
-            subtotal={subtotal}
-            itemCount={items.reduce((total, item) => total + item.quantity, 0)}
-            isMember={isMember}
-            memberSavings={memberSavings}
-          />
+          <div className="space-y-4">
+            <CartSummary
+              subtotal={subtotal}
+              itemCount={items.reduce((total, item) => total + item.quantity, 0)}
+              isMember={isMember}
+              memberSavings={memberSavings}
+            />
+            <CartUpsell isMember={isMember} />
+          </div>
         </div>
       </div>
     </main>
