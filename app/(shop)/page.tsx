@@ -404,62 +404,54 @@ export default async function HomePage() {
       </section>
 
       {/* ── About Us ─────────────────────────────────────────────── */}
-      <section className="py-14 md:py-20 bg-slate-50">
-        <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            <AnimateIn variant="slide-left">
-              <div className="relative">
-                <div className="aspect-[4/3] rounded-2xl overflow-hidden">
+      <section className="py-12 md:py-16 lg:py-20 bg-slate-50 overflow-hidden">
+        <div className="container mx-auto px-4 sm:px-5 md:px-6 xl:px-8">
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 items-center">
+            <AnimateIn variant="fade-up" className="order-2 lg:order-1">
+              <div className="relative mx-auto max-w-lg lg:max-w-none">
+                <div className="aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-lg">
                   <Image
                     src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80"
-                    alt="Complete Home Solution showroom"
+                    alt="Complete Home Solution - Premium furniture showroom"
                     fill
-                    className="object-cover"
+                    className="object-cover hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
                   />
-                </div>
-                <div className="absolute -bottom-6 -right-6 bg-primary text-white p-6 rounded-2xl shadow-xl hidden md:block">
-                  <p className="text-3xl font-black">10+</p>
-                  <p className="text-sm font-medium">Years of Excellence</p>
                 </div>
               </div>
             </AnimateIn>
-            <AnimateIn variant="slide-right" delay={100}>
-              <div>
-                <p className="text-sm font-semibold tracking-widest text-primary uppercase mb-3">About Us</p>
-                <h2 className="text-3xl md:text-4xl font-black text-foreground mb-6 leading-tight">
-                  Crafting Beautiful Spaces Since 2014
+            <AnimateIn variant="fade-up" delay={150} className="order-1 lg:order-2">
+              <div className="text-center lg:text-left">
+                <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2 sm:mb-3">
+                  About Us
+                </span>
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground mb-4 sm:mb-6 leading-tight">
+                  Crafting Beautiful Spaces for Your Home
                 </h2>
-                <div className="space-y-4 text-muted-foreground leading-relaxed">
+                <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0">
                   <p>
-                    Complete Home Solution is a South Australian family-owned furniture business dedicated to 
-                    bringing premium quality furniture to homes across Australia. Based in Paralowie, SA, we have 
-                    built our reputation on exceptional craftsmanship, outstanding customer service, and an 
-                    unwavering commitment to quality.
+                    Complete Home Solution is a South Australian family-owned furniture business bringing 
+                    premium quality furniture to homes across Australia. Based in Paralowie, SA, we have 
+                    built our reputation on exceptional craftsmanship and outstanding customer service.
                   </p>
                   <p>
-                    We believe that everyone deserves to live beautifully. Our curated collection features 
-                    everything from cozy living room essentials to elegant dining pieces, designed to transform 
-                    your house into a home you love.
+                    We believe everyone deserves to live beautifully. Our curated collection features 
+                    everything from cozy living room essentials to elegant dining pieces, designed to 
+                    transform your house into a home you love.
                   </p>
                   <p>
-                    With our exclusive membership program, customers enjoy special discounts, early access to 
-                    sales, and personalized service. Plus, our dedicated team ensures fast, reliable delivery 
-                    nationwide, backed by our 7-day easy returns policy and comprehensive warranty protection.
+                    With our exclusive membership program, enjoy special discounts, early access to 
+                    sales, and personalized service. Plus, fast nationwide delivery backed by our 
+                    7-day easy returns policy and comprehensive warranty protection.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-8 mt-8 pt-8 border-t">
-                  <div>
-                    <p className="text-3xl font-black text-primary">5000+</p>
-                    <p className="text-sm text-muted-foreground">Happy Customers</p>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-black text-primary">500+</p>
-                    <p className="text-sm text-muted-foreground">Quality Products</p>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-black text-primary">4.8</p>
-                    <p className="text-sm text-muted-foreground">Average Rating</p>
-                  </div>
+                <div className="mt-6 sm:mt-8">
+                  <Link
+                    href="/products"
+                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-lg transition-colors shadow-md"
+                  >
+                    Explore Our Collection <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </div>
               </div>
             </AnimateIn>
@@ -468,58 +460,70 @@ export default async function HomePage() {
       </section>
 
       {/* ── Why Choose Us ────────────────────────────────────────── */}
-      <section className="py-14 md:py-20 bg-white">
-        <div className="container mx-auto px-5 md:px-6 xl:px-8">
+      <section className="py-12 sm:py-14 md:py-16 lg:py-20 bg-white">
+        <div className="container mx-auto px-4 sm:px-5 md:px-6 xl:px-8">
           <AnimateIn variant="fade-up">
-            <SectionHeading 
-              tag="WHY COMPLETE HOME SOLUTION" 
-              title="The Complete Home Difference"
-            />
+            <div className="text-center mb-8 sm:mb-10 lg:mb-12">
+              <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2">
+                Why Choose Us
+              </span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground">
+                The Complete Home Difference
+              </h2>
+              <div className="flex items-center justify-center gap-1.5 mt-3">
+                <span className="w-8 h-[3px] rounded-full bg-primary" />
+                <span className="w-3 h-[3px] rounded-full bg-border" />
+              </div>
+            </div>
           </AnimateIn>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mt-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
             {[
               {
                 icon: Award,
                 title: "Premium Quality",
-                desc: "Every piece is crafted with high-grade materials and rigorous quality standards. Built to last for years.",
+                desc: "Crafted with high-grade materials and rigorous quality standards. Built to last.",
               },
               {
                 icon: Truck,
-                title: "Fast Australia-Wide Delivery",
-                desc: "From Sydney to Perth, we deliver to your doorstep. Free shipping on orders over $500 and for members.",
+                title: "Fast Delivery",
+                desc: "Australia-wide shipping. Free on orders over $500 and for all members.",
               },
               {
                 icon: ShieldCheck,
-                title: "Secure Shopping",
-                desc: "Shop with confidence using Stripe's industry-leading security. Your payment information is always protected.",
+                title: "Secure Payments",
+                desc: "Stripe-powered security ensures your payment information stays protected.",
               },
               {
                 icon: RotateCcw,
-                title: "7-Day Easy Returns",
-                desc: "Changed your mind? No problem. Our hassle-free return policy ensures you can shop with peace of mind.",
+                title: "Easy Returns",
+                desc: "7-day hassle-free return policy. Shop with complete peace of mind.",
               },
               {
                 icon: BadgeCheck,
-                title: "Warranty Protection",
-                desc: "All furniture comes with comprehensive warranty coverage. Structural defects covered for 12 months.",
+                title: "Warranty Cover",
+                desc: "Comprehensive protection with 12-month coverage on structural defects.",
               },
               {
                 icon: Tag,
-                title: "Best Price Guarantee",
-                desc: "Found it cheaper elsewhere? We'll match it. Plus, members enjoy exclusive discounts on every purchase.",
+                title: "Best Prices",
+                desc: "Price matching guarantee plus exclusive member discounts on every order.",
               },
             ].map(({ icon: Icon, title, desc }, i) => (
-              <AnimateIn key={title} variant="fade-up" delay={i * 100}>
-                <div className="group p-6 md:p-8 rounded-2xl border border-border bg-slate-50 hover:bg-primary hover:border-primary transition-all duration-300">
-                  <div className="w-14 h-14 rounded-xl bg-primary/10 group-hover:bg-white/20 flex items-center justify-center mb-5 transition-colors">
-                    <Icon className="h-7 w-7 text-primary group-hover:text-white transition-colors" />
+              <AnimateIn key={title} variant="fade-up" delay={i * 80}>
+                <div className="group h-full p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-slate-50 hover:bg-primary hover:border-primary hover:shadow-lg transition-all duration-300">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 group-hover:bg-white/20 flex items-center justify-center shrink-0 transition-colors">
+                      <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary group-hover:text-white transition-colors" />
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-white mb-1.5 transition-colors">
+                        {title}
+                      </h3>
+                      <p className="text-sm text-muted-foreground group-hover:text-white/90 leading-relaxed transition-colors">
+                        {desc}
+                      </p>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold text-foreground group-hover:text-white mb-3 transition-colors">
-                    {title}
-                  </h3>
-                  <p className="text-muted-foreground group-hover:text-white/90 leading-relaxed transition-colors">
-                    {desc}
-                  </p>
                 </div>
               </AnimateIn>
             ))}
