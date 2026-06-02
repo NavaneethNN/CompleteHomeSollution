@@ -105,6 +105,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
   const [couponCode, setCouponCode] = useState("");
+  const [appliedCouponCode, setAppliedCouponCode] = useState(""); // Store the code that was successfully applied
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
     discountType: "PERCENTAGE" | "FIXED";
@@ -284,6 +286,17 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     }
   }, [searchParams, toast]);
 
+  // Re-validate coupon when membership status changes (prices change)
+  useEffect(() => {
+    if (appliedCoupon && appliedCouponCode) {
+      // Temporarily set couponCode back to the applied code for re-validation
+      setCouponCode(appliedCouponCode);
+      // Re-apply the coupon with new prices
+      applyCoupon();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveMember]);
+
   // Address management functions
   const openAddDialog = () => {
     setEditingAddress(null);
@@ -391,11 +404,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
 
-    // Prepare items for coupon validation
+    setIsApplyingCoupon(true);
+
+    // Prepare items for coupon validation - use effectiveMember to account for membership toggle
     const itemsForValidation = items.map((item) => {
       const memberPrice = getMemberPrice(item);
       const basePrice = Math.max(0, item.product.price ?? 0);
-      const effectivePrice = isMember && memberPrice ? memberPrice : basePrice;
+      const effectivePrice = effectiveMember && memberPrice ? memberPrice : basePrice;
       return {
         productId: item.product.id,
         variantId: item.product.variantId,
@@ -428,14 +443,20 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         discount: data.coupon.discount,
         name: data.coupon.name,
       });
+      setAppliedCouponCode(couponCode.trim()); // Store the applied code for re-validation
+      setCouponCode(""); // Clear input after successful application
       toast({ title: "Coupon Applied", description: `${data.coupon.name} - ${data.coupon.discountType === "PERCENTAGE" ? data.coupon.discountValue + "%" : "$" + data.coupon.discountValue} off` });
-    } catch {
+    } catch (error) {
+      console.error("Coupon validation error:", error);
       toast({ title: "Error", description: "Failed to validate coupon. Please try again.", variant: "destructive" });
+    } finally {
+      setIsApplyingCoupon(false);
     }
   };
 
   const removeCoupon = () => {
     setAppliedCoupon(null);
+    setAppliedCouponCode("");
     setCouponCode("");
   };
 
@@ -729,17 +750,22 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                 placeholder="Enter code"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && applyCoupon()}
+                onKeyDown={(e) => e.key === "Enter" && !isApplyingCoupon && applyCoupon()}
+                disabled={isApplyingCoupon}
                 className="h-10 flex-1"
               />
               <Button
                 type="button"
                 variant="outline"
                 onClick={applyCoupon}
-                disabled={!couponCode.trim()}
-                className="h-10 px-5"
+                disabled={!couponCode.trim() || isApplyingCoupon}
+                className="h-10 px-5 min-w-[80px]"
               >
-                Apply
+                {isApplyingCoupon ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Apply"
+                )}
               </Button>
             </div>
           )}
