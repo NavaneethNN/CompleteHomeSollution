@@ -532,7 +532,7 @@ export default async function HomePage() {
       </section>
 
       {/* ── Trust Bar ─────────────────────────────────────────────── */}
-      <section className="bg-slate-100 py-6 md:py-8 border-t border-slate-200">
+      <section className="hidden sm:block bg-slate-100 py-6 md:py-8 border-t border-slate-200">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {TRUST.map(({ icon: Icon, title, sub }, i) => (
