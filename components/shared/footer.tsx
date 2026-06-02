@@ -4,16 +4,6 @@ import { Mail, Phone, MapPin } from "lucide-react";
 
 const footerLinks = [
   {
-    heading: "Shop",
-    links: [
-      { label: "All Products", href: "/products" },
-      { label: "Living Room", href: "/categories/living-room" },
-      { label: "Bedroom", href: "/categories/bedroom" },
-      { label: "Dining Room", href: "/categories/dining-room" },
-      { label: "Office Furniture", href: "/categories/office-furniture" },
-    ],
-  },
-  {
     heading: "Account",
     links: [
       { label: "Login", href: "/login" },

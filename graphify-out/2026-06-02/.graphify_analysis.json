@@ -23,9 +23,8 @@
       "checkout_page_metadata",
       "checkout_route_post",
       "components_account_membership_buy_button_tsx",
+      "components_shop_clear_cart_on_success_tsx",
       "components_shop_refresh_session_on_membership_tsx",
-      "lib_blog_notifications_blogpost",
-      "lib_blog_notifications_ts",
       "lib_brevo_builditemstable",
       "lib_brevo_sendemail",
       "lib_brevo_sendemailparams",
@@ -145,6 +144,144 @@
       "furniture_package_dependencies_zustand"
     ],
     "2": [
+      "app_layout_dancingscript",
+      "app_layout_inter",
+      "app_layout_metadata",
+      "app_layout_rootlayout",
+      "app_layout_tsx",
+      "app_shop_cart_page_tsx",
+      "app_shop_search_page_tsx",
+      "cart_page_cartpage",
+      "cart_page_metadata",
+      "components_shared_footer_tsx",
+      "components_shared_navbar_tsx",
+      "components_shared_shop_shell_tsx",
+      "components_shop_cart_page_tsx",
+      "components_shop_home_trending_product_card_tsx",
+      "hooks_use_cart_ts",
+      "search_page_generatemetadata",
+      "search_page_getrelatedcategories",
+      "search_page_searchpage",
+      "search_page_searchpageprops",
+      "search_page_searchproducts",
+      "shared_footer_footer",
+      "shared_footer_footerlinks",
+      "shared_navbar_admin_link",
+      "shared_navbar_base_account_links",
+      "shared_navbar_getcaticon",
+      "shared_navbar_navbar",
+      "shared_navbar_navcategory",
+      "shared_navbar_navitem",
+      "shared_navbar_navitemprops",
+      "shared_navbar_searchsuggestion",
+      "shared_navbar_slug_icons",
+      "shared_navbar_useclickoutside",
+      "shared_page_preloader_pagepreloader",
+      "shared_shop_shell_shopshell",
+      "shop_cart_item_cartitem",
+      "shop_cart_item_currencyformatter",
+      "shop_cart_page_cartpage",
+      "shop_cart_page_cartpageprops",
+      "shop_cart_page_emptystateactions",
+      "shop_cart_summary_cartsummary",
+      "shop_cart_summary_currencyformatter",
+      "store_cart_cartitem",
+      "store_cart_cartproduct",
+      "store_cart_cartstate",
+      "store_cart_getcartitemkey",
+      "store_cart_ts",
+      "store_cart_usecartstore",
+      "types_index_apiresponse",
+      "types_index_orderstatus",
+      "types_index_ordersummary",
+      "types_index_paginatedresponse",
+      "types_index_productsummary",
+      "types_index_ts",
+      "types_index_userrole"
+    ],
+    "3": [
+      "app_shop_products_slug_page_tsx",
+      "app_shop_wishlist_page_tsx",
+      "components_shop_add_to_cart_button_tsx",
+      "components_shop_product_details_client_tsx",
+      "components_shop_product_gallery_tsx",
+      "components_shop_product_reviews_tsx",
+      "components_shop_recommended_products_tsx",
+      "components_shop_variant_selector_tsx",
+      "components_shop_wishlist_empty_state_tsx",
+      "components_shop_wishlist_item_tsx",
+      "components_shop_wishlist_toggle_button_tsx",
+      "shop_breadcrumbs_breadcrumbitem",
+      "shop_breadcrumbs_breadcrumbs",
+      "shop_breadcrumbs_breadcrumbsprops",
+      "shop_product_details_client_productvariant",
+      "shop_product_details_client_variantattribute",
+      "shop_product_gallery_productgalleryprops",
+      "shop_product_reviews_imagelightbox",
+      "shop_product_reviews_productreviewsprops",
+      "shop_product_reviews_review",
+      "shop_product_reviews_reviewform",
+      "shop_product_reviews_stardisplay",
+      "shop_product_reviews_starpicker",
+      "shop_recommended_products_recommendedproductsprops",
+      "shop_variant_selector_productvariant",
+      "shop_variant_selector_variantattribute",
+      "shop_variant_selector_variantselectorprops",
+      "shop_wishlist_item_currencyformatter",
+      "shop_wishlist_item_wishlistitem",
+      "shop_wishlist_item_wishlistitemprops",
+      "shop_wishlist_page_sectionheading",
+      "shop_wishlist_page_wishlistpage",
+      "slug_page_generatemetadata",
+      "slug_page_getproduct",
+      "slug_page_productdetailpage",
+      "store_wishlist_getwishlistitemkey",
+      "store_wishlist_ts",
+      "store_wishlist_usewishliststore",
+      "store_wishlist_wishlistcategory",
+      "store_wishlist_wishlistproduct",
+      "store_wishlist_wishliststate",
+      "wishlist_page_metadata",
+      "wishlist_page_wishlistroutepage"
+    ],
+    "4": [
+      "account_address_autocomplete_autocompletesuggestion",
+      "account_address_autocomplete_placedetailsresponse",
+      "account_address_autocomplete_suggestionresponse",
+      "admin_image_uploader_imageuploader",
+      "admin_image_uploader_uploadingfile",
+      "admin_order_status_update_order_status_config",
+      "app_admin_admin_products_new_page_tsx",
+      "blog_blog_post_editor_blogcategory",
+      "blog_blog_post_editor_blogpostdata",
+      "blog_blog_post_editor_blogposteditor",
+      "blog_blog_post_editor_blogtag",
+      "components_account_address_autocomplete_tsx",
+      "components_admin_order_status_update_tsx",
+      "components_ui_input_tsx",
+      "components_ui_label_tsx",
+      "components_ui_select_tsx",
+      "components_ui_switch_tsx",
+      "components_ui_textarea_tsx",
+      "new_page_newproductpage",
+      "new_page_productvariant",
+      "new_page_variantattribute",
+      "new_page_variantcard",
+      "ui_input_input",
+      "ui_label_label",
+      "ui_label_labelvariants",
+      "ui_select_selectcontent",
+      "ui_select_selectitem",
+      "ui_select_selectlabel",
+      "ui_select_selectscrolldownbutton",
+      "ui_select_selectscrollupbutton",
+      "ui_select_selectseparator",
+      "ui_select_selecttrigger",
+      "ui_switch_switch",
+      "ui_textarea_textarea",
+      "ui_textarea_textareaprops"
+    ],
+    "5": [
       "actions_products_addvariantimages",
       "actions_products_createproduct",
       "actions_products_createproductschema",
@@ -171,8 +308,6 @@
       "id_route_productvariantschema",
       "id_route_updateproductschema",
       "id_route_validatebase64imagesize",
-      "id_route_validateimagesize",
-      "id_route_variantattributeschema",
       "id_route_variantvalueschema",
       "lib_actions_products_ts",
       "products_route_createproductschema",
@@ -180,47 +315,9 @@
       "products_route_post",
       "products_route_productvariantschema",
       "products_route_validatebase64imagesize",
-      "products_route_validateimagesize",
       "products_route_variantvalueschema"
     ],
-    "3": [
-      "admin_refund_panel_adminrefundpanel",
-      "admin_refund_panel_props",
-      "app_admin_admin_customers_page_tsx",
-      "app_admin_admin_orders_id_page_tsx",
-      "app_admin_admin_orders_page_tsx",
-      "app_blog_blog_page_tsx",
-      "blog_blog_post_card_blogpostcard",
-      "blog_blog_post_card_blogpostcardprops",
-      "blog_page_blogpageprops",
-      "blog_page_calculatereadingtime",
-      "blog_page_metadata",
-      "components_admin_mobile_status_dropdown_tsx",
-      "components_admin_refund_panel_tsx",
-      "components_blog_become_member_cta_tsx",
-      "components_blog_blog_category_filter_tsx",
-      "components_blog_blog_related_posts_tsx",
-      "components_ui_badge_tsx",
-      "components_ui_card_tsx",
-      "customers_page_customerspageprops",
-      "customers_page_metadata",
-      "id_page_adminorderdetailpage",
-      "id_page_currencyformatter",
-      "id_page_getorder",
-      "id_page_order_status_config",
-      "orders_page_currencyformatter",
-      "orders_page_metadata",
-      "orders_page_order_status_config",
-      "orders_page_orderspageprops",
-      "ui_badge_badge",
-      "ui_badge_badgeprops",
-      "ui_badge_badgevariants",
-      "ui_card_card",
-      "ui_card_cardcontent",
-      "ui_card_cardfooter",
-      "ui_card_cardheader"
-    ],
-    "4": [
+    "6": [
       "app_auth_login_page_tsx",
       "app_auth_register_actions_ts",
       "app_auth_register_page_tsx",
@@ -253,39 +350,39 @@
       "register_page_metadata",
       "register_page_registerpage"
     ],
-    "5": [
-      "app_api_admin_notifications_route_ts",
-      "app_api_categories_route_ts",
-      "app_api_categories_route_ts_categories_route_get",
-      "app_api_categories_route_ts_categories_route_post",
-      "app_api_qa_results_route_ts",
-      "app_api_reviews_route_ts",
-      "app_api_search_route_ts",
-      "app_api_stock_alerts_route_ts",
-      "categories_route_createcategoryschema",
-      "components_shop_recommended_products_tsx",
-      "lib_db_createprismaclient",
-      "lib_db_globalforprisma",
-      "lib_db_prismaclientinstance",
-      "lib_db_ts",
-      "notifications_route_get",
-      "prisma_seed_products_furnitureimages",
-      "prisma_seed_products_main",
-      "prisma_seed_products_ts",
-      "prisma_seed_ts",
-      "prisma_seed_ts_prisma_seed_furnitureimages",
-      "prisma_seed_ts_prisma_seed_main",
-      "results_route_get",
-      "results_route_put",
-      "reviews_route_createreviewschema",
-      "reviews_route_get",
-      "reviews_route_post",
-      "search_route_get",
-      "shop_recommended_products_recommendedproductsprops",
-      "stock_alerts_route_post",
-      "stock_alerts_route_schema"
+    "7": [
+      "app_shop_categories_slug_page_tsx",
+      "app_shop_categories_slug_page_tsx_slug_page_generatemetadata",
+      "app_shop_page_tsx",
+      "app_shop_products_page_tsx",
+      "components_shop_category_slider_tsx",
+      "data_fallback_shop_data_fallbackcategories",
+      "data_fallback_shop_data_fallbackproducts",
+      "lib_data_fallback_shop_data_ts",
+      "products_page_getcategories",
+      "products_page_getproducts",
+      "products_page_metadata",
+      "products_page_productspage",
+      "shared_animate_in_animatein",
+      "shared_animate_in_animateinprops",
+      "shared_animate_in_animvariant",
+      "shared_animate_in_variant_class",
+      "shop_category_slider_category",
+      "shop_category_slider_categorysliderprops",
+      "shop_page_features",
+      "shop_page_getcategories",
+      "shop_page_gettrendingproducts",
+      "shop_page_homepage",
+      "shop_page_metadata",
+      "shop_page_sectionheading",
+      "shop_page_starrating",
+      "shop_page_starratingprops",
+      "shop_page_trust",
+      "slug_page_categorypage",
+      "slug_page_categorypageprops",
+      "slug_page_getcategory"
     ],
-    "6": [
+    "8": [
       "furniture_package_devdependencies",
       "furniture_package_devdependencies_eslint",
       "furniture_package_devdependencies_eslint_config_next",
@@ -316,7 +413,7 @@
       "furniture_package_version",
       "package_json"
     ],
-    "7": [
+    "9": [
       "app_admin_admin_blog_new_page_tsx",
       "app_qa_page_tsx",
       "app_qa_suite_components_suite_runner_tsx",
@@ -337,7 +434,6 @@
       "new_page_gettags",
       "new_page_metadata",
       "new_page_requireadmin",
-      "qa_page_all_suites",
       "qa_page_getsuitestats",
       "qa_page_metadata",
       "qa_page_qadashboardpage",
@@ -346,66 +442,6 @@
       "suite_page_generatemetadata",
       "suite_page_suitepage",
       "suite_page_valid_suites"
-    ],
-    "8": [
-      "admin_image_uploader_imageuploader",
-      "admin_image_uploader_uploadingfile",
-      "admin_order_status_update_order_status_config",
-      "app_admin_admin_products_new_page_tsx",
-      "blog_blog_post_editor_blogcategory",
-      "blog_blog_post_editor_blogpostdata",
-      "blog_blog_post_editor_blogposteditor",
-      "blog_blog_post_editor_blogtag",
-      "components_admin_order_status_update_tsx",
-      "components_ui_input_tsx",
-      "components_ui_select_tsx",
-      "components_ui_switch_tsx",
-      "components_ui_textarea_tsx",
-      "new_page_newproductpage",
-      "new_page_productvariant",
-      "new_page_variantattribute",
-      "ui_card_cardtitle",
-      "ui_input_input",
-      "ui_select_selectcontent",
-      "ui_select_selectitem",
-      "ui_select_selectlabel",
-      "ui_select_selectscrolldownbutton",
-      "ui_select_selectscrollupbutton",
-      "ui_select_selectseparator",
-      "ui_select_selecttrigger",
-      "ui_switch_switch",
-      "ui_textarea_textarea",
-      "ui_textarea_textareaprops"
-    ],
-    "9": [
-      "account_address_autocomplete_autocompletesuggestion",
-      "account_address_autocomplete_placedetailsresponse",
-      "account_address_autocomplete_suggestionresponse",
-      "account_address_manager_addressmanagerprops",
-      "account_address_manager_australian_states",
-      "account_profile_form_profileform",
-      "account_suburb_selector_suburbselector",
-      "actions_address_createaddress",
-      "actions_address_deleteaddress",
-      "actions_address_updateaddress",
-      "checkout_checkout_form_au_states",
-      "checkout_checkout_form_checkoutform",
-      "checkout_checkout_form_currencyformatter",
-      "checkout_checkout_form_shippingrate",
-      "components_account_address_autocomplete_tsx",
-      "components_account_address_manager_tsx",
-      "components_ui_label_tsx",
-      "components_ui_separator_tsx",
-      "lib_actions_address_ts",
-      "lib_validations_address_ts",
-      "ui_card_carddescription",
-      "ui_label_label",
-      "ui_label_labelvariants",
-      "ui_separator_separator",
-      "validations_address_addressinput",
-      "validations_address_addressschema",
-      "validations_address_profileinput",
-      "validations_address_profileschema"
     ],
     "10": [
       "components_ui_toast_tsx",
@@ -437,32 +473,32 @@
       "ui_toaster_toaster"
     ],
     "11": [
-      "account_layout_accountlayout",
-      "app_account_layout_tsx",
-      "app_api_admin_blog_tags_route_ts",
-      "app_api_admin_customers_id_route_ts",
-      "app_api_admin_customers_id_route_ts_id_route_get",
-      "app_api_auth_nextauth_route_ts",
-      "app_api_debug_upload_status_route_ts",
-      "auth_ts",
-      "furniture_auth_credentialsschema",
-      "furniture_auth_emailnotverifiederror",
-      "furniture_auth_handlers_auth_signin_signout",
-      "furniture_auth_invalidcredentialserror",
-      "furniture_auth_ratelimiterror",
-      "furniture_auth_session",
-      "furniture_auth_user",
-      "furniture_auth_userrole",
-      "lib_rate_limit_checkratelimit",
-      "lib_rate_limit_gettimeuntilreset",
-      "lib_rate_limit_ratelimitentry",
-      "lib_rate_limit_ratelimitstore",
-      "lib_rate_limit_recordfailedattempt",
-      "lib_rate_limit_resetratelimit",
-      "lib_rate_limit_ts",
-      "tags_route_get",
-      "tags_route_post",
-      "upload_status_route_get"
+      "app_admin_admin_categories_page_tsx",
+      "app_admin_admin_coupons_page_tsx",
+      "app_admin_admin_products_page_tsx",
+      "categories_page_admincategoriespage",
+      "categories_page_categorywithcount",
+      "categories_page_resetformstate",
+      "components_ui_alert_dialog_tsx",
+      "coupons_page_admincouponspage",
+      "coupons_page_category",
+      "coupons_page_coupon",
+      "coupons_page_couponform",
+      "coupons_page_currencyformatter",
+      "coupons_page_product",
+      "products_page_adminproductspage",
+      "products_page_currencyformatter",
+      "products_page_productwithrelations",
+      "ui_alert_dialog_alertdialogaction",
+      "ui_alert_dialog_alertdialogcancel",
+      "ui_alert_dialog_alertdialogcontent",
+      "ui_alert_dialog_alertdialogdescription",
+      "ui_alert_dialog_alertdialogfooter",
+      "ui_alert_dialog_alertdialogheader",
+      "ui_alert_dialog_alertdialogoverlay",
+      "ui_alert_dialog_alertdialogtitle",
+      "ui_dialog_dialogfooter",
+      "ui_skeleton_skeleton"
     ],
     "12": [
       "app_admin_admin_blog_blog_client_tsx",
@@ -492,32 +528,6 @@
       "ui_table_tablerow"
     ],
     "13": [
-      "app_admin_admin_categories_page_tsx",
-      "app_admin_admin_coupons_page_tsx",
-      "app_admin_admin_products_page_tsx",
-      "categories_page_admincategoriespage",
-      "categories_page_categorywithcount",
-      "categories_page_resetformstate",
-      "components_ui_alert_dialog_tsx",
-      "coupons_page_admincouponspage",
-      "coupons_page_category",
-      "coupons_page_coupon",
-      "coupons_page_couponform",
-      "coupons_page_currencyformatter",
-      "coupons_page_product",
-      "products_page_adminproductspage",
-      "products_page_currencyformatter",
-      "products_page_productwithrelations",
-      "ui_alert_dialog_alertdialogaction",
-      "ui_alert_dialog_alertdialogcancel",
-      "ui_alert_dialog_alertdialogcontent",
-      "ui_alert_dialog_alertdialogdescription",
-      "ui_alert_dialog_alertdialogfooter",
-      "ui_alert_dialog_alertdialogheader",
-      "ui_alert_dialog_alertdialogoverlay",
-      "ui_alert_dialog_alertdialogtitle"
-    ],
-    "14": [
       "actions_admin_membership_createplan",
       "actions_admin_membership_deleteplan",
       "actions_admin_membership_getmembers",
@@ -543,78 +553,101 @@
       "lib_actions_admin_membership_ts",
       "membership_page_adminmembershippage"
     ],
+    "14": [
+      "app_api_admin_blog_tags_route_ts",
+      "app_api_admin_notifications_route_ts",
+      "app_api_orders_id_route_ts",
+      "app_api_orders_id_route_ts_id_route_get",
+      "app_api_orders_id_route_ts_id_route_params",
+      "app_api_qa_results_route_ts",
+      "app_api_reviews_productid_route_ts",
+      "app_api_search_route_ts",
+      "lib_db_createprismaclient",
+      "lib_db_globalforprisma",
+      "lib_db_prismaclientinstance",
+      "lib_db_ts",
+      "notifications_route_get",
+      "prisma_seed_products_furnitureimages",
+      "prisma_seed_products_main",
+      "prisma_seed_products_ts",
+      "productid_route_get",
+      "productid_route_params",
+      "results_route_get",
+      "results_route_put",
+      "search_route_get",
+      "tags_route_get",
+      "tags_route_post"
+    ],
     "15": [
-      "app_shop_categories_slug_page_tsx",
-      "app_shop_categories_slug_page_tsx_slug_page_generatemetadata",
-      "app_shop_page_tsx",
-      "app_shop_products_page_tsx",
-      "data_fallback_shop_data_fallbackcategories",
-      "data_fallback_shop_data_fallbackproducts",
-      "lib_data_fallback_shop_data_ts",
-      "products_page_getcategories",
-      "products_page_getproducts",
-      "products_page_metadata",
-      "products_page_productspage",
-      "shop_page_features",
-      "shop_page_getcategories",
-      "shop_page_gettrendingproducts",
-      "shop_page_homepage",
-      "shop_page_metadata",
-      "shop_page_sectionheading",
-      "shop_page_starrating",
-      "shop_page_starratingprops",
-      "shop_page_trust",
-      "slug_page_categorypage",
-      "slug_page_categorypageprops",
-      "slug_page_getcategory"
+      "account_address_manager_addressmanagerprops",
+      "account_address_manager_australian_states",
+      "actions_address_createaddress",
+      "actions_address_deleteaddress",
+      "actions_address_updateaddress",
+      "checkout_checkout_form_au_states",
+      "checkout_checkout_form_checkoutform",
+      "checkout_checkout_form_currencyformatter",
+      "checkout_checkout_form_shippingrate",
+      "components_account_address_manager_tsx",
+      "components_shop_product_popup_modal_tsx",
+      "components_ui_dialog_tsx",
+      "components_ui_separator_tsx",
+      "lib_actions_address_ts",
+      "lib_validations_address_ts",
+      "ui_dialog_dialogcontent",
+      "ui_dialog_dialogdescription",
+      "ui_dialog_dialogheader",
+      "ui_dialog_dialogoverlay",
+      "ui_dialog_dialogtitle",
+      "ui_separator_separator",
+      "validations_address_addressinput",
+      "validations_address_addressschema"
     ],
     "16": [
-      "app_layout_dancingscript",
-      "app_layout_inter",
-      "app_layout_metadata",
-      "app_layout_rootlayout",
-      "app_layout_tsx",
-      "components_shared_footer_tsx",
-      "components_shared_navbar_tsx",
-      "components_shared_shop_shell_tsx",
-      "shared_footer_footer",
-      "shared_footer_footerlinks",
-      "shared_navbar_admin_link",
-      "shared_navbar_base_account_links",
-      "shared_navbar_getcaticon",
-      "shared_navbar_navbar",
-      "shared_navbar_navcategory",
-      "shared_navbar_navitem",
-      "shared_navbar_navitemprops",
-      "shared_navbar_searchsuggestion",
-      "shared_navbar_slug_icons",
-      "shared_navbar_useclickoutside",
-      "shared_page_preloader_pagepreloader",
-      "shared_shop_shell_shopshell"
+      "admin_blog_category_manager_blogcategory",
+      "admin_blog_category_manager_categorymanager",
+      "admin_blog_category_manager_categorymanagerprops",
+      "admin_blog_category_manager_preset_colors",
+      "admin_blog_tag_manager_blogtag",
+      "admin_blog_tag_manager_preset_colors",
+      "admin_blog_tag_manager_tagmanager",
+      "admin_blog_tag_manager_tagmanagerprops",
+      "app_admin_admin_blog_page_tsx",
+      "app_admin_admin_blog_page_tsx_blog_page_metadata",
+      "blog_page_adminblogpage",
+      "blog_page_gettags",
+      "blog_page_requireadmin",
+      "components_admin_blog_category_manager_tsx",
+      "components_admin_blog_tag_manager_tsx",
+      "components_blog_blog_category_filter_tsx",
+      "components_ui_card_tsx",
+      "ui_card_card",
+      "ui_card_cardcontent",
+      "ui_card_cardfooter",
+      "ui_card_cardheader",
+      "ui_card_cardtitle"
     ],
     "17": [
-      "components_shop_category_filter_tsx",
-      "components_shop_category_products_client_tsx",
-      "components_shop_category_slider_tsx",
-      "components_shop_product_popup_modal_tsx",
-      "components_shop_products_client_tsx",
-      "components_shop_wishlist_toggle_button_tsx",
-      "lib_utils_cn",
-      "lib_utils_formatprice",
-      "lib_utils_slugify",
-      "lib_utils_truncate",
-      "lib_utils_ts",
-      "new_page_variantcard",
-      "shop_category_filter_category",
-      "shop_category_products_client_product",
-      "shop_category_slider_category",
-      "shop_category_slider_categorysliderprops",
-      "shop_product_card_productcard",
-      "shop_product_card_productcardprops",
-      "shop_products_client_category",
-      "shop_products_client_product",
-      "shop_products_client_productsclientprops",
-      "ui_skeleton_skeleton"
+      "account_layout_accountlayout",
+      "app_account_layout_tsx",
+      "app_api_admin_customers_id_route_ts",
+      "app_api_admin_customers_id_route_ts_id_route_get",
+      "app_api_auth_nextauth_route_ts",
+      "auth_ts",
+      "furniture_auth_credentialsschema",
+      "furniture_auth_emailnotverifiederror",
+      "furniture_auth_handlers_auth_signin_signout",
+      "furniture_auth_ratelimiterror",
+      "furniture_auth_session",
+      "furniture_auth_user",
+      "furniture_auth_userrole",
+      "lib_rate_limit_checkratelimit",
+      "lib_rate_limit_gettimeuntilreset",
+      "lib_rate_limit_ratelimitentry",
+      "lib_rate_limit_ratelimitstore",
+      "lib_rate_limit_recordfailedattempt",
+      "lib_rate_limit_resetratelimit",
+      "lib_rate_limit_ts"
     ],
     "18": [
       "furniture_tsconfig_compileroptions",
@@ -639,49 +672,6 @@
       "tsconfig_json"
     ],
     "19": [
-      "app_shop_cart_page_tsx",
-      "cart_page_cartpage",
-      "cart_page_metadata",
-      "components_shop_add_to_cart_button_tsx",
-      "components_shop_cart_page_tsx",
-      "components_shop_clear_cart_on_success_tsx",
-      "components_shop_home_trending_product_card_tsx",
-      "hooks_use_cart_ts",
-      "shop_cart_item_cartitem",
-      "shop_cart_item_currencyformatter",
-      "shop_cart_page_cartpage",
-      "shop_cart_page_cartpageprops",
-      "shop_cart_page_emptystateactions",
-      "shop_cart_summary_cartsummary",
-      "shop_cart_summary_currencyformatter",
-      "store_cart_cartitem",
-      "store_cart_cartstate",
-      "store_cart_getcartitemkey",
-      "store_cart_ts",
-      "store_cart_usecartstore"
-    ],
-    "20": [
-      "admin_blog_category_manager_blogcategory",
-      "admin_blog_category_manager_categorymanager",
-      "admin_blog_category_manager_categorymanagerprops",
-      "admin_blog_category_manager_preset_colors",
-      "admin_blog_tag_manager_blogtag",
-      "admin_blog_tag_manager_preset_colors",
-      "admin_blog_tag_manager_tagmanager",
-      "admin_blog_tag_manager_tagmanagerprops",
-      "app_admin_admin_blog_page_tsx",
-      "app_admin_admin_blog_page_tsx_blog_page_metadata",
-      "components_admin_blog_category_manager_tsx",
-      "components_admin_blog_tag_manager_tsx",
-      "components_ui_dialog_tsx",
-      "ui_dialog_dialogcontent",
-      "ui_dialog_dialogdescription",
-      "ui_dialog_dialogfooter",
-      "ui_dialog_dialogheader",
-      "ui_dialog_dialogoverlay",
-      "ui_dialog_dialogtitle"
-    ],
-    "21": [
       "admin_analytics_charts_audformatter",
       "admin_analytics_charts_currencyformatter",
       "admin_analytics_charts_donutchart",
@@ -701,6 +691,48 @@
       "analytics_page_status_labels",
       "app_admin_admin_analytics_page_tsx",
       "components_admin_analytics_charts_tsx"
+    ],
+    "20": [
+      "admin_admin_header_adminheader",
+      "admin_admin_header_route_labels",
+      "admin_admin_header_usebreadcrumbs",
+      "admin_admin_sidebar_adminsidebar",
+      "admin_admin_sidebar_nav_groups",
+      "admin_admin_sidebar_navitem",
+      "admin_layout_adminlayout",
+      "admin_notification_panel_adminnotificationpanel",
+      "admin_notification_panel_notification",
+      "admin_notification_panel_notificationdata",
+      "admin_notification_panel_notificationtype",
+      "admin_notification_panel_priority",
+      "admin_notification_panel_priority_badge",
+      "admin_notification_panel_timeago",
+      "admin_notification_panel_type_config",
+      "app_admin_layout_tsx",
+      "components_admin_admin_preloader_tsx",
+      "components_admin_admin_sidebar_tsx",
+      "components_admin_notification_panel_tsx"
+    ],
+    "21": [
+      "account_suburb_selector_suburbselector",
+      "components_shop_category_filter_tsx",
+      "components_shop_category_products_client_tsx",
+      "components_shop_products_client_tsx",
+      "components_ui_popover_tsx",
+      "lib_utils_cn",
+      "lib_utils_formatprice",
+      "lib_utils_slugify",
+      "lib_utils_truncate",
+      "lib_utils_ts",
+      "shop_category_filter_category",
+      "shop_category_products_client_product",
+      "shop_product_card_productcard",
+      "shop_product_card_productcardprops",
+      "shop_products_client_category",
+      "shop_products_client_product",
+      "shop_products_client_productsclientprops",
+      "ui_command_commandshortcut",
+      "ui_popover_popovercontent"
     ],
     "22": [
       "components_json",
@@ -723,26 +755,6 @@
       "furniture_components_tsx"
     ],
     "23": [
-      "account_suburb_selector_suburbselectorprops",
-      "components_account_suburb_selector_tsx",
-      "components_ui_command_tsx",
-      "components_ui_popover_tsx",
-      "data_australian_suburbs_getallsuburbs",
-      "data_australian_suburbs_getsuburbsbystate",
-      "data_australian_suburbs_suburb",
-      "lib_data_australian_suburbs_ts",
-      "ui_command_command",
-      "ui_command_commanddialog",
-      "ui_command_commandempty",
-      "ui_command_commandgroup",
-      "ui_command_commandinput",
-      "ui_command_commanditem",
-      "ui_command_commandlist",
-      "ui_command_commandseparator",
-      "ui_command_commandshortcut",
-      "ui_popover_popovercontent"
-    ],
-    "24": [
       "account_account_sidebar_accountsidebar",
       "account_account_sidebar_nav_links",
       "actions_address_getaddresses",
@@ -761,62 +773,24 @@
       "app_account_dashboard_page_tsx_dashboard_page_accountdashboardpage",
       "components_account_account_sidebar_tsx"
     ],
+    "24": [
+      "actions_orders_getorderbyid",
+      "app_account_account_orders_id_page_tsx",
+      "app_account_account_orders_id_page_tsx_id_page_getstatusstyle",
+      "app_account_account_orders_id_page_tsx_id_page_metadata",
+      "app_account_account_orders_id_page_tsx_id_page_orderdetailpage",
+      "app_account_account_orders_id_page_tsx_id_page_orderdetailpageprops",
+      "app_account_account_orders_id_page_tsx_id_page_row",
+      "app_account_orders_id_page_tsx",
+      "app_account_orders_id_page_tsx_id_page_getstatusstyle",
+      "app_account_orders_id_page_tsx_id_page_metadata",
+      "app_account_orders_id_page_tsx_id_page_orderdetailpage",
+      "app_account_orders_id_page_tsx_id_page_orderdetailpageprops",
+      "app_account_orders_id_page_tsx_id_page_row",
+      "components_shop_cancel_order_button_tsx",
+      "shop_cancel_order_button_props"
+    ],
     "25": [
-      "app_blog_blog_slug_page_tsx",
-      "app_blog_blog_slug_page_tsx_slug_page_generatemetadata",
-      "components_blog_blog_like_button_tsx",
-      "components_blog_blog_social_share_tsx",
-      "components_ui_avatar_tsx",
-      "components_ui_button_tsx",
-      "slug_page_blogpostpageprops",
-      "slug_page_calculatereadingtime",
-      "slug_page_getblogpost",
-      "slug_page_makeyoutubeembed",
-      "slug_page_processcontent",
-      "ui_avatar_avatar",
-      "ui_avatar_avatarfallback",
-      "ui_avatar_avatarimage",
-      "ui_button_button",
-      "ui_button_buttonprops",
-      "ui_button_buttonvariants"
-    ],
-    "26": [
-      "app_shop_products_slug_page_tsx",
-      "components_shop_product_details_client_tsx",
-      "components_shop_product_gallery_tsx",
-      "components_shop_variant_selector_tsx",
-      "shop_breadcrumbs_breadcrumbitem",
-      "shop_breadcrumbs_breadcrumbs",
-      "shop_breadcrumbs_breadcrumbsprops",
-      "shop_product_details_client_productvariant",
-      "shop_product_details_client_variantattribute",
-      "shop_product_gallery_productgalleryprops",
-      "shop_variant_selector_productvariant",
-      "shop_variant_selector_variantattribute",
-      "shop_variant_selector_variantselectorprops",
-      "slug_page_generatemetadata",
-      "slug_page_getproduct",
-      "slug_page_productdetailpage"
-    ],
-    "27": [
-      "app_shop_wishlist_page_tsx",
-      "components_shop_wishlist_empty_state_tsx",
-      "components_shop_wishlist_item_tsx",
-      "shop_wishlist_item_currencyformatter",
-      "shop_wishlist_item_wishlistitem",
-      "shop_wishlist_item_wishlistitemprops",
-      "shop_wishlist_page_sectionheading",
-      "shop_wishlist_page_wishlistpage",
-      "store_wishlist_getwishlistitemkey",
-      "store_wishlist_ts",
-      "store_wishlist_usewishliststore",
-      "store_wishlist_wishlistcategory",
-      "store_wishlist_wishlistproduct",
-      "store_wishlist_wishliststate",
-      "wishlist_page_metadata",
-      "wishlist_page_wishlistroutepage"
-    ],
-    "28": [
       "app_api_products_id_route_ts",
       "app_api_products_id_route_ts_id_route_delete",
       "app_api_products_id_route_ts_id_route_get",
@@ -833,7 +807,7 @@
       "validations_product_updateproductinput",
       "validations_product_updateproductschema"
     ],
-    "29": [
+    "26": [
       "app_api_checkout_session_route_ts",
       "app_api_orders_route_ts",
       "lib_stripe_createcheckoutsession",
@@ -850,8 +824,71 @@
       "validations_order_guestcheckout",
       "validations_order_guestcheckoutschema"
     ],
+    "27": [
+      "account_suburb_selector_suburbselectorprops",
+      "components_account_suburb_selector_tsx",
+      "components_ui_command_tsx",
+      "data_australian_suburbs_getallsuburbs",
+      "data_australian_suburbs_getsuburbsbystate",
+      "data_australian_suburbs_suburb",
+      "lib_data_australian_suburbs_ts",
+      "ui_command_command",
+      "ui_command_commanddialog",
+      "ui_command_commandempty",
+      "ui_command_commandgroup",
+      "ui_command_commandinput",
+      "ui_command_commanditem",
+      "ui_command_commandlist",
+      "ui_command_commandseparator"
+    ],
+    "28": [
+      "actions_orders_getorders",
+      "actions_orders_getorderstats",
+      "actions_orders_orderinclude",
+      "actions_orders_orderwithitems",
+      "app_account_account_orders_page_tsx",
+      "app_account_account_orders_page_tsx_orders_page_getstatusstyle",
+      "app_account_account_orders_page_tsx_orders_page_metadata",
+      "app_account_account_orders_page_tsx_orders_page_orderspage",
+      "app_account_orders_page_tsx",
+      "app_account_orders_page_tsx_orders_page_getstatusstyle",
+      "app_account_orders_page_tsx_orders_page_metadata",
+      "app_account_orders_page_tsx_orders_page_orderspage",
+      "lib_actions_orders_ts",
+      "orders_page_getuserstatuslabel"
+    ],
+    "29": [
+      "app_admin_admin_blog_id_edit_page_tsx",
+      "app_blog_blog_page_tsx",
+      "app_blog_blog_page_tsx_blog_page_getcategories",
+      "app_blog_blog_page_tsx_blog_page_metadata",
+      "blog_page_blogpage",
+      "blog_page_blogpageprops",
+      "blog_page_calculatereadingtime",
+      "edit_page_editblogpostpage",
+      "edit_page_editblogpostpageprops",
+      "edit_page_getblogpost",
+      "edit_page_getcategories",
+      "edit_page_gettags",
+      "edit_page_metadata",
+      "edit_page_requireadmin"
+    ],
     "30": [
-      "actions_admin_customers_getadmincustomers",
+      "account_profile_form_profileform",
+      "actions_profile_getprofile",
+      "actions_profile_updateprofile",
+      "app_account_account_profile_page_tsx",
+      "app_account_account_profile_page_tsx_profile_page_metadata",
+      "app_account_account_profile_page_tsx_profile_page_profilepage",
+      "app_account_profile_page_tsx",
+      "app_account_profile_page_tsx_profile_page_metadata",
+      "app_account_profile_page_tsx_profile_page_profilepage",
+      "lib_actions_profile_ts",
+      "ui_card_carddescription",
+      "validations_address_profileinput",
+      "validations_address_profileschema"
+    ],
+    "31": [
       "actions_admin_customers_paginatedcustomers",
       "actions_admin_customers_requireadmin",
       "actions_admin_customers_setcustomermembership",
@@ -863,68 +900,37 @@
       "admin_customers_client_order_status_colours",
       "admin_customers_client_rolebadge",
       "components_admin_customers_client_tsx",
-      "customers_page_admincustomerspage",
       "lib_actions_admin_customers_ts"
     ],
-    "31": [
-      "actions_orders_getorders",
-      "actions_orders_getorderstats",
-      "actions_orders_orderinclude",
-      "actions_orders_orderwithitems",
-      "app_account_account_orders_page_tsx",
-      "app_account_account_orders_page_tsx_orders_page_metadata",
-      "app_account_orders_page_tsx",
-      "app_account_orders_page_tsx_orders_page_getstatusstyle",
-      "app_account_orders_page_tsx_orders_page_metadata",
-      "app_account_orders_page_tsx_orders_page_orderspage",
-      "lib_actions_orders_ts",
-      "orders_page_getstatusstyle",
-      "orders_page_getuserstatuslabel"
-    ],
     "32": [
-      "app_admin_admin_blog_id_edit_page_tsx",
-      "blog_page_adminblogpage",
-      "blog_page_blogpage",
-      "blog_page_getcategories",
-      "blog_page_gettags",
-      "blog_page_requireadmin",
-      "edit_page_editblogpostpage",
-      "edit_page_editblogpostpageprops",
-      "edit_page_getblogpost",
-      "edit_page_getcategories",
-      "edit_page_gettags",
-      "edit_page_metadata",
-      "edit_page_requireadmin"
+      "actions_admin_customers_getadmincustomers",
+      "app_admin_admin_customers_page_tsx",
+      "components_blog_become_member_cta_tsx",
+      "components_blog_blog_like_button_tsx",
+      "components_blog_blog_social_share_tsx",
+      "components_ui_button_tsx",
+      "customers_page_admincustomerspage",
+      "customers_page_customerspageprops",
+      "customers_page_metadata",
+      "ui_button_button",
+      "ui_button_buttonprops",
+      "ui_button_buttonvariants"
     ],
     "33": [
-      "app_account_account_orders_id_page_tsx",
-      "app_account_account_orders_id_page_tsx_id_page_metadata",
-      "app_account_account_orders_id_page_tsx_id_page_orderdetailpageprops",
-      "components_shop_buy_again_button_tsx",
-      "components_shop_cancel_order_button_tsx",
-      "id_page_getstatusstyle",
-      "id_page_metadata",
-      "id_page_orderdetailpage",
-      "id_page_orderdetailpageprops",
-      "id_page_row",
-      "shop_buy_again_button_orderitem",
-      "shop_cancel_order_button_props"
+      "admin_order_row_status_form_orderrowstatusformprops",
+      "admin_order_row_status_form_status_options",
+      "app_admin_admin_orders_page_tsx",
+      "components_admin_mobile_status_dropdown_tsx",
+      "components_admin_order_row_status_form_tsx",
+      "orders_page_adminorderspage",
+      "orders_page_currencyformatter",
+      "orders_page_getorders",
+      "orders_page_getorderstats",
+      "orders_page_metadata",
+      "orders_page_order_status_config",
+      "orders_page_orderspageprops"
     ],
     "34": [
-      "admin_admin_header_adminheader",
-      "admin_admin_header_route_labels",
-      "admin_admin_header_usebreadcrumbs",
-      "admin_notification_panel_adminnotificationpanel",
-      "admin_notification_panel_notification",
-      "admin_notification_panel_notificationdata",
-      "admin_notification_panel_notificationtype",
-      "admin_notification_panel_priority",
-      "admin_notification_panel_priority_badge",
-      "admin_notification_panel_timeago",
-      "admin_notification_panel_type_config",
-      "components_admin_notification_panel_tsx"
-    ],
-    "35": [
       "app_api_shipping_auspost_route_ts",
       "auspost_route_post",
       "auspost_route_schema",
@@ -937,7 +943,32 @@
       "lib_auspost_pacserviceresponse",
       "lib_auspost_ts"
     ],
+    "35": [
+      "app_blog_blog_slug_page_tsx",
+      "app_blog_blog_slug_page_tsx_slug_page_generatemetadata",
+      "components_ui_avatar_tsx",
+      "slug_page_blogpostpageprops",
+      "slug_page_calculatereadingtime",
+      "slug_page_getblogpost",
+      "slug_page_makeyoutubeembed",
+      "slug_page_processcontent",
+      "ui_avatar_avatar",
+      "ui_avatar_avatarfallback",
+      "ui_avatar_avatarimage"
+    ],
     "36": [
+      "app_api_admin_blog_id_route_ts",
+      "app_api_admin_blog_id_route_ts_id_route_delete",
+      "app_api_admin_blog_id_route_ts_id_route_put",
+      "app_api_admin_blog_route_ts",
+      "blog_route_get",
+      "blog_route_isvalidurl",
+      "blog_route_post",
+      "lib_blog_notifications_blogpost",
+      "lib_blog_notifications_sendnewblogpostnotifications",
+      "lib_blog_notifications_ts"
+    ],
+    "37": [
       "app_api_upload_route_ts",
       "lib_r2_deleteobject",
       "lib_r2_generateimagekey",
@@ -949,18 +980,19 @@
       "upload_route_config",
       "upload_route_post"
     ],
-    "37": [
-      "actions_profile_getprofile",
-      "actions_profile_updateprofile",
-      "app_account_account_profile_page_tsx",
-      "app_account_account_profile_page_tsx_profile_page_metadata",
-      "app_account_account_profile_page_tsx_profile_page_profilepage",
-      "app_account_profile_page_tsx",
-      "app_account_profile_page_tsx_profile_page_metadata",
-      "app_account_profile_page_tsx_profile_page_profilepage",
-      "lib_actions_profile_ts"
-    ],
     "38": [
+      "admin_refund_panel_adminrefundpanel",
+      "admin_refund_panel_props",
+      "app_admin_admin_orders_id_page_tsx",
+      "components_admin_refund_panel_tsx",
+      "id_page_adminorderdetailpage",
+      "id_page_currencyformatter",
+      "id_page_getorder",
+      "id_page_metadata",
+      "id_page_order_status_config",
+      "id_page_orderdetailpageprops"
+    ],
+    "39": [
       "claude_graph_json",
       "claude_graph_report_md",
       "claude_graphify",
@@ -970,16 +1002,6 @@
       "claude_graphify_update",
       "claude_graphify_windows",
       "claude_wiki_index_md"
-    ],
-    "39": [
-      "app_api_admin_blog_id_route_ts",
-      "app_api_admin_blog_id_route_ts_id_route_delete",
-      "app_api_admin_blog_id_route_ts_id_route_put",
-      "app_api_admin_blog_route_ts",
-      "blog_route_get",
-      "blog_route_isvalidurl",
-      "blog_route_post",
-      "lib_blog_notifications_sendnewblogpostnotifications"
     ],
     "40": [
       "app_api_recommendations_route_ts",
@@ -1012,25 +1034,6 @@
       "prisma_seed_prismaneon"
     ],
     "43": [
-      "store_cart_cartproduct",
-      "types_index_apiresponse",
-      "types_index_orderstatus",
-      "types_index_ordersummary",
-      "types_index_paginatedresponse",
-      "types_index_productsummary",
-      "types_index_ts",
-      "types_index_userrole"
-    ],
-    "44": [
-      "actions_orders_getorderbyid",
-      "app_account_orders_id_page_tsx",
-      "app_account_orders_id_page_tsx_id_page_getstatusstyle",
-      "app_account_orders_id_page_tsx_id_page_metadata",
-      "app_account_orders_id_page_tsx_id_page_orderdetailpage",
-      "app_account_orders_id_page_tsx_id_page_orderdetailpageprops",
-      "app_account_orders_id_page_tsx_id_page_row"
-    ],
-    "45": [
       "lib_algolia_algoliaclient",
       "lib_algolia_algoliaproduct",
       "lib_algolia_configureindex",
@@ -1039,25 +1042,7 @@
       "lib_algolia_indexproduct",
       "lib_algolia_ts"
     ],
-    "46": [
-      "admin_admin_sidebar_adminsidebar",
-      "admin_admin_sidebar_nav_groups",
-      "admin_admin_sidebar_navitem",
-      "admin_layout_adminlayout",
-      "app_admin_layout_tsx",
-      "components_admin_admin_preloader_tsx",
-      "components_admin_admin_sidebar_tsx"
-    ],
-    "47": [
-      "components_shop_product_reviews_tsx",
-      "shop_product_reviews_imagelightbox",
-      "shop_product_reviews_productreviewsprops",
-      "shop_product_reviews_review",
-      "shop_product_reviews_reviewform",
-      "shop_product_reviews_stardisplay",
-      "shop_product_reviews_starpicker"
-    ],
-    "48": [
+    "44": [
       "lib_validations_auth_ts",
       "validations_auth_logininput",
       "validations_auth_loginschema",
@@ -1066,7 +1051,16 @@
       "validations_auth_verifyotpinput",
       "validations_auth_verifyotpschema"
     ],
-    "49": [
+    "45": [
+      "blog_blog_post_card_blogpostcard",
+      "blog_blog_post_card_blogpostcardprops",
+      "components_blog_blog_related_posts_tsx",
+      "components_ui_badge_tsx",
+      "ui_badge_badge",
+      "ui_badge_badgeprops",
+      "ui_badge_badgevariants"
+    ],
+    "46": [
       "app_account_dashboard_page_tsx",
       "app_account_dashboard_page_tsx_dashboard_page_getstatusstyle",
       "app_account_dashboard_page_tsx_dashboard_page_metadata",
@@ -1074,31 +1068,7 @@
       "app_account_dashboard_page_tsx_dashboard_page_quick_actions",
       "dashboard_page_base_nav_links"
     ],
-    "50": [
-      "admin_blog_rich_editor_blogricheditor",
-      "admin_blog_rich_editor_divider",
-      "admin_blog_rich_editor_getyoutubeid",
-      "admin_blog_rich_editor_modaltype",
-      "admin_blog_rich_editor_toolbarbutton",
-      "blog_blog_post_editor_blogricheditor"
-    ],
-    "51": [
-      "admin_page_admindashboardpage",
-      "admin_page_currencyformatter",
-      "admin_page_getstats",
-      "admin_page_metadata",
-      "admin_page_order_status_config",
-      "app_admin_admin_page_tsx"
-    ],
-    "52": [
-      "app_shop_search_page_tsx",
-      "search_page_generatemetadata",
-      "search_page_getrelatedcategories",
-      "search_page_searchpage",
-      "search_page_searchpageprops",
-      "search_page_searchproducts"
-    ],
-    "53": [
+    "47": [
       "app_api_blog_slug_like_route_ts",
       "like_route_checkratelimit",
       "like_route_get",
@@ -1106,282 +1076,273 @@
       "like_route_post",
       "like_route_ratelimitmap"
     ],
-    "54": [
+    "48": [
+      "admin_blog_rich_editor_blogricheditor",
+      "admin_blog_rich_editor_divider",
+      "admin_blog_rich_editor_getyoutubeid",
+      "admin_blog_rich_editor_modaltype",
+      "admin_blog_rich_editor_toolbarbutton",
+      "blog_blog_post_editor_blogricheditor"
+    ],
+    "49": [
+      "admin_page_admindashboardpage",
+      "admin_page_currencyformatter",
+      "admin_page_getstats",
+      "admin_page_metadata",
+      "admin_page_order_status_config",
+      "app_admin_admin_page_tsx"
+    ],
+    "50": [
       "app_api_admin_coupons_id_route_ts",
       "id_route_couponupdateschema",
       "id_route_delete",
       "id_route_get",
       "id_route_put"
     ],
-    "55": [
-      "orders_page_adminorderspage",
-      "orders_page_getorders",
-      "orders_page_getorderstats",
-      "orders_page_orderspage"
-    ],
-    "56": [
+    "51": [
       "app_api_admin_coupons_route_ts",
       "coupons_route_couponschema",
       "coupons_route_get",
       "coupons_route_post"
     ],
-    "57": [
+    "52": [
+      "app_api_categories_route_ts",
+      "app_api_categories_route_ts_categories_route_get",
+      "app_api_categories_route_ts_categories_route_post",
+      "categories_route_createcategoryschema"
+    ],
+    "53": [
+      "app_api_reviews_route_ts",
+      "reviews_route_createreviewschema",
+      "reviews_route_get",
+      "reviews_route_post"
+    ],
+    "54": [
       "app_auth_verify_email_page_tsx",
       "verify_email_page_metadata",
       "verify_email_page_result",
       "verify_email_page_verifyemailpage"
     ],
-    "58": [
+    "55": [
       "lib_redis_cache_keys",
       "lib_redis_cache_ttl",
       "lib_redis_redis",
       "lib_redis_ts"
     ],
-    "59": [
-      "scripts_backfill_email_verified_adapter",
-      "scripts_backfill_email_verified_db",
-      "scripts_backfill_email_verified_main",
-      "scripts_backfill_email_verified_ts"
-    ],
-    "60": [
-      "scripts_fix_image_urls_main",
-      "scripts_fix_image_urls_new_base",
-      "scripts_fix_image_urls_replaceurl",
-      "scripts_fix_image_urls_ts"
-    ],
-    "61": [
+    "56": [
       "plan_database_schema",
       "plan_tech_stack",
       "setup_guide_env_vars",
       "testcase_google_oauth"
     ],
-    "62": [
-      "shared_animate_in_animatein",
-      "shared_animate_in_animateinprops",
-      "shared_animate_in_animvariant",
-      "shared_animate_in_variant_class"
+    "57": [
+      "scripts_backfill_email_verified_adapter",
+      "scripts_backfill_email_verified_db",
+      "scripts_backfill_email_verified_main",
+      "scripts_backfill_email_verified_ts"
     ],
-    "63": [
-      "admin_order_row_status_form_orderrowstatusformprops",
-      "admin_order_row_status_form_status_options",
-      "components_admin_order_row_status_form_tsx"
+    "58": [
+      "scripts_fix_image_urls_main",
+      "scripts_fix_image_urls_new_base",
+      "scripts_fix_image_urls_replaceurl",
+      "scripts_fix_image_urls_ts"
     ],
-    "64": [
+    "59": [
       "app_admin_admin_products_id_page_tsx",
       "app_admin_admin_products_id_page_tsx_id_page_metadata",
       "id_page_editproductpage"
     ],
-    "65": [
-      "app_api_admin_blog_categories_route_ts",
-      "app_api_admin_blog_categories_route_ts_categories_route_get",
-      "app_api_admin_blog_categories_route_ts_categories_route_post"
-    ],
-    "66": [
-      "app_api_admin_categories_id_route_ts",
-      "app_api_admin_categories_id_route_ts_id_route_delete",
-      "app_api_admin_categories_id_route_ts_id_route_put"
-    ],
-    "67": [
-      "app_api_admin_categories_route_ts",
-      "app_api_admin_categories_route_ts_categories_route_get",
-      "app_api_admin_categories_route_ts_categories_route_post"
-    ],
-    "68": [
-      "app_api_orders_id_route_ts",
-      "app_api_orders_id_route_ts_id_route_get",
-      "app_api_orders_id_route_ts_id_route_params"
-    ],
-    "69": [
-      "app_api_reviews_productid_route_ts",
-      "productid_route_get",
-      "productid_route_params"
-    ],
-    "70": [
-      "claude_settings_hooks",
-      "claude_settings_hooks_pretooluse",
-      "claude_settings_json"
-    ],
-    "71": [
-      "app_auth_forgot_password_page_tsx",
-      "forgot_password_page_forgotpasswordpage",
-      "forgot_password_page_metadata"
-    ],
-    "72": [
-      "app_shop_privacy_policy_page_tsx",
-      "privacy_policy_page_metadata",
-      "privacy_policy_page_privacypolicypage"
-    ],
-    "73": [
-      "app_shop_refund_policy_page_tsx",
-      "refund_policy_page_metadata",
-      "refund_policy_page_refundpolicypage"
-    ],
-    "74": [
-      "app_shop_shipping_policy_page_tsx",
-      "shipping_policy_page_metadata",
-      "shipping_policy_page_shippingpolicypage"
-    ],
-    "75": [
-      "store_ui_ts",
-      "store_ui_uistate",
-      "store_ui_useuistore"
-    ],
-    "76": [
-      "app_shop_terms_of_service_page_tsx",
-      "terms_of_service_page_metadata",
-      "terms_of_service_page_termsofservicepage"
-    ],
-    "77": [
+    "60": [
       "app_api_coupons_validate_route_ts",
       "validate_route_get",
       "validate_route_validateschema"
     ],
-    "78": [
+    "61": [
+      "app_auth_forgot_password_page_tsx",
+      "forgot_password_page_forgotpasswordpage",
+      "forgot_password_page_metadata"
+    ],
+    "62": [
+      "app_api_admin_blog_categories_route_ts",
+      "app_api_admin_blog_categories_route_ts_categories_route_get",
+      "app_api_admin_blog_categories_route_ts_categories_route_post"
+    ],
+    "63": [
+      "app_api_admin_categories_id_route_ts",
+      "app_api_admin_categories_id_route_ts_id_route_delete",
+      "app_api_admin_categories_id_route_ts_id_route_put"
+    ],
+    "64": [
+      "app_api_admin_categories_route_ts",
+      "app_api_admin_categories_route_ts_categories_route_get",
+      "app_api_admin_categories_route_ts_categories_route_post"
+    ],
+    "65": [
+      "app_api_stock_alerts_route_ts",
+      "stock_alerts_route_post",
+      "stock_alerts_route_schema"
+    ],
+    "66": [
+      "prisma_seed_ts",
+      "prisma_seed_ts_prisma_seed_furnitureimages",
+      "prisma_seed_ts_prisma_seed_main"
+    ],
+    "67": [
+      "claude_settings_hooks",
+      "claude_settings_hooks_pretooluse",
+      "claude_settings_json"
+    ],
+    "68": [
+      "store_ui_ts",
+      "store_ui_uistate",
+      "store_ui_useuistore"
+    ],
+    "69": [
       "app_auth_verify_page_tsx",
       "verify_page_metadata",
       "verify_page_verifypage"
     ],
-    "79": [
+    "70": [
       "app_auth_layout_tsx",
       "auth_layout_authlayout"
     ],
-    "80": [
-      "app_shop_layout_tsx",
-      "shop_layout_shoplayout"
-    ],
-    "81": [
-      "furniture_middleware_config",
-      "middleware_ts"
-    ],
-    "82": [
+    "71": [
       "furniture_postcss_config_config",
       "postcss_config_mjs"
     ],
-    "83": [
+    "72": [
       "hero_bg_image",
       "plan_folder_structure"
     ],
-    "84": [
+    "73": [
       "hooks_use_debounce_ts",
       "hooks_use_debounce_usedebounce"
     ],
-    "85": [
-      "chs_logo_image",
-      "plan_project_overview"
+    "74": [
+      "furniture_middleware_config",
+      "middleware_ts"
     ],
-    "86": [
-      "scripts_check_product_images_main",
-      "scripts_check_product_images_ts"
-    ],
-    "87": [
+    "75": [
       "plan_auth_system",
       "setup_guide_auth_flow"
     ],
-    "88": [
+    "76": [
+      "chs_logo_image",
+      "plan_project_overview"
+    ],
+    "77": [
+      "scripts_check_product_images_main",
+      "scripts_check_product_images_ts"
+    ],
+    "78": [
+      "app_shop_layout_tsx",
+      "shop_layout_shoplayout"
+    ],
+    "79": [
       "claude_md_graphify",
       "skill_graphify_skill_md"
     ],
-    "89": [
+    "80": [
       "eslint_config_mjs"
     ],
-    "90": [
+    "81": [
       "next_env_d_ts"
     ],
-    "91": [
+    "82": [
       "next_config_ts"
     ],
-    "92": [
+    "83": [
       "prisma_config_ts"
     ],
-    "93": [
+    "84": [
       "hooks_use_media_query_ts"
     ],
-    "94": [
+    "85": [
       "types_css_d_ts"
     ],
-    "95": [
+    "86": [
       "nextauth_route_get_post"
     ],
-    "96": [
+    "87": [
       "plan_ai_recommendation"
     ],
-    "97": [
+    "88": [
       "plan_development_path"
     ],
-    "98": [
+    "89": [
       "setup_guide_prerequisites"
     ],
-    "99": [
+    "90": [
       "testcase_login_validation"
     ],
-    "100": [
+    "91": [
       "testcase_security"
     ]
   },
   "cohesion": {
-    "0": 0.05352112676056338,
+    "0": 0.054244306418219465,
     "1": 0.028985507246376812,
-    "2": 0.05405405405405406,
-    "3": 0.11596638655462185,
-    "4": 0.08172043010752689,
-    "5": 0.06666666666666667,
-    "6": 0.06896551724137931,
-    "7": 0.11330049261083744,
-    "8": 0.1349206349206349,
-    "9": 0.15343915343915343,
+    "2": 0.05101327742837177,
+    "3": 0.06201550387596899,
+    "4": 0.10756302521008404,
+    "5": 0.058823529411764705,
+    "6": 0.08172043010752689,
+    "7": 0.09425287356321839,
+    "8": 0.06896551724137931,
+    "9": 0.11904761904761904,
     "10": 0.11396011396011396,
-    "11": 0.08615384615384615,
+    "11": 0.14461538461538462,
     "12": 0.11,
-    "13": 0.15579710144927536,
-    "14": 0.17028985507246377,
-    "15": 0.13438735177865613,
-    "16": 0.12554112554112554,
-    "17": 0.14285714285714285,
+    "13": 0.17028985507246377,
+    "14": 0.08695652173913043,
+    "15": 0.20553359683794467,
+    "16": 0.18181818181818182,
+    "17": 0.11578947368421053,
     "18": 0.1,
-    "19": 0.14736842105263157,
-    "20": 0.18128654970760233,
-    "21": 0.15204678362573099,
+    "19": 0.15204678362573099,
+    "20": 0.11695906432748537,
+    "21": 0.14619883040935672,
     "22": 0.1111111111111111,
-    "23": 0.16993464052287582,
-    "24": 0.17647058823529413,
-    "25": 0.19852941176470587,
-    "26": 0.15,
-    "27": 0.18333333333333332,
-    "28": 0.1619047619047619,
-    "29": 0.1523809523809524,
-    "30": 0.1978021978021978,
-    "31": 0.1794871794871795,
-    "32": 0.20512820512820512,
-    "33": 0.18181818181818182,
-    "34": 0.18181818181818182,
-    "35": 0.23636363636363636,
+    "23": 0.17647058823529413,
+    "24": 0.17142857142857143,
+    "25": 0.1619047619047619,
+    "26": 0.1523809523809524,
+    "27": 0.20952380952380953,
+    "28": 0.16483516483516483,
+    "29": 0.2087912087912088,
+    "30": 0.2692307692307692,
+    "31": 0.22727272727272727,
+    "32": 0.24242424242424243,
+    "33": 0.19696969696969696,
+    "34": 0.23636363636363636,
+    "35": 0.2909090909090909,
     "36": 0.3111111111111111,
-    "37": 0.3333333333333333,
-    "38": 0.2222222222222222,
-    "39": 0.35714285714285715,
+    "37": 0.3111111111111111,
+    "38": 0.24444444444444444,
+    "39": 0.2222222222222222,
     "40": 0.39285714285714285,
     "41": 0.32142857142857145,
     "42": 0.25,
-    "43": 0.25,
-    "44": 0.38095238095238093,
-    "45": 0.2857142857142857,
+    "43": 0.2857142857142857,
+    "44": 0.2857142857142857,
+    "45": 0.42857142857142855,
     "46": 0.3333333333333333,
-    "47": 0.2857142857142857,
-    "48": 0.2857142857142857,
-    "49": 0.3333333333333333,
+    "47": 0.4666666666666667,
+    "48": 0.4,
+    "49": 0.4,
     "50": 0.4,
-    "51": 0.4,
-    "52": 0.4,
-    "53": 0.4666666666666667,
-    "54": 0.4,
+    "51": 0.5,
+    "52": 0.5,
+    "53": 0.5,
+    "54": 0.5,
     "55": 0.5,
     "56": 0.5,
     "57": 0.5,
-    "58": 0.5,
-    "59": 0.5,
+    "58": 0.6666666666666666,
+    "59": 0.6666666666666666,
     "60": 0.6666666666666666,
-    "61": 0.5,
-    "62": 0.5,
+    "61": 0.6666666666666666,
+    "62": 0.6666666666666666,
     "63": 0.6666666666666666,
     "64": 0.6666666666666666,
     "65": 0.6666666666666666,
@@ -1389,15 +1350,15 @@
     "67": 0.6666666666666666,
     "68": 0.6666666666666666,
     "69": 0.6666666666666666,
-    "70": 0.6666666666666666,
-    "71": 0.6666666666666666,
-    "72": 0.6666666666666666,
-    "73": 0.6666666666666666,
-    "74": 0.6666666666666666,
-    "75": 0.6666666666666666,
-    "76": 0.6666666666666666,
-    "77": 0.6666666666666666,
-    "78": 0.6666666666666666,
+    "70": 1.0,
+    "71": 1.0,
+    "72": 1.0,
+    "73": 1.0,
+    "74": 1.0,
+    "75": 1.0,
+    "76": 1.0,
+    "77": 1.0,
+    "78": 1.0,
     "79": 1.0,
     "80": 1.0,
     "81": 1.0,
@@ -1410,16 +1371,7 @@
     "88": 1.0,
     "89": 1.0,
     "90": 1.0,
-    "91": 1.0,
-    "92": 1.0,
-    "93": 1.0,
-    "94": 1.0,
-    "95": 1.0,
-    "96": 1.0,
-    "97": 1.0,
-    "98": 1.0,
-    "99": 1.0,
-    "100": 1.0
+    "91": 1.0
   },
   "gods": [
     {
@@ -1440,7 +1392,7 @@
     {
       "id": "ui_button_button",
       "label": "Button",
-      "degree": 25
+      "degree": 24
     },
     {
       "id": "account_profile_form_profileform",
@@ -1519,15 +1471,15 @@
       "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; semantically similar concepts with no structural link"
     },
     {
-      "source": "NavItem()",
+      "source": "VariantCard()",
       "target": "cn()",
       "source_files": [
-        "components/admin/admin-sidebar.tsx",
+        "app/(admin)/admin/products/new/page.tsx",
         "lib/utils.ts"
       ],
       "confidence": "EXTRACTED",
       "relation": "calls",
-      "why": "connects across different repos/directories; bridges separate communities; peripheral node `NavItem()` unexpectedly reaches hub `cn()`"
+      "why": "connects across different repos/directories; bridges separate communities; peripheral node `VariantCard()` unexpectedly reaches hub `cn()`"
     }
   ],
   "tokens": {
