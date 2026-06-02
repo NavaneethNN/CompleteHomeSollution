@@ -423,6 +423,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     params.set("code", couponCode.trim());
     params.set("subtotal", subtotal.toString());
     params.set("items", JSON.stringify(itemsForValidation));
+    params.set("isMember", effectiveMember.toString());
     if (userId) {
       params.set("userId", userId);
     }

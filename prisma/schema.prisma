@@ -285,6 +285,12 @@ enum CouponDiscountType {
   FIXED        // Fixed amount off (e.g., $10)
 }
 
+enum CouponMemberEligibility {
+  ALL          // Available to all users (members and non-members)
+  MEMBERS_ONLY // Available to members only
+  NON_MEMBERS  // Available to non-members only
+}
+
 model Coupon {
   id              String            @id @default(cuid())
   code            String            @unique // e.g., "SAVE10", "SUMMER2024"
@@ -298,6 +304,7 @@ model Coupon {
   usageLimit      Int?              // Total usage limit across all users
   usageCount      Int               @default(0) // Current usage count
   perUserLimit    Int?              // Max uses per user
+  memberEligibility CouponMemberEligibility @default(ALL) // Who can use this coupon
   startDate       DateTime?         // When coupon becomes valid
   endDate         DateTime?         // When coupon expires
   isActive        Boolean           @default(true)

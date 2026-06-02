@@ -66,6 +66,7 @@ interface Coupon {
   usageLimit: number | null;
   usageCount: number;
   perUserLimit: number | null;
+  memberEligibility: "ALL" | "MEMBERS_ONLY" | "NON_MEMBERS";
   startDate: string | null;
   endDate: string | null;
   isActive: boolean;
@@ -115,6 +116,7 @@ export default function AdminCouponsPage() {
     maxDiscount: "",
     usageLimit: "",
     perUserLimit: "",
+    memberEligibility: "ALL" as "ALL" | "MEMBERS_ONLY" | "NON_MEMBERS",
     startDate: "",
     endDate: "",
     isActive: true,
@@ -176,6 +178,7 @@ export default function AdminCouponsPage() {
       maxDiscount: "",
       usageLimit: "",
       perUserLimit: "",
+      memberEligibility: "ALL",
       startDate: "",
       endDate: "",
       isActive: true,
@@ -277,6 +280,7 @@ export default function AdminCouponsPage() {
       maxDiscount: coupon.maxDiscount?.toString() || "",
       usageLimit: coupon.usageLimit?.toString() || "",
       perUserLimit: coupon.perUserLimit?.toString() || "",
+      memberEligibility: coupon.memberEligibility || "ALL",
       startDate: coupon.startDate?.split("T")[0] || "",
       endDate: coupon.endDate?.split("T")[0] || "",
       isActive: coupon.isActive,
@@ -739,13 +743,32 @@ function CouponForm({
             placeholder="e.g., 1"
           />
         </div>
-        <div className="flex items-center gap-2 pt-6">
-          <Switch
-            checked={formData.isActive}
-            onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-          />
-          <label className="text-sm font-medium">Active</label>
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Member Eligibility</label>
+          <Select
+            value={formData.memberEligibility}
+            onValueChange={(value: "ALL" | "MEMBERS_ONLY" | "NON_MEMBERS") => 
+              setFormData({ ...formData, memberEligibility: value })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Users</SelectItem>
+              <SelectItem value="MEMBERS_ONLY">Members Only</SelectItem>
+              <SelectItem value="NON_MEMBERS">Non-Members Only</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Switch
+          checked={formData.isActive}
+          onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+        />
+        <label className="text-sm font-medium">Active</label>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
