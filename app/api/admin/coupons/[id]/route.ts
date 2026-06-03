@@ -6,17 +6,17 @@ import { z } from "zod";
 const couponUpdateSchema = z.object({
   code: z.string().min(1).max(20).transform((v) => v.toUpperCase()).optional(),
   name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500),
+  description: z.string().max(500).optional().nullable(),
   type: z.enum(["GLOBAL", "PRODUCT", "CATEGORY"]).optional(),
   discountType: z.enum(["PERCENTAGE", "FIXED"]).optional(),
   discountValue: z.number().positive().optional(),
-  minOrderAmount: z.number().nonnegative(),
-  maxDiscount: z.number().positive(),
-  usageLimit: z.number().int().positive(),
-  perUserLimit: z.number().int().positive(),
+  minOrderAmount: z.number().nonnegative().optional().nullable(),
+  maxDiscount: z.number().positive().optional().nullable(),
+  usageLimit: z.number().int().positive().optional().nullable(),
+  perUserLimit: z.number().int().positive().optional().nullable(),
   memberEligibility: z.enum(["ALL", "MEMBERS_ONLY", "NON_MEMBERS"]).optional(),
-  startDate: z.union([z.string().datetime(), z.string().date()]),
-  endDate: z.union([z.string().datetime(), z.string().date()]),
+  startDate: z.union([z.string().datetime(), z.string().date()]).optional().nullable(),
+  endDate: z.union([z.string().datetime(), z.string().date()]).optional().nullable(),
   isActive: z.boolean().optional(),
   productIds: z.array(z.string()).optional(),
   categoryIds: z.array(z.string()).optional(),
@@ -103,9 +103,14 @@ export async function PUT(
       return NextResponse.json({ error: "At least one category required" }, { status: 400 });
     }
 
-    // Validate dates
+    // Validate dates (only if both are provided and non-empty)
     if (data.startDate && data.endDate) {
-      if (new Date(data.startDate) >= new Date(data.endDate)) {
+      const start = new Date(data.startDate as string);
+      const end = new Date(data.endDate as string);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
+      }
+      if (start >= end) {
         return NextResponse.json({ error: "End date must be after start date" }, { status: 400 });
       }
     }
@@ -115,17 +120,17 @@ export async function PUT(
     const updateData: any = {
       ...(data.code && { code: data.code }),
       ...(data.name && { name: data.name }),
-      description: data.description,
+      ...(data.description !== undefined && { description: data.description && data.description !== "" ? data.description : null }),
       ...(data.type && { type: data.type }),
       ...(data.discountType && { discountType: data.discountType }),
       ...(data.discountValue && { discountValue: data.discountValue }),
-      minOrderAmount: data.minOrderAmount,
-      maxDiscount: data.maxDiscount,
-      usageLimit: data.usageLimit,
-      perUserLimit: data.perUserLimit,
+      ...(data.minOrderAmount !== undefined && { minOrderAmount: data.minOrderAmount }),
+      ...(data.maxDiscount !== undefined && { maxDiscount: data.maxDiscount }),
+      ...(data.usageLimit !== undefined && { usageLimit: data.usageLimit }),
+      ...(data.perUserLimit !== undefined && { perUserLimit: data.perUserLimit }),
       ...(data.memberEligibility && { memberEligibility: data.memberEligibility }),
-      startDate: new Date(data.startDate),
-      endDate: new Date(data.endDate),
+      ...(data.startDate && data.startDate !== "" && { startDate: new Date(data.startDate) }),
+      ...(data.endDate && data.endDate !== "" && { endDate: new Date(data.endDate) }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
     };
 

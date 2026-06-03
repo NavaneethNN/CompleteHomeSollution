@@ -6,17 +6,17 @@ import { z } from "zod";
 const couponSchema = z.object({
   code: z.string().min(1).max(20).transform((v) => v.toUpperCase()),
   name: z.string().min(1).max(100),
-  description: z.string().max(500),
+  description: z.string().max(500).optional().nullable(),
   type: z.enum(["GLOBAL", "PRODUCT", "CATEGORY"]),
   discountType: z.enum(["PERCENTAGE", "FIXED"]),
   discountValue: z.number().positive(),
-  minOrderAmount: z.number().nonnegative(),
-  maxDiscount: z.number().positive(),
-  usageLimit: z.number().int().positive(),
-  perUserLimit: z.number().int().positive(),
+  minOrderAmount: z.number().nonnegative().optional().nullable(),
+  maxDiscount: z.number().positive().optional().nullable(),
+  usageLimit: z.number().int().positive().optional().nullable(),
+  perUserLimit: z.number().int().positive().optional().nullable(),
   memberEligibility: z.enum(["ALL", "MEMBERS_ONLY", "NON_MEMBERS"]).default("ALL"),
-  startDate: z.union([z.string().datetime(), z.string().date()]),
-  endDate: z.union([z.string().datetime(), z.string().date()]),
+  startDate: z.union([z.string().datetime(), z.string().date()]).optional().nullable(),
+  endDate: z.union([z.string().datetime(), z.string().date()]).optional().nullable(),
   isActive: z.boolean().default(true),
   productIds: z.array(z.string()).optional(),
   categoryIds: z.array(z.string()).optional(),
@@ -87,9 +87,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "At least one category required" }, { status: 400 });
     }
 
-    // Validate dates
+    // Validate dates (only if both are provided and non-empty)
     if (data.startDate && data.endDate) {
-      if (new Date(data.startDate) >= new Date(data.endDate)) {
+      const start = new Date(data.startDate as string);
+      const end = new Date(data.endDate as string);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
+      }
+      if (start >= end) {
         return NextResponse.json({ error: "End date must be after start date" }, { status: 400 });
       }
     }
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
       data: {
         code: data.code,
         name: data.name,
-        description: data.description,
+        description: data.description && data.description !== "" ? data.description : null,
         type: data.type,
         discountType: data.discountType,
         discountValue: data.discountValue,
@@ -108,8 +113,8 @@ export async function POST(req: NextRequest) {
         usageLimit: data.usageLimit,
         perUserLimit: data.perUserLimit,
         memberEligibility: data.memberEligibility,
-        startDate: new Date(data.startDate),
-        endDate: new Date(data.endDate),
+        startDate: data.startDate && data.startDate !== "" ? new Date(data.startDate) : null,
+        endDate: data.endDate && data.endDate !== "" ? new Date(data.endDate) : null,
         isActive: data.isActive,
         products: data.type === "PRODUCT" && data.productIds ? {
           create: data.productIds.map((id) => ({ productId: id })),

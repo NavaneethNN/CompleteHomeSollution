@@ -226,6 +226,7 @@ export async function GET(req: NextRequest) {
         type: couponType,
         discountType: discountType,
         discountValue: discountValue,
+        maxDiscount: maxDiscount,
         discount: discount,
         applicableSubtotal: applicableSubtotal,
       },

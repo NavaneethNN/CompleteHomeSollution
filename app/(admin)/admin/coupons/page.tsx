@@ -98,6 +98,7 @@ export default function AdminCouponsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -219,6 +220,7 @@ export default function AdminCouponsPage() {
   const handleUpdate = async () => {
     if (!selectedCoupon) return;
 
+    setIsUpdating(true);
     try {
       const res = await fetch(`/api/admin/coupons/${selectedCoupon.id}`, {
         method: "PUT",
@@ -245,6 +247,8 @@ export default function AdminCouponsPage() {
       fetchCoupons();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -550,7 +554,7 @@ export default function AdminCouponsPage() {
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!formData.code || !formData.name || !formData.description || !formData.discountValue || !formData.maxDiscount || !formData.minOrderAmount || !formData.usageLimit || !formData.perUserLimit || !formData.startDate || !formData.endDate || (formData.type === 'PRODUCT' && formData.productIds.length === 0) || (formData.type === 'CATEGORY' && formData.categoryIds.length === 0)}>
+            <Button onClick={handleCreate} disabled={!formData.code || !formData.name || !formData.discountValue || (formData.type === 'PRODUCT' && formData.productIds.length === 0) || (formData.type === 'CATEGORY' && formData.categoryIds.length === 0)}>
               Create Coupon
             </Button>
           </DialogFooter>
@@ -574,8 +578,15 @@ export default function AdminCouponsPage() {
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdate} disabled={!formData.code || !formData.name || !formData.description || !formData.discountValue || !formData.maxDiscount || !formData.minOrderAmount || !formData.usageLimit || !formData.perUserLimit || !formData.startDate || !formData.endDate || (formData.type === 'PRODUCT' && formData.productIds.length === 0) || (formData.type === 'CATEGORY' && formData.categoryIds.length === 0)}>
-              Save Changes
+            <Button onClick={handleUpdate} disabled={!formData.code || !formData.name || !formData.discountValue || (formData.type === 'PRODUCT' && formData.productIds.length === 0) || (formData.type === 'CATEGORY' && formData.categoryIds.length === 0) || isUpdating}>
+              {isUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

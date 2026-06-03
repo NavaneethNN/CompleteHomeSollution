@@ -112,6 +112,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     discountType: "PERCENTAGE" | "FIXED";
     discountValue: number;
     discount: number;
+    maxDiscount: number | null;
     name?: string;
   } | null>(null);
   const [addMembership, setAddMembership] = useState(false);
@@ -185,6 +186,10 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   if (appliedCoupon) {
     if (appliedCoupon.discountType === "PERCENTAGE") {
       discount = subtotal * (appliedCoupon.discountValue / 100);
+      // Apply max discount cap if set
+      if (appliedCoupon.maxDiscount && discount > appliedCoupon.maxDiscount) {
+        discount = appliedCoupon.maxDiscount;
+      }
     } else {
       // FIXED - capped at subtotal
       discount = Math.min(appliedCoupon.discountValue, subtotal);
@@ -442,6 +447,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         discountType: data.coupon.discountType,
         discountValue: data.coupon.discountValue,
         discount: data.coupon.discount,
+        maxDiscount: data.coupon.maxDiscount ?? null,
         name: data.coupon.name,
       });
       setAppliedCouponCode(couponCode.trim()); // Store the applied code for re-validation

@@ -323,13 +323,11 @@ export async function POST(req: NextRequest) {
     const membershipCharge = (wantsMembership && !alreadyMember) ? 30 : 0;
 
     // FIX: Round subtotal to 2dp before computing tax/total (avoids float accumulation)
+    // NOTE: Coupon discount is already applied to line items via discountFactor
     subtotal = Math.round(subtotal * 100) / 100;
 
-    // Calculate totals after coupon discount
-    const discountedSubtotal = Math.max(0, subtotal - couponDiscount);
-
     // Calculate totals — members always get free shipping; otherwise use AusPost rate
-    const freeShipping = effectiveMember || discountedSubtotal >= 1200;
+    const freeShipping = effectiveMember || subtotal >= 1200;
 
     // FIX: Reject non-free orders that send shippingCost=0 — prevents shipping fee bypass
     if (!freeShipping && (!input.shippingCost || input.shippingCost <= 0)) {
@@ -340,9 +338,9 @@ export async function POST(req: NextRequest) {
     }
     const shippingCost = freeShipping ? 0 : Math.round(input.shippingCost! * 100) / 100;
 
-    const tax = Math.round(discountedSubtotal * 0.1 * 100) / 100; // 10% GST on discounted amount
+    const tax = Math.round(subtotal * 0.1 * 100) / 100; // 10% GST on discounted amount
     // FIX: Round total to 2dp so DB value matches Stripe integer-cent charge
-    const total = Math.round((discountedSubtotal + shippingCost + tax + membershipCharge) * 100) / 100;
+    const total = Math.round((subtotal + shippingCost + tax + membershipCharge) * 100) / 100;
 
     // Add shipping as line item if not free
     if (shippingCost > 0) {
