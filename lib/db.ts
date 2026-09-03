@@ -1,13 +1,20 @@
-// Updated after prisma generate — picks up MembershipPlan model
 import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 
 function createPrismaClient() {
-  const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL! });
+  // Use the direct (non-pooler) URL in development — the pooler hostname is
+  // only reachable from Vercel/serverless environments, not from localhost.
+  // In production the pooler URL is fine and preferred for connection reuse.
+  const connectionString =
+    process.env.NODE_ENV === "production"
+      ? (process.env.DATABASE_URL ?? "")
+      : (process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? "");
+
+  const adapter = new PrismaNeon({ connectionString });
 
   return new PrismaClient({
     adapter,
-    log: ["error"],
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
 

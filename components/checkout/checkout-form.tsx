@@ -1020,10 +1020,17 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
       {/* Add / Edit Address Dialog */}
       <Dialog open={isAddressDialogOpen} onOpenChange={(open) => {
-        if (!open && !isAuthenticated && !guestAddress) return; // guests must fill in address
+        // Block close for guests who haven't entered an address yet —
+        // they must fill the form first. The Cancel button below is
+        // always available for authenticated users.
+        if (!open && !isAuthenticated && !guestAddress) return;
+        if (!open) {
+          setEditingAddress(null);
+          setIsLoading(false); // clear any stuck loading state
+        }
         setIsAddressDialogOpen(open);
       }}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" hideCloseButton={!isAuthenticated && !guestAddress}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
@@ -1154,7 +1161,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
             <DialogFooter className="gap-2 pt-2">
               {(isAuthenticated || !!guestAddress) && (
-                <Button type="button" variant="outline" onClick={() => setIsAddressDialogOpen(false)} disabled={isLoading}>
+                <Button type="button" variant="outline" onClick={() => { setEditingAddress(null); setIsLoading(false); setIsAddressDialogOpen(false); }}>
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
