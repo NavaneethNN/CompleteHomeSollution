@@ -2,19 +2,22 @@ import type { Metadata } from "next";
 import { getPlans, getMembers } from "@/lib/actions/admin-membership";
 import { MembershipClient } from "@/components/admin/membership-client";
 import { Crown, Users, DollarSign } from "lucide-react";
+import { db } from "@/lib/db";
 
 export const metadata: Metadata = { title: "Membership — Admin" };
 
 export default async function AdminMembershipPage() {
   const [plans, members] = await Promise.all([getPlans(), getMembers()]);
 
-  const activePlans    = plans.filter((p) => p.isActive).length;
-  const totalRevenue   = members.length * (plans.find((p) => p.isDefault)?.price ?? 0);
+  const activePlans = plans.filter((p) => p.isActive).length;
+  // Revenue comes from actual MembershipPayment records, not a member count × plan price estimate
+  const revenueResult = await db.membershipPayment.aggregate({ _sum: { amount: true } });
+  const totalRevenue = revenueResult._sum.amount ?? 0;
 
   const statCards = [
-    { label: "Plans",          value: plans.length,   sub: `${activePlans} active`,           icon: Crown,       accent: "bg-amber-500" },
-    { label: "Active Members", value: members.length, sub: "Premium subscribers",             icon: Users,       accent: "bg-primary" },
-    { label: "Est. Revenue",   value: `$${totalRevenue}`, sub: "Based on default plan price", icon: DollarSign,  accent: "bg-emerald-500" },
+    { label: "Plans",          value: plans.length,   sub: `${activePlans} active`,             icon: Crown,       accent: "bg-amber-500" },
+    { label: "Active Members", value: members.length, sub: "Premium subscribers",               icon: Users,       accent: "bg-primary" },
+    { label: "Est. Revenue",   value: `$${totalRevenue.toLocaleString("en-AU", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: "Total membership revenue", icon: DollarSign,  accent: "bg-emerald-500" },
   ];
 
   return (

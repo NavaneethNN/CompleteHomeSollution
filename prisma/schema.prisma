@@ -442,13 +442,18 @@ model MembershipPlan {
   id              String   @id @default(cuid())
   name            String
   description     String?  @db.Text
-  price           Float    // AUD price
-  durationDays    Int      // e.g. 365 for annual, 30 for monthly
-  discountPercent Float    @default(0) // % discount members get on products
+  price           Float
+  durationDays    Int
+  discountPercent Float    @default(0)
   isActive        Boolean  @default(true)
-  isDefault       Boolean  @default(false) // the plan shown in checkout
+  isDefault       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  payments MembershipPayment[]
+
+  @@index([isActive])
+  @@index([isDefault])
 }
 
 model MembershipPayment {
@@ -459,7 +464,8 @@ model MembershipPayment {
   stripeSessionId String?  @unique
   createdAt       DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan MembershipPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
 }
 
 model StockAlert {

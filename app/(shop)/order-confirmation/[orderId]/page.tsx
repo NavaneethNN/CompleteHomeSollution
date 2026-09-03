@@ -6,6 +6,7 @@ import { CheckCircle2, Package, ArrowRight, Mail, Crown } from "lucide-react";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { getStripe } from "@/lib/stripe";
+import { activateMembership } from "@/lib/membership";
 import { ClearCartOnSuccess } from "@/components/shop/clear-cart-on-success";
 import { RefreshSessionOnMembership } from "@/components/shop/refresh-session-on-membership";
 import { sendOrderConfirmationEmail } from "@/lib/brevo";
@@ -162,7 +163,6 @@ export default async function OrderConfirmationPage({
     }
   }
 
-  // ── Activate membership on success redirect ────────────────────────────────
   let membershipActivated = false;
   if (stripeSession && userId) {
     try {
@@ -173,18 +173,13 @@ export default async function OrderConfirmationPage({
         );
       const metaUserId = stripeSession.metadata?.userId;
       if (wantsMembership && metaUserId === userId) {
-        const currentUser = await db.user.findUnique({
-          where: { id: userId },
-          select: { isMember: true },
+        const result = await activateMembership({
+          userId,
+          planId: stripeSession.metadata?.planId ?? null,
+          stripeSessionId: `${stripeSession.id}-order-confirm`,
+          amountPaid: 0, // payment already recorded by webhook or membership page
         });
-        if (!currentUser?.isMember) {
-          await db.user.update({
-            where: { id: userId },
-            data: { isMember: true, memberSince: new Date() },
-          });
-          console.log(`[order-confirmation] Membership activated for user ${userId}`);
-        }
-        membershipActivated = true;
+        membershipActivated = result.activated;
       }
     } catch {
       // non-critical — ignore

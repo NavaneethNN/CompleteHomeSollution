@@ -85,25 +85,36 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "This coupon has reached its usage limit" }, { status: 400 });
     }
 
-    // Check member eligibility
-    const isMemberParam = searchParams.get("isMember") === "true";
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const memberEligibility = (coupon as any).memberEligibility || "ALL";
-    
-    console.log("[Coupon Validate] Member check:", { memberEligibility, isMember: isMemberParam, userId });
-    
-    if (memberEligibility === "MEMBERS_ONLY" && !isMemberParam) {
-      return NextResponse.json(
-        { error: "This coupon is only available for members" },
-        { status: 400 }
-      );
-    }
-    
-    if (memberEligibility === "NON_MEMBERS" && isMemberParam) {
-      return NextResponse.json(
-        { error: "This coupon is only available for non-members" },
-        { status: 400 }
-      );
+    // M-6: Verify membership from DB — never trust client-supplied isMember param
+    const memberEligibility = coupon.memberEligibility ?? "ALL";
+    if (memberEligibility !== "ALL") {
+      let isMemberFromDb = false;
+      if (userId) {
+        const dbUser = await db.user.findUnique({
+          where: { id: userId },
+          select: {
+            isMember: true,
+            membershipExpiry: true,
+          },
+        });
+        // A member is only considered active if expiry is in the future (or null = no expiry set)
+        isMemberFromDb =
+          (dbUser?.isMember ?? false) &&
+          (!dbUser?.membershipExpiry || dbUser.membershipExpiry > new Date());
+      }
+
+      if (memberEligibility === "MEMBERS_ONLY" && !isMemberFromDb) {
+        return NextResponse.json(
+          { error: "This coupon is only available for members" },
+          { status: 400 }
+        );
+      }
+      if (memberEligibility === "NON_MEMBERS" && isMemberFromDb) {
+        return NextResponse.json(
+          { error: "This coupon is only available for non-members" },
+          { status: 400 }
+        );
+      }
     }
 
     // Check per-user limit

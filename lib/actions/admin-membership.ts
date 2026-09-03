@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { revokeMembership as revokeUtil, grantMembership as grantUtil } from "@/lib/membership";
 
 async function requireAdmin() {
   const session = await auth();
@@ -33,6 +34,7 @@ export type MemberUser = {
   image: string | null;
   isMember: boolean;
   memberSince: Date | null;
+  membershipExpiry: Date | null;
   createdAt: Date;
   _count: { orders: number };
 };
@@ -112,11 +114,18 @@ export async function setDefaultPlan(id: string): Promise<PlanResult> {
 
 export async function getMembers(): Promise<MemberUser[]> {
   await requireAdmin();
+  const now = new Date();
   return db.user.findMany({
-    where: { isMember: true },
+    where: {
+      isMember: true,
+      OR: [
+        { membershipExpiry: null },            // legacy admin-granted with no expiry (kept valid)
+        { membershipExpiry: { gte: now } },    // not yet expired
+      ],
+    },
     select: {
       id: true, name: true, email: true, image: true,
-      isMember: true, memberSince: true, createdAt: true,
+      isMember: true, memberSince: true, membershipExpiry: true, createdAt: true,
       _count: { select: { orders: true } },
     },
     orderBy: { memberSince: "desc" },
@@ -125,20 +134,14 @@ export async function getMembers(): Promise<MemberUser[]> {
 
 export async function revokeMembership(userId: string): Promise<PlanResult> {
   await requireAdmin();
-  await db.user.update({
-    where: { id: userId },
-    data: { isMember: false, memberSince: null },
-  });
+  await revokeUtil(userId); // clears isMember, memberSince, AND membershipExpiry
   revalidatePath("/admin/membership");
   return { success: true };
 }
 
 export async function grantMembership(userId: string): Promise<PlanResult> {
   await requireAdmin();
-  await db.user.update({
-    where: { id: userId },
-    data: { isMember: true, memberSince: new Date() },
-  });
+  await grantUtil(userId); // sets isMember, memberSince, AND membershipExpiry from default plan
   revalidatePath("/admin/membership");
   return { success: true };
 }

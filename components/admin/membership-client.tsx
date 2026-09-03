@@ -488,6 +488,7 @@ export function MembershipClient({
                 <tr className="border-b border-border bg-muted/40">
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Member</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Member Since</th>
+                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Expires</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Orders</th>
                   <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Action</th>
                 </tr>
@@ -509,6 +510,18 @@ export function MembershipClient({
                         ? new Date(m.memberSince).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
                         : "—"}
                     </td>
+                    <td className="px-5 py-3.5 text-sm text-muted-foreground hidden lg:table-cell">
+                      {m.membershipExpiry
+                        ? (() => {
+                            const isExpiringSoon = new Date(m.membershipExpiry).getTime() - Date.now() < 7 * 86400000;
+                            return (
+                              <span className={isExpiringSoon ? "text-amber-600 font-semibold" : ""}>
+                                {new Date(m.membershipExpiry).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+                              </span>
+                            );
+                          })()
+                        : <span className="text-muted-foreground/50">No expiry</span>}
+                    </td>
                     <td className="px-5 py-3.5 text-sm font-medium text-foreground hidden md:table-cell">
                       {m._count.orders}
                     </td>
@@ -525,7 +538,7 @@ export function MembershipClient({
                 ))}
                 {members.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-5 py-12 text-center text-sm text-muted-foreground">
+                    <td colSpan={5} className="px-5 py-12 text-center text-sm text-muted-foreground">
                       No active members yet.
                     </td>
                   </tr>

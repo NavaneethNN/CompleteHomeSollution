@@ -3,6 +3,7 @@ import { constructWebhookEvent } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { sendOrderConfirmationEmail } from "@/lib/brevo";
 import { sendOrderConfirmationSms, sendOrderWhatsApp } from "@/lib/twilio";
+import { activateMembership } from "@/lib/membership";
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -31,39 +32,19 @@ export async function POST(req: NextRequest) {
           console.error("[Stripe webhook] Membership session missing userId");
           return NextResponse.json({ received: true });
         }
-        const planId = session.metadata?.planId;
-        const plan = planId
-          ? await db.membershipPlan.findUnique({ where: { id: planId }, select: { durationDays: true } })
-          : await db.membershipPlan.findFirst({ where: { isActive: true, isDefault: true }, select: { durationDays: true } });
-        const durationDays = plan?.durationDays ?? 365;
-        const existing = await db.user.findUnique({
-          where: { id: userId },
-          select: { isMember: true, membershipExpiry: true },
-        });
-        const now = new Date();
-        const baseDate = existing?.membershipExpiry && existing.membershipExpiry > now
-          ? existing.membershipExpiry
-          : now;
-        const expiry = new Date(baseDate);
-        expiry.setDate(expiry.getDate() + durationDays);
-        await db.user.update({
-          where: { id: userId },
-          data: {
-            isMember: true,
-            memberSince: existing?.isMember ? undefined : now,
-            membershipExpiry: expiry,
-          },
-        });
-        // Record payment for spend tracking (idempotent via stripeSessionId unique)
+        const planId = session.metadata?.planId ?? null;
         const amountPaid = (session.amount_total ?? 0) / 100;
-        if (amountPaid > 0) {
-          await db.membershipPayment.upsert({
-            where: { stripeSessionId: session.id },
-            create: { userId, planId: planId ?? null, amount: amountPaid, stripeSessionId: session.id },
-            update: {},
-          });
+        const result = await activateMembership({
+          userId,
+          planId,
+          stripeSessionId: session.id,
+          amountPaid,
+        });
+        if (result.alreadyProcessed) {
+          console.log(`[Stripe webhook] Membership already processed for session ${session.id} — skipping`);
+        } else {
+          console.log(`[Stripe webhook] Membership activated/renewed for user ${userId}, expires ${result.expiresAt?.toISOString()}`);
         }
-        console.log(`[Stripe webhook] Membership activated/renewed for user ${userId}, expires ${expiry.toISOString()}`);
         return NextResponse.json({ received: true });
       }
 
@@ -144,38 +125,16 @@ export async function POST(req: NextRequest) {
       const addMembership = session.metadata?.addMembership === "1";
       const userId = session.metadata?.userId;
       if (addMembership && userId) {
-        const currentUser = await db.user.findUnique({
-          where: { id: userId },
-          select: { isMember: true },
-        });
-
-        // P-4: Fetch both durationDays AND price in a single query instead of two
         const orderPlan = await db.membershipPlan.findFirst({
           where: { isActive: true, isDefault: true },
-          select: { durationDays: true, price: true },
+          select: { price: true },
         });
-
-        const orderDuration = orderPlan?.durationDays ?? 365;
-        const orderNow = new Date();
-        const orderExpiry = new Date(orderNow);
-        orderExpiry.setDate(orderExpiry.getDate() + orderDuration);
-
-        if (!currentUser?.isMember) {
-          await db.user.update({
-            where: { id: userId },
-            data: { isMember: true, memberSince: orderNow, membershipExpiry: orderExpiry },
-          });
-          console.log(`[Stripe webhook] Membership activated (via order) for user ${userId}`);
-        }
-
-        // Record membership add-on payment separately for spend tracking
-        if (orderPlan?.price) {
-          await db.membershipPayment.upsert({
-            where: { stripeSessionId: `${session.id}-membership` },
-            create: { userId, planId: null, amount: orderPlan.price, stripeSessionId: `${session.id}-membership` },
-            update: {},
-          });
-        }
+        await activateMembership({
+          userId,
+          stripeSessionId: `${session.id}-membership`,
+          amountPaid: orderPlan?.price ?? 30,
+        });
+        console.log(`[Stripe webhook] Membership add-on activated for user ${userId}`);
       }
 
       const email = order.user?.email ?? order.guestEmail;

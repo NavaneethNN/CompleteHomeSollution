@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getStripe } from "@/lib/stripe";
 import { getActiveMembershipPlan, durationLabel } from "@/lib/membership-plan";
+import { activateMembership, enforceExpiry } from "@/lib/membership";
 import {
   Crown, CheckCircle2, Truck, ShieldCheck, Tag, Zap,
   CalendarDays, ChevronRight, LayoutDashboard, Package,
@@ -37,7 +38,6 @@ export default async function MembershipPage({
   const user = session!.user;
   const params = await searchParams;
 
-  // If returning from Stripe with success=1, verify payment and activate membership immediately
   if (params?.success === "1" && params?.session_id) {
     try {
       const stripe = getStripe();
@@ -47,11 +47,12 @@ export default async function MembershipPage({
         stripeSession.metadata?.type === "membership" &&
         stripeSession.metadata?.userId === user.id
       ) {
-        await db.user.update({
-          where: { id: user.id },
-          data: { isMember: true, memberSince: new Date() },
+        await activateMembership({
+          userId: user.id,
+          planId: stripeSession.metadata?.planId ?? null,
+          stripeSessionId: params.session_id,
+          amountPaid: (stripeSession.amount_total ?? 0) / 100,
         });
-        console.log(`[membership page] Activated membership for user ${user.id} via success redirect`);
       }
     } catch (e) {
       console.error("[membership page] Failed to verify Stripe session", e);
@@ -67,7 +68,9 @@ export default async function MembershipPage({
     getActiveMembershipPlan(),
   ]);
 
-  const isMember = dbUser?.isMember ?? false;
+  // Enforce expiry via central utility
+  const wasRevoked = await enforceExpiry(user.id);
+  const isMember = (dbUser?.isMember ?? false) && !wasRevoked;
   const memberSince = dbUser?.memberSince;
   const planPrice = activePlan?.price ?? 30;
   const planName = activePlan?.name ?? "Premium";

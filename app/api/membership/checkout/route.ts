@@ -31,13 +31,25 @@ export async function POST(req: NextRequest) {
             .then((p) => p ?? db.membershipPlan.findFirst({ where: { isActive: true }, orderBy: { price: "asc" } })),
     ]);
 
-    // Auto-revoke expired memberships silently before checkout
     const now = new Date();
-    if (user?.isMember && user.membershipExpiry && user.membershipExpiry < now) {
+    const isExpired = user?.isMember && user.membershipExpiry && user.membershipExpiry < now;
+
+    // Auto-revoke expired membership silently
+    if (isExpired) {
       await db.user.update({
         where: { id: session.user.id },
-        data: { isMember: false },
+        data: { isMember: false, memberSince: null, membershipExpiry: null },
       });
+    }
+
+    // Block active members from purchasing again via direct API call
+    // (UI hides the button, but we must guard server-side too)
+    const isActiveMember = user?.isMember && !isExpired;
+    if (isActiveMember) {
+      return NextResponse.json(
+        { error: "You already have an active membership. Visit your account page to renew when it expires." },
+        { status: 409 }
+      );
     }
 
     if (!plan) {
