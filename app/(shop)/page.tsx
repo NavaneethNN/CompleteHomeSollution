@@ -9,31 +9,57 @@ import { AnimateIn } from "@/components/shared/animate-in";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 import {
   ArrowRight,
-  Award, Truck, ShieldCheck, Headphones,
-  RotateCcw, BadgeCheck, Tag, Leaf,
-  Star,
+  Award,
+  Truck,
+  ShieldCheck,
+  Headphones,
+  RotateCcw,
+  BadgeCheck,
+  Tag,
+  Leaf,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Home — Complete Home Sollution" };
 
-/* ─── Data ─────────────────────────────────────────────────────────── */
-
 const FEATURES = [
-  { icon: Award,       title: "Premium Quality",  sub: "Crafted with high quality materials" },
-  { icon: Truck,       title: "Fast Delivery",     sub: "Quick & reliable delivery at your doorstep" },
-  { icon: ShieldCheck, title: "Secure Payment",    sub: "100% secure payment guarantee" },
-  { icon: Headphones,  title: "24/7 Support",      sub: "Dedicated support whenever you need" },
+  { icon: Award,       title: "Premium Quality", sub: "Crafted with high-grade materials" },
+  { icon: Truck,       title: "Fast Delivery",   sub: "Quick & reliable nationwide delivery" },
+  { icon: ShieldCheck, title: "Secure Payment",  sub: "100% secure & encrypted checkout" },
+  { icon: Headphones,  title: "24/7 Support",    sub: "Dedicated support whenever you need" },
 ];
 
-
-const TRUST = [
-  { icon: RotateCcw,   title: "7 Days Easy Returns",      sub: "Hassle-free returns" },
-  { icon: BadgeCheck,  title: "Warranty Protection",       sub: "Long-term assurance" },
-  { icon: Tag,         title: "Best Price Guarantee",      sub: "Unbeatable prices" },
-  { icon: Leaf,        title: "Sustainable Materials",     sub: "Eco-friendly & safe" },
+const WHY_US = [
+  {
+    icon: Award,
+    title: "Premium Quality",
+    desc: "Crafted with high-grade materials and rigorous quality standards — built to last a lifetime.",
+  },
+  {
+    icon: Truck,
+    title: "Fast Delivery",
+    desc: "Australia-wide shipping. Free on orders over \$1,200 and on every order for members.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Secure Payments",
+    desc: "Stripe-powered security ensures your payment information is always protected.",
+  },
+  {
+    icon: RotateCcw,
+    title: "Easy Returns",
+    desc: "7-day hassle-free return policy — shop with complete peace of mind.",
+  },
+  {
+    icon: BadgeCheck,
+    title: "Warranty Cover",
+    desc: "12-month structural warranty included on every product, with member-extended cover.",
+  },
+  {
+    icon: Tag,
+    title: "Best Prices",
+    desc: "Price-match guarantee plus exclusive member discounts automatically applied at checkout.",
+  },
 ];
-
-/* ─── Data Fetching ─────────────────────────────────────────────────── */
 
 async function getCategories() {
   try {
@@ -41,7 +67,6 @@ async function getCategories() {
       include: { _count: { select: { products: true } } },
       orderBy: { name: "asc" },
     });
-
     return categories.length > 0 ? categories : fallbackCategories;
   } catch {
     return fallbackCategories;
@@ -56,13 +81,9 @@ async function getTrendingProducts() {
         category: { select: { name: true, slug: true } },
         productVariants: {
           where: { isActive: true },
-          include: { 
+          include: {
             images: { take: 1, orderBy: { displayOrder: "asc" } },
-            values: {
-              include: {
-                variantValue: true,
-              },
-            },
+            values: { include: { variantValue: true } },
           },
           orderBy: { price: "asc" },
           take: 1,
@@ -75,21 +96,12 @@ async function getTrendingProducts() {
 
     if (products.length === 0) {
       return fallbackProducts.slice(0, 4).map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        price: p.basePrice,
+        id: p.id, name: p.name, slug: p.slug, price: p.basePrice,
         originalPrice: p.comparePrice ?? p.basePrice,
         discount: p.comparePrice && p.comparePrice > p.basePrice
-          ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%`
-          : null,
-        rating: 4.5,
-        reviews: p.reviewCount,
-        img: p.images[0],
-        description: p.description,
-        memberPrice: p.memberPrice,
-        stock: p.stock,
-        category: p.category,
+          ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%` : null,
+        reviews: p.reviewCount, img: p.images[0], description: p.description,
+        memberPrice: p.memberPrice, stock: p.stock, category: p.category,
       }));
     }
 
@@ -98,103 +110,45 @@ async function getTrendingProducts() {
       const price = variant?.price ?? p.basePrice;
       const comparePrice = variant?.comparePrice ?? p.comparePrice;
       const image = variant?.images[0]?.url ?? p.images[0];
-      const stock = variant?.stock ?? p.stock; // Use variant stock if available
-
-      // Generate variant label from variant attribute values if available
+      const stock = variant?.stock ?? p.stock;
       const variantLabel = variant?.values
         ?.map((v: { variantValue: { value: string } }) => v.variantValue.value)
         .join(" / ");
-
-      const discount = comparePrice && comparePrice > price 
-        ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%`
-        : null;
-
+      const discount = comparePrice && comparePrice > price
+        ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%` : null;
       return {
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        price,
-        originalPrice: comparePrice || price,
-        discount,
-        rating: 4.5, // Could be calculated from reviews
-        reviews: p._count.reviews,
-        variantId: variant?.id ?? null,
-        sku: variant?.sku ?? p.sku,
-        variantLabel,
-        hasVariants: p.hasVariants,
-        img: image,
-        description: p.description,
-        memberPrice: variant?.memberPrice ?? p.memberPrice,
-        stock,
-        category: p.category,
+        id: p.id, name: p.name, slug: p.slug, price, originalPrice: comparePrice || price,
+        discount, reviews: p._count.reviews, variantId: variant?.id ?? null,
+        sku: variant?.sku ?? p.sku, variantLabel, hasVariants: p.hasVariants, img: image,
+        description: p.description, memberPrice: variant?.memberPrice ?? p.memberPrice,
+        stock, category: p.category,
       };
     });
   } catch {
     return fallbackProducts.slice(0, 4).map((p) => ({
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      price: p.basePrice,
+      id: p.id, name: p.name, slug: p.slug, price: p.basePrice,
       originalPrice: p.comparePrice ?? p.basePrice,
       discount: p.comparePrice && p.comparePrice > p.basePrice
-        ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%`
-        : null,
-      rating: 4.5,
-      reviews: p.reviewCount,
-      img: p.images[0],
-      description: p.description,
-      memberPrice: p.memberPrice,
-      stock: p.stock,
-      category: p.category,
+        ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%` : null,
+      reviews: p.reviewCount, img: p.images[0], description: p.description,
+      memberPrice: p.memberPrice, stock: p.stock, category: p.category,
     }));
   }
 }
 
-/* ─── Sub-components ────────────────────────────────────────────────── */
-
-interface SectionHeadingProps {
-  readonly tag: string;
-  readonly title: string;
-}
-
+interface SectionHeadingProps { readonly tag: string; readonly title: string; }
 function SectionHeading({ tag, title }: SectionHeadingProps) {
   return (
     <div className="text-center mb-10">
-      <p className="text-sm font-semibold tracking-widest text-primary uppercase mb-2">{tag}</p>
+      <p className="text-xs font-semibold tracking-[0.22em] text-primary uppercase mb-2">{tag}</p>
       <h2 className="text-3xl md:text-4xl font-black text-foreground mb-3">{title}</h2>
-      <div className="flex items-center justify-center gap-1.5">
+      <div className="flex items-center justify-center gap-2">
         <span className="w-8 h-[3px] rounded-full bg-primary" />
-        <span className="w-3 h-[3px] rounded-full bg-border" />
+        <span className="w-3 h-[3px] rounded-full bg-primary/30" />
       </div>
     </div>
   );
 }
-
-interface StarRatingProps {
-  readonly rating: number;
-  readonly count: number;
-}
-
-function StarRating({ rating, count }: StarRatingProps) {
-  const starClassName = (value: number) => {
-    if (value <= Math.floor(rating)) return "fill-amber-400 text-amber-400";
-    if (value - 0.5 <= rating) return "fill-amber-400/50 text-amber-400";
-    return "text-muted-foreground/30";
-  };
-
-  const stars = [1, 2, 3, 4, 5].map((value) => (
-    <Star key={value} className={`h-3.5 w-3.5 ${starClassName(value)}`} />
-  ));
-
-  return (
-    <div className="flex items-center gap-1.5 mt-2">
-      <div className="flex">{stars}</div>
-      <span className="text-xs text-muted-foreground">({count})</span>
-    </div>
-  );
-}
-
-/* ─── Page ──────────────────────────────────────────────────────────── */
 
 export default async function HomePage() {
   const session = await auth();
@@ -211,37 +165,26 @@ export default async function HomePage() {
     <div>
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-white min-h-[520px] md:min-h-[600px] flex items-center">
-        {/* Mobile background image */}
         <div className="absolute inset-0 lg:hidden">
-          <Image
-            src="/hero_bg.webp"
-            alt=""
-            fill
-            className="object-cover object-center"
-            priority
-          />
+          <Image src="/hero_bg.webp" alt="" fill className="object-cover object-center" priority />
           <div className="absolute inset-0 bg-white/85" />
         </div>
 
-        {/* Text column */}
         <div className="container mx-auto px-5 md:px-6 xl:px-8 relative z-10">
           <div className="max-w-[520px] py-8 md:py-16 lg:py-20">
             <p className="text-[11px] md:text-xs font-semibold tracking-[0.25em] text-muted-foreground uppercase mb-3 md:mb-4 animate-fade-in delay-0">
               MAKE YOUR HOUSE A
             </p>
             <h1 className="text-[42px] md:text-6xl xl:text-[72px] font-black leading-[1.05] text-foreground animate-fade-up delay-100">
-              Complete
+              Complete<br />Comfort
             </h1>
-            <h1 className="text-[42px] md:text-6xl xl:text-[72px] font-black leading-[1.05] text-foreground mb-2 animate-fade-up delay-200">
-              Comfort
-            </h1>
-            <p className="text-2xl md:text-4xl font-script text-primary italic mb-4 md:mb-5 leading-snug animate-fade-up delay-300">
+            <p className="text-2xl md:text-4xl font-script text-primary italic mb-4 md:mb-5 leading-snug mt-2 animate-fade-up delay-200">
               Live Beautifully
             </p>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-7 md:mb-8 max-w-[380px] animate-fade-in delay-400">
-              Discover premium quality furniture that combines elegance, comfort and functionality.
+            <p className="text-sm text-muted-foreground leading-relaxed mb-7 md:mb-8 max-w-[380px] animate-fade-in delay-300">
+              Discover premium quality furniture that combines elegance, comfort and functionality — delivered across Australia.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 animate-fade-up delay-500">
+            <div className="flex flex-col sm:flex-row gap-3 animate-fade-up delay-400">
               <Link
                 href="/products"
                 className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors shadow-md w-full sm:w-auto"
@@ -249,16 +192,15 @@ export default async function HomePage() {
                 SHOP NOW <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                href="/products"
+                href="/categories"
                 className="inline-flex items-center justify-center gap-2 border border-foreground/30 text-foreground hover:bg-foreground hover:text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors w-full sm:w-auto"
               >
-                EXPLORE COLLECTION
+                BROWSE CATEGORIES
               </Link>
             </div>
           </div>
         </div>
 
-        {/* Hero image — right side, edge-to-edge (desktop only) */}
         <div className="absolute inset-y-0 right-0 hidden lg:block w-[58%] animate-fade-in delay-0">
           <Image
             src="/hero_bg.webp"
@@ -274,7 +216,7 @@ export default async function HomePage() {
       {/* ── Features bar ──────────────────────────────────────────── */}
       <section className="bg-white border-y border-border py-6 md:py-8 shadow-sm">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {FEATURES.map(({ icon: Icon, title, sub }, i) => (
               <AnimateIn key={title} variant="fade-up" delay={i * 80} className="flex items-center gap-3 md:gap-4">
                 <div className="w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center justify-center shrink-0">
@@ -307,26 +249,16 @@ export default async function HomePage() {
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <div className="grid md:grid-cols-2 gap-4 md:gap-6">
 
-            {/* Dark card — Custom Furniture */}
+            {/* Dark card */}
             <AnimateIn variant="slide-left" className="relative rounded-2xl overflow-hidden bg-navy min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
               <div className="relative z-10 max-w-[260px]">
-                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">
-                  — CUSTOM FURNITURE
-                </p>
-                <h3 className="text-3xl font-black text-white leading-tight mb-3">
-                  Designed Just<br />For You
-                </h3>
-                <p className="text-sm text-white/60 mb-6 leading-relaxed">
-                  Personalised furniture to match your style and space.
-                </p>
-                <Link
-                  href="/products"
-                  className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-6 py-3 rounded transition-colors"
-                >
-                  GET STARTED
+                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">— CUSTOM FURNITURE</p>
+                <h3 className="text-3xl font-black text-white leading-tight mb-3">Designed Just<br />For You</h3>
+                <p className="text-sm text-white/60 mb-6 leading-relaxed">Personalised furniture crafted to match your exact style and space.</p>
+                <Link href="/products" className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-6 py-3 rounded transition-colors">
+                  EXPLORE RANGE
                 </Link>
               </div>
-              {/* Chair image */}
               <div className="absolute right-0 bottom-0 h-full w-[55%] hidden sm:block">
                 <Image
                   src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=600&q=80"
@@ -338,31 +270,20 @@ export default async function HomePage() {
               </div>
             </AnimateIn>
 
-            {/* Light card — Special Offer */}
+            {/* Light card */}
             <AnimateIn variant="slide-right" delay={100} className="relative rounded-2xl overflow-hidden bg-secondary min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
               <div className="relative z-10 max-w-[calc(100%-5rem)] sm:max-w-[260px]">
-                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">
-                  — SPECIAL OFFER
-                </p>
-                <h3 className="text-3xl md:text-4xl font-black text-foreground leading-tight mb-1">
-                  Up to 30% Off
-                </h3>
-                <p className="text-sm md:text-base font-semibold text-foreground/70 mb-5">
-                  on Selected Items
-                </p>
-                <Link
-                  href="/products"
-                  className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-5 py-3 md:px-6 md:py-3.5 rounded transition-colors"
-                >
+                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">— MEMBER OFFER</p>
+                <h3 className="text-3xl md:text-4xl font-black text-foreground leading-tight mb-1">Up to 30% Off</h3>
+                <p className="text-sm md:text-base font-semibold text-foreground/70 mb-5">on Selected Items</p>
+                <Link href="/products" className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-5 py-3 md:px-6 md:py-3.5 rounded transition-colors">
                   SHOP NOW
                 </Link>
               </div>
-              {/* 30% OFF badge */}
               <div className="absolute top-5 right-5 w-14 h-14 md:w-16 md:h-16 bg-primary rounded-full flex flex-col items-center justify-center text-white shadow-lg z-20">
                 <span className="text-base md:text-lg font-black leading-none">30%</span>
                 <span className="text-[8px] md:text-[9px] font-bold tracking-widest">OFF</span>
               </div>
-              {/* Sideboard image */}
               <div className="absolute right-0 bottom-0 h-full w-[50%] hidden sm:block">
                 <Image
                   src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80"
@@ -390,8 +311,6 @@ export default async function HomePage() {
               </AnimateIn>
             ))}
           </div>
-
-          {/* View all */}
           <AnimateIn variant="fade-in" className="text-center mt-10">
             <Link
               href="/products"
@@ -411,8 +330,8 @@ export default async function HomePage() {
               <div className="relative mx-auto max-w-lg lg:max-w-none">
                 <div className="aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-lg">
                   <Image
-                    src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80"
-                    alt="Complete Home Solution - Premium furniture showroom"
+                    src="https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80"
+                    alt="Complete Home Solution — premium furniture showroom"
                     fill
                     className="object-cover hover:scale-105 transition-transform duration-500"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
@@ -422,26 +341,24 @@ export default async function HomePage() {
             </AnimateIn>
             <AnimateIn variant="fade-up" delay={150} className="order-1 lg:order-2">
               <div className="text-center lg:text-left">
-                <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2 sm:mb-3">
-                  About Us
-                </span>
+                <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2 sm:mb-3">About Us</span>
                 <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground mb-4 sm:mb-6 leading-tight">
                   Crafting Beautiful Spaces for Your Home
                 </h2>
                 <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0">
                   <p>
-                    Complete Home Solution is a South Australian family-owned furniture business bringing 
-                    premium quality furniture to homes across Australia. Based in Paralowie, SA, we have 
+                    Complete Home Solution is a South Australian family-owned furniture business bringing
+                    premium quality furniture to homes across Australia. Based in Paralowie, SA, we have
                     built our reputation on exceptional craftsmanship and outstanding customer service.
                   </p>
                   <p>
-                    We believe everyone deserves to live beautifully. Our curated collection features 
-                    everything from cozy living room essentials to elegant dining pieces, designed to 
+                    We believe everyone deserves to live beautifully. Our curated collection features
+                    everything from cosy living room essentials to elegant dining pieces, designed to
                     transform your house into a home you love.
                   </p>
                   <p>
-                    With our exclusive membership program, enjoy special discounts, early access to 
-                    sales, and personalized service. Plus, fast nationwide delivery backed by our 
+                    With our exclusive membership program, enjoy special discounts, early access to
+                    sales, and personalised service — plus fast nationwide delivery backed by our
                     7-day easy returns policy and comprehensive warranty protection.
                   </p>
                 </div>
@@ -464,51 +381,16 @@ export default async function HomePage() {
         <div className="container mx-auto px-4 sm:px-5 md:px-6 xl:px-8">
           <AnimateIn variant="fade-up">
             <div className="text-center mb-8 sm:mb-10 lg:mb-12">
-              <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2">
-                Why Choose Us
-              </span>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground">
-                The Complete Home Difference
-              </h2>
-              <div className="flex items-center justify-center gap-1.5 mt-3">
+              <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2">Why Choose Us</span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground">The Complete Home Difference</h2>
+              <div className="flex items-center justify-center gap-2 mt-3">
                 <span className="w-8 h-[3px] rounded-full bg-primary" />
-                <span className="w-3 h-[3px] rounded-full bg-border" />
+                <span className="w-3 h-[3px] rounded-full bg-primary/30" />
               </div>
             </div>
           </AnimateIn>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
-            {[
-              {
-                icon: Award,
-                title: "Premium Quality",
-                desc: "Crafted with high-grade materials and rigorous quality standards. Built to last.",
-              },
-              {
-                icon: Truck,
-                title: "Fast Delivery",
-                desc: "Australia-wide shipping. Free on orders over $500 and for all members.",
-              },
-              {
-                icon: ShieldCheck,
-                title: "Secure Payments",
-                desc: "Stripe-powered security ensures your payment information stays protected.",
-              },
-              {
-                icon: RotateCcw,
-                title: "Easy Returns",
-                desc: "7-day hassle-free return policy. Shop with complete peace of mind.",
-              },
-              {
-                icon: BadgeCheck,
-                title: "Warranty Cover",
-                desc: "Comprehensive protection with 12-month coverage on structural defects.",
-              },
-              {
-                icon: Tag,
-                title: "Best Prices",
-                desc: "Price matching guarantee plus exclusive member discounts on every order.",
-              },
-            ].map(({ icon: Icon, title, desc }, i) => (
+            {WHY_US.map(({ icon: Icon, title, desc }, i) => (
               <AnimateIn key={title} variant="fade-up" delay={i * 80}>
                 <div className="group h-full p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-slate-50 hover:bg-primary hover:border-primary hover:shadow-lg transition-all duration-300">
                   <div className="flex items-start gap-4">
@@ -516,12 +398,8 @@ export default async function HomePage() {
                       <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary group-hover:text-white transition-colors" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-white mb-1.5 transition-colors">
-                        {title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground group-hover:text-white/90 leading-relaxed transition-colors">
-                        {desc}
-                      </p>
+                      <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-white mb-1.5 transition-colors">{title}</h3>
+                      <p className="text-sm text-muted-foreground group-hover:text-white/90 leading-relaxed transition-colors">{desc}</p>
                     </div>
                   </div>
                 </div>
@@ -531,11 +409,46 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Trust Bar ─────────────────────────────────────────────── */}
-      <section className="hidden sm:block bg-slate-100 py-6 md:py-8 border-t border-slate-200">
+      {/* ── Membership CTA ────────────────────────────────────────── */}
+      <section className="py-10 md:py-14 bg-navy">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {TRUST.map(({ icon: Icon, title, sub }, i) => (
+          <AnimateIn variant="fade-up" className="text-center">
+            <p className="text-xs font-bold tracking-[0.22em] text-primary uppercase mb-3">EXCLUSIVE MEMBERSHIP</p>
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 leading-tight">
+              Save up to 30% on Every Order
+            </h2>
+            <p className="text-sm sm:text-base text-white/60 mb-7 max-w-lg mx-auto leading-relaxed">
+              Join CHS Premium and unlock member pricing, free express delivery, extended warranty,
+              and early access to sales — on every order, every day.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/account/membership"
+                className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors shadow-md"
+              >
+                Become a Member <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/products"
+                className="inline-flex items-center gap-2 border border-white/25 text-white hover:bg-white/10 font-semibold text-sm px-7 py-3.5 rounded-lg transition-colors"
+              >
+                Browse Products
+              </Link>
+            </div>
+          </AnimateIn>
+        </div>
+      </section>
+
+      {/* ── Trust bar ─────────────────────────────────────────────── */}
+      <section className="bg-slate-100 py-6 md:py-8 border-t border-slate-200">
+        <div className="container mx-auto px-5 md:px-6 xl:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            {[
+              { icon: RotateCcw,  title: "7-Day Returns",       sub: "Hassle-free returns policy" },
+              { icon: BadgeCheck, title: "Warranty Protection",  sub: "Long-term structural assurance" },
+              { icon: Tag,        title: "Best Price Guarantee", sub: "Unbeatable prices, always" },
+              { icon: Leaf,       title: "Eco-Friendly",         sub: "Responsibly sourced materials" },
+            ].map(({ icon: Icon, title, sub }, i) => (
               <AnimateIn key={title} variant="fade-up" delay={i * 80} className="flex items-center gap-3.5">
                 <div className="w-10 h-10 rounded-full border border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
                   <Icon className="h-5 w-5 text-primary" />
