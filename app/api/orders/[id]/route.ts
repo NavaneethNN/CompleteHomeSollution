@@ -13,7 +13,39 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const order = await db.order.findUnique({
       where: { id },
       include: {
-        items: { include: { product: true } },
+        // S-5: Only expose required product fields — not the full product object
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                images: true,
+                sku: true,
+                basePrice: true,
+              },
+            },
+            productVariant: {
+              select: {
+                id: true,
+                sku: true,
+                price: true,
+                images: { select: { url: true, displayOrder: true } },
+                values: {
+                  include: {
+                    variantValue: {
+                      select: {
+                        value: true,
+                        variantAttribute: { select: { name: true } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
         address: true,
       },
     });

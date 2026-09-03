@@ -43,6 +43,7 @@ const ORDER_STATUS_CONFIG: Record<
 > = {
   PENDING:          { label: "Pending",          icon: Clock,          variant: "outline",     className: "border-amber-300 text-amber-700 bg-amber-50" },
   PAID:             { label: "Paid",             icon: CreditCard,     variant: "outline",     className: "border-blue-300 text-blue-700 bg-blue-50" },
+  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "outline",     className: "border-teal-300 text-teal-700 bg-teal-50" },
   PROCESSING:       { label: "Processing",       icon: Package,        variant: "outline",     className: "border-indigo-300 text-indigo-700 bg-indigo-50" },
   SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "outline",     className: "border-purple-300 text-purple-700 bg-purple-50" },
   OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "outline",     className: "border-violet-300 text-violet-700 bg-violet-50" },
@@ -75,10 +76,12 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
   }
 
   if (search) {
+    // S-7: Clamp search input to 100 chars before hitting the database
+    const safeSearch = search.slice(0, 100);
     where.OR = [
-      { id: { contains: search, mode: "insensitive" } },
-      { user: { name: { contains: search, mode: "insensitive" } } },
-      { user: { email: { contains: search, mode: "insensitive" } } },
+      { id: { contains: safeSearch, mode: "insensitive" } },
+      { user: { name: { contains: safeSearch, mode: "insensitive" } } },
+      { user: { email: { contains: safeSearch, mode: "insensitive" } } },
     ];
   }
 
@@ -111,38 +114,44 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
 }
 
 async function getOrderStats() {
-  const [
-    totalOrders,
-    paidOrders,
-    processingOrders,
-    todayOrders,
-    todayRevenue,
-  ] = await Promise.all([
-    db.order.count(),
-    db.order.count({ where: { status: { in: ["PAID", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] } } }),
-    db.order.count({ where: { status: "PROCESSING" } }),
-    db.order.count({ 
-      where: { 
-        createdAt: { 
-          gte: new Date(new Date().setHours(0, 0, 0, 0)) 
-        } 
-      } 
+  // P-3: Replaced 5 separate COUNT queries with a single groupBy aggregation,
+  // then derive all counts from that one result set.
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const [statusGroups, todayStats] = await Promise.all([
+    // One query returns counts for every status
+    db.order.groupBy({
+      by: ["status"],
+      _count: { _all: true },
     }),
+    // Separate query for today's count + revenue (needs date filter)
     db.order.aggregate({
-      where: { 
+      where: {
+        createdAt: { gte: todayStart },
         status: { notIn: ["CANCELLED", "REFUNDED"] },
-        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
       },
+      _count: { _all: true },
       _sum: { total: true },
     }),
   ]);
+
+  const countByStatus = Object.fromEntries(
+    statusGroups.map((g) => [g.status, g._count._all])
+  );
+
+  const totalOrders = statusGroups.reduce((acc, g) => acc + g._count._all, 0);
+
+  const paidStatuses = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
+  const paidOrders = paidStatuses.reduce((acc, s) => acc + (countByStatus[s] ?? 0), 0);
+  const processingOrders = countByStatus["PROCESSING"] ?? 0;
 
   return {
     totalOrders,
     paidOrders,
     processingOrders,
-    todayOrders,
-    todayRevenue: todayRevenue._sum.total ?? 0,
+    todayOrders: todayStats._count._all,
+    todayRevenue: todayStats._sum.total ?? 0,
   };
 }
 
@@ -187,7 +196,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
     },
   ];
 
-  const statusOptions = ["ALL", "PAID", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"];
+  const statusOptions = ["ALL", "PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"];
 
   return (
     <div className="space-y-6 p-4 sm:p-6 w-full max-w-none">

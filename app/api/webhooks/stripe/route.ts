@@ -148,11 +148,18 @@ export async function POST(req: NextRequest) {
           where: { id: userId },
           select: { isMember: true },
         });
-        const orderPlan = await db.membershipPlan.findFirst({ where: { isActive: true, isDefault: true }, select: { durationDays: true } });
+
+        // P-4: Fetch both durationDays AND price in a single query instead of two
+        const orderPlan = await db.membershipPlan.findFirst({
+          where: { isActive: true, isDefault: true },
+          select: { durationDays: true, price: true },
+        });
+
         const orderDuration = orderPlan?.durationDays ?? 365;
         const orderNow = new Date();
         const orderExpiry = new Date(orderNow);
         orderExpiry.setDate(orderExpiry.getDate() + orderDuration);
+
         if (!currentUser?.isMember) {
           await db.user.update({
             where: { id: userId },
@@ -160,14 +167,12 @@ export async function POST(req: NextRequest) {
           });
           console.log(`[Stripe webhook] Membership activated (via order) for user ${userId}`);
         }
+
         // Record membership add-on payment separately for spend tracking
-        const membershipPlanPrice = orderPlan
-          ? await db.membershipPlan.findFirst({ where: { isActive: true, isDefault: true }, select: { price: true } })
-          : null;
-        if (membershipPlanPrice?.price) {
+        if (orderPlan?.price) {
           await db.membershipPayment.upsert({
             where: { stripeSessionId: `${session.id}-membership` },
-            create: { userId, planId: null, amount: membershipPlanPrice.price, stripeSessionId: `${session.id}-membership` },
+            create: { userId, planId: null, amount: orderPlan.price, stripeSessionId: `${session.id}-membership` },
             update: {},
           });
         }

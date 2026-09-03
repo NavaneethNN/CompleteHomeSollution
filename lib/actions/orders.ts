@@ -54,11 +54,14 @@ export interface OrderWithItems {
       name: string;
       slug: string;
       images: string[];
+      // P-7: categoryId included here to avoid a separate category lookup
+      categoryId: string;
     };
   }[];
 }
 
-// Shared include for all order queries
+// P-2: Single shared include object — eliminates duplicated query definitions
+// across getOrders, getOrderById, and getOrderStats.
 const orderInclude = {
   address: {
     select: {
@@ -74,11 +77,13 @@ const orderInclude = {
   },
   items: {
     include: {
+      // P-7: Select categoryId in the same query to avoid a redundant lookup
       product: {
-        select: { id: true, name: true, slug: true, images: true },
+        select: { id: true, name: true, slug: true, images: true, categoryId: true },
       },
       productVariant: {
         include: {
+          images: { orderBy: { displayOrder: "asc" as const } },
           values: {
             include: {
               variantValue: {
@@ -87,56 +92,46 @@ const orderInclude = {
             },
           },
         },
-        select: undefined,
       },
     },
   },
 } as const;
 
-export async function getOrders(): Promise<{ orders: OrderWithItems[]; error?: string }> {
+// B-4: Pagination support — page is 1-indexed, pageSize defaults to 10
+export async function getOrders(
+  page = 1,
+  pageSize = 10
+): Promise<{ orders: OrderWithItems[]; total: number; error?: string }> {
   const session = await auth();
   if (!session?.user?.id) {
-    return { orders: [], error: "Unauthorized" };
+    return { orders: [], total: 0, error: "Unauthorized" };
   }
 
   try {
-    const orders = await db.order.findMany({
-      where: { userId: session.user.id },
-      include: {
-        address: {
-          select: {
-            name: true, phone: true,
-            line1: true, line2: true,
-            suburb: true, state: true, postcode: true, country: true,
-          },
-        },
-        items: {
-          include: {
-            product: { select: { id: true, name: true, slug: true, images: true } },
-            productVariant: {
-              include: {
-                images: { orderBy: { displayOrder: "asc" } },
-                values: {
-                  include: {
-                    variantValue: { include: { variantAttribute: { select: { name: true } } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const where = { userId: session.user.id };
+    const skip = (Math.max(1, page) - 1) * pageSize;
 
-    return { orders: orders as unknown as OrderWithItems[] };
+    const [orders, total] = await Promise.all([
+      db.order.findMany({
+        where,
+        include: orderInclude,
+        orderBy: { createdAt: "desc" },
+        take: pageSize,
+        skip,
+      }),
+      db.order.count({ where }),
+    ]);
+
+    return { orders: orders as unknown as OrderWithItems[], total };
   } catch (error) {
     console.error("Failed to fetch orders:", error);
-    return { orders: [], error: "Failed to fetch orders" };
+    return { orders: [], total: 0, error: "Failed to fetch orders" };
   }
 }
 
-export async function getOrderById(orderId: string): Promise<{ order: OrderWithItems | null; error?: string }> {
+export async function getOrderById(
+  orderId: string
+): Promise<{ order: OrderWithItems | null; error?: string }> {
   const session = await auth();
   if (!session?.user?.id) {
     return { order: null, error: "Unauthorized" };
@@ -145,30 +140,7 @@ export async function getOrderById(orderId: string): Promise<{ order: OrderWithI
   try {
     const order = await db.order.findFirst({
       where: { id: orderId, userId: session.user.id },
-      include: {
-        address: {
-          select: {
-            name: true, phone: true,
-            line1: true, line2: true,
-            suburb: true, state: true, postcode: true, country: true,
-          },
-        },
-        items: {
-          include: {
-            product: { select: { id: true, name: true, slug: true, images: true } },
-            productVariant: {
-              include: {
-                images: { orderBy: { displayOrder: "asc" } },
-                values: {
-                  include: {
-                    variantValue: { include: { variantAttribute: { select: { name: true } } } },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      include: orderInclude,
     });
 
     if (!order) return { order: null, error: "Order not found" };
@@ -191,46 +163,28 @@ export async function getOrderStats(): Promise<{
   }
 
   try {
+    // P-2: Reuse shared orderInclude — no inline duplication
     const [totalOrders, pendingOrders, recentOrders] = await Promise.all([
       db.order.count({ where: { userId: session.user.id } }),
-      db.order.count({ 
-        where: { 
+      db.order.count({
+        where: {
           userId: session.user.id,
-          status: { in: ["PENDING", "PAID", "PROCESSING", "SHIPPED"] }
-        } 
+          status: { in: ["PENDING", "PAID", "PROCESSING", "SHIPPED"] as OrderStatus[] },
+        },
       }),
       db.order.findMany({
         where: { userId: session.user.id },
-        include: {
-          address: {
-            select: {
-              name: true, phone: true,
-              line1: true, line2: true,
-              suburb: true, state: true, postcode: true, country: true,
-            },
-          },
-          items: {
-            include: {
-              product: { select: { id: true, name: true, slug: true, images: true } },
-              productVariant: {
-                include: {
-                  images: { orderBy: { displayOrder: "asc" } },
-                  values: {
-                    include: {
-                      variantValue: { include: { variantAttribute: { select: { name: true } } } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        include: orderInclude,
         orderBy: { createdAt: "desc" },
         take: 5,
       }),
     ]);
 
-    return { totalOrders, pendingOrders, recentOrders: recentOrders as unknown as OrderWithItems[] };
+    return {
+      totalOrders,
+      pendingOrders,
+      recentOrders: recentOrders as unknown as OrderWithItems[],
+    };
   } catch (error) {
     console.error("Failed to fetch order stats:", error);
     return { totalOrders: 0, pendingOrders: 0, recentOrders: [], error: "Failed to fetch order stats" };

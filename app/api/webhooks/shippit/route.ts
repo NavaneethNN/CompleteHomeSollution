@@ -1,12 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 import { sendShippingUpdateEmail } from "@/lib/brevo";
 import { sendShippingUpdateSms } from "@/lib/twilio";
 
-export async function POST(req: NextRequest) {
+/**
+ * Verify Shippit webhook signature using HMAC-SHA256.
+ * Shippit sends the signature as the X-Shippit-Hmac-SHA256 header.
+ */
+function verifyShippitSignature(body: string, signature: string): boolean {
+  const secret = process.env.SHIPPIT_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error("[Shippit webhook] SHIPPIT_WEBHOOK_SECRET is not set");
+    return false;
+  }
+  const expected = createHmac("sha256", secret).update(body).digest("hex");
   try {
-    const body = await req.json();
+    return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  } catch {
+    return false;
+  }
+}
 
+export async function POST(req: NextRequest) {
+  // Read raw body for signature verification before JSON parsing
+  const rawBody = await req.text();
+
+  const signature = req.headers.get("x-shippit-hmac-sha256") ?? "";
+  if (!verifyShippitSignature(rawBody, signature)) {
+    console.warn("[Shippit webhook] Invalid or missing signature — request rejected");
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = JSON.parse(rawBody);
     const { retailer_invoice: orderId, tracking_number, courier_name, state } = body;
 
     if (state !== "dispatched") {

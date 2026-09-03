@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import {
   ArrowLeft,
@@ -95,6 +96,11 @@ interface OrderDetailPageProps {
 }
 
 export default async function AdminOrderDetailPage({ params }: OrderDetailPageProps) {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN") {
+    redirect("/login");
+  }
+
   const { id } = await params;
   const order = await getOrder(id);
 

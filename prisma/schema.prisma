@@ -269,6 +269,11 @@ model Order {
   coupon  Coupon?     @relation(fields: [couponId], references: [id])
   userCoupon UserCoupon? // Link to user-coupon usage record
 
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([stripePaymentId])
+  @@index([refundRequested])
   @@index([couponId])
 }
 
@@ -381,6 +386,8 @@ model OrderItem {
   product        Product         @relation(fields: [productId], references: [id])
   productVariant ProductVariant? @relation(fields: [productVariantId], references: [id])
 
+  @@index([orderId])
+  @@index([productId])
   @@index([productVariantId])
 }
 

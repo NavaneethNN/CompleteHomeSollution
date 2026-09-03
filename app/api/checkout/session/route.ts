@@ -413,16 +413,31 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Increment coupon usage count and track per-user usage
+    // B-3: Atomically claim coupon usage — prevents race condition where two
+    // concurrent checkouts both pass the pre-check and both increment past the limit.
     if (coupon) {
-      // Use transaction to prevent race conditions
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (db as any).$transaction(async (tx: any) => {
-        // Increment total usage count
-        await tx.coupon.update({
-          where: { id: coupon.id },
-          data: { usageCount: { increment: 1 } },
-        });
+        // Atomic conditional increment: only succeeds when usageCount < usageLimit.
+        // If usageLimit is null the coupon is unlimited — just increment.
+        if (coupon.usageLimit != null) {
+          const updated = await tx.coupon.updateMany({
+            where: {
+              id: coupon.id,
+              isActive: true,
+              usageCount: { lt: coupon.usageLimit },
+            },
+            data: { usageCount: { increment: 1 } },
+          });
+          if (updated.count === 0) {
+            throw new Error("Coupon usage limit reached");
+          }
+        } else {
+          await tx.coupon.update({
+            where: { id: coupon.id },
+            data: { usageCount: { increment: 1 } },
+          });
+        }
 
         // Track per-user usage (only for authenticated users)
         if (session?.user?.id) {

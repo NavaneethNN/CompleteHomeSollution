@@ -18,7 +18,12 @@ export async function GET(req: NextRequest) {
     const orders = await db.order.findMany({
       where,
       include: {
-        items: { include: { product: { select: { name: true, images: true } } } },
+        items: {
+          include: {
+            // S-5: Only expose required product fields, not the full product object
+            product: { select: { id: true, name: true, images: true, slug: true } },
+          },
+        },
         address: true,
       },
       orderBy: { createdAt: "desc" },
@@ -37,11 +42,28 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const input = createOrderSchema.parse(body);
 
+    // S-4: Always fetch isMember fresh from DB — never trust JWT for pricing decisions
+    let isMemberFromDb = false;
+    if (session?.user?.id) {
+      const currentUser = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true },
+      });
+      isMemberFromDb = currentUser?.isMember ?? false;
+    }
+
     const products = await db.product.findMany({
-      where: { id: { in: input.items.map((i) => i.productId) } },
+      where: { id: { in: input.items.map((i) => i.productId) }, isActive: true },
+      select: {
+        id: true,
+        name: true,
+        basePrice: true,
+        memberPrice: true,
+        stock: true,
+      },
     });
 
-    let subtotal = 0;
+    // Pre-validate stock before starting any writes
     for (const item of input.items) {
       const product = products.find((p) => p.id === item.productId);
       if (!product) {
@@ -50,63 +72,85 @@ export async function POST(req: NextRequest) {
       if (product.stock < item.quantity) {
         return NextResponse.json({ error: `Insufficient stock for ${product.name}` }, { status: 400 });
       }
-      const price =
-        session?.user.isMember && product.memberPrice
-          ? product.memberPrice
-          : product.basePrice;
-      subtotal += price * item.quantity;
     }
-
-    const address = await db.address.create({
-      data: {
-        ...(session && { userId: session.user.id }),
-        name: input.address.name,
-        phone: input.address.phone,
-        line1: input.address.line1,
-        line2: input.address.line2 || null,
-        suburb: input.address.suburb,
-        state: input.address.state,
-        postcode: input.address.postcode,
-        country: input.address.country || "AU",
-      },
-    });
 
     const TAX_RATE = 0.1;
     const shippingCost = 15;
-    const tax = subtotal * TAX_RATE;
-    const total = subtotal + shippingCost + tax;
 
-    const order = await db.order.create({
-      data: {
-        ...(session && { userId: session.user.id }),
-        guestEmail: input.guestInfo?.email,
-        guestPhone: input.guestInfo?.phone,
-        addressId: address.id,
-        subtotal,
-        shippingCost,
-        tax,
-        total,
-        items: {
-          create: input.items.map((item) => {
-            const product = products.find((p) => p.id === item.productId)!;
-            const price =
-              session?.user.isMember && product.memberPrice
-                ? product.memberPrice
-                : product.basePrice;
-            return {
-              productId: item.productId,
-              quantity: item.quantity,
-              unitPrice: price,
-            };
-          }),
+    // B-1: Use a DB transaction to atomically create the order AND decrement stock
+    const order = await db.$transaction(async (tx) => {
+      // Re-check stock inside transaction and decrement atomically
+      for (const item of input.items) {
+        const product = products.find((p) => p.id === item.productId)!;
+
+        const fresh = await tx.product.findUnique({
+          where: { id: item.productId },
+          select: { stock: true },
+        });
+        if (!fresh || fresh.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${product.name}`);
+        }
+
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { stock: { decrement: item.quantity } },
+        });
+      }
+
+      const address = await tx.address.create({
+        data: {
+          ...(session?.user?.id ? { userId: session.user.id } : {}),
+          name: input.address.name,
+          phone: input.address.phone,
+          line1: input.address.line1,
+          line2: input.address.line2 || null,
+          suburb: input.address.suburb,
+          state: input.address.state,
+          postcode: input.address.postcode,
+          country: input.address.country || "AU",
         },
-      },
-      include: { items: true },
+      });
+
+      let subtotal = 0;
+      const itemsData = input.items.map((item) => {
+        const product = products.find((p) => p.id === item.productId)!;
+        const price =
+          isMemberFromDb && product.memberPrice
+            ? product.memberPrice
+            : product.basePrice;
+        subtotal += price * item.quantity;
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: price,
+        };
+      });
+
+      const tax = subtotal * TAX_RATE;
+      const total = subtotal + shippingCost + tax;
+
+      return tx.order.create({
+        data: {
+          ...(session?.user?.id ? { userId: session.user.id } : {}),
+          guestEmail: input.guestInfo?.email,
+          guestPhone: input.guestInfo?.phone,
+          addressId: address.id,
+          subtotal,
+          shippingCost,
+          tax,
+          total,
+          items: { create: itemsData },
+        },
+        include: { items: true },
+      });
     });
 
     return NextResponse.json({ data: order }, { status: 201 });
   } catch (error) {
     console.error("[POST /api/orders]", error);
+    if (error instanceof Error && error.message.startsWith("Insufficient stock")) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
