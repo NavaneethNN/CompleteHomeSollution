@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Loader2, Lock } from "lucide-react";
 
-/* ── PayWay global type declarations ────────────────────────────────────────── */
+/* ── PayWay global type declarations ─────────────────────────────────────── */
 interface PayWayFrameOptions {
   publishableApiKey: string;
   container?: string;
@@ -38,95 +38,134 @@ declare global {
   }
 }
 
-/* ── Component ───────────────────────────────────────────────────────────────── */
+/* ── Component ────────────────────────────────────────────────────────────── */
 
 interface PayWayCardFrameProps {
-  /** Called when a single-use token is successfully obtained */
   onTokenReady: (tokenId: string) => void;
-  /** Called when PayWay reports an error */
   onError: (message: string) => void;
   disabled?: boolean;
 }
 
 const CONTAINER_ID = "payway-credit-card-iframe";
+const PAYWAY_SCRIPT_URL = "https://api.payway.com.au/rest/v1/payway.js";
 
 export function PayWayCardFrame({ onTokenReady, onError, disabled }: PayWayCardFrameProps) {
   const frameRef = useRef<PayWayFrameInstance | null>(null);
+  // Keep callbacks in refs so closures always use the latest version
+  const onTokenReadyRef = useRef(onTokenReady);
+  const onErrorRef = useRef(onError);
+  useEffect(() => { onTokenReadyRef.current = onTokenReady; }, [onTokenReady]);
+  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [frameReady, setFrameReady] = useState(false);
   const [isValid, setIsValid] = useState(false);
   const [isGettingToken, setIsGettingToken] = useState(false);
 
-  // ── Load payway.js once ────────────────────────────────────────────────────
+  // ── Step 1: load payway.js ─────────────────────────────────────────────────
   useEffect(() => {
-    // Avoid double-loading if script is already present
-    if (window.payway || document.querySelector('script[src*="payway.js"]')) {
-      if (window.payway) setScriptLoaded(true);
-      else {
-        // Script tag exists but may still be loading — wait for it
-        const existing = document.querySelector('script[src*="payway.js"]') as HTMLScriptElement;
-        existing.addEventListener("load", () => setScriptLoaded(true));
-      }
+    // If already loaded (e.g. hot-reload), proceed immediately
+    if (window.payway) {
+      setScriptLoaded(true);
       return;
     }
 
+    // If the script tag exists (e.g. strict-mode double-mount) just wait for it
+    const existing = document.querySelector<HTMLScriptElement>(
+      `script[src="${PAYWAY_SCRIPT_URL}"]`
+    );
+    if (existing) {
+      const onLoad = () => setScriptLoaded(true);
+      const onLoadErr = () =>
+        onErrorRef.current(
+          "Failed to load PayWay payment library. Please refresh the page."
+        );
+      existing.addEventListener("load", onLoad);
+      existing.addEventListener("error", onLoadErr);
+return () => {
+        existing.removeEventListener("load", onLoad);
+        existing.removeEventListener("error", onLoadErr);
+      };
+    }
+
+    // Inject the script
     const script = document.createElement("script");
-    script.src = "https://api.payway.com.au/rest/v1/payway.js";
+    script.src = PAYWAY_SCRIPT_URL;
     script.async = true;
     script.onload = () => setScriptLoaded(true);
-    script.onerror = () => onError("Failed to load PayWay payment library. Please refresh.");
+    script.onerror = () =>
+      onErrorRef.current(
+        "Failed to load PayWay payment library. Please check your connection and refresh."
+      );
     document.body.appendChild(script);
-  }, []);
-
-  // ── Create iframe once script is available ────────────────────────────────
-  useEffect(() => {
-    if (!scriptLoaded || !window.payway) return;
-    if (frameRef.current) return; // already created
-
-    window.payway.createCreditCardFrame(
-      {
-        publishableApiKey: process.env.NEXT_PUBLIC_PAYWAY_PUBLISHABLE_KEY!,
-        container: CONTAINER_ID,
-        tokenMode: "callback",
-        layout: "wide",
-        onValid: () => setIsValid(true),
-        onInvalid: () => setIsValid(false),
-        style: {
-          "div.payway-card": {
-            "font-family": "inherit",
-            "padding": "4px 0",
-          },
-          ".payway-card label": {
-            "color": "#374151",
-            "font-size": "13px",
-            "font-weight": "500",
-          },
-          ".payway-card input": {
-            "border": "1px solid #e5e7eb",
-            "border-radius": "6px",
-            "padding": "8px 12px",
-            "font-size": "14px",
-            "color": "#111827",
-          },
-          ".payway-card select": {
-            "border": "1px solid #e5e7eb",
-            "border-radius": "6px",
-            "padding": "8px 12px",
-            "font-size": "14px",
-          },
-        },
-      },
-      (err, frame) => {
-        if (err) {
-          onError(err.message ?? "Could not initialise card form");
-          return;
-        }
-        frameRef.current = frame;
-        setFrameReady(true);
-      }
-    );
 
     return () => {
+      // Don't remove — leave it in DOM so subsequent mounts reuse it
+    };
+  }, []); // runs once on mount
+
+  // ── Step 2: create the PayWay iframe once script is ready ─────────────────
+  useEffect(() => {
+    if (!scriptLoaded) return;
+
+    // window.payway may take a tick to be set after onload fires
+    const tryCreate = () => {
+      if (!window.payway) {
+        onErrorRef.current(
+          "PayWay library loaded but not initialised. Please refresh."
+        );
+        return;
+      }
+
+      if (frameRef.current) return; // already created (strict-mode guard)
+
+      window.payway.createCreditCardFrame(
+        {
+          publishableApiKey: process.env.NEXT_PUBLIC_PAYWAY_PUBLISHABLE_KEY!,
+          container: CONTAINER_ID,
+          tokenMode: "callback",
+          layout: "wide",
+          onValid: () => setIsValid(true),
+          onInvalid: () => setIsValid(false),
+          style: {
+            "div.payway-card": { "font-family": "inherit", "padding": "4px 0" },
+            ".payway-card label": {
+              "color": "#374151",
+              "font-size": "13px",
+              "font-weight": "500",
+            },
+            ".payway-card input": {
+              "border": "1px solid #e5e7eb",
+              "border-radius": "6px",
+              "padding": "8px 12px",
+              "font-size": "14px",
+              "color": "#111827",
+            },
+            ".payway-card select": {
+              "border": "1px solid #e5e7eb",
+              "border-radius": "6px",
+              "padding": "8px 12px",
+              "font-size": "14px",
+            },
+          },
+        },
+        (err, frame) => {
+          if (err) {
+            onErrorRef.current(
+              err.message ?? "Could not initialise card form. Please refresh."
+            );
+            return;
+          }
+          frameRef.current = frame;
+          setFrameReady(true);
+        }
+      );
+    };
+
+    // Small delay to ensure window.payway is set after the script's onload
+    const id = setTimeout(tryCreate, 50);
+    return () => {
+      clearTimeout(id);
       frameRef.current?.destroy();
       frameRef.current = null;
       setFrameReady(false);
@@ -134,21 +173,21 @@ export function PayWayCardFrame({ onTokenReady, onError, disabled }: PayWayCardF
     };
   }, [scriptLoaded]);
 
-  // ── Token retrieval ───────────────────────────────────────────────────────
+  // ── Token retrieval ────────────────────────────────────────────────────────
   const getToken = useCallback(() => {
     if (!frameRef.current || !isValid || isGettingToken || disabled) return;
     setIsGettingToken(true);
     frameRef.current.getToken((err, data) => {
       setIsGettingToken(false);
       if (err) {
-        onError(err.message ?? "Could not secure card details");
+        onErrorRef.current(err.message ?? "Could not secure card details. Please try again.");
         return;
       }
-      onTokenReady(data.singleUseTokenId);
+      onTokenReadyRef.current(data.singleUseTokenId);
     });
-  }, [isValid, isGettingToken, disabled, onTokenReady, onError]);
+  }, [isValid, isGettingToken, disabled]);
 
-  // Expose getToken so the parent's pay button can trigger it imperatively
+  // Expose getToken via DOM event so parent can trigger imperatively
   useEffect(() => {
     const container = document.getElementById(CONTAINER_ID);
     if (!container) return;
@@ -159,7 +198,6 @@ export function PayWayCardFrame({ onTokenReady, onError, disabled }: PayWayCardF
 
   return (
     <div className={`space-y-2 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
-      {/* PayWay iframe container */}
       <div className="relative min-h-[220px] rounded-lg border border-border bg-white overflow-hidden">
         {!frameReady && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white">
@@ -169,8 +207,6 @@ export function PayWayCardFrame({ onTokenReady, onError, disabled }: PayWayCardF
         )}
         <div id={CONTAINER_ID} className="p-4" />
       </div>
-
-      {/* Status indicators */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <Lock className="h-3 w-3" />
@@ -187,11 +223,6 @@ export function PayWayCardFrame({ onTokenReady, onError, disabled }: PayWayCardF
   );
 }
 
-/**
- * Trigger token retrieval on the PayWay frame imperatively.
- * Call this when the user clicks "Pay Now" instead of managing
- * token state entirely in the frame component.
- */
 export function triggerPayWayGetToken() {
   const container = document.getElementById(CONTAINER_ID);
   if (container) {
