@@ -55,6 +55,7 @@ import type { ActivePlan } from "@/lib/membership-plan";
 import Image from "next/image";
 import { AddressAutocomplete } from "@/components/account/address-autocomplete";
 import { SuburbSelector } from "@/components/account/suburb-selector";
+import { PayWayCardFrame, triggerPayWayGetToken } from "@/components/checkout/payway-card-frame";
 import {
   Select,
   SelectContent,
@@ -104,6 +105,10 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [singleUseTokenId, setSingleUseTokenId] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [awaitingToken, setAwaitingToken] = useState(false);
+
   const [couponCode, setCouponCode] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState(""); // Store the code that was successfully applied
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
@@ -466,48 +471,16 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     setAppliedCouponCode("");
     setCouponCode("");
   };
-
-  // Place order with Stripe Checkout redirect
-  const handlePlaceOrder = async () => {
-    if (items.length === 0) {
-      toast({ title: "Cart is empty", description: "Add items to your cart first.", variant: "destructive" });
-      return;
-    }
-
-    // Validate guest email for non-authenticated users
-    if (!isAuthenticated) {
-      if (!guestEmail.trim()) {
-        setIsAddressDialogOpen(true);
-        toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
-        return;
-      }
-      if (!isValidEmail(guestEmail)) {
-        setIsAddressDialogOpen(true);
-        toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
-        return;
-      }
-    }
-
-    // Validate address
-    const hasAddress = isAuthenticated ? !!selectedAddressId : !!guestAddress;
-    if (!hasAddress) {
-      setIsAddressDialogOpen(true);
-      toast({ title: "Address required", description: "Please enter your shipping address.", variant: "destructive" });
-      return;
-    }
-
-    // Require a shipping rate when not free
-    if (!freeShipping && !selectedRateCode) {
-      toast({ title: "Select a shipping option", description: "Please choose a shipping service.", variant: "destructive" });
-      return;
-    }
-
+  // Place order — validate then request a PayWay single-use token
+  const submitOrderWithToken = async (tokenId: string) => {
+    setAwaitingToken(false);
     setIsProcessing(true);
     try {
       const response = await fetch("/api/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          singleUseTokenId: tokenId,
           items: items.map((item) => ({
             productId: item.product.id,
             variantId: item.product.variantId || undefined,
@@ -523,24 +496,20 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           addMembership: !isMember && addMembership,
         }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        toast({
-          title: "Checkout Error",
-          description: data.error || "Failed to create checkout session.",
-          variant: "destructive",
-        });
+        const msg = data.error || "Payment failed. Please try again.";
+        setPaymentError(msg);
+        setSingleUseTokenId(null); // token was consumed — user must re-enter card
+        toast({ title: "Payment Failed", description: msg, variant: "destructive" });
         setIsProcessing(false);
         return;
       }
-
-      if (data.url) {
-        // Cart is cleared on the order confirmation page after successful payment
-        window.location.href = data.url;
+      if (data.status === "success" || data.status === "pending") {
+        clearCart();
+        router.push(`/order-confirmation/${data.orderId}`);
       } else {
-        toast({ title: "Error", description: "No checkout URL returned.", variant: "destructive" });
+        toast({ title: "Error", description: "Unexpected response. Please contact support.", variant: "destructive" });
         setIsProcessing(false);
       }
     } catch (error) {
@@ -548,6 +517,47 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
       setIsProcessing(false);
     }
+  };
+
+  // Trigger order submission once both a token is available and we're awaiting one
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (awaitingToken && singleUseTokenId) {
+      submitOrderWithToken(singleUseTokenId);
+    }
+  }, [awaitingToken, singleUseTokenId]);
+
+  const handlePlaceOrder = () => {
+    if (items.length === 0) {
+      toast({ title: "Cart is empty", description: "Add items to your cart first.", variant: "destructive" });
+      return;
+    }
+    if (!isAuthenticated) {
+      if (!guestEmail.trim()) {
+        setIsAddressDialogOpen(true);
+        toast({ title: "Email required", description: "Please enter your email address.", variant: "destructive" });
+        return;
+      }
+      if (!isValidEmail(guestEmail)) {
+        setIsAddressDialogOpen(true);
+        toast({ title: "Invalid email", description: "Please enter a valid email address.", variant: "destructive" });
+        return;
+      }
+    }
+    const hasAddress = isAuthenticated ? !!selectedAddressId : !!guestAddress;
+    if (!hasAddress) {
+      setIsAddressDialogOpen(true);
+      toast({ title: "Address required", description: "Please enter your shipping address.", variant: "destructive" });
+      return;
+    }
+    if (!freeShipping && !selectedRateCode) {
+      toast({ title: "Select a shipping option", description: "Please choose a shipping service.", variant: "destructive" });
+      return;
+    }
+    setPaymentError(null);
+    setSingleUseTokenId(null);
+    setAwaitingToken(true);
+    triggerPayWayGetToken();
   };
 
   // Empty cart state
@@ -979,11 +989,35 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             </div>
           )}
 
+          {/* ── PayWay Card Frame ──────────────────────────────────────────── */}
+          <div className="mt-4">
+            <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              Card Details
+            </p>
+            <PayWayCardFrame
+              onTokenReady={(token) => {
+                setSingleUseTokenId(token);
+                setPaymentError(null);
+                // token is set; the useEffect below will fire submitOrderWithToken
+              }}
+              onError={(msg) => {
+                setPaymentError(msg);
+                setAwaitingToken(false);
+                setIsProcessing(false);
+              }}
+              disabled={isProcessing}
+            />
+            {paymentError && (
+              <p className="mt-2 text-xs text-destructive font-medium">{paymentError}</p>
+            )}
+          </div>
+
           {/* Place Order Button */}
           <Button
             className="mt-5 w-full h-12 text-sm font-semibold"
             onClick={handlePlaceOrder}
-            disabled={isProcessing || items.length === 0 || (!freeShipping && shippingCost === null)}
+            disabled={isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
           >
             {isProcessing ? (
               <>
@@ -1001,7 +1035,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           </Button>
 
           <p className="mt-3 text-center text-[11px] text-muted-foreground leading-relaxed">
-            You&apos;ll be redirected to Stripe&apos;s secure checkout to complete payment.
+            Your payment is processed securely by PayWay (Westpac). Card details never touch our servers.
           </p>
 
           {/* Trust badges */}

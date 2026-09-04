@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { getStripe } from "@/lib/stripe";
 import { getActiveMembershipPlan, durationLabel } from "@/lib/membership-plan";
 import { activateMembership, enforceExpiry } from "@/lib/membership";
 import {
@@ -32,32 +31,13 @@ const BASE_PERKS = [
 export default async function MembershipPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ success?: string; session_id?: string; cancelled?: string }>;
+  searchParams?: Promise<{ success?: string; cancelled?: string }>;
 }) {
   const session = await auth();
   const user = session!.user;
   const params = await searchParams;
 
-  if (params?.success === "1" && params?.session_id) {
-    try {
-      const stripe = getStripe();
-      const stripeSession = await stripe.checkout.sessions.retrieve(params.session_id);
-      if (
-        stripeSession.payment_status === "paid" &&
-        stripeSession.metadata?.type === "membership" &&
-        stripeSession.metadata?.userId === user.id
-      ) {
-        await activateMembership({
-          userId: user.id,
-          planId: stripeSession.metadata?.planId ?? null,
-          stripeSessionId: params.session_id,
-          amountPaid: (stripeSession.amount_total ?? 0) / 100,
-        });
-      }
-    } catch (e) {
-      console.error("[membership page] Failed to verify Stripe session", e);
-    }
-  }
+  // PayWay: membership activated synchronously — no post-checkout session verification needed
 
   // Always read from DB — JWT may be stale after checkout activation
   const [dbUser, activePlan] = await Promise.all([

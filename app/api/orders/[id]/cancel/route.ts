@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { getStripe } from "@/lib/stripe";
+import { refundTransaction, PayWayApiError } from "@/lib/payway";
 import { sendOrderCancellationEmail, sendRefundRequestEmail } from "@/lib/brevo";
 
 // Statuses where we auto-refund immediately (order not yet shipped)
@@ -47,15 +47,16 @@ export async function POST(
 
     // ── Pre-ship: auto-cancel + auto-refund via Stripe ──────────────────────
     if (AUTO_REFUND_STATUSES.includes(order.status)) {
-      let stripeRefundId: string | null = null;
+      let paywayRefundId: string | null = null;
 
-      if (order.stripePaymentId) {
+      if (order.paywayTransactionId) {
         try {
-          const refund = await getStripe().refunds.create({
-            payment_intent: order.stripePaymentId,
-            reason: "requested_by_customer",
+          const refundTxn = await refundTransaction({
+            parentTransactionId: order.paywayTransactionId!,
+            principalAmount: order.total,
+            orderNumber: order.id,
           });
-          stripeRefundId = refund.id;
+          paywayRefundId = String(refundTxn.transactionId);
         } catch (e) {
           console.error("[cancel] Stripe refund failed", e);
           return NextResponse.json({ error: "Refund failed — please contact support" }, { status: 502 });
@@ -85,7 +86,7 @@ export async function POST(
             refundReason: reason || "Customer requested cancellation",
             refundAmount: order.total,
             refundedAt: new Date(),
-            refundStripeId: stripeRefundId,
+            refundStripeId: paywayRefundId,
           },
         });
       });

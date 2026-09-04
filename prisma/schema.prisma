@@ -248,7 +248,7 @@ model Order {
   tax             Float
   discount        Float       @default(0) // Coupon discount amount
   total           Float
-  stripePaymentId String?
+  paywayTransactionId String?
   trackingNumber  String?
   carrier         String?
   // Coupon fields
@@ -259,7 +259,7 @@ model Order {
   refundReason      String?
   refundAmount      Float?
   refundedAt        DateTime?
-  refundStripeId    String?
+  paywayRefundId    String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -272,7 +272,7 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
-  @@index([stripePaymentId])
+  @@index([paywayTransactionId])
   @@index([refundRequested])
   @@index([couponId])
 }
@@ -461,7 +461,7 @@ model MembershipPayment {
   userId          String
   planId          String?
   amount          Float
-  stripeSessionId String?  @unique
+  paywaySessionId String?  @unique
   createdAt       DateTime @default(now())
 
   user User            @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -12,7 +12,7 @@ export interface ActivateMembershipOptions {
   /** planId to look up durationDays. Falls back to default active plan. */
   planId?: string | null;
   /** Stripe session ID for idempotency guard — skips if already recorded. */
-  stripeSessionId?: string;
+  paywaySessionId?: string;
   /** Amount paid in AUD for payment record. */
   amountPaid?: number;
 }
@@ -27,7 +27,7 @@ export interface ActivateMembershipResult {
  * Atomically activates or renews a membership.
  *
  * Safety guarantees:
- * - Idempotent: if stripeSessionId is provided and already recorded, returns
+ * - Idempotent: if paywaySessionId is provided and already recorded, returns
  *   alreadyProcessed=true without writing anything.
  * - Renewal-safe: extends from existing expiry if not yet lapsed, not from today.
  * - Always writes membershipExpiry so expiry enforcement works correctly.
@@ -35,13 +35,13 @@ export interface ActivateMembershipResult {
 export async function activateMembership(
   opts: ActivateMembershipOptions
 ): Promise<ActivateMembershipResult> {
-  const { userId, planId, stripeSessionId, amountPaid } = opts;
+  const { userId, planId, paywaySessionId, amountPaid } = opts;
 
   return db.$transaction(async (tx) => {
     // Idempotency guard: if this Stripe session was already processed, skip.
-    if (stripeSessionId) {
+    if (paywaySessionId) {
       const existing = await tx.membershipPayment.findUnique({
-        where: { stripeSessionId },
+        where: { paywaySessionId },
         select: { id: true },
       });
       if (existing) {
@@ -103,13 +103,13 @@ export async function activateMembership(
     });
 
     // Record payment if provided
-    if (stripeSessionId && amountPaid && amountPaid > 0) {
+    if (paywaySessionId && amountPaid && amountPaid > 0) {
       await tx.membershipPayment.create({
         data: {
           userId,
           planId: resolvedPlanId,
           amount: amountPaid,
-          stripeSessionId,
+          paywaySessionId,
         },
       });
     }

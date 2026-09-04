@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
         const result = await activateMembership({
           userId,
           planId,
-          stripeSessionId: session.id,
+          paywaySessionId: session.id,
           amountPaid,
         });
         if (result.alreadyProcessed) {
@@ -60,13 +60,13 @@ export async function POST(req: NextRequest) {
         // Re-check status inside transaction — atomic idempotency guard
         const freshOrder = await tx.order.findUnique({
           where: { id: orderId },
-          select: { id: true, status: true, stripePaymentId: true },
+          select: { id: true, status: true, paywayTransactionId: true },
         });
         if (!freshOrder) {
           throw new Error(`Order not found: ${orderId}`);
         }
-        // Idempotency: if stripePaymentId is already recorded, payment was already fully processed
-        if (freshOrder.stripePaymentId) {
+        // Idempotency: if paywayTransactionId is already recorded, payment was already fully processed
+        if (freshOrder.paywayTransactionId) {
           return null; // already processed — skip stock decrement and status update
         }
 
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
           where: { id: orderId },
           data: {
             status: "PAID",
-            stripePaymentId: session.payment_intent as string ?? undefined,
+            paywayTransactionId: session.payment_intent as string ?? undefined,
           },
           include: {
             items: { include: { product: { select: { name: true } } } },
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
         });
         await activateMembership({
           userId,
-          stripeSessionId: `${session.id}-membership`,
+          paywaySessionId: `${session.id}-membership`,
           amountPaid: orderPlan?.price ?? 30,
         });
         console.log(`[Stripe webhook] Membership add-on activated for user ${userId}`);
@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
     // ── Payment intent failed (card declined, insufficient funds, etc.) ─────
     if (event.type === "payment_intent.payment_failed") {
       const paymentIntent = event.data.object;
-      // Find order by stripePaymentId or metadata
+      // Find order by paywayTransactionId or metadata
       const orderId = (paymentIntent.metadata as Record<string, string>)?.orderId;
       if (orderId) {
         // Only cancel if still PENDING (don't touch already-paid orders)
@@ -219,9 +219,9 @@ export async function POST(req: NextRequest) {
       const charge = event.data.object;
       const paymentIntentId = typeof charge.payment_intent === "string" ? charge.payment_intent : null;
       if (paymentIntentId) {
-        // Find order by stripePaymentId
+        // Find order by paywayTransactionId
         const refundedOrder = await db.order.findFirst({
-          where: { stripePaymentId: paymentIntentId },
+          where: { paywayTransactionId: paymentIntentId },
           select: { id: true, status: true },
         });
         if (refundedOrder && refundedOrder.status !== "REFUNDED") {

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { getStripe } from "@/lib/stripe";
+import { chargeToken, PayWayApiError } from "@/lib/payway";
+import { activateMembership } from "@/lib/membership";
+
+const bodySchema = z.object({
+  singleUseTokenId: z.string().uuid("Invalid payment token"),
+  planId: z.string().optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,24 +17,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    // Parse + validate body
-    let requestedPlanId: string | undefined;
-    try {
-      const body = await req.json();
-      if (body?.planId && typeof body.planId === "string" && body.planId.length < 100) {
-        requestedPlanId = body.planId;
-      }
-    } catch { /* no body — fine */ }
+    const rawBody = await req.json().catch(() => ({}));
+    const parsed = bodySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    }
+    const { singleUseTokenId, planId } = parsed.data;
 
-    // Fetch user + plan in parallel
     const [user, plan] = await Promise.all([
       db.user.findUnique({
         where: { id: session.user.id },
         select: { isMember: true, membershipExpiry: true },
       }),
-      requestedPlanId
-        ? db.membershipPlan.findFirst({ where: { id: requestedPlanId, isActive: true } })
-        : db.membershipPlan.findFirst({ where: { isActive: true, isDefault: true }, orderBy: { createdAt: "asc" } })
+      planId
+        ? db.membershipPlan.findFirst({ where: { id: planId, isActive: true } })
+        : db.membershipPlan
+            .findFirst({ where: { isActive: true, isDefault: true }, orderBy: { createdAt: "asc" } })
             .then((p) => p ?? db.membershipPlan.findFirst({ where: { isActive: true }, orderBy: { price: "asc" } })),
     ]);
 
@@ -42,55 +47,69 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Block active members from purchasing again via direct API call
-    // (UI hides the button, but we must guard server-side too)
-    const isActiveMember = user?.isMember && !isExpired;
-    if (isActiveMember) {
+    // Block active members (API guard — UI also hides the button)
+    if (user?.isMember && !isExpired) {
       return NextResponse.json(
-        { error: "You already have an active membership. Visit your account page to renew when it expires." },
+        { error: "You already have an active membership." },
         { status: 409 }
       );
     }
 
     if (!plan) {
-      return NextResponse.json({ error: "No membership plans are currently available" }, { status: 404 });
+      return NextResponse.json({ error: "No membership plans available" }, { status: 404 });
     }
 
-    const priceCents = Math.round(plan.price * 100);
-    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || process.env.AUTH_URL || "http://localhost:3000").replace(/\/$/, "");
-    const stripe = getStripe();
+    const customerIp =
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      req.headers.get("x-real-ip") ||
+      undefined;
 
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      customer_email: session.user.email,
-      line_items: [
-        {
-          price_data: {
-            currency: "aud",
-            product_data: {
-              name: `CHS ${plan.name}`,
-              description: plan.description ?? "Unlocks member pricing, free express delivery & more",
-            },
-            unit_amount: priceCents,
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        type: "membership",
-        userId: session.user.id,
-        planId: plan.id,
-      },
-      success_url: `${appUrl}/account/membership?success=1&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/account/membership?cancelled=1`,
+    // Charge via PayWay
+    let txn;
+    try {
+      txn = await chargeToken({
+        singleUseTokenId,
+        orderNumber: `MBR-${session.user.id}`,
+        principalAmount: plan.price,
+        customerIpAddress: customerIp,
+      });
+    } catch (err) {
+      console.error("[membership checkout] PayWay charge failed", err);
+      const userMessage =
+        err instanceof PayWayApiError
+          ? (err.errors[0]?.message ?? err.message)
+          : "Payment failed. Please try again.";
+      return NextResponse.json({ error: userMessage }, { status: 422 });
+    }
+
+    if (txn.status === "declined" || txn.status === "suspended") {
+      return NextResponse.json(
+        { error: txn.responseText || "Payment declined.", status: "declined" },
+        { status: 402 }
+      );
+    }
+
+    // Activate membership
+    await activateMembership({
+      userId: session.user.id,
+      planId: plan.id,
+      paywaySessionId: String(txn.transactionId),
+      amountPaid: txn.paymentAmount,
     });
 
-    console.log(`[membership] Checkout initiated — user ${session.user.id}, plan "${plan.name}" ($${plan.price}), session ${checkoutSession.id}`);
+    console.log(
+      `[membership] Activated — user ${session.user.id}, plan "${plan.name}", txn ${txn.transactionId}`
+    );
 
-    return NextResponse.json({ url: checkoutSession.url, price: plan.price, plan: plan.name });
+    return NextResponse.json({
+      status: "success",
+      transactionId: txn.transactionId,
+      receiptNumber: txn.receiptNumber,
+      plan: plan.name,
+      price: plan.price,
+    });
   } catch (error) {
     console.error("[POST /api/membership/checkout]", error);
-    return NextResponse.json({ error: "Failed to create checkout session" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to process membership payment" }, { status: 500 });
   }
 }

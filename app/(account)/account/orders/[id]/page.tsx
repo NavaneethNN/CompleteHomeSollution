@@ -224,11 +224,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                       }
                     </span>
                   </div>
-                  {order.stripePaymentId && (
+                  {order.paywayTransactionId && (
                     <div className="flex items-start justify-between text-sm gap-3">
                       <span className="text-muted-foreground shrink-0">Payment ID</span>
                       <span className="font-mono text-xs text-foreground break-all text-right">
-                        {order.stripePaymentId}
+                        {order.paywayTransactionId}
                       </span>
                     </div>
                   )}

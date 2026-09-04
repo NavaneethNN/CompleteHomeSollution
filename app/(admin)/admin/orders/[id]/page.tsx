@@ -58,7 +58,7 @@ async function getOrder(id: string) {
       subtotal: true,
       shippingCost: true,
       tax: true,
-      stripePaymentId: true,
+      paywayTransactionId: true,
       trackingNumber: true,
       carrier: true,
       refundRequested: true,
@@ -252,7 +252,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 <div>
                   <p className="text-sm text-slate-500">Payment Method</p>
                   <p className="font-medium text-slate-900">
-                    {order.stripePaymentId ? "Credit/Debit Card (Stripe)" : "Not specified"}
+                    {order.paywayTransactionId ? "Credit/Debit Card (PayWay)" : "Not specified"}
                   </p>
                 </div>
                 <div>
@@ -428,7 +428,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                   alreadyRefunded={order.status === "REFUNDED"}
                   refundAmount={order.refundAmount ?? null}
                   refundedAt={order.refundedAt ?? null}
-                  hasStripePayment={!!order.stripePaymentId}
+                  hasPaywayPayment={!!order.paywayTransactionId}
                 />
               </CardContent>
             </Card>

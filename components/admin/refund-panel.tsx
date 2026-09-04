@@ -13,7 +13,7 @@ interface Props {
   alreadyRefunded: boolean;
   refundAmount: number | null;
   refundedAt: Date | null;
-  hasStripePayment: boolean;
+  hasPaywayPayment: boolean;
 }
 
 export function AdminRefundPanel({
@@ -24,14 +24,14 @@ export function AdminRefundPanel({
   alreadyRefunded,
   refundAmount,
   refundedAt,
-  hasStripePayment,
+  hasPaywayPayment,
 }: Props) {
   const router = useRouter();
   const [amount, setAmount] = useState(orderTotal.toFixed(2));
   const [restoreStock, setRestoreStock] = useState(false);
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const isManual = !hasStripePayment;
+  const isManual = !hasPaywayPayment;
 
   if (alreadyRefunded && refundAmount != null) {
     return (
@@ -75,14 +75,14 @@ export function AdminRefundPanel({
     }
   }
 
-  // Shared refund form used for both Stripe and manual refunds
+  // Shared refund form used for both PayWay and manual refunds
   const refundForm = (
     <div className="space-y-3">
       {/* Manual refund notice */}
       {isManual && (
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
-          <span>No Stripe payment ID found. This will mark the order as refunded in the system only — process the actual payment return externally.</span>
+          <span>No PayWay payment ID found. This will mark the order as refunded in the system only — process the actual payment return externally.</span>
         </div>
       )}
 
@@ -135,7 +135,7 @@ export function AdminRefundPanel({
           <p className="text-xs text-slate-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
             {isManual
               ? <>Confirm marking <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> as refunded? Ensure you process the payment return externally.</>
-              : <>Confirm issuing a <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> refund via Stripe? This cannot be undone.</>
+              : <>Confirm issuing a <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> refund via PayWay? This cannot be undone.</>
             }
           </p>
           <div className="flex gap-2">

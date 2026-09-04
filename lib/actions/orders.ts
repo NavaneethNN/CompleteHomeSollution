@@ -11,7 +11,7 @@ export interface OrderWithItems {
   shippingCost: number;
   tax: number;
   total: number;
-  stripePaymentId: string | null;
+  paywayTransactionId: string | null;
   trackingNumber: string | null;
   carrier: string | null;
   guestEmail: string | null;

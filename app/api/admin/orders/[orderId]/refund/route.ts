@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { getStripe } from "@/lib/stripe";
+import { refundTransaction, PayWayApiError } from "@/lib/payway";
 import { z } from "zod";
 import { sendOrderCancellationEmail } from "@/lib/brevo";
 
 const refundSchema = z.object({
-  amount: z.number().positive(),          // amount in AUD dollars
+  amount: z.number().positive(),
   restoreStock: z.boolean().optional().default(false),
-  manual: z.boolean().optional().default(false), // skip Stripe, just mark in DB
+  manual: z.boolean().optional().default(false), // skip PayWay call, just mark in DB
 });
 
 export async function POST(
@@ -46,12 +46,7 @@ export async function POST(
 
     const isFullRefund = Math.abs(amount - order.total) < 0.01;
 
-    // B-2: Correct refund order:
-    // 1. Commit DB changes first (stock restore + order status)
-    // 2. Then call Stripe (external, may fail independently)
-    // 3. Save the Stripe refund ID back to the record
-
-    // Step 1 — commit DB transaction
+    // Step 1 — commit DB changes first
     await db.$transaction(async (tx) => {
       if (restoreStock) {
         for (const item of order.items) {
@@ -68,7 +63,6 @@ export async function POST(
           }
         }
       }
-
       await tx.order.update({
         where: { id: orderId },
         data: {
@@ -80,40 +74,47 @@ export async function POST(
       });
     });
 
-    // Step 2 — issue Stripe refund (after DB is already committed)
-    let stripeRefundId: string | null = null;
+    // Step 2 — issue PayWay refund
+    let paywayRefundId: string | null = null;
 
-    if (!manual && order.stripePaymentId) {
+    if (!manual && order.paywayTransactionId) {
       try {
-        const refund = await getStripe().refunds.create({
-          payment_intent: order.stripePaymentId,
-          amount: Math.round(amount * 100), // cents
-          reason: "requested_by_customer",
+        const refundTxn = await refundTransaction({
+          parentTransactionId: order.paywayTransactionId,
+          principalAmount: amount,
+          orderNumber: order.id,
         });
-        stripeRefundId = refund.id;
-      } catch (e: unknown) {
-        // Stripe failed — DB is already updated. Log and continue so the
-        // admin knows to handle it manually, but don't roll back the DB record.
-        console.error("[admin refund] Stripe error — DB already updated, manual follow-up required", e);
+        paywayRefundId = String(refundTxn.transactionId);
+      } catch (err) {
+        // DB already updated — log and return 502 so admin knows to process manually
+        console.error(
+          "[admin refund] PayWay refund error — DB already updated, manual follow-up required",
+          err
+        );
+        const msg =
+          err instanceof PayWayApiError
+            ? (err.errors[0]?.message ?? err.message)
+            : "PayWay refund failed";
         return NextResponse.json(
           {
-            error: "Order marked refunded in system but Stripe refund failed. Please process the payment return manually.",
-            stripeRefundId: null,
+            error: `Order marked refunded in DB but PayWay refund failed: ${msg}. Please process manually.`,
+            paywayRefundId: null,
             manual: true,
           },
           { status: 502 }
         );
       }
-    } else if (!manual && !order.stripePaymentId) {
-      // No Stripe payment — DB is already committed, this is effectively manual
-      console.warn(`[admin refund] No stripePaymentId for order ${orderId} — manual refund only`);
+    } else if (!manual && !order.paywayTransactionId) {
+      console.warn(
+        `[admin refund] No paywayTransactionId for order ${orderId} — manual refund only`
+      );
     }
 
-    // Step 3 — save Stripe refund ID back to the DB record
-    if (stripeRefundId) {
+    // Step 3 — save PayWay refund transaction ID
+    if (paywayRefundId) {
       await db.order.update({
         where: { id: orderId },
-        data: { refundStripeId: stripeRefundId },
+        data: { paywayRefundId },
       });
     }
 
@@ -135,8 +136,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       refundAmount: amount,
-      stripeRefundId,
-      manual: !stripeRefundId,
+      paywayRefundId,
+      manual: !paywayRefundId,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {
