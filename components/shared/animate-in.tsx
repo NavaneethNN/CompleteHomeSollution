@@ -32,9 +32,21 @@ export function AnimateIn({
 }: AnimateInProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<any>(null);
+  // `mounted` gates the IntersectionObserver setup so it only runs after
+  // React has fully hydrated the client DOM. Without this, the observer can
+  // fire synchronously on mount and set `triggered=true` before React has
+  // finished reconciling, causing a server/client className mismatch.
+  const [mounted, setMounted] = useState(false);
   const [triggered, setTriggered] = useState(false);
 
+  // Step 1: mark as mounted after first paint (safe to read DOM / start IO)
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Step 2: only attach the observer once the component is mounted
+  useEffect(() => {
+    if (!mounted) return;
     const el = ref.current;
     if (!el) return;
 
@@ -50,13 +62,15 @@ export function AnimateIn({
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [threshold]);
+  }, [mounted, threshold]);
 
   const Component = Tag as React.ElementType;
 
   return (
     <Component
       ref={ref}
+      // Before mount: className is always "opacity-0" on both server and client
+      // — no mismatch possible. After mount the observer takes over.
       className={cn(
         triggered ? VARIANT_CLASS[variant] : "opacity-0",
         className
