@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin, BadgeCheck } from "lucide-react";
 
 const footerLinks = [
   {
@@ -70,6 +70,10 @@ export function Footer() {
                 <Mail className="h-3.5 w-3.5 text-primary shrink-0" />
                 <a href="mailto:info@completehomesollution.com.au" className="hover:text-primary transition-colors">info@completehomesollution.com.au</a>
               </div>
+              <div className="flex items-center gap-2">
+                <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>ABN 52 921 008 361</span>
+              </div>
             </div>
           </div>
 
@@ -95,7 +99,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/30">
           <p>© {new Date().getFullYear()} Complete Home Sollution. All rights reserved.</p>
-          <p>ABN 52 921 008 361 · Prices in AUD · GST included · Delivery across Australia</p>
+          <p>Prices in AUD · GST included · Delivery across Australia</p>
         </div>
       </div>
     </footer>
