@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     template: "%s | Complete Home Sollution",
   },
   description:
-    "Shop premium furniture for every room. Based in Paralowie SA, delivering quality pieces for living, dining, bedroom and office across Australia.",
+    "Shop premium furniture for every room. Based in Golden Grove SA, delivering quality pieces for living, dining, bedroom and office across Australia.",
   keywords: ["furniture", "Australian furniture", "home decor", "sofas", "beds", "dining tables", "South Australia", "Adelaide"],
   icons: {
     icon: "/chs-logo.png",

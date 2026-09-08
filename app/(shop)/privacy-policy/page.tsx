@@ -147,7 +147,8 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
             <li>Email: <a href="mailto:privacy@completehomesolution.com" className="text-primary hover:underline">privacy@completehomesolution.com</a></li>
-            <li>Address: Complete Home Solution, Australia</li>
+            <li>Address: Complete Home Solution, 18 Edison Drive, Golden Grove SA 5125</li>
+            <li>ABN: 52 921 008 361</li>
           </ul>
         </section>
       </div>

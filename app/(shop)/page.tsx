@@ -431,7 +431,7 @@ export default async function HomePage() {
                 <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0">
                   <p>
                     Complete Home Solution is a South Australian family-owned furniture business bringing 
-                    premium quality furniture to homes across Australia. Based in Paralowie, SA, we have 
+                    premium quality furniture to homes across Australia. Based in Golden Grove, SA, we have 
                     built our reputation on exceptional craftsmanship and outstanding customer service.
                   </p>
                   <p>

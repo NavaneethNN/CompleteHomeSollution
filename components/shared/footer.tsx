@@ -60,7 +60,7 @@ export function Footer() {
             <div className="space-y-2.5 text-sm text-white/50">
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                <span>33 Edward Street<br />Paralowie SA 5108</span>
+                <span>18 Edison Drive<br />Golden Grove SA 5125</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -95,7 +95,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/30">
           <p>© {new Date().getFullYear()} Complete Home Sollution. All rights reserved.</p>
-          <p>Prices in AUD · GST included · Delivery across Australia</p>
+          <p>ABN 52 921 008 361 · Prices in AUD · GST included · Delivery across Australia</p>
         </div>
       </div>
     </footer>
