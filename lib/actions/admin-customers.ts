@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/auth";
+import { grantMembership, revokeMembership } from "@/lib/membership";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
@@ -68,10 +69,11 @@ export async function getAdminCustomers(
         createdAt: true,
         _count: { select: { orders: true } },
         orders: {
-          where: { status: { not: "CANCELLED" } },
-          select: { total: true },
+          where: { status: { notIn: ["PENDING", "CANCELLED", "REFUNDED"] } },
+          select: { total: true, refundAmount: true },
         },
         membershipPayments: {
+          where: { refundedAt: null, OR: [{ paywaySessionId: null }, { paywaySessionId: { not: { startsWith: "order:" } } }] },
           select: { amount: true },
         },
       },
@@ -92,7 +94,7 @@ export async function getAdminCustomers(
     createdAt: u.createdAt,
     _count: u._count,
     totalSpend:
-      u.orders.reduce((sum, o) => sum + o.total, 0) +
+      u.orders.reduce((sum, o) => sum + o.total - (o.refundAmount ?? 0), 0) +
       u.membershipPayments.reduce((sum, m) => sum + m.amount, 0),
   }));
 
@@ -140,11 +142,11 @@ export async function getAdminCustomerDetail(userId: string): Promise<AdminCusto
 
   const [orderSpend, membershipSpend] = await Promise.all([
     db.order.aggregate({
-      where: { userId, status: { not: "CANCELLED" } },
-      _sum: { total: true },
+      where: { userId, status: { notIn: ["PENDING", "CANCELLED", "REFUNDED"] } },
+      _sum: { total: true, refundAmount: true },
     }),
     db.membershipPayment.aggregate({
-      where: { userId },
+      where: { userId, refundedAt: null, OR: [{ paywaySessionId: null }, { paywaySessionId: { not: { startsWith: "order:" } } }] },
       _sum: { amount: true },
     }),
   ]);
@@ -160,7 +162,7 @@ export async function getAdminCustomerDetail(userId: string): Promise<AdminCusto
     emailVerified: user.emailVerified,
     createdAt: user.createdAt,
     _count: user._count,
-    totalSpend: (orderSpend._sum.total ?? 0) + (membershipSpend._sum.amount ?? 0),
+    totalSpend: (orderSpend._sum.total ?? 0) - (orderSpend._sum.refundAmount ?? 0) + (membershipSpend._sum.amount ?? 0),
     recentOrders: user.orders,
   };
 }
@@ -173,12 +175,7 @@ export async function setCustomerRole(userId: string, role: "ADMIN" | "CUSTOMER"
 
 export async function setCustomerMembership(userId: string, isMember: boolean): Promise<void> {
   await requireAdmin();
-  await db.user.update({
-    where: { id: userId },
-    data: {
-      isMember,
-      memberSince: isMember ? new Date() : null,
-    },
-  });
+  if (isMember) await grantMembership(userId);
+  else await revokeMembership(userId);
   revalidatePath("/admin/customers");
 }

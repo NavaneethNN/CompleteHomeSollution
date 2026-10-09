@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getActiveMembershipPlan, durationLabel } from "@/lib/membership-plan";
-import { activateMembership, enforceExpiry } from "@/lib/membership";
+import { enforceExpiry } from "@/lib/membership";
 import {
   Crown, CheckCircle2, Truck, ShieldCheck, Tag, Zap,
   CalendarDays, ChevronRight, LayoutDashboard, Package,
@@ -28,22 +28,15 @@ const BASE_PERKS = [
   { Icon: Zap,         title: "Early access to sales",    desc: "Shop new arrivals and sale events before everyone else" },
 ] as const;
 
-export default async function MembershipPage({
-  searchParams,
-}: {
-  searchParams?: Promise<{ success?: string; cancelled?: string }>;
-}) {
+export default async function MembershipPage() {
   const session = await auth();
   const user = session!.user;
-  const params = await searchParams;
-
-  // PayWay: membership activated synchronously — no post-checkout session verification needed
 
   // Always read from DB — JWT may be stale after checkout activation
   const [dbUser, activePlan] = await Promise.all([
     db.user.findUnique({
       where: { id: user.id },
-      select: { isMember: true, memberSince: true, name: true },
+      select: { isMember: true, memberSince: true, membershipExpiry: true, name: true },
     }),
     getActiveMembershipPlan(),
   ]);
@@ -52,6 +45,9 @@ export default async function MembershipPage({
   const wasRevoked = await enforceExpiry(user.id);
   const isMember = (dbUser?.isMember ?? false) && !wasRevoked;
   const memberSince = dbUser?.memberSince;
+  const expiredAt = dbUser?.membershipExpiry && dbUser.membershipExpiry <= new Date()
+    ? dbUser.membershipExpiry
+    : null;
   const planPrice = activePlan?.price ?? 30;
   const planName = activePlan?.name ?? "Premium";
   const planDuration = activePlan ? durationLabel(activePlan.durationDays) : "year";
@@ -212,16 +208,20 @@ export default async function MembershipPage({
                   />
                   <div className="relative z-10">
                     <p className="text-white/60 text-sm mb-1">Membership</p>
-                    <h1 className="text-2xl xl:text-3xl font-black mb-2">Unlock CHS Premium</h1>
+                    <h1 className="text-2xl xl:text-3xl font-black mb-2">
+                      {expiredAt ? "Your CHS Premium membership has expired" : "Unlock CHS Premium"}
+                    </h1>
                     <p className="text-white/60 text-sm max-w-md">
-                      Join thousands of Australians saving up to 30% on premium furniture with CHS Premium membership.
+                      {expiredAt
+                        ? `Your benefits ended on ${new Date(expiredAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. Renew at checkout to restore your savings and benefits.`
+                        : "Join thousands of Australians saving up to 30% on premium furniture with CHS Premium membership."}
                     </p>
                     {activePlan ? (
                       <Link
-                        href="/account/membership/checkout"
+                        href={`/membership/checkout?planId=${activePlan.id}`}
                         className="inline-flex items-center gap-2 mt-4 bg-primary hover:bg-primary/90 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors"
                       >
-                        <Crown className="h-4 w-4" /> Join for {currencyFmt.format(planPrice)}/{planDuration}
+                        <Crown className="h-4 w-4" /> {expiredAt ? "Renew Membership" : `Join for ${currencyFmt.format(planPrice)}/${planDuration}`}
                       </Link>
                     ) : (
                       <p className="mt-4 text-white/60 text-sm">No plans available — check back soon.</p>
@@ -249,10 +249,10 @@ export default async function MembershipPage({
                   <div className="px-6 pb-6">
                     {activePlan ? (
                       <Link
-                        href="/account/membership/checkout"
+                        href={`/membership/checkout?planId=${activePlan.id}`}
                         className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary/90 text-white font-bold text-sm py-3 rounded-xl transition-colors"
                       >
-                        <Crown className="h-4 w-4" /> Become a Member — {currencyFmt.format(planPrice)}/{planDuration}
+                        <Crown className="h-4 w-4" /> {expiredAt ? "Renew Membership" : `Become a Member — ${currencyFmt.format(planPrice)}/${planDuration}`}
                       </Link>
                     ) : (
                       <p className="text-center text-sm text-muted-foreground py-2">No membership plans available right now.</p>

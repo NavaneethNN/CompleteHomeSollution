@@ -1,0 +1,1 @@
+ALTER TABLE "Order" ADD COLUMN "couponReserved" BOOLEAN NOT NULL DEFAULT false;

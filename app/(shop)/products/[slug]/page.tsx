@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { hasActiveMembership } from "@/lib/membership";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
 import { ProductReviews } from "@/components/shop/product-reviews";
@@ -95,8 +96,9 @@ export async function generateMetadata({
   }
 
   return {
-    title: `${product.name} — Complete Home Sollution`,
+    title: product.name,
     description: product.description.slice(0, 160),
+    alternates: { canonical: `/products/${product.slug}` },
     openGraph: {
       images: product.images[0] ? [{ url: product.images[0] }] : undefined,
     },
@@ -122,8 +124,8 @@ export default async function ProductDetailPage({
   const isMember = session?.user?.id 
     ? await db.user.findUnique({
         where: { id: session.user.id },
-        select: { isMember: true },
-      }).then(u => u?.isMember ?? false)
+        select: { isMember: true, membershipExpiry: true },
+      }).then(hasActiveMembership)
     : false;
 
   // Default to first variant if product has variants
@@ -259,7 +261,7 @@ export default async function ProductDetailPage({
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span>SKU: {product.sku}</span>
                 {product.stock > 0
-                  ? <span className="text-green-600 font-medium">● In Stock ({product.stock} available)</span>
+                  ? <span className="text-green-800 font-medium">● In Stock ({product.stock} available)</span>
                   : <span className="text-destructive font-medium">● Out of Stock</span>}
               </div>
 

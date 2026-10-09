@@ -248,13 +248,29 @@ model Order {
   tax             Float
   discount        Float       @default(0) // Coupon discount amount
   total           Float
+  stripePaymentId String? // Historical Stripe payments remain separate
+  refundStripeId String?
   paywayTransactionId String?
   trackingNumber  String?
   carrier         String?
+  // Idempotency key — client-generated UUID sent with each checkout POST.
+  // Prevents duplicate orders when the browser retries a slow/failed request.
+  idempotencyKey  String?     @unique
   // Coupon fields
   couponId        String?
   couponCode      String?     // Store the code used at time of order
+  couponReserved  Boolean     @default(false) // Counts against limits until payment settles or closes
+  reconciliationNextAt DateTime? @default(now())
+  reconciliationLastAt DateTime?
+  reconciliationAttempts Int @default(0)
+  reconciliationError String?
   // Refund / cancellation fields
+  membershipPlanId String?
+  membershipDurationDays Int?
+  membershipAmount Float @default(0)
+  refundAttemptAmount Float?
+  refundAttemptRestoreStock Boolean?
+  refundProcessing Boolean @default(false)
   refundRequested   Boolean   @default(false)
   refundReason      String?
   refundAmount      Float?
@@ -272,7 +288,10 @@ model Order {
   @@index([userId])
   @@index([status])
   @@index([createdAt])
+  @@index([status, reconciliationNextAt])
   @@index([paywayTransactionId])
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
   @@index([refundRequested])
   @@index([couponId])
 }
@@ -461,7 +480,11 @@ model MembershipPayment {
   userId          String
   planId          String?
   amount          Float
+  stripeSessionId String? @unique
   paywaySessionId String?  @unique
+  expiresAt DateTime?
+  previousExpiry DateTime?
+  refundedAt DateTime?
   createdAt       DateTime @default(now())
 
   user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -473,8 +496,31 @@ model StockAlert {
   email     String
   productId String
   createdAt DateTime @default(now())
+  notifiedAt DateTime?
+  nextAttemptAt DateTime @default(now())
+  claimUntil DateTime?
+  attempts Int @default(0)
+  lastError String?
 
   @@unique([email, productId])
+  @@index([notifiedAt, nextAttemptAt])
+}
+
+model EmailJob {
+  id String @id @default(cuid())
+  key String @unique
+  kind String
+  payload Json?
+  orderId String
+  status String @default("PENDING")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  claimUntil DateTime?
+  sentAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+
+  @@index([status, nextAttemptAt])
 }
 
 model TestResult {

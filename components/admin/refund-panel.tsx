@@ -27,7 +27,8 @@ export function AdminRefundPanel({
   hasPaywayPayment,
 }: Props) {
   const router = useRouter();
-  const [amount, setAmount] = useState(orderTotal.toFixed(2));
+  const remaining = Math.max(0, Math.round((orderTotal - (refundAmount ?? 0)) * 100) / 100);
+  const [amount, setAmount] = useState(remaining.toFixed(2));
   const [restoreStock, setRestoreStock] = useState(false);
   const [loading, setLoading] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
@@ -51,7 +52,7 @@ export function AdminRefundPanel({
       toast.error("Enter a valid refund amount");
       return;
     }
-    if (parsed > orderTotal) {
+    if (parsed > remaining) {
       toast.error(`Cannot exceed order total (A$${orderTotal.toFixed(2)})`);
       return;
     }
@@ -68,8 +69,8 @@ export function AdminRefundPanel({
       toast.success(`A$${parsed.toFixed(2)} refunded successfully`);
       setConfirmed(false);
       router.refresh();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Refund failed");
     } finally {
       setLoading(false);
     }
@@ -82,7 +83,7 @@ export function AdminRefundPanel({
       {isManual && (
         <div className="flex items-start gap-2.5 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-xs text-amber-800">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-amber-500" />
-          <span>No PayWay payment ID found. This will mark the order as refunded in the system only — process the actual payment return externally.</span>
+          <span>No supported payment ID found. This will mark the order as refunded in the system only — process the actual payment return externally.</span>
         </div>
       )}
 
@@ -95,7 +96,7 @@ export function AdminRefundPanel({
           <input
             type="number"
             min="0.01"
-            max={orderTotal}
+            max={remaining}
             step="0.01"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -104,10 +105,10 @@ export function AdminRefundPanel({
         </div>
         <div className="flex gap-2 mt-1.5">
           <button
-            onClick={() => setAmount(orderTotal.toFixed(2))}
+            onClick={() => setAmount(remaining.toFixed(2))}
             className="text-xs text-blue-600 hover:underline"
           >
-            Full refund (A${orderTotal.toFixed(2)})
+            Remaining refund (A${remaining.toFixed(2)})
           </button>
         </div>
       </div>
@@ -135,7 +136,7 @@ export function AdminRefundPanel({
           <p className="text-xs text-slate-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
             {isManual
               ? <>Confirm marking <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> as refunded? Ensure you process the payment return externally.</>
-              : <>Confirm issuing a <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> refund via PayWay? This cannot be undone.</>
+              : <>Confirm issuing a <strong>A${parseFloat(amount || "0").toFixed(2)}</strong> refund via the payment provider? This cannot be undone.</>
             }
           </p>
           <div className="flex gap-2">

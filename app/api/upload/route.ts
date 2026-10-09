@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { r2, generateImageKey, getPublicUrl } from "@/lib/r2";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export const config = {
   api: { bodyParser: false },
@@ -26,6 +27,8 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized - Please sign in" }, { status: 401 });
     }
+    const limit = await consumeRateLimit("upload", `${getClientIp(req.headers)}:${session.user.id}`, 20, 60 * 60);
+    if (!limit.allowed) return rateLimitResponse(limit);
     
     const isAdmin = session.user.role === "ADMIN";
     const formData = await req.formData();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Home, MapPin, Loader2 } from "lucide-react";
@@ -69,6 +69,7 @@ export function AddressAutocomplete({
   error,
   disabled,
 }: AddressAutocompleteProps) {
+  const fieldId = useId();
   const [suggestions, setSuggestions] = useState<AutocompleteSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -83,7 +84,6 @@ export function AddressAutocomplete({
   // Check if API key is available
   useEffect(() => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    console.log("[AddressAutocomplete] API Key present:", !!apiKey);
     
     if (!apiKey) {
       setLoadError("API key not configured");
@@ -132,12 +132,12 @@ export function AddressAutocomplete({
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
         if (response.status === 403) {
-          setLoadError("API access denied - check Places API (New) is enabled");
+          setLoadError("Address lookup is unavailable");
+          setIsApiReady(false);
           toast({
-            title: "API Error",
-            description: "Please enable Places API (New) in Google Cloud Console",
+            title: "Address lookup unavailable",
+            description: "Enter your street address manually to continue.",
             variant: "destructive",
           });
         }
@@ -321,13 +321,16 @@ export function AddressAutocomplete({
 
   return (
     <div className="space-y-2" ref={inputRef}>
-      <Label htmlFor="line1" className="text-sm font-medium flex items-center gap-2">
+      <Label htmlFor={fieldId} className="text-sm font-medium flex items-center gap-2">
         <Home className="h-4 w-4 text-muted-foreground" />
         Street Address
       </Label>
       <div className="relative">
         <Input
-          id="line1"
+          id={fieldId}
+          autoComplete="address-line1"
+          aria-invalid={!!error}
+          aria-describedby={error ? `${fieldId}-error` : undefined}
           type="text"
           placeholder={isApiReady ? "Start typing your address..." : "Enter address manually..."}
           value={value}
@@ -368,13 +371,13 @@ export function AddressAutocomplete({
       )}
       
       {!isApiReady && loadError && (
-        <p className="text-xs text-amber-600">
-          Address autocomplete unavailable: {loadError}. Please enter address manually.
+        <p className="text-xs text-amber-800">
+          Enter your street address manually.
         </p>
       )}
       
       {error && (
-        <p className="text-sm text-destructive">{error}</p>
+        <p id={`${fieldId}-error`} role="alert" className="text-sm text-destructive">{error}</p>
       )}
     </div>
   );

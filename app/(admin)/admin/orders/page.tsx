@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { db } from "@/lib/db";
-import type { OrderStatus } from "@prisma/client";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import {
   ShoppingCart,
   Package,
@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { MobileStatusDropdown } from "@/components/admin/mobile-status-dropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -65,13 +64,13 @@ const ORDERS_PER_PAGE = 20;
 async function getOrders({ page = 1, status, search }: { page: number; status?: string; search?: string }) {
   const skip = (page - 1) * ORDERS_PER_PAGE;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = {
-    // Exclude pending orders (payment not completed)
+  // Pending orders are payment attempts awaiting provider confirmation. Keep
+  // them out of the fulfilment queue unless an admin explicitly opens the
+  // pending-payments view.
+  const where: Prisma.OrderWhereInput = {
     status: { not: "PENDING" },
   };
-
-  if (status && status !== "ALL") {
+  if (status && Object.hasOwn(ORDER_STATUS_CONFIG, status)) {
     where.status = status as OrderStatus;
   }
 
@@ -80,6 +79,7 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
     const safeSearch = search.slice(0, 100);
     where.OR = [
       { id: { contains: safeSearch, mode: "insensitive" } },
+      { guestEmail: { contains: safeSearch, mode: "insensitive" } },
       { user: { name: { contains: safeSearch, mode: "insensitive" } } },
       { user: { email: { contains: safeSearch, mode: "insensitive" } } },
     ];
@@ -97,6 +97,8 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
         total: true,
         createdAt: true,
         refundRequested: true,
+        guestEmail: true,
+        _count: { select: { items: true } },
         user: { select: { id: true, name: true, email: true } },
         address: { select: { name: true } },
         items: {
@@ -129,7 +131,7 @@ async function getOrderStats() {
     db.order.aggregate({
       where: {
         createdAt: { gte: todayStart },
-        status: { notIn: ["CANCELLED", "REFUNDED"] },
+        status: { notIn: ["PENDING", "CANCELLED", "REFUNDED"] },
       },
       _count: { _all: true },
       _sum: { total: true },
@@ -140,7 +142,11 @@ async function getOrderStats() {
     statusGroups.map((g) => [g.status, g._count._all])
   );
 
-  const totalOrders = statusGroups.reduce((acc, g) => acc + g._count._all, 0);
+  const pendingOrders = countByStatus["PENDING"] ?? 0;
+  const totalOrders = statusGroups.reduce(
+    (acc, g) => acc + (g.status === "PENDING" ? 0 : g._count._all),
+    0
+  );
 
   const paidStatuses = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"];
   const paidOrders = paidStatuses.reduce((acc, s) => acc + (countByStatus[s] ?? 0), 0);
@@ -148,6 +154,7 @@ async function getOrderStats() {
 
   return {
     totalOrders,
+    pendingOrders,
     paidOrders,
     processingOrders,
     todayOrders: todayStats._count._all,
@@ -157,7 +164,7 @@ async function getOrderStats() {
 
 export default async function AdminOrdersPage({ searchParams }: OrdersPageProps) {
   const { page: pageParam, status, search } = await searchParams;
-  const page = Math.max(1, parseInt(pageParam || "1", 10));
+  const page = Math.max(1, (parseInt(pageParam || "1", 10) || 1));
 
   const [{ orders, totalCount, totalPages }, stats] = await Promise.all([
     getOrders({ page, status, search }),
@@ -166,7 +173,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
 
   const statCards = [
     {
-      label: "Total",
+      label: "Orders",
       mobileLabel: "Orders",
       value: stats.totalOrders.toLocaleString(),
       icon: ShoppingCart,
@@ -197,15 +204,30 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
   ];
 
   const statusOptions = ["ALL", "PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED", "REFUNDED"];
+  const pendingOrdersHref = `/admin/orders?page=1&status=PENDING${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+  const mainOrdersHref = `/admin/orders?page=1${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+  const viewingPendingOrders = status === "PENDING";
 
   return (
     <div className="space-y-6 p-4 sm:p-6 w-full max-w-none">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Orders</h1>
-          <p className="text-sm text-slate-500">Manage and track customer orders</p>
+          <h1 className="text-2xl font-bold text-slate-900">{viewingPendingOrders ? "Pending Payments" : "Orders"}</h1>
+          <p className="text-sm text-slate-500">{viewingPendingOrders ? "Orders awaiting payment confirmation" : "Manage and track confirmed customer orders"}</p>
         </div>
+        {viewingPendingOrders ? (
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link href={mainOrdersHref}>View orders</Link>
+          </Button>
+        ) : (
+          <Button asChild variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-50">
+            <Link href={pendingOrdersHref}>
+              <Clock className="mr-1.5 h-4 w-4" />
+              Pending ({stats.pendingOrders.toLocaleString()})
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Stats */}
@@ -261,7 +283,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                 {statusOptions.map((s) => (
                   <Link
                     key={s}
-                    href={`/admin/orders?page=1&status=${s}${search ? `&search=${search}` : ""}`}
+                    href={`/admin/orders?page=1&status=${s}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
                     className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
                       (status || "ALL") === s
                         ? "bg-slate-900 text-white"
@@ -289,7 +311,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
       <Card className="w-full">
         <CardHeader className="pb-4">
           <CardTitle className="text-base">
-            Orders ({totalCount.toLocaleString()})
+            {viewingPendingOrders ? "Pending payments" : "Orders"} ({totalCount.toLocaleString()})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 w-full">
@@ -323,14 +345,6 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                     
                     return (
                       <tr key={order.id} className="hover:bg-slate-50 relative group">
-                        {/* Clickable overlay for entire row */}
-                        <td className="p-0">
-                          <Link 
-                            href={`/admin/orders/${order.id}`} 
-                            className="absolute inset-0 z-0"
-                            aria-hidden="true"
-                          />
-                        </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 relative z-10">
                           <span className="font-mono text-xs text-slate-500">
                             #{order.id.slice(-8).toUpperCase()}
@@ -343,10 +357,10 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                             </div>
                             <div className="min-w-0">
                               <p className="font-medium text-slate-900 truncate">
-                                {order.user?.name || "Guest"}
+                                {order.user?.name || order.address?.name || "Guest"}
                               </p>
                               <p className="text-xs text-slate-500 truncate hidden sm:block">
-                                {order.user?.email}
+                                {order.user?.email || order.guestEmail}
                               </p>
                             </div>
                           </div>
@@ -376,11 +390,11 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           </div>
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 text-slate-600 hidden lg:table-cell relative z-10">
-                          {order.items?.length || 0} items
+                          {order._count.items} items
                           {order.items?.[0]?.product?.name && (
                             <p className="text-xs text-slate-500 truncate max-w-[120px]">
                               {order.items[0].product.name}
-                              {(order.items?.length || 0) > 1 && "..."}
+                              {(order._count.items) > 1 && "..."}
                             </p>
                           )}
                         </td>
@@ -410,7 +424,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
               </p>
               <div className="flex items-center gap-1 sm:gap-2">
                 <Link
-                  href={`/admin/orders?page=${Math.max(1, page - 1)}${status && status !== "ALL" ? `&status=${status}` : ""}${search ? `&search=${search}` : ""}`}
+                  href={`/admin/orders?page=${Math.max(1, page - 1)}${status && status !== "ALL" ? `&status=${status}` : ""}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
                   className={page <= 1 ? "pointer-events-none opacity-50" : ""}
                 >
                   <Button variant="outline" size="sm" disabled={page <= 1}>
@@ -422,7 +436,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                   {page}/{totalPages}
                 </span>
                 <Link
-                  href={`/admin/orders?page=${Math.min(totalPages, page + 1)}${status && status !== "ALL" ? `&status=${status}` : ""}${search ? `&search=${search}` : ""}`}
+                  href={`/admin/orders?page=${Math.min(totalPages, page + 1)}${status && status !== "ALL" ? `&status=${status}` : ""}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
                   className={page >= totalPages ? "pointer-events-none opacity-50" : ""}
                 >
                   <Button variant="outline" size="sm" disabled={page >= totalPages}>

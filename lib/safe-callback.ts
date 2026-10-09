@@ -11,6 +11,7 @@ const ALLOWED_PATHS = [
   "/account/membership",
   "/cart",
   "/checkout",
+  "/order-confirmation",
   "/",
 ];
 

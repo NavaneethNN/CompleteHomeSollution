@@ -5,13 +5,30 @@
  * All code paths (webhook, page redirect, admin grant) must go through here.
  */
 
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+
+export type MembershipState = {
+  isMember: boolean;
+  membershipExpiry: Date | null;
+};
+
+/** A legacy membership with no expiry remains valid. An expiry is active only
+ * while it is strictly in the future, so every storefront uses one boundary. */
+export function hasActiveMembership(
+  membership: MembershipState | null | undefined,
+  now = new Date()
+): boolean {
+  return !!membership?.isMember &&
+    (!membership.membershipExpiry || membership.membershipExpiry > now);
+}
 
 export interface ActivateMembershipOptions {
   userId: string;
+  durationDays?: number;
   /** planId to look up durationDays. Falls back to default active plan. */
   planId?: string | null;
-  /** Stripe session ID for idempotency guard — skips if already recorded. */
+  /** Payment session ID for idempotency guard — skips if already recorded. */
   paywaySessionId?: string;
   /** Amount paid in AUD for payment record. */
   amountPaid?: number;
@@ -35,87 +52,97 @@ export interface ActivateMembershipResult {
 export async function activateMembership(
   opts: ActivateMembershipOptions
 ): Promise<ActivateMembershipResult> {
+  return db.$transaction((tx) => activateMembershipInTransaction(tx, opts));
+}
+
+export async function activateMembershipInTransaction(
+  tx: Prisma.TransactionClient, opts: ActivateMembershipOptions
+): Promise<ActivateMembershipResult> {
   const { userId, planId, paywaySessionId, amountPaid } = opts;
-
-  return db.$transaction(async (tx) => {
-    // Idempotency guard: if this Stripe session was already processed, skip.
-    if (paywaySessionId) {
-      const existing = await tx.membershipPayment.findUnique({
-        where: { paywaySessionId },
-        select: { id: true },
-      });
-      if (existing) {
-        return { activated: false, alreadyProcessed: true, expiresAt: null };
-      }
-    }
-
-    // Resolve plan duration
-    let durationDays = 365;
-    let resolvedPlanId: string | null = planId ?? null;
-
-    if (planId) {
-      const plan = await tx.membershipPlan.findUnique({
-        where: { id: planId },
-        select: { id: true, durationDays: true },
-      });
-      if (plan) {
-        durationDays = plan.durationDays;
-        resolvedPlanId = plan.id;
-      }
-    } else {
-      // Fall back to default active plan
-      const defaultPlan = await tx.membershipPlan.findFirst({
-        where: { isActive: true, isDefault: true },
-        select: { id: true, durationDays: true },
-        orderBy: { createdAt: "asc" },
-      });
-      if (defaultPlan) {
-        durationDays = defaultPlan.durationDays;
-        resolvedPlanId = defaultPlan.id;
-      }
-    }
-
-    // Fetch current user state
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-      select: { isMember: true, memberSince: true, membershipExpiry: true },
+  // Serialize activations for this user, including distinct simultaneous payments.
+  await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+  // Idempotency guard: if this Payment session was already processed, skip.
+  if (paywaySessionId) {
+    const existing = await tx.membershipPayment.findFirst({
+      where: { OR: [{ paywaySessionId }, { stripeSessionId: paywaySessionId }] },
+      select: { id: true },
     });
+    if (existing) {
+      return { activated: false, alreadyProcessed: true, expiresAt: null };
+    }
+  }
 
-    const now = new Date();
+  // Resolve plan duration
+  let durationDays = 365;
+  let resolvedPlanId: string | null = null;
 
-    // Renewal: extend from existing expiry if it hasn't lapsed yet
-    const baseDate =
-      user?.membershipExpiry && user.membershipExpiry > now
-        ? user.membershipExpiry
-        : now;
+  if (planId) {
+    const plan = await tx.membershipPlan.findUnique({
+      where: { id: planId },
+      select: { id: true, durationDays: true },
+    });
+    if (plan) {
+      durationDays = plan.durationDays;
+      resolvedPlanId = plan.id;
+    }
+  } else {
+    // Fall back to default active plan
+    const defaultPlan = await tx.membershipPlan.findFirst({
+      where: { isActive: true, isDefault: true },
+      select: { id: true, durationDays: true },
+      orderBy: { createdAt: "asc" },
+    });
+    if (defaultPlan) {
+      durationDays = defaultPlan.durationDays;
+      resolvedPlanId = defaultPlan.id;
+    }
+  }
 
-    const expiresAt = new Date(baseDate);
-    expiresAt.setDate(expiresAt.getDate() + durationDays);
+  // Fetch current user state
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+    select: { isMember: true, memberSince: true, membershipExpiry: true },
+  });
 
-    // Update user — always set membershipExpiry, preserve original memberSince
-    await tx.user.update({
-      where: { id: userId },
+  if (opts.durationDays !== undefined) durationDays = opts.durationDays;
+  if (!Number.isInteger(durationDays) || durationDays <= 0) throw new Error("Invalid membership duration");
+  const now = new Date();
+
+  // Renewal: extend from existing expiry if it hasn't lapsed yet
+  const baseDate =
+    user?.membershipExpiry && user.membershipExpiry > now
+      ? user.membershipExpiry
+      : now;
+
+  const expiresAt = new Date(baseDate);
+  expiresAt.setDate(expiresAt.getDate() + durationDays);
+
+  // Update user — always set membershipExpiry, preserve original memberSince
+  await tx.user.update({
+    where: { id: userId },
+    data: {
+      isMember: true,
+      memberSince: user?.isMember && user.memberSince ? user.memberSince : now,
+      membershipExpiry: expiresAt,
+    },
+  });
+
+  // Record payment if provided
+  if (paywaySessionId) {
+    if (!Number.isFinite(amountPaid) || amountPaid! < 0) throw new Error("Invalid membership amount");
+    await tx.membershipPayment.create({
       data: {
-        isMember: true,
-        memberSince: user?.isMember && user.memberSince ? user.memberSince : now,
-        membershipExpiry: expiresAt,
+        userId,
+        planId: resolvedPlanId,
+        amount: amountPaid!,
+        expiresAt,
+        previousExpiry: user?.membershipExpiry ?? null,
+        paywaySessionId,
       },
     });
+  }
 
-    // Record payment if provided
-    if (paywaySessionId && amountPaid && amountPaid > 0) {
-      await tx.membershipPayment.create({
-        data: {
-          userId,
-          planId: resolvedPlanId,
-          amount: amountPaid,
-          paywaySessionId,
-        },
-      });
-    }
-
-    return { activated: true, alreadyProcessed: false, expiresAt };
-  });
+  return { activated: true, alreadyProcessed: false, expiresAt };
 }
 
 /**
@@ -130,6 +157,16 @@ export async function revokeMembership(userId: string): Promise<void> {
       memberSince: null,
       membershipExpiry: null,
     },
+  });
+}
+
+/** Mark a paid membership as expired while retaining its expiry date. Keeping
+ * this audit value lets the account and checkout surfaces offer a renewal to a
+ * lapsed member instead of treating them as someone who never joined. */
+export async function expireMembership(userId: string): Promise<void> {
+  await db.user.updateMany({
+    where: { id: userId, isMember: true, membershipExpiry: { lte: new Date() } },
+    data: { isMember: false },
   });
 }
 
@@ -185,9 +222,43 @@ export async function enforceExpiry(userId: string): Promise<boolean> {
   if (!user.membershipExpiry) return false;
 
   if (user.membershipExpiry < new Date()) {
-    await revokeMembership(userId);
+    await expireMembership(userId);
     return true;
   }
 
   return false;
+}
+
+/** Remove this purchase's membership time, preserving later paid time and
+ * administrator grants. Follow exact expiry links between paid renewals. */
+export async function refundOrderMembership(tx: Prisma.TransactionClient, orderId: string) {
+  const key = `order:${orderId}:membership`;
+  const original = await tx.membershipPayment.findUnique({ where: { paywaySessionId: key } });
+  if (!original) return;
+  await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${original.userId} FOR UPDATE`;
+  const payment = await tx.membershipPayment.findUnique({ where: { paywaySessionId: key } });
+  if (!payment || payment.refundedAt) return;
+  let oldExpiry = payment.expiresAt;
+  let newExpiry = payment.previousExpiry;
+  if (oldExpiry) {
+    const later = await tx.membershipPayment.findMany({
+      where: { userId: payment.userId, refundedAt: null, createdAt: { gte: payment.createdAt }, id: { not: payment.id } },
+      orderBy: { createdAt: "asc" },
+    });
+    for (const renewal of later) {
+      if (!renewal.expiresAt || renewal.previousExpiry?.getTime() !== oldExpiry.getTime()) continue;
+      // A renewal after the earlier membership expired is independent of it.
+      if (renewal.previousExpiry <= renewal.createdAt) break;
+      const paidDuration = renewal.expiresAt.getTime() - renewal.previousExpiry.getTime();
+      const adjusted = new Date(Math.max(renewal.createdAt.getTime(), newExpiry?.getTime() ?? 0) + paidDuration);
+      await tx.membershipPayment.update({ where: { id: renewal.id }, data: { previousExpiry: newExpiry, expiresAt: adjusted } });
+      oldExpiry = renewal.expiresAt;
+      newExpiry = adjusted;
+    }
+    await tx.user.updateMany({
+      where: { id: payment.userId, membershipExpiry: oldExpiry },
+      data: { isMember: !!newExpiry && newExpiry > new Date(), membershipExpiry: newExpiry },
+    });
+  }
+  await tx.membershipPayment.update({ where: { id: payment.id }, data: { refundedAt: new Date() } });
 }

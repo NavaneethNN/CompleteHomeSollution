@@ -1,8 +1,11 @@
+import { OrderMembershipItem } from "@/components/account/order-membership-item";
+import { orderContentsLabel } from "@/lib/order-display";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import { getOrderById } from "@/lib/actions/orders";
+import { getTrackingUrl } from "@/lib/tracking-url";
 import {
   Package,
   ChevronRight,
@@ -34,6 +37,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const { order, error } = await getOrderById(id);
   if (error || !order) notFound();
 
+  const membershipOnly = order.membershipAmount > 0 && order.items.length === 0;
   const orderDate = new Date(order.createdAt);
   const formattedDate = orderDate.toLocaleDateString("en-AU", {
     day: "numeric", month: "long", year: "numeric",
@@ -43,6 +47,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   });
 
   const isPaid = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(order.status);
+  const trackingUrl = order.trackingNumber ? getTrackingUrl(order.carrier, order.trackingNumber) : null;
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -54,14 +59,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           <ChevronRight className="h-3.5 w-3.5" />
           <Link href="/account/orders" className="hover:text-primary transition-colors">My Orders</Link>
           <ChevronRight className="h-3.5 w-3.5" />
-          <span className="text-foreground font-medium">Order #{order.id.slice(-8).toUpperCase()}</span>
+          <span className="text-foreground font-medium">{order.membershipAmount > 0 && order.items.length === 0 ? "Membership" : "Order"} #{order.id.slice(-8).toUpperCase()}</span>
         </div>
 
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
-              Order #{order.id.slice(-8).toUpperCase()}
+              {order.membershipAmount > 0 && order.items.length === 0 ? "Membership" : "Order"} #{order.id.slice(-8).toUpperCase()}
             </h1>
             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
               <Calendar className="h-4 w-4" />
@@ -83,11 +88,12 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   <Package className="h-5 w-5 text-primary" />
                   Order Items
                   <span className="text-xs font-normal text-muted-foreground ml-1">
-                    ({order.items.length} {order.items.length === 1 ? "item" : "items"})
+                    ({orderContentsLabel(order)})
                   </span>
                 </h2>
               </div>
               <div className="divide-y divide-border">
+                {order.membershipAmount > 0 && <div className="px-5"><OrderMembershipItem amount={order.membershipAmount} durationDays={order.membershipDurationDays} /></div>}
                 {order.items.map((item) => {
                   // Build variant string from productVariant.values or fall back to variantSummary
                   const variantDetails =
@@ -160,7 +166,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             </div>
 
             {/* Shipping / Tracking */}
-            <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+            {!membershipOnly && <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-border">
                 <h2 className="font-bold text-foreground flex items-center gap-2">
                   <Truck className="h-5 w-5 text-primary" /> Shipping Information
@@ -171,6 +177,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   <>
                     <Row label="Carrier" value={order.carrier || "Standard Delivery"} />
                     <Row label="Tracking Number" value={order.trackingNumber} mono />
+                    {trackingUrl && (
+                      <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex text-sm font-semibold text-primary hover:underline">
+                        Track with {order.carrier}
+                      </a>
+                    )}
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground flex items-center gap-2">
@@ -179,7 +190,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   </p>
                 )}
               </div>
-            </div>
+            </div>}
           </div>
 
           {/* ── Right Column ── */}
@@ -193,10 +204,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 </h2>
               </div>
               <div className="px-6 py-4 space-y-3">
-                <Row label="Subtotal" value={`$${order.subtotal.toFixed(2)}`} />
+                {!membershipOnly && <Row label="Subtotal" value={`$${order.subtotal.toFixed(2)}`} />}
+                {order.membershipAmount > 0 && <Row label="Membership" value={`$${order.membershipAmount.toFixed(2)}`} />}
                 <Row
-                  label="Shipping"
-                  value={order.shippingCost === 0 ? "Free" : `$${order.shippingCost.toFixed(2)}`}
+                  label={membershipOnly ? "Delivery" : "Shipping"}
+                  value={membershipOnly ? "Not required" : order.shippingCost === 0 ? "Free" : `$${order.shippingCost.toFixed(2)}`}
                   valueClass={order.shippingCost === 0 ? "text-emerald-600 font-semibold" : undefined}
                 />
                 <Row label="GST (10%)" value={`$${order.tax.toFixed(2)}`} />
@@ -232,7 +244,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-border">
                 <h2 className="font-bold text-foreground flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" /> Delivery Address
+                  <MapPin className="h-5 w-5 text-primary" /> {membershipOnly ? "Billing Address" : "Delivery Address"}
                 </h2>
               </div>
               <div className="px-6 py-4 space-y-2">

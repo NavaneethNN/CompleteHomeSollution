@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState as useStateHook } from "react";
+import { useEffect, useState } from "react";
 import { Check, ShoppingCart } from "lucide-react";
 import { useCartStore } from "@/store/cart";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,7 @@ interface HomeTrendingProductCardProps {
 }
 
 export function HomeTrendingProductCard({ product, isMember = false }: HomeTrendingProductCardProps) {
-  const [mounted, setMounted] = useStateHook(false);
+  const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const isInCartRaw = useCartStore((state) => state.isInCart(product.id, product.variantId ?? null));
   const isInCart = mounted && isInCartRaw;

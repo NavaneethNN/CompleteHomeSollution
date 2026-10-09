@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { TEST_CASES, SUITE_META, type Suite } from "@/lib/qa-test-data";
 import { CheckCircle2, XCircle, ArrowRight, FlaskConical } from "lucide-react";
 
-export const metadata: Metadata = { title: "QA Test Dashboard — CHS" };
+export const metadata: Metadata = { title: "QA Test Dashboard — CHS", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic"; // Always fetch fresh stats from database
 
 async function getSuiteStats(suite: Suite) {

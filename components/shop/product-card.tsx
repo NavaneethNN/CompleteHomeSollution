@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingCart, Layers, Check, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveMemberPrice } from "@/lib/member-price";
 import { useCartStore } from "@/store/cart";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
 import {
@@ -51,7 +52,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
   // Use variant price if available, otherwise use base price
   const displayPrice = product.variant?.price ?? product.basePrice;
   const displayComparePrice = product.variant?.comparePrice ?? product.comparePrice;
-  const displayMemberPrice = product.variant?.memberPrice ?? product.memberPrice;
+  const displayMemberPrice = resolveMemberPrice(displayPrice, product.variant?.memberPrice, product.memberPrice);
   const displayStock = product.variant?.stock ?? product.stock;
   const displayImage = product.variant?.image ?? product.images[0] ?? "/placeholder.jpg";
   const hasDiscount = displayComparePrice && displayComparePrice > displayPrice;
@@ -248,7 +249,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
           )}
 
           {displayStock > 0 && displayStock <= 5 && (
-            <p className="text-[10px] text-amber-600 font-medium">Only {displayStock} left!</p>
+            <p className="text-[10px] text-amber-800 font-medium">Only {displayStock} left!</p>
           )}
 
           {/* Mobile add to cart */}

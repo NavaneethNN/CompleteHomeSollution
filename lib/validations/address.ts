@@ -6,12 +6,12 @@ export const addressSchema = z.object({
   line1: z.string().min(1, "Street address is required").max(100, "Address is too long"),
   line2: z.string().max(100, "Address is too long").optional(),
   suburb: z.string().min(1, "Suburb is required").max(50, "Suburb name is too long"),
-  state: z.string().min(1, "State is required"),
+  state: z.string().max(3).refine(value => ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"].includes(value), "Select an Australian state or territory"),
   postcode: z
     .string()
     .min(1, "Postcode is required")
     .regex(/^\d{4}$/, "Enter a valid 4-digit Australian postcode"),
-  country: z.string().min(1, "Country is required"),
+  country: z.string().max(2).refine((value): boolean => value === "AU", "Delivery is available within Australia"),
 });
 
 export const profileSchema = z.object({

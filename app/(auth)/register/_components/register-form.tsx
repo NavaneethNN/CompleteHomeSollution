@@ -286,7 +286,7 @@ export default function RegisterForm() {
               <p className="text-3xl xl:text-[38px] font-script text-primary italic leading-snug">
                 Delivered to Your Door
               </p>
-              <p className="text-white/65 text-sm leading-relaxed mt-4 max-w-[340px]">
+              <p className="text-white/80 text-sm leading-relaxed mt-4 max-w-[340px]">
                 Join thousands of Australians who trust Complete Home Sollution for quality furniture, fast nationwide delivery, and exclusive member-only pricing.
               </p>
             </div>
@@ -302,7 +302,7 @@ export default function RegisterForm() {
                     <p className="text-white text-sm font-semibold leading-none mb-1">
                       {title}
                     </p>
-                    <p className="text-white/55 text-xs leading-relaxed">{desc}</p>
+                    <p className="text-white/80 text-xs leading-relaxed">{desc}</p>
                   </div>
                 </li>
               ))}
@@ -310,7 +310,7 @@ export default function RegisterForm() {
           </div>
 
           {/* Bottom sign-in prompt */}
-          <p className="text-white/50 text-sm">
+          <p className="text-white/80 text-sm">
             Already a member?{" "}
             <Link
               href={`/login${callbackUrl !== "/account/dashboard" ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
@@ -618,7 +618,7 @@ export default function RegisterForm() {
                 <span className="text-xs text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
                   I agree to Complete Home Sollution&apos;s{" "}
                   <Link
-                    href="/terms"
+                    href="/terms-of-service"
                     className="text-primary font-semibold hover:underline focus-visible:outline-none"
                     tabIndex={-1}
                   >
@@ -626,7 +626,7 @@ export default function RegisterForm() {
                   </Link>{" "}
                   and{" "}
                   <Link
-                    href="/privacy"
+                    href="/privacy-policy"
                     className="text-primary font-semibold hover:underline focus-visible:outline-none"
                     tabIndex={-1}
                   >

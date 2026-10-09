@@ -6,7 +6,7 @@ This guide will help you set up the Complete Home Sollution furniture e-commerce
 
 Before you begin, ensure you have the following installed:
 
-- **Node.js** 18.x or higher ([Download](https://nodejs.org/))
+- **Node.js** 22.12 or newer within the 22.x line ([Download](https://nodejs.org/))
 - **npm** or **pnpm** (npm comes with Node.js)
 - **Git** ([Download](https://git-scm.com/))
 - A code editor (VS Code recommended)
@@ -21,17 +21,17 @@ cd CompleteHomeSollution
 ## 2. Install Dependencies
 
 ```bash
-npm install
+npm ci
 ```
 
 This will install all required packages including Next.js, Prisma, NextAuth, and other dependencies.
 
 ## 3. Environment Variables Setup
 
-Create a `.env.local` file in the project root (copy from `.env` as a template):
+Create a `.env.local` file in the project root:
 
 ```bash
-cp .env .env.local
+cp .env.example .env.local
 ```
 
 Edit `.env.local` and fill in the following required environment variables:
@@ -170,6 +170,46 @@ npm run dev
 ```
 
 The application will be available at [http://localhost:3000](http://localhost:3000).
+The default command uses HTTP so browsers and IDE previews can load the site
+without a local certificate. The `dev:http` script sets the local app and auth
+URLs to HTTP for that process.
+
+### Test OnlinePay locally
+
+OnlinePay needs an HTTPS return address that reaches this app. One way to
+expose local port 3000 is a Cloudflare Quick Tunnel:
+
+```bash
+brew install cloudflared
+cloudflared tunnel --url http://localhost:3000
+```
+
+The command prints a temporary HTTPS address. Anyone with that address can
+reach the local app while the tunnel runs, so use only test payment credentials.
+Set the following in `.env.local` to
+the tunnel's HTTPS origin (for example, `https://your-tunnel.example`):
+
+```env
+AUTH_URL=https://your-tunnel.example
+NEXTAUTH_URL=https://your-tunnel.example
+NEXT_PUBLIC_APP_URL=https://your-tunnel.example
+ONLINEPAY_RETURN_BASE_URL=https://your-tunnel.example
+```
+
+Start the app with `npm run dev:tunnel` and open the store through the tunnel
+address. This script serves HTTP behind the tunnel and reads the URLs from
+`.env.local` instead of forcing localhost. If you use Google sign-in, register
+the tunnel's callback URL with Google too.
+The tunnel must remain running until OnlinePay redirects the browser back.
+To test automatic order settlement, register
+`https://your-tunnel.example/api/webhooks/onlinepay` as the test webhook URL
+in the OnlinePay dashboard.
+
+Do not use `https://localhost:3000` as the return URL while the HTTP dev server
+is running: the redirect will fail to connect. `npm run dev:https` is available
+for local HTTPS testing with `certificates/localhost-key.pem` and
+`certificates/localhost.pem`, but those existing self signed files can trigger a
+certificate warning and localhost is not reachable by OnlinePay webhooks.
 
 ## 6. Build for Production
 

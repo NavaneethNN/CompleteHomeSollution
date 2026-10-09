@@ -85,7 +85,7 @@ export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }:
         <div className="flex items-end justify-between gap-2">
           {/* Price */}
           <div className="min-w-0">
-            {hasMemberPrice ? (
+            {isOutOfStock ? <span className="text-sm font-semibold text-destructive">Unavailable</span> : hasMemberPrice ? (
               <>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-sm font-bold text-primary">{currencyFormatter.format(subtotal)}</span>
@@ -98,7 +98,7 @@ export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }:
             ) : (
               <span className="text-sm font-bold text-foreground">{currencyFormatter.format(subtotal)}</span>
             )}
-            {quantity > 1 && (
+            {quantity > 1 && !isOutOfStock && (
               <p className="text-[11px] text-muted-foreground">
                 {currencyFormatter.format(effectivePrice)} each
               </p>

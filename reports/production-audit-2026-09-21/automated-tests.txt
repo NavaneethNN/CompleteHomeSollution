@@ -1,0 +1,229 @@
+
+> complete-home-sollution@0.1.0 test:checkout
+> node --import tsx --test tests/*.test.ts
+
+TAP version 13
+# Subtest: cart rejects invalid quantities and keeps variants separate
+ok 1 - cart rejects invalid quantities and keeps variants separate
+  ---
+  duration_ms: 13.851541
+  ...
+# Subtest: activation uses purchased duration and records one entitlement on duplicate delivery
+ok 2 - activation uses purchased duration and records one entitlement on duplicate delivery
+  ---
+  duration_ms: 2.158167
+  ...
+# Subtest: renewal extends existing expiry and a full refund restores the previous entitlement
+ok 3 - renewal extends existing expiry and a full refund restores the previous entitlement
+  ---
+  duration_ms: 0.430333
+  ...
+# Subtest: full refund revokes a first membership but preserves an unrelated admin grant
+ok 4 - full refund revokes a first membership but preserves an unrelated admin grant
+  ---
+  duration_ms: 0.286125
+  ...
+# Subtest: zero-cost recorded activations remain idempotent
+ok 5 - zero-cost recorded activations remain idempotent
+  ---
+  duration_ms: 0.211625
+  ...
+# Subtest: refunding an earlier membership removes its time while preserving a subsequent paid renewal
+ok 6 - refunding an earlier membership removes its time while preserving a subsequent paid renewal
+  ---
+  duration_ms: 0.238208
+  ...
+# Subtest: refund resolves payment ID and retries with the same UUID and integer cents
+ok 7 - refund resolves payment ID and retries with the same UUID and integer cents
+  ---
+  duration_ms: 19.721125
+  ...
+# Subtest: refund rejects mismatched reference, amount, currency and unproved payment before POST
+ok 8 - refund rejects mismatched reference, amount, currency and unproved payment before POST
+  ---
+  duration_ms: 2.477375
+  ...
+# Subtest: refund accepts event transaction ID when checkout has no top-level ID
+ok 9 - refund accepts event transaction ID when checkout has no top-level ID
+  ---
+  duration_ms: 2.742417
+  ...
+# Subtest: pending and declined refund responses never establish a completed refund
+ok 10 - pending and declined refund responses never establish a completed refund
+  ---
+  duration_ms: 22.655875
+  ...
+# Subtest: unverified and uncertain refund outcomes retain the refund claim
+ok 11 - unverified and uncertain refund outcomes retain the refund claim
+  ---
+  duration_ms: 6.872416
+  ...
+# Subtest: invalid fractional-cent refunds never reach the gateway
+ok 12 - invalid fractional-cent refunds never reach the gateway
+  ---
+  duration_ms: 0.305083
+  ...
+# Subtest: a pending refund is reconciled from its own settled transaction without trusting another refund
+ok 13 - a pending refund is reconciled from its own settled transaction without trusting another refund
+  ---
+  duration_ms: 2.127167
+  ...
+# Subtest: billing addresses preserve all characters within provider line limits
+ok 14 - billing addresses preserve all characters within provider line limits
+  ---
+  duration_ms: 0.668708
+  ...
+# Subtest: authentication and token events never establish a paid order
+ok 15 - authentication and token events never establish a paid order
+  ---
+  duration_ms: 0.095292
+  ...
+# Subtest: transaction success establishes payment even after a failed card attempt
+ok 16 - transaction success establishes payment even after a failed card attempt
+  ---
+  duration_ms: 0.069667
+  ...
+# Subtest: a retryable card decline does not close the hosted checkout
+ok 17 - a retryable card decline does not close the hosted checkout
+  ---
+  duration_ms: 0.104708
+  ...
+# Subtest: missing payment evidence is pending
+ok 18 - missing payment evidence is pending
+  ---
+  duration_ms: 0.056459
+  ...
+# Subtest: reject invalid checkout IDs before making a provider request
+ok 19 - reject invalid checkout IDs before making a provider request
+  ---
+  duration_ms: 0.142042
+  ...
+# Subtest: hosted checkout sends integer AUD amount and handles upstream failure
+ok 20 - hosted checkout sends integer AUD amount and handles upstream failure
+  ---
+  duration_ms: 14.694083
+  ...
+# Subtest: guest access is bound to an order and email, not knowledge of the email alone
+ok 21 - guest access is bound to an order and email, not knowledge of the email alone
+  ---
+  duration_ms: 1.392542
+  ...
+# Subtest: payment return token is scoped to one order and expires
+ok 22 - payment return token is scoped to one order and expires
+  ---
+  duration_ms: 0.463833
+  ...
+# Subtest: payment return token is rejected when no signing secret is configured
+ok 23 - payment return token is rejected when no signing secret is configured
+  ---
+  duration_ms: 0.3115
+  ...
+# Subtest: refund and membership routes reject unauthenticated callers and refund ownership violations
+ok 24 - refund and membership routes reject unauthenticated callers and refund ownership violations
+  ---
+  duration_ms: 7.748083
+  ...
+# Subtest: refund route rejects fractional cents, excess amounts, pending payments, and competing attempts
+ok 25 - refund route rejects fractional cents, excess amounts, pending payments, and competing attempts
+  ---
+  duration_ms: 2.839875
+  ...
+# Subtest: partial then remaining refund records cumulative cents and restores stock once
+ok 26 - partial then remaining refund records cumulative cents and restores stock once
+  ---
+  duration_ms: 8.515
+  ...
+# Subtest: provider success followed by DB failure can reconcile with the original idempotency key
+ok 27 - provider success followed by DB failure can reconcile with the original idempotency key
+  ---
+  duration_ms: 3.515042
+  ...
+# Subtest: concurrent identical refunds restore inventory once
+ok 28 - concurrent identical refunds restore inventory once
+  ---
+  duration_ms: 2.176375
+  ...
+# Subtest: customer pre-shipment OnlinePay cancellation returns funds and stock
+ok 29 - customer pre-shipment OnlinePay cancellation returns funds and stock
+  ---
+  duration_ms: 2.055292
+  ...
+# Subtest: membership fee cancellation is referred for administrator review
+ok 30 - membership fee cancellation is referred for administrator review
+  ---
+  duration_ms: 0.804875
+  ...
+# Subtest: membership activation failure rolls back payment settlement and stock for retry
+ok 31 - membership activation failure rolls back payment settlement and stock for retry
+  ---
+  duration_ms: 0.814709
+  ...
+# Subtest: standalone membership creates a hosted order with a snapshot and reuses the outstanding checkout
+ok 32 - standalone membership creates a hosted order with a snapshot and reuses the outstanding checkout
+  ---
+  duration_ms: 2.894875
+  ...
+# Subtest: missing membership migration returns unavailable without contacting the gateway
+ok 33 - missing membership migration returns unavailable without contacting the gateway
+  ---
+  duration_ms: 1.039083
+  ...
+# Subtest: missing return-link signing secret does not leave a pending membership order
+ok 34 - missing return-link signing secret does not leave a pending membership order
+  ---
+  duration_ms: 0.692167
+  ...
+# Subtest: membership rejects oversized addresses before creating an order
+ok 35 - membership rejects oversized addresses before creating an order
+  ---
+  duration_ms: 0.69775
+  ...
+# Subtest: provider billing rejection cancels the order and returns a correctable error
+ok 36 - provider billing rejection cancels the order and returns a correctable error
+  ---
+  duration_ms: 1.102458
+  ...
+# Subtest: uncertain provider failure preserves the order and prevents a second checkout
+ok 37 - uncertain provider failure preserves the order and prevents a second checkout
+  ---
+  duration_ms: 1.206042
+  ...
+# Subtest: verified membership payment settles and activates exactly once across repeated polls
+ok 38 - verified membership payment settles and activates exactly once across repeated polls
+  ---
+  duration_ms: 1.448542
+  ...
+# Subtest: mismatched provider payment details never settle a membership order
+ok 39 - mismatched provider payment details never settle a membership order
+  ---
+  duration_ms: 1.144542
+  ...
+# Subtest: shipping quote token verifies the exact quoted rate
+ok 40 - shipping quote token verifies the exact quoted rate
+  ---
+  duration_ms: 0.901917
+  ...
+# Subtest: shipping quote token rejects tampering and expiry
+ok 41 - shipping quote token rejects tampering and expiry
+  ---
+  duration_ms: 0.240208
+  ...
+# Subtest: creates direct links for supported couriers
+ok 42 - creates direct links for supported couriers
+  ---
+  duration_ms: 0.448458
+  ...
+# Subtest: does not create external links from unrecognised courier text
+ok 43 - does not create external links from unrecognised courier text
+  ---
+  duration_ms: 0.072542
+  ...
+1..43
+# tests 43
+# suites 0
+# pass 43
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 428.456458

@@ -1,19 +1,21 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
+import { neonConfig } from "@neondatabase/serverless";
+import WebSocket from "ws";
+
+neonConfig.webSocketConstructor = WebSocket;
 
 function createPrismaClient() {
-  // Use the direct (non-pooler) URL in development — the pooler hostname is
-  // only reachable from Vercel/serverless environments, not from localhost.
-  // In production the pooler URL is fine and preferred for connection reuse.
+  // Use the application's pooled connection in every environment. The direct
+  // connection is primarily for migrations (configured in prisma.config.ts).
   const connectionString =
-    process.env.NODE_ENV === "production"
-      ? (process.env.DATABASE_URL ?? "")
-      : (process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? "");
+    process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED || "";
 
-  const adapter = new PrismaNeon({ connectionString });
+  const adapter = new PrismaNeon({ connectionString, max: 5, connectionTimeoutMillis: 10000, idleTimeoutMillis: 30000 });
 
   return new PrismaClient({
     adapter,
+    transactionOptions: { maxWait: 10000, timeout: 15000 },
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 }
@@ -26,4 +28,4 @@ const globalForPrisma = globalThis as unknown as {
 
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+globalForPrisma.prisma = db;

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { hasActiveMembership } from "@/lib/membership";
 import { CategoryProductsClient } from "@/components/shop/category-products-client";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 
@@ -110,10 +111,18 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   if (!data) notFound();
 
   const { category, products } = data;
-  const dbUser = session?.user?.id
-    ? await db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
-    : null;
-  const isMember = dbUser?.isMember ?? false;
+  let isMember = false;
+  if (session?.user?.id) {
+    try {
+      const membership = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true, membershipExpiry: true },
+      });
+      isMember = hasActiveMembership(membership);
+    } catch {
+      // The category data already has a storefront fallback.
+    }
+  }
 
   return (
     <main className="min-h-screen bg-background">

@@ -4,7 +4,7 @@
  * Docs: https://payway.stgeorge.com.au/docs/rest.html
  */
 
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 
 const PAYWAY_BASE_URL = "https://api.payway.com.au/rest/v1";
 
@@ -81,6 +81,7 @@ async function request<T>(
     headers,
     body: requestBody,
     cache: "no-store",
+    signal: AbortSignal.timeout(15000),
   });
 
   const text = await res.text();
@@ -106,8 +107,9 @@ export async function chargeToken(params: {
   principalAmount: number;
   customerIpAddress?: string;
   merchantId?: string;
+  idempotencyKey?: string;
 }): Promise<PayWayTransaction> {
-  const idempotencyKey = randomUUID();
+  const idempotencyKey = params.idempotencyKey ?? randomUUID();
   const orderNumber = params.orderNumber.slice(-20);
   const merchantId = params.merchantId ?? process.env.PAYWAY_MERCHANT_ID ?? "TEST";
 
@@ -133,10 +135,12 @@ export async function chargeToken(params: {
  */
 export async function refundTransaction(params: {
   parentTransactionId: number | string;
+  refundedBefore?: number;
   principalAmount: number;
   orderNumber: string;
 }): Promise<PayWayTransaction> {
-  const idempotencyKey = randomUUID();
+  const hash = createHash("sha256").update(`refund:${params.orderNumber}:${params.parentTransactionId}:${params.principalAmount}:${params.refundedBefore ?? 0}`).digest("hex");
+  const idempotencyKey = `${hash.slice(0,8)}-${hash.slice(8,12)}-4${hash.slice(13,16)}-a${hash.slice(17,20)}-${hash.slice(20,32)}`;
   const orderNumber = params.orderNumber.slice(-20);
 
   return request<PayWayTransaction>(

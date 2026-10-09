@@ -1,115 +1,112 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { chargeToken, PayWayApiError } from "@/lib/payway";
-import { activateMembership } from "@/lib/membership";
+import { createOnlinePayCheckout, validateOnlinePayConfiguration, OnlinePayCheckoutError } from "@/lib/onlinepay";
+import { createOrderReturnToken } from "@/lib/order-access";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 const bodySchema = z.object({
-  singleUseTokenId: z.string().uuid("Invalid payment token"),
-  planId: z.string().optional(),
+  planId: z.string().cuid().optional(),
+  address: z.object({
+    name: z.string().trim().min(2).max(100),
+    phone: z.string().trim().min(1).max(30),
+    line1: z.string().trim().min(3).max(120, "Billing address must be 120 characters or fewer."),
+    suburb: z.string().trim().min(2).max(100),
+    state: z.enum(["NSW", "VIC", "QLD", "WA", "SA", "TAS", "ACT", "NT"]),
+    postcode: z.string().regex(/^\d{4}$/),
+  }),
 });
 
 export async function POST(req: NextRequest) {
+  let createdOrderId: string | undefined;
+  let stage = "configuration";
   try {
     const session = await auth();
-    if (!session?.user?.id || !session.user.email) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    if (!session?.user?.id || !session.user.email) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    const limit = await consumeRateLimit("membership-checkout", `${getClientIp(req.headers)}:${session.user.id}`, 30, 10 * 60);
+    if (!limit.allowed) return rateLimitResponse(limit);
+    const parsed = bodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    if ((process.env.PAYMENT_GATEWAY ?? process.env.NEXT_PUBLIC_PAYMENT_GATEWAY) !== "onlinepay") {
+      return NextResponse.json({ error: "OnlinePay membership checkout is unavailable." }, { status: 503 });
     }
-
-    const rawBody = await req.json().catch(() => ({}));
-    const parsed = bodySchema.safeParse(rawBody);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+    const appUrl = process.env.ONLINEPAY_RETURN_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
+    if (!appUrl || !URL.canParse(appUrl) || new URL(appUrl).protocol !== "https:") {
+      return NextResponse.json({ error: "Secure payment checkout is not configured." }, { status: 503 });
     }
-    const { singleUseTokenId, planId } = parsed.data;
-
-    const [user, plan] = await Promise.all([
-      db.user.findUnique({
-        where: { id: session.user.id },
-        select: { isMember: true, membershipExpiry: true },
-      }),
-      planId
-        ? db.membershipPlan.findFirst({ where: { id: planId, isActive: true } })
-        : db.membershipPlan
-            .findFirst({ where: { isActive: true, isDefault: true }, orderBy: { createdAt: "asc" } })
-            .then((p) => p ?? db.membershipPlan.findFirst({ where: { isActive: true }, orderBy: { price: "asc" } })),
-    ]);
-
-    const now = new Date();
-    const isExpired = user?.isMember && user.membershipExpiry && user.membershipExpiry < now;
-
-    // Auto-revoke expired membership silently
-    if (isExpired) {
-      await db.user.update({
-        where: { id: session.user.id },
-        data: { isMember: false, memberSince: null, membershipExpiry: null },
+    const returnOrigin = new URL(appUrl);
+    if (["localhost", "127.0.0.1", "[::1]"].includes(returnOrigin.hostname) && req.nextUrl.origin !== returnOrigin.origin) {
+      return NextResponse.json({ error: "The payment return URL points to HTTPS localhost, but this site is running at a different address. Use an HTTPS development tunnel for ONLINEPAY_RETURN_BASE_URL and open the store through that address." }, { status: 503 });
+    }
+    validateOnlinePayConfiguration();
+    if (!(process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET)) {
+      return NextResponse.json({ error: "Secure payment checkout is not configured." }, { status: 503 });
+    }
+    const { planId, address } = parsed.data;
+    const plan = planId
+      ? await db.membershipPlan.findFirst({ where: { id: planId, isActive: true } })
+      : await db.membershipPlan.findFirst({ where: { isActive: true }, orderBy: [{ isDefault: "desc" }, { price: "asc" }] });
+    if (!plan || !Number.isFinite(plan.price) || plan.price <= 0 || plan.durationDays <= 0) {
+      return NextResponse.json({ error: "Membership plan is unavailable." }, { status: 404 });
+    }
+    const userId = session.user.id;
+    stage = "create-order";
+    const result = await db.$transaction(async (tx) => {
+      // One outstanding membership checkout per account, even across browser tabs.
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+      const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+      if (user.isMember && (!user.membershipExpiry || user.membershipExpiry > new Date())) return null;
+      const existing = await tx.order.findFirst({
+        where: { userId, status: "PENDING", membershipAmount: { gt: 0 } }, orderBy: { createdAt: "desc" },
       });
-    }
-
-    // Block active members (API guard — UI also hides the button)
-    if (user?.isMember && !isExpired) {
-      return NextResponse.json(
-        { error: "You already have an active membership." },
-        { status: 409 }
-      );
-    }
-
-    if (!plan) {
-      return NextResponse.json({ error: "No membership plans available" }, { status: 404 });
-    }
-
-    const customerIp =
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      undefined;
-
-    // Charge via PayWay
-    let txn;
-    try {
-      txn = await chargeToken({
-        singleUseTokenId,
-        orderNumber: `MBR-${session.user.id}`,
-        principalAmount: plan.price,
-        customerIpAddress: customerIp,
-      });
-    } catch (err) {
-      console.error("[membership checkout] PayWay charge failed", err);
-      const userMessage =
-        err instanceof PayWayApiError
-          ? (err.errors[0]?.message ?? err.message)
-          : "Payment failed. Please try again.";
-      return NextResponse.json({ error: userMessage }, { status: 422 });
-    }
-
-    if (txn.status === "declined" || txn.status === "suspended") {
-      return NextResponse.json(
-        { error: txn.responseText || "Payment declined.", status: "declined" },
-        { status: 402 }
-      );
-    }
-
-    // Activate membership
-    await activateMembership({
-      userId: session.user.id,
-      planId: plan.id,
-      paywaySessionId: String(txn.transactionId),
-      amountPaid: txn.paymentAmount,
+      if (existing) return { order: existing, created: false };
+      const order = await tx.order.create({ data: {
+        user: { connect: { id: userId } }, address: { create: { ...address, country: "AU" } },
+        subtotal: 0, shippingCost: 0, tax: 0, total: Math.round(plan.price * 100) / 100,
+        membershipAmount: Math.round(plan.price * 100) / 100, membershipPlanId: plan.id, membershipDurationDays: plan.durationDays,
+      } });
+      return { order, created: true };
     });
-
-    console.log(
-      `[membership] Activated — user ${session.user.id}, plan "${plan.name}", txn ${txn.transactionId}`
-    );
-
-    return NextResponse.json({
-      status: "success",
-      transactionId: txn.transactionId,
-      receiptNumber: txn.receiptNumber,
-      plan: plan.name,
-      price: plan.price,
+    if (!result) return NextResponse.json({ error: "You already have an active membership." }, { status: 409 });
+    const { order } = result;
+    const returnUrl = `${appUrl.replace(/\/$/, "")}/order-confirmation/${order.id}?return_token=${createOrderReturnToken(order.id)}`;
+    if (!result.created) return NextResponse.json({ url: returnUrl });
+    createdOrderId = order.id;
+    const [firstName, ...lastName] = address.name.split(/\s+/);
+    stage = "create-hosted-checkout";
+    const checkout = await createOnlinePayCheckout({
+      amountCents: Math.round(order.total * 100), merchantReference: order.id,
+      returnUrl, shopUrl: `${appUrl.replace(/\/$/, "")}/membership`,
+      customer: { email: session.user.email, firstName, lastName: lastName.join(" ") || firstName,
+        address1: address.line1, city: address.suburb, state: address.state, postcode: address.postcode },
+      lineItems: [{ name: `${plan.name} membership`, quantity: 1, unitPriceCents: Math.round(order.total * 100) }],
     });
+    stage = "save-hosted-checkout";
+    await db.order.update({ where: { id: order.id }, data: { paywayTransactionId: `ONLINEPAY:${checkout.id}` } });
+    return NextResponse.json({ url: checkout.url });
   } catch (error) {
-    console.error("[POST /api/membership/checkout]", error);
-    return NextResponse.json({ error: "Failed to process membership payment" }, { status: 500 });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && ["P2021", "P2022"].includes(error.code) && !createdOrderId) {
+      console.error("[membership checkout] Database schema is out of date. Run npm run db:deploy.", { code: error.code });
+      return NextResponse.json({ error: "Membership checkout is temporarily unavailable. Please try again later." }, { status: 503 });
+    }
+    if (createdOrderId && error instanceof OnlinePayCheckoutError && error.definitelyRejected) {
+      try {
+        await db.order.updateMany({ where: { id: createdOrderId, status: "PENDING", paywayTransactionId: null }, data: { status: "CANCELLED" } });
+      } catch {
+        console.error("[membership checkout] Could not cancel rejected checkout", { orderId: createdOrderId });
+      }
+    }
+    // Do not create another charge when the provider's outcome is unknown.
+    console.error("[membership checkout] Unable to create or record hosted checkout", {
+      stage, orderId: createdOrderId,
+      ...(error instanceof OnlinePayCheckoutError ? { httpStatus: error.httpStatus, invalidFields: error.invalidFields, definitelyRejected: error.definitelyRejected } : {}),
+      ...(error instanceof Prisma.PrismaClientKnownRequestError ? { databaseCode: error.code } : {}),
+    });
+    if (error instanceof OnlinePayCheckoutError && error.definitelyRejected && error.invalidFields.some(field => field.startsWith("customer_details.billing."))) {
+      return NextResponse.json({ error: "The payment provider rejected your billing details. Please check your name and address and try again." }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Checkout could not be confirmed. Check your orders or contact support before trying again." }, { status: 502 });
   }
 }

@@ -17,6 +17,7 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
     <nav aria-label="Breadcrumb" className="flex items-center min-w-0 overflow-hidden">
       <Link
         href="/"
+        aria-label="Home"
         className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 shrink-0"
       >
         <Home className="w-3.5 h-3.5 sm:w-4 sm:h-4" />

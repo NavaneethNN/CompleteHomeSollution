@@ -1,0 +1,43 @@
+Audit date: 2026-09-21
+
+Production build: isolated copy of the working tree, sharing installed node_modules;
+next build with network access: exit 0. Development server stayed on port 3000.
+First sandboxed build failed to resolve fonts.googleapis.com; the network-enabled
+retry passed. This initial sandbox restriction is not a site defect.
+
+Isolated next start --port 3100:
+GET / => 200 (not sufficient evidence of working database)
+GET /api/products => 500
+GET /api/qa/results => 500
+Runtime log repeatedly includes:
+  TypeError: b.mask is not a function
+  at a.exports.mask (.next/server/chunks/5847.js:1:35524)
+  at s.frame (.next/server/chunks/5847.js:2:2764)
+  prisma:error Connection terminated unexpectedly
+
+Same build, comparison instance only:
+WS_NO_BUFFER_UTIL=1 npm run start -- --port 3101
+GET /api/products => 200
+This verifies a narrow workaround, not all production flows or deployment targets.
+
+Development HTTPS instance:
+GET /api/products => 200
+GET /api/qa/results => 200 without authentication
+GET /terms => 404
+GET /privacy => 404
+POST /api/shipping/auspost {postcode: "2000", weightKg: 2} => 200, two rates
+  Express Post: 48.05 AUD
+  Parcel Post: 28.15 AUD
+No payment or shipment was created by this quote request.
+
+Database checks (all passed):
+ npm run check:checkout -- runtime reads checkout/refund/membership columns
+ npm run check:membership -- creation, activation, duplicate guard, refund; rolled back
+ npm run check:order-transaction -- settlement/stock/refund claims; rolled back
+
+Configuration caveat: the environment-summary.json captures .env and the audit
+process environment. It does not prove the running server or a deployed host has
+identical environment variables. The missing AUSPOST_API_KEY in that snapshot is
+not reported as a confirmed shipping outage, because the actual quote returned 200.
+
+OnlinePay audit smoke test: PASS hosted checkout created and provider lookup matched reference/amount/currency; no card submitted or payment taken.

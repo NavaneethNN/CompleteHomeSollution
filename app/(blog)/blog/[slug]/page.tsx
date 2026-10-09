@@ -24,6 +24,9 @@ import {
 import BlogRelatedPosts from "@/components/blog/blog-related-posts";
 import BlogSocialShare from "@/components/blog/blog-social-share";
 import BlogLikeButton from "@/components/blog/blog-like-button";
+import { hasActiveMembership } from "@/lib/membership";
+import { publishedBlogWhere } from "@/lib/blog-publication";
+import { sanitizeBlogHtml } from "@/lib/sanitize-blog-html";
 
 // Helper function to calculate reading time
 function calculateReadingTime(content: string): number {
@@ -97,8 +100,11 @@ function processContent(content: string): string {
 }
 
 async function getBlogPost(slug: string, userId?: string) {
-  const post = await db.blogPost.findUnique({
-    where: { slug },
+  const post = await db.blogPost.findFirst({
+    where: {
+      slug,
+      ...publishedBlogWhere(),
+    },
     include: {
       author: { select: { id: true, name: true, image: true, isMember: true } },
       category: { select: { id: true, name: true, slug: true, color: true } },
@@ -133,7 +139,7 @@ async function getBlogPost(slug: string, userId?: string) {
   const readTime = calculateReadingTime(post.content);
   
   // Process content for embedded media
-  const processedContent = processContent(post.content);
+  const processedContent = sanitizeBlogHtml(processContent(post.content));
 
   return {
     ...post,
@@ -147,7 +153,7 @@ async function getBlogPost(slug: string, userId?: string) {
 async function getRelatedPosts(postId: string, categoryId?: string, limit = 3) {
   const where: any = {
     id: { not: postId },
-    status: "PUBLISHED",
+    ...publishedBlogWhere(),
   };
 
   if (categoryId) {
@@ -175,14 +181,18 @@ interface BlogPostPageProps {
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const post = await db.blogPost.findUnique({
-    where: { slug },
+  const post = await db.blogPost.findFirst({
+    where: {
+      slug,
+      ...publishedBlogWhere(),
+    },
     select: {
       title: true,
       excerpt: true,
       coverImage: true,
       seoTitle: true,
       seoDescription: true,
+      isMemberOnly: true,
     },
   });
 
@@ -191,6 +201,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   return {
     title: post.seoTitle || post.title,
     description: post.seoDescription || post.excerpt || undefined,
+    alternates: { canonical: `/blog/${slug}` },
+    robots: post.isMemberOnly ? { index: false, follow: false } : undefined,
     openGraph: {
       title: post.seoTitle || post.title,
       description: post.seoDescription || post.excerpt || undefined,
@@ -202,7 +214,13 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const session = await auth();
-  const isMember = session?.user?.isMember ?? false;
+  const membership = session?.user?.id
+    ? await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true, membershipExpiry: true },
+      })
+    : null;
+  const isMember = hasActiveMembership(membership);
   const { slug } = await params;
 
   const post = await getBlogPost(slug, session?.user?.id);

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { ShoppingBag } from "lucide-react";
-import { useMemo } from "react";
-import { useCartStore } from "@/store/cart";
+import { useEffect, useMemo, useState } from "react";
+import { useCartStore, type CartProduct } from "@/store/cart";
 import { CartItem } from "./cart-item";
 import { CartSummary } from "./cart-summary";
 import { CartUpsell } from "./cart-upsell";
@@ -22,19 +22,39 @@ export function CartPage({ isMember = false }: CartPageProps) {
   const removeItem = useCartStore((state) => state.removeItem);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const clearCart = useCartStore((state) => state.clearCart);
+  const [catalog, setCatalog] = useState<Record<string, CartProduct>>({});
+  const [refreshState, setRefreshState] = useState<"loading" | "ready" | "error">("loading");
+  const productIds = JSON.stringify([...new Set(items.map(item => item.product.id))]);
+  useEffect(() => {
+    if (productIds === "[]") return;
+    const controller = new AbortController();
+    setRefreshState("loading");
+    fetch("/api/cart/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: JSON.parse(productIds) }), signal: controller.signal })
+      .then(async response => { if (!response.ok) throw new Error("Catalog refresh failed"); return response.json(); })
+      .then(data => { if (!controller.signal.aborted) { setCatalog(data.catalog); setRefreshState("ready"); } })
+      .catch(() => { if (!controller.signal.aborted) setRefreshState("error"); });
+    return () => controller.abort();
+  }, [productIds]);
+  const currentItems = useMemo(() => items.map(item => {
+    const current = catalog[item.product.variantId ?? item.product.id];
+    return { ...item, product: current?.id === item.product.id ? current : { ...item.product, price: 0, memberPrice: null, stock: 0 } };
+  }), [items, catalog]);
+  const unavailable = currentItems.some(item => item.product.stock < item.quantity);
+  const priceChanged = refreshState === "ready" && currentItems.some((item, index) => item.product.stock > 0 && (item.product.price !== items[index].product.price || item.product.memberPrice !== items[index].product.memberPrice));
 
   const subtotal = useMemo(
-    () => items.reduce((total, item) => {
+    () => currentItems.reduce((total, item) => {
+      if (item.product.stock <= 0) return total;
       const basePrice = Math.max(0, item.product.price ?? 0);
       const memberPrice = item.product.memberPrice && item.product.memberPrice > 0 ? item.product.memberPrice : null;
       const effectivePrice = isMember && memberPrice !== null ? memberPrice : basePrice;
       return total + effectivePrice * item.quantity;
     }, 0),
-    [items, isMember]
+    [currentItems, isMember]
   );
   const fullSubtotal = useMemo(
-    () => items.reduce((total, item) => total + Math.max(0, item.product.price ?? 0) * item.quantity, 0),
-    [items]
+    () => currentItems.reduce((total, item) => total + (item.product.stock > 0 ? Math.max(0, item.product.price ?? 0) * item.quantity : 0), 0),
+    [currentItems]
   );
   const memberSavings = isMember ? fullSubtotal - subtotal : 0;
 
@@ -92,9 +112,13 @@ export function CartPage({ isMember = false }: CartPageProps) {
           </button>
         </div>
 
-        <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        {refreshState === "error" && <p role="alert" className="mb-4 text-sm text-destructive">Current prices and stock could not be loaded. Reload the page to try again.</p>}
+        {refreshState === "loading" && <p role="status" className="mb-4 text-sm text-muted-foreground">Checking current prices and stock…</p>}
+        {priceChanged && <p role="status" className="mb-4 text-sm text-foreground">Prices have changed since these items were added. The current prices are shown below.</p>}
+        {refreshState === "ready" && unavailable && <p role="alert" className="mb-4 text-sm text-destructive">One or more items are unavailable or exceed current stock. Remove them or reduce their quantity before checkout.</p>}
+        {refreshState === "ready" && <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
           <section className="min-w-0 space-y-3 sm:space-y-4">
-            {items.map((item, index) => {
+            {currentItems.map((item, index) => {
               const itemKey = `${item.product.id ?? 'unknown'}-${item.product.variantId ?? 'default'}-${index}`;
               return (
                 <CartItem
@@ -114,10 +138,11 @@ export function CartPage({ isMember = false }: CartPageProps) {
               itemCount={items.reduce((total, item) => total + item.quantity, 0)}
               isMember={isMember}
               memberSavings={memberSavings}
+              canCheckout={refreshState === "ready" && !unavailable}
             />
             <CartUpsell isMember={isMember} />
           </div>
-        </div>
+        </div>}
       </div>
     </main>
   );

@@ -1,0 +1,37 @@
+{
+  "gateway": "onlinepay",
+  "mode": "test",
+  "urls": {
+    "NEXT_PUBLIC_APP_URL": {
+      "protocol": "https:",
+      "hostname": "localhost"
+    },
+    "ONLINEPAY_RETURN_BASE_URL": {
+      "protocol": "https:",
+      "hostname": "localhost"
+    },
+    "NEXTAUTH_URL": {
+      "protocol": "https:",
+      "hostname": "localhost"
+    },
+    "AUTH_URL": {
+      "protocol": "https:",
+      "hostname": "localhost"
+    }
+  },
+  "configuration": {
+    "CRON_SECRET": "missing",
+    "ONLINEPAY_WEBHOOK_SECRET": "present",
+    "AUTH_SECRET": "present",
+    "AUTH_GOOGLE_ID": "present",
+    "AUTH_GOOGLE_SECRET": "present",
+    "BREVO_API_KEY": "present",
+    "AUSPOST_API_KEY": "missing",
+    "SHIPPIT_WEBHOOK_SECRET": "missing",
+    "UPSTASH_REDIS_REST_URL": "present",
+    "UPSTASH_REDIS_REST_TOKEN": "present",
+    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": "missing",
+    "SENTRY_DSN": "present",
+    "NEXT_PUBLIC_SENTRY_DSN": "present"
+  }
+}

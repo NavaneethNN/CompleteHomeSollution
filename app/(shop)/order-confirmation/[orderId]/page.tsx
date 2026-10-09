@@ -1,17 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { CheckCircle2, Package, ArrowRight, Mail, Crown } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { CheckCircle2, Package, ArrowRight, Mail, Crown, Clock } from "lucide-react";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { verifyGuestOrderToken, verifyOrderReturnToken } from "@/lib/order-access";
 import { ClearCartOnSuccess } from "@/components/shop/clear-cart-on-success";
+import { PollPendingPayment } from "@/components/shop/poll-pending-payment";
 
-export const metadata: Metadata = { title: "Order Confirmed — Complete Home Sollution" };
+export const metadata: Metadata = { title: "Order Confirmed", robots: { index: false, follow: false } };
 
 async function getOrderIfAuthorized(
   orderId: string,
   userId: string | undefined,
-  userRole: string | undefined
+  userRole: string | undefined,
+  guestToken: string | undefined,
+  returnToken: string | undefined
 ) {
   if (!/^c[a-z0-9]{24,}$/.test(orderId)) return { order: null, authorized: false };
 
@@ -36,17 +40,22 @@ async function getOrderIfAuthorized(
       address: true,
       user: { select: { email: true, name: true } },
     },
-  }).catch(() => null);
+  });
 
   if (!order) return { order: null, authorized: false };
 
-  // Auth check: authenticated owner or admin
+  // The same signed return link remains valid when PENDING becomes PAID,
+  // including for members returning on a host without their login cookie.
+  if (verifyOrderReturnToken(order.id, returnToken)) {
+    return { order, authorized: true };
+  }
+
+  // Authenticated owner or admin — full access
   if (userId && (order.userId === userId || userRole === "ADMIN")) {
     return { order, authorized: true };
   }
 
-  // Guest order — allow if order has no userId (guest checkout)
-  if (!order.userId) {
+  if (!order.userId && verifyGuestOrderToken(order.id, order.guestEmail, guestToken)) {
     return { order, authorized: true };
   }
 
@@ -60,10 +69,13 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
 
 export default async function OrderConfirmationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orderId: string }>;
+  searchParams: Promise<{ token?: string; return_token?: string }>;
 }) {
   const { orderId } = await params;
+  const { token, return_token: returnToken } = await searchParams;
 
   if (!orderId) return notFound();
 
@@ -71,66 +83,54 @@ export default async function OrderConfirmationPage({
   const userId = authSession?.user?.id;
   const userRole = authSession?.user?.role;
 
-  const { order, authorized } = await getOrderIfAuthorized(orderId, userId, userRole);
+  const { order, authorized } = await getOrderIfAuthorized(orderId, userId, userRole, token, returnToken);
 
-  // If not authorized to view order details, show limited confirmation
-  if (!authorized || !order) {
-    return (
-      <main className="bg-background py-12 md:py-16">
-        <div className="container mx-auto max-w-2xl px-4 md:px-6">
-          <div className="text-center mb-10">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-5">
-              <CheckCircle2 className="h-8 w-8 text-green-600" />
-            </div>
-            <h1 className="text-3xl font-black text-foreground md:text-4xl">Order Confirmed!</h1>
-            <p className="mt-3 text-muted-foreground">
-              Thank you for your purchase. Your order has been placed successfully.
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-card p-6 md:p-8 text-center space-y-4">
-            <p className="text-sm font-mono font-semibold">#{orderId.slice(-8).toUpperCase()}</p>
-            <p className="text-sm text-muted-foreground">
-              You&apos;ll receive a confirmation email shortly. Sign in to view full order details.
-            </p>
-          </div>
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/products"
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Continue Shopping <ArrowRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
-            >
-              Sign In to View Order
-            </Link>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  if (!authorized && !userId) redirect(`/login?callbackUrl=${encodeURIComponent(`/order-confirmation/${orderId}`)}`);
+  if (!authorized || !order) return notFound();
+  const paid = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
+  const membershipCharge = order.membershipAmount;
 
-  // Check if membership was included in this order
-  const membershipActivated =
-    order.status === "PAID" &&
-    (order as Record<string, unknown>).addMembership === true;
+  // REL-10: Check if membership was included in this order (use membershipAmount field from DB)
+  const membershipActivated = paid && membershipCharge > 0;
 
   return (
     <main className="bg-background py-12 md:py-16">
-      {/* Clear cart now that payment succeeded */}
-      <ClearCartOnSuccess />
+      {/* REL-3 fix: Only clear the cart when the order is confirmed paid.
+          For pending orders the cart must stay intact until payment settles. */}
+      {paid && <ClearCartOnSuccess orderId={orderId} purchasedItems={order.items.map(({ productId, productVariantId, quantity }) => ({ productId, productVariantId, quantity }))} />}
+
+      {/* REL-4: Poll for payment confirmation if order is still PENDING */}
+      {order.status === "PENDING" && (
+        <PollPendingPayment
+          orderId={orderId}
+          guestToken={!order.userId ? token : undefined}
+          returnToken={returnToken}
+        />
+      )}
 
       <div className="container mx-auto max-w-2xl px-4 md:px-6">
+        {/* Pending payment banner */}
+        {order.status === "PENDING" && (
+          <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <Clock className="h-5 w-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">Payment is being confirmed</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Your payment is processing with our bank. This page will update automatically —
+                please do not close it. You will receive a confirmation email once complete.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Success Header */}
         <div className="text-center mb-10">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-5">
             <CheckCircle2 className="h-8 w-8 text-green-600" />
           </div>
-          <h1 className="text-3xl font-black text-foreground md:text-4xl">Order Confirmed!</h1>
+          <h1 className="text-3xl font-black text-foreground md:text-4xl">{paid ? "Order Confirmed!" : order.status === "PENDING" ? "Awaiting payment confirmation" : order.status === "REFUNDED" ? "Order refunded" : "Order cancelled"}</h1>
           <p className="mt-3 text-muted-foreground">
-            Thank you for your purchase. Your order has been placed successfully.
+            {paid ? "Thank you for your purchase. Your payment is confirmed." : order.status === "PENDING" ? "We have not yet confirmed your payment. Please do not place another order while verification is in progress." : "This order is not being fulfilled. Contact support if you have a payment or refund question."}
           </p>
         </div>
 
@@ -184,22 +184,16 @@ export default async function OrderConfirmationPage({
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
               <span>
-                {currencyFormatter.format(
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  (order as any).subtotal + ((order as any).discount ?? 0)
-                )}
+                {currencyFormatter.format(order.subtotal + (order.discount ?? 0))}
               </span>
             </div>
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {((order as any).discount ?? 0) > 0 && (
+            {(order.discount ?? 0) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-green-600">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  Discount {(order as any).couponCode && `(${(order as any).couponCode})`}
+                  Discount {order.couponCode && `(${order.couponCode})`}
                 </span>
                 <span className="font-medium text-green-600">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                  -{currencyFormatter.format((order as any).discount)}
+                  -{currencyFormatter.format(order.discount)}
                 </span>
               </div>
             )}
@@ -222,7 +216,7 @@ export default async function OrderConfirmationPage({
                 <span className="text-primary font-medium flex items-center gap-1">
                   <Crown className="h-3.5 w-3.5" /> CHS Premium Membership
                 </span>
-                <span className="font-medium text-primary">+{currencyFormatter.format(30)}</span>
+                <span className="font-medium text-primary">+{currencyFormatter.format(membershipCharge)}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-bold pt-2 border-t border-border">
@@ -252,9 +246,9 @@ export default async function OrderConfirmationPage({
           <div className="flex items-start gap-3 rounded-lg bg-blue-50 border border-blue-100 p-4">
             <Mail className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-sm font-medium text-blue-900">Confirmation email sent</p>
+              <p className="text-sm font-medium text-blue-900">Order updates</p>
               <p className="text-xs text-blue-700 mt-0.5">
-                We&apos;ve sent order details to{" "}
+                Payment and order updates will be sent to{" "}
                 {order.user?.email || order.guestEmail || "your email"}.
               </p>
             </div>

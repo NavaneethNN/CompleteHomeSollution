@@ -5,6 +5,7 @@ import { Providers } from "@/components/shared/providers";
 import { Navbar } from "@/components/shared/navbar";
 import { Footer } from "@/components/shared/footer";
 import { ShopShell } from "@/components/shared/shop-shell";
+import { indexingEnabled, siteOrigin } from "@/lib/site-indexing";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const dancingScript = Dancing_Script({
@@ -14,6 +15,7 @@ const dancingScript = Dancing_Script({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteOrigin()),
   title: {
     default: "Complete Home Sollution — Premium Furniture for Australian Homes",
     template: "%s | Complete Home Sollution",
@@ -29,15 +31,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_AU",
-    url: "https://completehomesollution.com.au",
+    url: siteOrigin(),
     siteName: "Complete Home Sollution",
   },
   twitter: {
     card: "summary_large_image",
   },
   robots: {
-    index: true,
-    follow: true,
+    index: indexingEnabled(),
+    follow: indexingEnabled(),
   },
 };
 

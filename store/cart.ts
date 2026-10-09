@@ -41,6 +41,7 @@ export const useCartStore = create<CartState>()(
       items: [],
 
       addItem: (product, quantity = 1) => {
+        if (!Number.isInteger(quantity) || quantity <= 0 || product.stock <= 0) return;
         set((state) => {
           const key = getCartItemKey(product.id, product.variantId ?? null);
           const existing = state.items.find(
@@ -48,12 +49,15 @@ export const useCartStore = create<CartState>()(
           );
 
           if (existing) {
+            // REL-9: product.stock is from localStorage and may be stale.
+            // The checkout API will perform the authoritative stock check and
+            // return a clear error if quantities exceed current availability.
             return {
               items: state.items.map((item) =>
                 getCartItemKey(item.product.id, item.product.variantId ?? null) === key
                   ? {
-                      ...item,
-                      quantity: Math.min(item.quantity + quantity, item.product.stock),
+                      product: { ...product, variantId: product.variantId ?? null },
+                      quantity: Math.min(item.quantity + quantity, product.stock),
                     }
                   : item
               ),
@@ -86,11 +90,15 @@ export const useCartStore = create<CartState>()(
       },
 
       updateQuantity: (productId, quantity, variantId = null) => {
+        if (!Number.isInteger(quantity)) return;
         if (quantity <= 0) {
           get().removeItem(productId, variantId);
           return;
         }
 
+        // REL-9: The stock cap uses the cached product.stock value from when
+        // the item was added. Current stock may be lower. The checkout API
+        // performs the authoritative check before payment.
         set((state) => ({
           items: state.items.map((item) =>
             getCartItemKey(item.product.id, item.product.variantId ?? null) ===

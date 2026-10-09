@@ -9,11 +9,15 @@ export default async function CartPage() {
   const session = await auth();
   let isMember = false;
   if (session?.user?.id) {
-    const dbUser = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { isMember: true },
-    });
-    isMember = dbUser?.isMember ?? false;
+    try {
+      const dbUser = await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true, membershipExpiry: true },
+      });
+      isMember = !!dbUser?.isMember && (!dbUser.membershipExpiry || dbUser.membershipExpiry > new Date());
+    } catch {
+      // A cart can still be viewed while the database is temporarily unavailable.
+    }
   }
   return <CartPageView isMember={isMember} />;
 }

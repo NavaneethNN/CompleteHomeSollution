@@ -1,3 +1,4 @@
+import { orderContentsLabel } from "@/lib/order-display";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -289,7 +290,7 @@ export default async function AccountDashboardPage() {
                           <span className={getStatusStyle(order.status)}>{order.status}</span>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {order.items.length} {order.items.length === 1 ? "item" : "items"} · {new Date(order.createdAt).toLocaleDateString("en-AU")}
+                          {orderContentsLabel(order)} · {new Date(order.createdAt).toLocaleDateString("en-AU")}
                         </p>
                       </div>
                       <div className="text-right shrink-0">

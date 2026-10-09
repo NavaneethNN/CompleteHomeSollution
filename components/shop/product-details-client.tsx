@@ -6,6 +6,7 @@ import { ProductGallery } from "./product-gallery";
 import { VariantSelector } from "./variant-selector";
 import { AddToCartButton } from "./add-to-cart-button";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
+import { resolveMemberPrice } from "@/lib/member-price";
 
 interface ProductVariant {
   id: string;
@@ -108,7 +109,7 @@ export function ProductDetailsClient({
         : product.images;
   const displayPrice = selectedVariant?.price ?? product.basePrice;
   const displayComparePrice = selectedVariant?.comparePrice ?? product.comparePrice;
-  const displayMemberPrice = selectedVariant?.memberPrice ?? product.memberPrice;
+  const displayMemberPrice = resolveMemberPrice(displayPrice, selectedVariant?.memberPrice, product.memberPrice);
   const displayStock = selectedVariant?.stock ?? product.stock;
   const displaySku = selectedVariant?.sku ?? product.sku;
 
@@ -221,6 +222,7 @@ export function ProductDetailsClient({
           variants={variants}
           variantMap={variantMap}
           defaultVariant={defaultVariant}
+          productMemberPrice={product.memberPrice}
           onVariantChange={handleVariantChange}
         />
 
@@ -228,7 +230,7 @@ export function ProductDetailsClient({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span>SKU: {displaySku}</span>
           {displayStock > 0 ? (
-            <span className="text-green-600 font-medium">● In Stock ({displayStock} available)</span>
+            <span className="text-green-800 font-medium">● In Stock ({displayStock} available)</span>
           ) : (
             <span className="text-destructive font-medium">● Out of Stock</span>
           )}

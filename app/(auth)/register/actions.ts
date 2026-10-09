@@ -3,8 +3,10 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
-import { createVerificationToken } from "@/lib/token";
+import { createVerificationToken, revokeToken } from "@/lib/token";
 import { sendVerificationEmail } from "@/lib/email";
+import { headers } from "next/headers";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 const registerSchema = z
   .object({
@@ -42,6 +44,9 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
 
     const { name, password } = parsed.data;
     const email = parsed.data.email.toLowerCase().trim();
+    const requestHeaders = await headers();
+    const limit = await consumeRateLimit("registration", `${getClientIp(requestHeaders)}:${email}`, 5, 60 * 60);
+    if (!limit.allowed) return { error: "Too many registration attempts. Please try again later." };
 
     const existing = await db.user.findUnique({ where: { email } });
     if (existing) {
@@ -65,7 +70,7 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
       const detail = emailErr instanceof Error ? emailErr.message : String(emailErr);
       console.error("[registerUser] email send failed:", detail);
       await db.user.delete({ where: { email } }).catch(() => null);
-      await db.verificationToken.deleteMany({ where: { identifier: email } }).catch(() => null);
+      await revokeToken(token).catch(() => null);
       const devMsg = process.env.NODE_ENV === "development" ? ` Debug: ${detail}` : "";
       return {
         error: `Verification email could not be sent. Please try again or contact support.${devMsg}`,

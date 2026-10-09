@@ -1,127 +1,65 @@
-/**
- * Simple in-memory rate limiting for login attempts
- * Prevents brute force attacks by limiting attempts per IP/email
- */
+import { createHash } from "node:crypto";
+import { isIP } from "node:net";
+import { Redis } from "@upstash/redis";
 
-interface RateLimitEntry {
-  attempts: number;
-  firstAttempt: number;
-  blocked: boolean;
+export interface RateLimitResult { allowed: boolean; remaining: number; retryAfter: number }
+interface LocalEntry { count: number; expiresAt: number }
+const localStore = new Map<string, LocalEntry>();
+let redis: Redis | null | undefined;
+
+function redisClient(): Redis | null {
+  if (redis !== undefined) return redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  redis = url && token ? new Redis({ url, token }) : null;
+  return redis;
 }
 
-// In-memory store (use Redis in production for distributed systems)
-const rateLimitStore = new Map<string, RateLimitEntry>();
+function keyFor(action: string, identifier: string): string {
+  const digest = createHash("sha256").update(identifier.trim().toLowerCase()).digest("hex");
+  return `rate-limit:${action}:${digest}`;
+}
 
-const MAX_ATTEMPTS = 5;
-const BLOCK_DURATION_MS = 15 * 60 * 1000; // 15 minutes
-const WINDOW_MS = 15 * 60 * 1000; // 15 minute window
-
-/**
- * Check if an IP/email is rate limited
- * Returns { limited: boolean, remainingAttempts: number, blocked: boolean }
- */
-export function checkRateLimit(identifier: string): {
-  limited: boolean;
-  remainingAttempts: number;
-  blocked: boolean;
-  resetTime: number;
-} {
-  const now = Date.now();
-  const entry = rateLimitStore.get(identifier);
-
-  // Clean up expired entries
-  if (entry && now - entry.firstAttempt > WINDOW_MS) {
-    rateLimitStore.delete(identifier);
+/** Deployment must strip untrusted forwarding headers; malformed addresses are never accepted. */
+export function getClientIp(headers: Headers): string {
+  const candidates = [headers.get("cf-connecting-ip"), headers.get("x-real-ip"), headers.get("x-forwarded-for")?.split(",")[0]];
+  for (const candidate of candidates) {
+    const value = candidate?.trim();
+    if (value && isIP(value)) return value;
   }
+  return "unknown";
+}
 
-  // Check if blocked
-  if (entry?.blocked) {
-    const timeSinceBlocked = now - entry.firstAttempt;
-    if (timeSinceBlocked < BLOCK_DURATION_MS) {
-      return {
-        limited: true,
-        remainingAttempts: 0,
-        blocked: true,
-        resetTime: entry.firstAttempt + BLOCK_DURATION_MS,
-      };
+export async function consumeRateLimit(action: string, identifier: string, limit: number, windowSeconds: number): Promise<RateLimitResult> {
+  const key = keyFor(action, identifier);
+  const client = redisClient();
+  if (client) {
+    try {
+      const count = Number(await client.eval(
+        "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]) end; return n",
+        [key], [windowSeconds],
+      ));
+      const ttl = Math.max(1, await client.ttl(key));
+      return { allowed: count <= limit, remaining: Math.max(0, limit - count), retryAfter: ttl };
+    } catch (error) {
+      console.error("[rate-limit] shared limiter unavailable", { action, error });
+      if (process.env.NODE_ENV === "production") return { allowed: false, remaining: 0, retryAfter: 60 };
     }
-    // Block expired, reset
-    rateLimitStore.delete(identifier);
+  } else if (process.env.NODE_ENV === "production") {
+    console.error("[rate-limit] Redis configuration missing", { action });
+    return { allowed: false, remaining: 0, retryAfter: 60 };
   }
 
-  const currentEntry = rateLimitStore.get(identifier);
-  if (!currentEntry) {
-    return {
-      limited: false,
-      remainingAttempts: MAX_ATTEMPTS,
-      blocked: false,
-      resetTime: now + WINDOW_MS,
-    };
-  }
-
-  const remainingAttempts = Math.max(0, MAX_ATTEMPTS - currentEntry.attempts);
-
-  return {
-    limited: currentEntry.attempts >= MAX_ATTEMPTS,
-    remainingAttempts,
-    blocked: currentEntry.blocked,
-    resetTime: currentEntry.firstAttempt + WINDOW_MS,
-  };
-}
-
-/**
- * Record a failed login attempt
- * Returns the updated rate limit status
- */
-export function recordFailedAttempt(identifier: string): {
-  limited: boolean;
-  remainingAttempts: number;
-  blocked: boolean;
-} {
   const now = Date.now();
-  const entry = rateLimitStore.get(identifier);
-
-  if (!entry || now - entry.firstAttempt > WINDOW_MS) {
-    // New entry or expired
-    rateLimitStore.set(identifier, {
-      attempts: 1,
-      firstAttempt: now,
-      blocked: false,
-    });
-    return {
-      limited: false,
-      remainingAttempts: MAX_ATTEMPTS - 1,
-      blocked: false,
-    };
-  }
-
-  entry.attempts++;
-
-  // Block if exceeded max attempts
-  if (entry.attempts >= MAX_ATTEMPTS) {
-    entry.blocked = true;
-  }
-
-  return {
-    limited: entry.blocked,
-    remainingAttempts: Math.max(0, MAX_ATTEMPTS - entry.attempts),
-    blocked: entry.blocked,
-  };
+  const current = localStore.get(key);
+  const entry = !current || current.expiresAt <= now ? { count: 0, expiresAt: now + windowSeconds * 1000 } : current;
+  entry.count += 1;
+  localStore.set(key, entry);
+  return { allowed: entry.count <= limit, remaining: Math.max(0, limit - entry.count), retryAfter: Math.max(1, Math.ceil((entry.expiresAt - now) / 1000)) };
 }
 
-/**
- * Reset rate limit for an identifier (e.g., after successful login)
- */
-export function resetRateLimit(identifier: string): void {
-  rateLimitStore.delete(identifier);
+export function rateLimitResponse(result: RateLimitResult): Response {
+  return Response.json({ error: "Too many requests. Please try again later." }, { status: 429, headers: { "Retry-After": String(result.retryAfter) } });
 }
 
-/**
- * Get human-readable time until reset
- */
-export function getTimeUntilReset(resetTime: number): string {
-  const now = Date.now();
-  const diff = Math.max(0, resetTime - now);
-  const minutes = Math.ceil(diff / (60 * 1000));
-  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
-}
+export function clearRateLimitsForTests(): void { localStore.clear(); }

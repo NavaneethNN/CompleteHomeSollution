@@ -124,11 +124,17 @@ return () => {
           publishableApiKey: process.env.NEXT_PUBLIC_PAYWAY_PUBLISHABLE_KEY!,
           container: CONTAINER_ID,
           tokenMode: "callback",
-          layout: "wide",
+          // The checkout summary is a narrow column. PayWay's `wide` layout
+          // uses a two-column card form with fixed field widths, which overflows
+          // and clips the CVV/expiry fields here. Its narrow layout stacks the
+          // hosted fields and is the responsive layout intended for this space.
+          layout: "narrow",
           onValid: () => setIsValid(true),
           onInvalid: () => setIsValid(false),
           style: {
-            "div.payway-card": { "font-family": "inherit", "padding": "4px 0" },
+            // `inherit` resolves to the iframe document's default serif font,
+            // not the storefront font. Use an explicit safe system stack.
+            "div.payway-card": { "font-family": "Arial, Helvetica, sans-serif", "padding": "4px 0" },
             ".payway-card label": {
               "color": "#374151",
               "font-size": "13px",
@@ -198,14 +204,17 @@ return () => {
 
   return (
     <div className={`space-y-2 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
-      <div className="relative min-h-[220px] rounded-lg border border-border bg-white overflow-hidden">
+      {/* The provider iframe already renders its own card border. Do not put it
+          inside another padded/bordered card: that creates the large empty
+          panel seen around the fixed 278 × 306px narrow frame. */}
+      <div className="relative h-[306px] overflow-hidden">
         {!frameReady && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Loading secure card form…</p>
           </div>
         )}
-        <div id={CONTAINER_ID} className="p-4" />
+        <div id={CONTAINER_ID} className="flex h-full w-full justify-center" />
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">

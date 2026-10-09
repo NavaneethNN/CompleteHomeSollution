@@ -4,12 +4,8 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { verifyPassword } from "@/lib/password";
-import { checkRateLimit, recordFailedAttempt, resetRateLimit } from "@/lib/rate-limit";
-
-// Security configuration
-const MAX_LOGIN_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MINUTES = 15;
+import { hashPassword, passwordNeedsRehash, verifyPassword } from "@/lib/password";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
@@ -20,7 +16,7 @@ export type UserRole = "ADMIN" | "MEMBER" | "CUSTOMER";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  password: z.string().min(1).max(256),
 });
 
 // Custom error for rate limiting
@@ -61,19 +57,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = parsed.data.email.toLowerCase().trim();
         
         // Rate limiting check - use IP + email as identifier
-        const ip = req.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
+        const ip = getClientIp(req.headers);
         const rateLimitKey = `${ip}:${email}`;
-        
-        const rateLimit = checkRateLimit(rateLimitKey);
-        if (rateLimit.blocked) {
+        const rateLimit = await consumeRateLimit("login", rateLimitKey, 5, 15 * 60);
+        if (!rateLimit.allowed) {
           throw new RateLimitError();
         }
 
         const user = await db.user.findUnique({ where: { email } });
 
         if (!user || !user.passwordHash) {
-          // Record failed attempt even for non-existent users
-          recordFailedAttempt(rateLimitKey);
           return null;
         }
 
@@ -83,13 +76,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await verifyPassword(password, user.passwordHash);
         if (!valid) {
-          // Record failed attempt for wrong password
-          recordFailedAttempt(rateLimitKey);
           return null;
         }
 
-        // Reset rate limit on successful login
-        resetRateLimit(rateLimitKey);
+        if (passwordNeedsRehash(user.passwordHash)) {
+          try {
+            const upgraded = await hashPassword(password);
+            await db.user.updateMany({
+              where: { id: user.id, passwordHash: user.passwordHash },
+              data: { passwordHash: upgraded },
+            });
+          } catch (error) {
+            console.error("[auth] Legacy password hash upgrade failed", error);
+          }
+        }
 
         return {
           id: user.id,
@@ -97,7 +97,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           image: user.image,
           role: user.role as UserRole,
-          isMember: user.isMember,
+          isMember: !!user.isMember && (!user.membershipExpiry || user.membershipExpiry > new Date()),
         };
       },
     }),
@@ -152,12 +152,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await db.user.findUnique({
             where: { email: token.email },
-            select: { id: true, role: true, isMember: true },
+            select: { id: true, role: true, isMember: true, membershipExpiry: true },
           });
           if (dbUser) {
             token["id"] = dbUser.id;
             token["role"] = (dbUser.role as UserRole) ?? "CUSTOMER";
-            token["isMember"] = dbUser.isMember ?? false;
+            token["isMember"] = !!dbUser.isMember &&
+              (!dbUser.membershipExpiry || dbUser.membershipExpiry > new Date());
           }
         } catch (err) {
           console.error("[jwt callback] db lookup failed:", err);
@@ -169,13 +170,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         try {
           const dbUser = await db.user.findUnique({
             where: { id: token["id"] as string },
-            select: { id: true, name: true, image: true, role: true, isMember: true, emailVerified: true, accounts: { select: { provider: true } } },
+            select: { id: true, name: true, image: true, role: true, isMember: true, membershipExpiry: true, emailVerified: true, accounts: { select: { provider: true } } },
           });
           if (dbUser) {
             token["name"] = dbUser.name;
             token["image"] = dbUser.image;
             token["role"] = (dbUser.role as UserRole) ?? "CUSTOMER";
-            token["isMember"] = dbUser.isMember ?? false;
+            token["isMember"] = !!dbUser.isMember &&
+              (!dbUser.membershipExpiry || dbUser.membershipExpiry > new Date());
             // Backfill emailVerified for existing OAuth users that have NULL
             const isOAuthUser = dbUser.accounts.some((a) => a.provider !== "credentials");
             if (!dbUser.emailVerified && isOAuthUser) {

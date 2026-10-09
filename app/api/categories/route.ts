@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { z } from "zod";
+import { fallbackCategories } from "@/lib/data/fallback-shop-data";
 
 const createCategorySchema = z.object({
   name: z.string().min(2),
@@ -18,7 +19,9 @@ export async function GET() {
     return NextResponse.json({ data: categories });
   } catch (error) {
     console.error("[GET /api/categories]", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    // Keep navigation usable during a database outage. Mutations still fail
+    // normally, so callers never mistake fallback data for persisted data.
+    return NextResponse.json({ data: fallbackCategories, fallback: true });
   }
 }
 

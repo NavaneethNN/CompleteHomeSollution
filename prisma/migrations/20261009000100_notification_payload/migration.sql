@@ -1,0 +1,1 @@
+ALTER TABLE "EmailJob" ADD COLUMN "payload" JSONB;

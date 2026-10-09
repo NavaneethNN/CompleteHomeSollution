@@ -6,7 +6,8 @@ function getClient() {
   if (!_client) {
     _client = twilio(
       process.env.TWILIO_ACCOUNT_SID!,
-      process.env.TWILIO_AUTH_TOKEN!
+      process.env.TWILIO_AUTH_TOKEN!,
+      { timeout: 15_000 }
     );
   }
   return _client;

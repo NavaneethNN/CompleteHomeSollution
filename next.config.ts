@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // The Neon adapter installs `ws` as its Node WebSocket implementation. Keep
+  // it out of the server bundle so ws can load its optional native masking
+  // dependency through Node instead of a partially bundled shim.
+  serverExternalPackages: ["ws"],
   images: {
     remotePatterns: [
       {
@@ -33,6 +37,12 @@ const nextConfig: NextConfig = {
       },
     ],
     formats: ["image/avif", "image/webp"],
+  },
+  async redirects() {
+    return [
+      { source: "/terms", destination: "/terms-of-service", permanent: true },
+      { source: "/privacy", destination: "/privacy-policy", permanent: true },
+    ];
   },
   async headers() {
     return [

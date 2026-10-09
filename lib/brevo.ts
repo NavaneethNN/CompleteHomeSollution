@@ -1,3 +1,8 @@
+import { createGuestOrderToken } from "@/lib/order-access";
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
+}
+
 const BREVO_API_URL = "https://api.brevo.com/v3";
 
 interface SendEmailParams {
@@ -6,11 +11,13 @@ interface SendEmailParams {
   htmlContent: string;
   textContent?: string;
   replyTo?: { email: string; name?: string };
+  headers?: Record<string, string>;
 }
 
 export async function sendEmail(params: SendEmailParams): Promise<void> {
   const response = await fetch(`${BREVO_API_URL}/smtp/email`, {
     method: "POST",
+    signal: AbortSignal.timeout(15_000),
     headers: {
       "api-key": process.env.BREVO_API_KEY!,
       "Content-Type": "application/json",
@@ -23,7 +30,8 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(`Brevo email failed: ${JSON.stringify(error)}`);
+    if (response.status === 400 && params.headers?.idempotencyKey && error?.code === "duplicate_parameter") return;
+    throw new Error(`Brevo email failed (HTTP ${response.status})`);
   }
 }
 
@@ -37,9 +45,9 @@ export async function sendOtpEmail(
     subject: "Your Complete Home Sollution login code",
     htmlContent: `
       <h2>Your login code</h2>
-      <p>Hi ${name},</p>
+      <p>Hi ${escapeHtml(name)},</p>
       <p>Use the code below to log in to Complete Home Sollution. It expires in 10 minutes.</p>
-      <h1 style="letter-spacing:0.3em;font-size:2rem;">${otp}</h1>
+      <h1 style="letter-spacing:0.3em;font-size:2rem;">${escapeHtml(otp)}</h1>
       <p>If you didn't request this, you can safely ignore this email.</p>
     `,
   });
@@ -53,7 +61,7 @@ function buildItemsTable(items: { name: string; quantity: number; price: number 
     .map(
       (i) => `
         <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #f0ebe5;font-size:14px;color:#1a1a1a;">${i.name}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #f0ebe5;font-size:14px;color:#1a1a1a;">${escapeHtml(i.name)}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #f0ebe5;font-size:14px;color:#555;text-align:center;">${i.quantity}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #f0ebe5;font-size:14px;color:#1a1a1a;text-align:right;">A$${i.price.toFixed(2)}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #f0ebe5;font-size:14px;font-weight:600;color:#1a1a1a;text-align:right;">A$${(i.price * i.quantity).toFixed(2)}</td>
@@ -90,14 +98,16 @@ export async function sendOrderConfirmationEmail(params: {
     country: string;
   } | null;
   customerEmail?: string;
+  audience?: "customer" | "admin" | "both";
+  idempotencyKey?: string;
 }): Promise<void> {
-  const shortId = params.orderId.slice(-8).toUpperCase();
-  const firstName = params.name.split(" ")[0] ?? "there";
+  const shortId = escapeHtml(params.orderId.slice(-8).toUpperCase());
+  const firstName = escapeHtml(params.name.split(" ")[0] || "there");
   const itemsTable = buildItemsTable(params.items);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://completehomesollution.com.au";
 
   const addrHtml = params.address
-    ? `${params.address.line1}${params.address.line2 ? ", " + params.address.line2 : ""}, ${params.address.suburb} ${params.address.state} ${params.address.postcode}, ${params.address.country}`
+    ? escapeHtml(`${params.address.line1}${params.address.line2 ? ", " + params.address.line2 : ""}, ${params.address.suburb} ${params.address.state} ${params.address.postcode}, ${params.address.country}`)
     : "Not provided";
 
   // ── Customer email ────────────────────────────────────────────────────────
@@ -151,14 +161,14 @@ export async function sendOrderConfirmationEmail(params: {
             <!-- Shipping address -->
             <div style="margin-top:28px;background:#f7f3ef;border-radius:10px;padding:16px 20px;">
               <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;">Shipping To</p>
-              <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.6;">${params.address?.name ?? params.name}<br/>${addrHtml}</p>
+              <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.6;">${escapeHtml(params.address?.name ?? params.name)}<br/>${addrHtml}</p>
             </div>
 
             <!-- CTA -->
             <table cellpadding="0" cellspacing="0" style="margin:28px auto 0;">
               <tr>
                 <td style="background:#e03d2a;border-radius:12px;">
-                  <a href="${appUrl}/account/orders" style="display:inline-block;padding:13px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">
+                  <a href="${escapeHtml(appUrl)}/order-confirmation/${encodeURIComponent(params.orderId)}?token=${createGuestOrderToken(params.orderId, params.email)}" style="display:inline-block;padding:13px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">
                     View My Order
                   </a>
                 </td>
@@ -206,8 +216,8 @@ export async function sendOrderConfirmationEmail(params: {
             <!-- Customer details -->
             <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
               <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">Customer</p>
-              <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1a1a1a;">${params.name}</p>
-              ${params.customerEmail ? `<p style="margin:0 0 4px;font-size:13px;color:#555;">${params.customerEmail}</p>` : ""}
+              <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1a1a1a;">${escapeHtml(params.name)}</p>
+              ${params.customerEmail ? `<p style="margin:0 0 4px;font-size:13px;color:#555;">${escapeHtml(params.customerEmail)}</p>` : ""}
               <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">Ship to</p>
               <p style="margin:4px 0 0;font-size:13px;color:#555;line-height:1.6;">${addrHtml}</p>
             </div>
@@ -229,7 +239,7 @@ export async function sendOrderConfirmationEmail(params: {
             <table cellpadding="0" cellspacing="0" style="margin:28px auto 0;">
               <tr>
                 <td style="background:#1a2e5a;border-radius:12px;">
-                  <a href="${appUrl}/admin/orders/${params.orderId}" style="display:inline-block;padding:13px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">
+                  <a href="${escapeHtml(appUrl)}/admin/orders/${encodeURIComponent(params.orderId)}" style="display:inline-block;padding:13px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">
                     View Order in Admin
                   </a>
                 </td>
@@ -253,17 +263,19 @@ export async function sendOrderConfirmationEmail(params: {
 
   await Promise.all([
     // Customer confirmation
-    sendEmail({
+    ...(params.audience !== "admin" ? [sendEmail({
       to: [{ email: params.email, name: params.name }],
       subject: `Order confirmed — #${shortId}`,
       htmlContent: customerHtml,
-    }),
+      ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
+    })] : []),
     // Admin notification
-    sendEmail({
+    ...(params.audience !== "customer" ? [sendEmail({
       to: [{ email: ADMIN_EMAIL, name: ADMIN_NAME }],
       subject: `New Order #${shortId} — A$${params.total.toFixed(2)} from ${params.name}`,
       htmlContent: adminHtml,
-    }),
+      ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
+    })] : []),
   ]);
 }
 
@@ -275,9 +287,11 @@ export async function sendOrderCancellationEmail(params: {
   refundAmount: number;
   autoRefunded: boolean;
   isPartial?: boolean;
+  audience?: "customer" | "admin";
+  idempotencyKey?: string;
 }): Promise<void> {
-  const shortId = params.orderId.slice(-8).toUpperCase();
-  const firstName = params.name.split(" ")[0] ?? "there";
+  const shortId = escapeHtml(params.orderId.slice(-8).toUpperCase());
+  const firstName = escapeHtml(params.name.split(" ")[0] || "there");
   const isPartial = params.isPartial ?? false;
 
   const refundNote = params.autoRefunded
@@ -292,7 +306,8 @@ export async function sendOrderCancellationEmail(params: {
       ? `Partial refund issued for Order #${shortId}`
       : `Order #${shortId} refunded`;
 
-  await sendEmail({
+  if (params.audience !== "admin") await sendEmail({
+    ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: params.email, name: params.name }],
     subject,
     htmlContent: `
@@ -343,10 +358,11 @@ export async function sendOrderCancellationEmail(params: {
   });
 
   // Also notify admin
-  await sendEmail({
+  if (params.audience !== "customer") await sendEmail({
+    ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: ADMIN_EMAIL, name: ADMIN_NAME }],
     subject: `[Admin] ${params.autoRefunded ? "Auto-refund" : "Refund issued"} for Order #${shortId}`,
-    htmlContent: `<p>Order <strong>#${shortId}</strong> has been ${params.autoRefunded ? "cancelled and auto-refunded" : "refunded"}.</p><p>Amount: <strong>A$${params.refundAmount.toFixed(2)}</strong></p><p>Customer: ${params.name} (${params.email})</p>`,
+    htmlContent: `<p>Order <strong>#${shortId}</strong> has been ${params.autoRefunded ? "cancelled and auto-refunded" : "refunded"}.</p><p>Amount: <strong>A$${params.refundAmount.toFixed(2)}</strong></p><p>Customer: ${escapeHtml(params.name)} (${escapeHtml(params.email)})</p>`,
   });
 }
 
@@ -356,13 +372,16 @@ export async function sendRefundRequestEmail(params: {
   orderId: string;
   total: number;
   reason: string;
+  audience?: "customer" | "admin";
+  idempotencyKey?: string;
 }): Promise<void> {
-  const shortId = params.orderId.slice(-8).toUpperCase();
-  const firstName = params.name.split(" ")[0] ?? "there";
+  const shortId = escapeHtml(params.orderId.slice(-8).toUpperCase());
+  const firstName = escapeHtml(params.name.split(" ")[0] || "there");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://completehomesollution.com.au";
 
   // Customer: acknowledge receipt of request
-  await sendEmail({
+  if (params.audience !== "admin") await sendEmail({
+    ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: params.email, name: params.name }],
     subject: `Refund request received — Order #${shortId}`,
     htmlContent: `
@@ -386,7 +405,7 @@ export async function sendRefundRequestEmail(params: {
             </p>
             <div style="background:#f7f3ef;border-radius:10px;padding:16px 20px;">
               <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#888;text-transform:uppercase;">Your reason</p>
-              <p style="margin:0;font-size:14px;color:#1a1a1a;">${params.reason}</p>
+              <p style="margin:0;font-size:14px;color:#1a1a1a;">${escapeHtml(params.reason)}</p>
             </div>
             <p style="margin:24px 0 0;font-size:13px;color:#888;">Questions? Contact us at <a href="mailto:${ADMIN_EMAIL}" style="color:#e03d2a;">${ADMIN_EMAIL}</a></p>
           </td>
@@ -404,16 +423,17 @@ export async function sendRefundRequestEmail(params: {
   });
 
   // Admin: alert with link to order
-  await sendEmail({
+  if (params.audience !== "customer") await sendEmail({
+    ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: ADMIN_EMAIL, name: ADMIN_NAME }],
     subject: `[Action Required] Refund request for Order #${shortId} — A$${params.total.toFixed(2)}`,
     htmlContent: `
       <h2>Refund Request Received</h2>
       <p><strong>Order:</strong> #${shortId}</p>
-      <p><strong>Customer:</strong> ${params.name} (${params.email})</p>
+      <p><strong>Customer:</strong> ${escapeHtml(params.name)} (${escapeHtml(params.email)})</p>
       <p><strong>Order Total:</strong> A$${params.total.toFixed(2)}</p>
-      <p><strong>Reason:</strong> ${params.reason}</p>
-      <p><a href="${appUrl}/admin/orders/${params.orderId}" style="background:#1a2e5a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px;">Review Order in Admin</a></p>
+      <p><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>
+      <p><a href="${escapeHtml(appUrl)}/admin/orders/${encodeURIComponent(params.orderId)}" style="background:#1a2e5a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px;">Review Order in Admin</a></p>
     `,
   });
 }
@@ -424,15 +444,17 @@ export async function sendShippingUpdateEmail(params: {
   orderId: string;
   trackingNumber: string;
   carrier: string;
+  idempotencyKey?: string;
 }): Promise<void> {
   await sendEmail({
+    ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: params.email, name: params.name }],
     subject: `Your Complete Home Sollution order #${params.orderId} has shipped!`,
     htmlContent: `
       <h2>Your order is on its way!</h2>
-      <p>Hi ${params.name},</p>
-      <p>Carrier: <strong>${params.carrier}</strong></p>
-      <p>Tracking number: <strong>${params.trackingNumber}</strong></p>
+      <p>Hi ${escapeHtml(params.name)},</p>
+      <p>Carrier: <strong>${escapeHtml(params.carrier)}</strong></p>
+      <p>Tracking number: <strong>${escapeHtml(params.trackingNumber)}</strong></p>
     `,
   });
 }

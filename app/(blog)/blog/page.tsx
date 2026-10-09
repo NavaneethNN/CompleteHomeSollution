@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
+import { hasActiveMembership } from "@/lib/membership";
 import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Calendar, Lock, Search, Crown } from "lucide-react";
 import BlogPostCard from "@/components/blog/blog-post-card";
 import BlogCategoryFilter from "@/components/blog/blog-category-filter";
 import BecomeMemberCTA from "@/components/blog/become-member-cta";
+import { publishedBlogWhere } from "@/lib/blog-publication";
 
 export const metadata: Metadata = {
   title: "Blog - Complete Home Solution",
@@ -25,7 +27,7 @@ function calculateReadingTime(content: string): number {
 
 async function getBlogPosts(search?: string, category?: string) {
   const where: any = {
-    status: "PUBLISHED",
+    ...publishedBlogWhere(),
   };
 
   if (search) {
@@ -65,7 +67,7 @@ async function getBlogPosts(search?: string, category?: string) {
 async function getCategories() {
   return await db.blogCategory.findMany({
     include: {
-      _count: { select: { posts: { where: { status: "PUBLISHED" } } } },
+      _count: { select: { posts: { where: publishedBlogWhere() } } },
     },
     orderBy: { name: "asc" },
   });
@@ -77,7 +79,13 @@ interface BlogPageProps {
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const session = await auth();
-  const isMember = session?.user?.isMember ?? false;
+  const membership = session?.user?.id
+    ? await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true, membershipExpiry: true },
+      })
+    : null;
+  const isMember = hasActiveMembership(membership);
   const { search, category } = await searchParams;
 
   const [posts, categories] = await Promise.all([

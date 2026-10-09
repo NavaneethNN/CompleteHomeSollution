@@ -7,6 +7,7 @@ interface OrderStatusNotificationData {
   customerEmail: string;
   newStatus: string;
   previousStatus: string;
+  idempotencyKey?: string;
   trackingNumber?: string;
   carrier?: string;
   items: Array<{
@@ -167,10 +168,10 @@ export async function sendOrderStatusNotification(data: OrderStatusNotificationD
             <p><strong>Order Number:</strong> ${safeOrderNumber}</p>
             <p><strong>Status:</strong> ${escapeHtml(statusConfig.title)}</p>
 
-            ${safeTrackingNumber && safeCarrier ? `
+            ${safeTrackingNumber ? `
               <div class="tracking-info">
                 <h4 style="color: #2c3e50; margin-bottom: 10px;">Tracking Information</h4>
-                <p><strong>Carrier:</strong> ${safeCarrier}</p>
+                ${safeCarrier ? `<p><strong>Carrier:</strong> ${safeCarrier}</p>` : ""}
                 <p><strong>Tracking Number:</strong> ${safeTrackingNumber}</p>
               </div>
             ` : ""}
@@ -218,12 +219,12 @@ export async function sendOrderStatusNotification(data: OrderStatusNotificationD
     `;
 
     await sendEmail({
+      ...(data.idempotencyKey ? { headers: { idempotencyKey: data.idempotencyKey } } : {}),
       to: [{ email: data.customerEmail, name: data.customerName }],
       subject: statusConfig.subject.replace("#{orderNumber}", data.orderNumber),
       htmlContent: emailHtml,
     });
 
-    console.log(`Order status notification sent to ${data.customerEmail} for order ${data.orderNumber}`);
 
     return { success: true };
   } catch (error) {

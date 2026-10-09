@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -82,8 +82,11 @@ interface CheckoutFormProps {
   readonly userId?: string;
   readonly userProfile?: { name: string; phone: string };
   readonly isMember?: boolean;
+  /** Enables a clear renewal prompt for a customer whose paid term lapsed. */
+  readonly hasExpiredMembership?: boolean;
   readonly memberPriceMap?: Record<string, number | null>;
   readonly activePlan?: ActivePlan;
+  readonly usesOnlinePay?: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
@@ -96,9 +99,10 @@ interface ShippingRate {
   serviceName: string;
   price: number;
   deliveryTime: string | null;
+  quoteToken?: string;
 }
 
-export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userId, userProfile, isMember, memberPriceMap, activePlan }: CheckoutFormProps) {
+export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userId: _userId, userProfile, isMember, hasExpiredMembership = false, memberPriceMap, activePlan, usesOnlinePay = false }: CheckoutFormProps) {
   const MEMBERSHIP_PRICE = activePlan?.price ?? 30;
   const membershipLabel = activePlan ? `${activePlan.name} (${activePlan.durationDays >= 365 ? `${Math.round(activePlan.durationDays / 365)}yr` : `${activePlan.durationDays}d`})` : "CHS Membership";
   const router = useRouter();
@@ -108,6 +112,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const [singleUseTokenId, setSingleUseTokenId] = useState<string | null>(null);
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [awaitingToken, setAwaitingToken] = useState(false);
+  // REL-2 fix: ref-based guard prevents the order-submission effect from firing
+  // more than once per Place Order click, even if React re-renders the component
+  // before setAwaitingToken(false) propagates back through state.
+  const submissionInFlightRef = useRef(false);
+  // REL-5 fix: holds the idempotency key for the current Place Order attempt.
+  // Same key is sent on every retry for the same click; a new key is generated
+  // on each fresh handlePlaceOrder call so distinct attempts never collide.
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const [couponCode, setCouponCode] = useState("");
   const [appliedCouponCode, setAppliedCouponCode] = useState(""); // Store the code that was successfully applied
@@ -117,8 +129,11 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     discountType: "PERCENTAGE" | "FIXED";
     discountValue: number;
     discount: number;
+    subtotal: number;
+    discountedSubtotal: number;
     maxDiscount: number | null;
     name?: string;
+    memberEligibility?: "ALL" | "MEMBERS_ONLY" | "NON_MEMBERS";
   } | null>(null);
   const [addMembership, setAddMembership] = useState(false);
   const [membershipPerksOpen, setMembershipPerksOpen] = useState(false);
@@ -151,7 +166,25 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [ratesError, setRatesError] = useState<string | null>(null);
   // Cart state
-  const items = useCartStore((state) => state.items);
+  const storedItems = useCartStore((state) => state.items);
+  const [freshPrices, setFreshPrices] = useState<Record<string, { price: number; memberPrice: number | null; stock: number; weight: number }>>({});
+  const [pricesReady, setPricesReady] = useState(false);
+  const [pricesError, setPricesError] = useState<string | null>(null);
+  const productIds = JSON.stringify([...new Set(storedItems.map((item) => item.product.id))]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setPricesReady(false);
+    setPricesError(null);
+    if (productIds === "[]") return () => controller.abort();
+    fetch("/api/cart/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids: JSON.parse(productIds) }), signal: controller.signal })
+      .then(async (response) => { if (!response.ok) throw new Error("Could not refresh prices. Reload checkout to try again."); return response.json(); })
+      .then((data) => { if (!controller.signal.aborted) { setFreshPrices(data.prices); setPricesReady(true); } })
+      .catch((error) => { if (!controller.signal.aborted) setPricesError(error.message); });
+    return () => controller.abort();
+  }, [productIds]);
+  const items = useMemo(() => storedItems.map((item) => ({ ...item, product: { ...item.product, ...freshPrices[item.product.variantId ?? item.product.id] } })), [storedItems, freshPrices]);
+  const unavailable = pricesReady && items.some((item) => !freshPrices[item.product.variantId ?? item.product.id] || item.quantity > item.product.stock);
+
   const clearCart = useCartStore((state) => state.clearCart);
 
   // effectiveMember = already a member OR just added membership in this checkout
@@ -176,38 +209,19 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const memberSavings = fullSubtotal - subtotal;
   const itemCount = items.reduce((total, item) => total + item.quantity, 0);
 
-  // Estimate total weight from cart (fallback 2 kg per item if no weight data)
-  // Cap individual item weight at 100kg and total at 500kg to prevent abuse
-  const estimatedWeightKg = Math.min(
-    500,
-    items.reduce(
-      (sum, item) => sum + Math.min(100, Math.max(0.1, (item.product as { weight?: number }).weight ?? 2)) * Math.min(item.quantity, 20),
-      0
-    )
-  );
-
   // Calculate totals with proper coupon discount
-  let discount = 0;
-  if (appliedCoupon) {
-    if (appliedCoupon.discountType === "PERCENTAGE") {
-      discount = subtotal * (appliedCoupon.discountValue / 100);
-      // Apply max discount cap if set
-      if (appliedCoupon.maxDiscount && discount > appliedCoupon.maxDiscount) {
-        discount = appliedCoupon.maxDiscount;
-      }
-    } else {
-      // FIXED - capped at subtotal
-      discount = Math.min(appliedCoupon.discountValue, subtotal);
-    }
-  }
-  discount = Math.round(discount * 100) / 100;
-  const discountedSubtotal = subtotal - discount;
+  // The validation endpoint calculates this from the coupon's eligible items.
+  // Reusing that result avoids incorrectly showing a product/category coupon as
+  // a discount on the entire cart.
+  const displayedSubtotal = appliedCoupon?.subtotal ?? subtotal;
+  const discount = Math.min(appliedCoupon?.discount ?? 0, displayedSubtotal);
+  const discountedSubtotal = appliedCoupon?.discountedSubtotal ?? displayedSubtotal - discount;
   const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode);
-  const freeShipping = discountedSubtotal >= 1200;
+  const freeShipping = effectiveMember || discountedSubtotal >= 1200;
   const shippingCost = freeShipping ? 0 : (selectedRate?.price ?? null);
   const gst = Math.round(discountedSubtotal * 0.1 * 100) / 100;
   const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
-  const total = discountedSubtotal + (shippingCost ?? 0) + gst + membershipAdd;
+  const total = Math.round((discountedSubtotal + (shippingCost ?? 0) + gst + membershipAdd) * 100) / 100;
   // Net benefit: savings on items minus membership fee
   const netBenefit = memberSavings - MEMBERSHIP_PRICE;
 
@@ -238,7 +252,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   // Fetch Australia Post rates when destination postcode is known
   const fetchAusPostRates = useCallback(
     async (postcode: string) => {
-      if (!/^\d{4}$/.test(postcode)) return;
+      if (!/^\d{4}$/.test(postcode) || !pricesReady || freeShipping) return;
       setIsFetchingRates(true);
       setRatesError(null);
       setShippingRates([]);
@@ -249,7 +263,11 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             postcode,
-            weightKg: Math.max(estimatedWeightKg, 0.1),
+            items: items.map(item => ({
+              productId: item.product.id,
+              variantId: item.product.variantId,
+              quantity: item.quantity,
+            })),
           }),
         });
         const data = await res.json();
@@ -267,7 +285,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         setIsFetchingRates(false);
       }
     },
-    [estimatedWeightKg]
+    [items, pricesReady, freeShipping]
   );
 
   // Fetch rates when selected saved address changes
@@ -275,17 +293,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     if (!selectedAddressId) return;
     const addr = addresses.find((a) => a.id === selectedAddressId);
     if (addr?.postcode) fetchAusPostRates(addr.postcode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAddressId]);
+  }, [selectedAddressId, addresses, fetchAusPostRates]);
 
   // Fetch rates when guest address is set
   useEffect(() => {
     if (guestAddress?.postcode) fetchAusPostRates(guestAddress.postcode);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [guestAddress]);
+  }, [guestAddress, fetchAusPostRates]);
 
   // Show cancelled toast
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (searchParams.get("cancelled") === "true") {
       toast({
@@ -299,10 +314,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   // Re-validate coupon when membership status changes (prices change)
   useEffect(() => {
     if (appliedCoupon && appliedCouponCode) {
-      // Temporarily set couponCode back to the applied code for re-validation
-      setCouponCode(appliedCouponCode);
-      // Re-apply the coupon with new prices
-      applyCoupon();
+      // PERF-3: Skip re-validation if coupon eligibility is "ALL" (not membership-dependent)
+      if (appliedCoupon.memberEligibility && appliedCoupon.memberEligibility !== "ALL") {
+        // Temporarily set couponCode back to the applied code for re-validation
+        setCouponCode(appliedCouponCode);
+        // Re-apply the coupon with new prices
+        applyCoupon(appliedCouponCode);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveMember]);
@@ -411,35 +429,32 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     }
   };
 
-  const applyCoupon = async () => {
-    if (!couponCode.trim()) return;
+  const applyCoupon = async (codeOverride?: string) => {
+    const code = (codeOverride ?? couponCode).trim();
+    if (!code) return;
 
     setIsApplyingCoupon(true);
 
     // Prepare items for coupon validation - use effectiveMember to account for membership toggle
     const itemsForValidation = items.map((item) => {
-      const memberPrice = getMemberPrice(item);
-      const basePrice = Math.max(0, item.product.price ?? 0);
-      const effectivePrice = effectiveMember && memberPrice ? memberPrice : basePrice;
       return {
         productId: item.product.id,
         variantId: item.product.variantId,
         quantity: item.quantity,
-        price: effectivePrice,
       };
     });
 
-    const params = new URLSearchParams();
-    params.set("code", couponCode.trim());
-    params.set("subtotal", subtotal.toString());
-    params.set("items", JSON.stringify(itemsForValidation));
-    params.set("isMember", effectiveMember.toString());
-    if (userId) {
-      params.set("userId", userId);
-    }
-
+    // CODE-6: Convert to POST with JSON body instead of GET with query params
     try {
-      const res = await fetch(`/api/coupons/validate?${params.toString()}`);
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code,
+          items: itemsForValidation,
+          addMembership: !isMember && addMembership,
+        }),
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -452,10 +467,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         discountType: data.coupon.discountType,
         discountValue: data.coupon.discountValue,
         discount: data.coupon.discount,
+        subtotal: data.coupon.subtotal,
+        discountedSubtotal: data.coupon.discountedSubtotal,
         maxDiscount: data.coupon.maxDiscount ?? null,
         name: data.coupon.name,
+        memberEligibility: data.coupon.memberEligibility,
       });
-      setAppliedCouponCode(couponCode.trim()); // Store the applied code for re-validation
+      setAppliedCouponCode(code); // Store the applied code for re-validation
       setCouponCode(""); // Clear input after successful application
       toast({ title: "Coupon Applied", description: `${data.coupon.name} - ${data.coupon.discountType === "PERCENTAGE" ? data.coupon.discountValue + "%" : "$" + data.coupon.discountValue} off` });
     } catch (error) {
@@ -475,12 +493,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const submitOrderWithToken = async (tokenId: string) => {
     setAwaitingToken(false);
     setIsProcessing(true);
-    try {
-      const response = await fetch("/api/checkout/session", {
+    try {      const response = await fetch("/api/checkout/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          singleUseTokenId: tokenId,
+          // OnlinePay redirects to its hosted checkout and has no PayWay token.
+          ...(tokenId ? { singleUseTokenId: tokenId } : {}),
           items: items.map((item) => ({
             productId: item.product.id,
             variantId: item.product.variantId || undefined,
@@ -492,39 +510,70 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           guestEmail: !isAuthenticated ? guestEmail.trim().toLowerCase() : undefined,
           shippingRateCode: selectedRateCode ?? undefined,
           shippingCost: shippingCost ?? 0,
+          shippingQuoteToken: selectedRate?.quoteToken,
           couponCode: appliedCoupon?.code || undefined,
           addMembership: !isMember && addMembership,
+          // REL-5: send the same key on every retry for this attempt
+          idempotencyKey: idempotencyKeyRef.current ?? undefined,
         }),
       });
       const data = await response.json();
       if (!response.ok) {
+        if (data.retryWithNewKey || [400, 401, 402, 422].includes(response.status)) {
+          idempotencyKeyRef.current = null;
+        }
         const msg = data.error || "Payment failed. Please try again.";
         setPaymentError(msg);
         setSingleUseTokenId(null); // token was consumed — user must re-enter card
-        toast({ title: "Payment Failed", description: msg, variant: "destructive" });
+        toast({ title: response.status === 503 ? "Checkout Unavailable" : "Payment Failed", description: msg, variant: "destructive" });
+        submissionInFlightRef.current = false; // allow retry
         setIsProcessing(false);
         return;
       }
       if (data.status === "success" || data.status === "pending") {
-        clearCart();
-        router.push(`/order-confirmation/${data.orderId}`);
+        // REL-3 fix: Only clear the cart when payment is confirmed (success).
+        // For a "pending" async payment the cart must survive — if the PayWay
+        // transaction ultimately fails, the customer still has their cart intact
+        // and can retry without rebuilding it from scratch. The cart is cleared
+        // by <ClearCartOnSuccess> on the confirmation page once the order is PAID.
+        if (data.status === "success") {
+          clearCart();
+        }
+        const confirmUrl = isAuthenticated
+          ? `/order-confirmation/${data.orderId}`
+          : `/order-confirmation/${data.orderId}?token=${encodeURIComponent(data.guestToken ?? "")}`;
+        router.push(confirmUrl);
+      } else if (data.status === "redirect" && data.checkoutUrl) {
+        window.location.assign(data.checkoutUrl);
       } else {
         toast({ title: "Error", description: "Unexpected response. Please contact support.", variant: "destructive" });
+        submissionInFlightRef.current = false; // allow retry
         setIsProcessing(false);
       }
     } catch (error) {
       console.error("Checkout error:", error);
       toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
+      submissionInFlightRef.current = false; // allow retry
       setIsProcessing(false);
     }
   };
 
-  // Trigger order submission once both a token is available and we're awaiting one
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // REL-2 fix: Guard with a ref so this effect is strictly one-shot per Place
+  // Order click. React state updates are asynchronous — without the ref, a
+  // re-render could cause the effect to fire a second time with the same
+  // awaitingToken=true and singleUseTokenId values before setAwaitingToken(false)
+  // has propagated, submitting the order (and consuming the single-use token)
+  // twice and producing a guaranteed payment failure on the second attempt.
+  // The ref is set synchronously inside the effect (before any await), so even
+  // multiple rapid re-renders cannot trigger a second submission.
   useEffect(() => {
-    if (awaitingToken && singleUseTokenId) {
+    if (awaitingToken && singleUseTokenId && !submissionInFlightRef.current) {
+      submissionInFlightRef.current = true; // claim the slot synchronously
       submitOrderWithToken(singleUseTokenId);
     }
+  // submitOrderWithToken deliberately reads the current checkout state when a
+  // token arrives; including it would recreate this one-shot effect each render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [awaitingToken, singleUseTokenId]);
 
   const handlePlaceOrder = () => {
@@ -556,6 +605,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     }
     setPaymentError(null);
     setSingleUseTokenId(null);
+    submissionInFlightRef.current = false; // reset guard for this new attempt
+    idempotencyKeyRef.current ??= crypto.randomUUID(); // retain across ambiguous network failures
+    if (usesOnlinePay) {
+      submissionInFlightRef.current = true;
+      submitOrderWithToken("");
+      return;
+    }
     setAwaitingToken(true);
     triggerPayWayGetToken();
   };
@@ -774,7 +830,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               <Button
                 type="button"
                 variant="outline"
-                onClick={applyCoupon}
+                onClick={() => applyCoupon()}
                 disabled={!couponCode.trim() || isApplyingCoupon}
                 className="h-10 px-5 min-w-[80px]"
               >
@@ -796,8 +852,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
           <div className="mt-4 space-y-2.5">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">{currencyFormatter.format(subtotal)}</span>
+              <span className="text-muted-foreground">{memberSavings > 0 ? "Subtotal before member savings" : "Subtotal"}</span>
+              <span className="font-medium">{currencyFormatter.format(memberSavings > 0 ? fullSubtotal : displayedSubtotal)}</span>
             </div>
             {memberSavings > 0 && (
               <div className="flex justify-between text-sm">
@@ -805,6 +861,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   <Crown className="h-3 w-3" /> Member savings
                 </span>
                 <span className="font-medium text-primary">-{currencyFormatter.format(memberSavings)}</span>
+              </div>
+            )}
+            {memberSavings > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Member subtotal</span>
+                <span className="font-medium">{currencyFormatter.format(displayedSubtotal)}</span>
               </div>
             )}
             {discount > 0 && appliedCoupon && (
@@ -856,7 +918,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
           {freeShipping && (
             <p className="mt-3 text-xs text-green-600 font-medium flex items-center gap-1">
-              Free shipping on orders over $1,200
+              {effectiveMember ? "Free shipping included with your membership" : "Free shipping on orders of $1,200 or more"}
             </p>
           )}
 
@@ -934,11 +996,15 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   <div>
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                       <Crown className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="text-sm font-bold text-foreground">Add CHS Membership</span>
+                      <span className="text-sm font-bold text-foreground">
+                        {hasExpiredMembership ? "Renew CHS Membership" : "Add CHS Membership"}
+                      </span>
                       <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">+{currencyFormatter.format(MEMBERSHIP_PRICE)}</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {memberSavings > 0
+                      {hasExpiredMembership
+                        ? "Your membership has expired — renew now to restore member prices and benefits."
+                        : memberSavings > 0
                         ? netBenefit > 0
                           ? `Save ${currencyFormatter.format(memberSavings)} on this order alone — net gain: ${currencyFormatter.format(netBenefit)}`
                           : `Save ${currencyFormatter.format(memberSavings)} on this order + all future orders`
@@ -989,8 +1055,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             </div>
           )}
 
-          {/* ── PayWay Card Frame ──────────────────────────────────────────── */}
-          <div className="mt-4">
+          {/* PayWay is retained until OnlinePay is enabled through the gateway switch. */}
+          {!usesOnlinePay && <div className="mt-4">
             <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               Card Details
@@ -1011,13 +1077,16 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             {paymentError && (
               <p className="mt-2 text-xs text-destructive font-medium">{paymentError}</p>
             )}
-          </div>
+          </div>}
 
+          {usesOnlinePay && paymentError && <p role="alert" className="mt-2 text-sm text-destructive">{paymentError}</p>}
+          {pricesError && <p role="alert" className="mt-2 text-sm text-destructive">{pricesError}</p>}
+          {unavailable && <p role="alert" className="mt-2 text-sm text-destructive">An item is unavailable or exceeds stock. Update your cart before paying.</p>}
           {/* Place Order Button */}
           <Button
             className="mt-5 w-full h-12 text-sm font-semibold"
             onClick={handlePlaceOrder}
-            disabled={isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
+            disabled={!pricesReady || unavailable || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
           >
             {isProcessing ? (
               <>
@@ -1035,7 +1104,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           </Button>
 
           <p className="mt-3 text-center text-[11px] text-muted-foreground leading-relaxed">
-            Your payment is processed securely by PayWay (Westpac). Card details never touch our servers.
+            Your payment is processed securely by {usesOnlinePay ? "Westpac OnlinePay" : "PayWay (Westpac)"}. Card details never touch our servers.
           </p>
 
           {/* Trust badges */}
@@ -1114,13 +1183,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="dlg-name" className="text-sm font-medium">Full Name</Label>
-                <Input id="dlg-name" placeholder="John Smith" {...registerAddress("name")} />
-                {addressErrors.name && <p className="text-sm text-destructive">{addressErrors.name.message}</p>}
+                <Input aria-invalid={!!addressErrors.name} aria-describedby={addressErrors.name ? "dlg-name-error" : undefined} id="dlg-name" placeholder="John Smith" {...registerAddress("name")} />
+                {addressErrors.name && <p id="dlg-name-error" role="alert" className="text-sm text-destructive">{addressErrors.name.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dlg-phone" className="text-sm font-medium">Phone</Label>
-                <Input id="dlg-phone" type="tel" placeholder="0412 345 678" {...registerAddress("phone")} />
-                {addressErrors.phone && <p className="text-sm text-destructive">{addressErrors.phone.message}</p>}
+                <Input aria-invalid={!!addressErrors.phone} aria-describedby={addressErrors.phone ? "dlg-phone-error" : undefined} id="dlg-phone" type="tel" placeholder="0412 345 678" {...registerAddress("phone")} />
+                {addressErrors.phone && <p id="dlg-phone-error" role="alert" className="text-sm text-destructive">{addressErrors.phone.message}</p>}
               </div>
             </div>
 
@@ -1161,12 +1230,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             {/* State & Postcode */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-medium flex items-center gap-2">
+                <Label htmlFor="dlg-state" className="text-sm font-medium flex items-center gap-2">
                   <Navigation className="h-4 w-4 text-muted-foreground" />
                   State
                 </Label>
                 <Select value={addressState} onValueChange={(v) => setAddressValue("state", v)}>
-                  <SelectTrigger className={cn(addressErrors.state && "border-destructive")}>
+                  <SelectTrigger id="dlg-state" aria-invalid={!!addressErrors.state} aria-describedby={addressErrors.state ? "dlg-state-error" : undefined} className={cn(addressErrors.state && "border-destructive")}>
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1175,22 +1244,22 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                     ))}
                   </SelectContent>
                 </Select>
-                {addressErrors.state && <p className="text-sm text-destructive">{addressErrors.state.message}</p>}
+                {addressErrors.state && <p id="dlg-state-error" role="alert" className="text-sm text-destructive">{addressErrors.state.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dlg-postcode" className="text-sm font-medium">Postcode</Label>
-                <Input id="dlg-postcode" placeholder="2000" maxLength={4} {...registerAddress("postcode")} />
-                {addressErrors.postcode && <p className="text-sm text-destructive">{addressErrors.postcode.message}</p>}
+                <Input aria-invalid={!!addressErrors.postcode} aria-describedby={addressErrors.postcode ? "dlg-postcode-error" : undefined} id="dlg-postcode" placeholder="2000" maxLength={4} {...registerAddress("postcode")} />
+                {addressErrors.postcode && <p id="dlg-postcode-error" role="alert" className="text-sm text-destructive">{addressErrors.postcode.message}</p>}
               </div>
             </div>
 
             {/* Country (read-only) */}
             <div className="space-y-2">
-              <Label className="text-sm font-medium flex items-center gap-2">
+              <Label htmlFor="dlg-country" className="text-sm font-medium flex items-center gap-2">
                 <Globe className="h-4 w-4 text-muted-foreground" />
                 Country
               </Label>
-              <Input value="Australia" disabled className="bg-muted/50" />
+              <Input id="dlg-country" value="Australia" disabled className="bg-muted/50" />
             </div>
 
             <DialogFooter className="gap-2 pt-2">

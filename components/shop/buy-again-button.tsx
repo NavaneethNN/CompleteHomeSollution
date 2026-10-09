@@ -50,34 +50,25 @@ export function BuyAgainButton({
   const router = useRouter();
   const addItem = useCartStore((state) => state.addItem);
 
+  if (items.length === 0) return null;
+
   const handleBuyAgain = async () => {
     setLoading(true);
     setSuccess(false);
     
     try {
-      // Small artificial delay to show feedback
-      await new Promise(resolve => setTimeout(resolve, 600));
-
+      const ids = [...new Set(items.map(item => item.product.id))];
+      const response = await fetch("/api/cart/products", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ids }) });
+      if (!response.ok) throw new Error("Current product details could not be loaded");
+      const { catalog } = await response.json();
       let addedCount = 0;
+      let skippedCount = 0;
 
       for (const item of items) {
-        // Construct variant label if applicable
-        const variantLabel = item.productVariant?.values
-          ?.map((v) => `${v.variantValue.variantAttribute.name}: ${v.variantValue.value}`)
-          .join(" · ");
-
-        addItem({
-          id: item.product.id,
-          name: item.product.name,
-          slug: item.product.slug,
-          price: item.unitPrice,
-          images: item.product.images || [],
-          stock: 99, // Allow adding to cart, stock will be verified at checkout
-          variantId: item.productVariantId,
-          variantLabel: variantLabel,
-          sku: item.productVariant?.sku,
-        }, item.quantity);
-        
+        const current = catalog[item.productVariantId ?? item.product.id];
+        if (!current || current.id !== item.product.id || current.stock < 1) { skippedCount++; continue; }
+        addItem(current, Math.min(item.quantity, current.stock));
+        if (item.quantity > current.stock) skippedCount++;
         addedCount++;
       }
 
@@ -89,15 +80,16 @@ export function BuyAgainButton({
             onClick: () => router.push("/cart"),
           },
         });
+        if (skippedCount) toast.warning(`${skippedCount} item(s) were unavailable or had reduced stock.`);
         
         // Reset success state after 2 seconds
         setTimeout(() => setSuccess(false), 2000);
       } else {
-        toast.error("No items could be added to cart");
+        toast.error("These products or variants are no longer available");
       }
     } catch (error) {
       console.error("Buy again error:", error);
-      toast.error("Something went wrong. Please try again.");
+      toast.error("Current product details could not be loaded. Please try again.");
     } finally {
       setLoading(false);
     }

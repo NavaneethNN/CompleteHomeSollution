@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-05",
+  "origin": "http://localhost:3000",
+  "browser": "Google Chrome 154.0.8037.95 headless",
+  "axeCore": "4.11.4",
+  "viewport": "390x844",
+  "tags": ["wcag2a", "wcag2aa", "wcag21aa"],
+  "resultsAfterStockLabelFix": [
+    { "path": "/", "violationCount": 0 },
+    { "path": "/products", "violationCount": 0 },
+    { "path": "/products/recliner-sofa", "violationCount": 0 },
+    { "path": "/cart", "violationCount": 0 },
+    { "path": "/checkout", "violationCount": 0 }
+  ],
+  "limits": "Sampled anonymous pages and automated rules only; keyboard, zoom, and screen-reader acceptance remain open."
+}

@@ -1,3 +1,5 @@
+import { OrderMembershipItem } from "@/components/account/order-membership-item";
+import { orderContentsLabel } from "@/lib/order-display";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -102,7 +104,7 @@ export default async function OrdersPage() {
                         <div className="flex items-center gap-4">
                           <div>
                             <p className="text-sm font-semibold text-foreground">
-                              Order #{order.id.slice(-8).toUpperCase()}
+                              {order.membershipAmount > 0 && order.items.length === 0 ? "Membership" : "Order"} #{order.id.slice(-8).toUpperCase()}
                             </p>
                             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                               <Calendar className="h-3 w-3" />
@@ -120,7 +122,7 @@ export default async function OrdersPage() {
                             ${order.total.toFixed(2)}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {order.items.length} {order.items.length === 1 ? "item" : "items"}
+                            {orderContentsLabel(order)}
                           </p>
                         </div>
                       </div>
@@ -129,6 +131,7 @@ export default async function OrdersPage() {
                     {/* Order Items */}
                     <div className="px-6 py-4">
                       <div className="space-y-3">
+                        <OrderMembershipItem amount={order.membershipAmount} durationDays={order.membershipDurationDays} />
                         {order.items.slice(0, 3).map((item) => {
                           const displayImage =
                             item.productVariant?.images?.[0]?.url ?? item.product.images?.[0];
@@ -183,7 +186,7 @@ export default async function OrdersPage() {
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                           <MapPin className="h-4 w-4" />
                           <span className="truncate max-w-[200px]">
-                            {order.address.suburb}, {order.address.state} {order.address.postcode}
+                            {order.membershipAmount > 0 && order.items.length === 0 ? "Digital membership" : `${order.address.suburb}, ${order.address.state} ${order.address.postcode}`}
                           </span>
                         </div>
                         <div className="flex items-center gap-3">

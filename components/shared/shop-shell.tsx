@@ -21,7 +21,7 @@ export function ShopShell({ children }: { children: React.ReactNode }) {
         <PagePreloader />
       </Suspense>
       <Navbar />
-      <main className="flex-1 flex flex-col">{children}</main>
+      <div className="flex-1 flex flex-col">{children}</div>
       <Footer />
       <StickyCartBar />
     </>

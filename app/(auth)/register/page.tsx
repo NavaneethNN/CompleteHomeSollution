@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="animate-spin h-8 w-8 text-primary" /></div>}>
+    <main className="flex flex-1 flex-col"><Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="animate-spin h-8 w-8 text-primary" /></div>}>
       <RegisterForm />
-    </Suspense>
+    </Suspense></main>
   );
 }

@@ -11,6 +11,8 @@ export interface OrderWithItems {
   shippingCost: number;
   tax: number;
   total: number;
+  membershipAmount: number;
+  membershipDurationDays: number | null;
   paywayTransactionId: string | null;
   trackingNumber: string | null;
   carrier: string | null;
@@ -19,7 +21,7 @@ export interface OrderWithItems {
   refundReason: string | null;
   refundAmount: number | null;
   refundedAt: Date | null;
-  refundStripeId: string | null;
+  paywayRefundId: string | null;
   createdAt: Date;
   updatedAt: Date;
   address: {

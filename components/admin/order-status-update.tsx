@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ADMIN_FULFILMENT_STATUSES, ORDER_TRANSITIONS } from "@/lib/order-state";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -59,12 +61,13 @@ export function OrderStatusUpdate({
   currentTrackingNumber,
   currentCarrier,
 }: OrderStatusUpdateProps) {
+  const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(currentStatus);
   const [trackingNumber, setTrackingNumber] = useState(currentTrackingNumber ?? "");
   const [carrier, setCarrier] = useState(currentCarrier ?? "");
 
-  const showTrackingFields = ["SHIPPED", "OUT_FOR_DELIVERY"].includes(selectedStatus);
+  const showTrackingFields = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(selectedStatus);
   const hasChanged = selectedStatus !== currentStatus
     || trackingNumber !== (currentTrackingNumber ?? "")
     || carrier !== (currentCarrier ?? "");
@@ -75,11 +78,6 @@ export function OrderStatusUpdate({
       toast.info("No changes to save.");
       return;
     }
-    if (showTrackingFields && (!trackingNumber.trim() || !carrier.trim())) {
-      toast.error("Tracking number and carrier are required for shipped orders.");
-      return;
-    }
-
     setIsUpdating(true);
     try {
       const res = await fetch(`/api/orders/${orderId}/status`, {
@@ -88,8 +86,8 @@ export function OrderStatusUpdate({
         credentials: "include",
         body: JSON.stringify({
           status: selectedStatus,
-          trackingNumber: trackingNumber.trim() || undefined,
-          carrier: carrier.trim() || undefined,
+          trackingNumber: trackingNumber.trim() || null,
+          carrier: carrier.trim() || null,
         }),
       });
 
@@ -100,6 +98,7 @@ export function OrderStatusUpdate({
       }
 
       toast.success(`Order status updated to ${ORDER_STATUS_CONFIG[selectedStatus]?.label ?? selectedStatus}`);
+      router.refresh();
     } catch (err: any) {
       toast.error(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -134,7 +133,10 @@ export function OrderStatusUpdate({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(ORDER_STATUS_CONFIG).map(([status, config]) => (
+                {Object.entries(ORDER_STATUS_CONFIG).filter(([status]) =>
+                  status === currentStatus ||
+                  (ADMIN_FULFILMENT_STATUSES as readonly string[]).includes(status) && ORDER_TRANSITIONS[currentStatus]?.includes(status)
+                ).map(([status, config]) => (
                   <SelectItem key={status} value={status}>
                     <div className="flex items-center gap-2">
                       <config.icon className="h-4 w-4" />
@@ -149,7 +151,7 @@ export function OrderStatusUpdate({
           {showTrackingFields && (
             <>
               <div>
-                <Label htmlFor="tracking-number">Tracking Number <span className="text-red-500">*</span></Label>
+                <Label htmlFor="tracking-number">Tracking ID <span className="text-slate-400">(optional)</span></Label>
                 <Input
                   id="tracking-number"
                   className="mt-1"
@@ -159,7 +161,7 @@ export function OrderStatusUpdate({
                 />
               </div>
               <div>
-                <Label htmlFor="carrier">Carrier <span className="text-red-500">*</span></Label>
+                <Label htmlFor="carrier">Courier <span className="text-slate-400">(optional)</span></Label>
                 <Input
                   id="carrier"
                   className="mt-1"
@@ -186,7 +188,7 @@ export function OrderStatusUpdate({
         </div>
 
         <p className="text-xs text-slate-400">
-          Customer will receive an email notification on status change.
+          Customers receive a status email. Add a tracking ID when available so they can follow the parcel with the courier.
         </p>
       </CardContent>
     </Card>

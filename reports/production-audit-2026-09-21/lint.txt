@@ -1,0 +1,255 @@
+
+> complete-home-sollution@0.1.0 lint
+> next lint
+
+`next lint` is deprecated and will be removed in Next.js 16.
+For new projects, use create-next-app to choose your preferred linter.
+For existing projects, migrate to the ESLint CLI:
+npx @next/codemod@canary next-lint-to-eslint-cli .
+
+
+./app/(account)/account/dashboard/page.tsx
+10:32  Warning: 'Heart' is defined but never used.  @typescript-eslint/no-unused-vars
+11:34  Warning: 'Calendar' is defined but never used.  @typescript-eslint/no-unused-vars
+59:25  Warning: 'pendingOrders' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+65:9  Warning: 'initials' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/(account)/account/orders/[id]/page.tsx
+119:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(account)/account/orders/page.tsx
+146:33  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(account)/dashboard/page.tsx
+10:16  Warning: 'Heart' is defined but never used.  @typescript-eslint/no-unused-vars
+11:34  Warning: 'Calendar' is defined but never used.  @typescript-eslint/no-unused-vars
+11:44  Warning: 'CreditCard' is defined but never used.  @typescript-eslint/no-unused-vars
+67:25  Warning: 'pendingOrders' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+100:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(account)/orders/[id]/page.tsx
+109:27  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(account)/orders/page.tsx
+14:3  Warning: 'CreditCard' is defined but never used.  @typescript-eslint/no-unused-vars
+15:3  Warning: 'Truck' is defined but never used.  @typescript-eslint/no-unused-vars
+119:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(admin)/admin/analytics/page.tsx
+190:12  Warning: 'year' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/(admin)/admin/blog/blog-client.tsx
+38:3  Warning: 'Clock' is defined but never used.  @typescript-eslint/no-unused-vars
+100:64  Warning: 'tags' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+138:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/(admin)/admin/blog/blog-post-editor.tsx
+58:16  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+108:3  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+206:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+314:19  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(admin)/admin/categories/page.tsx
+299:19  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(admin)/admin/coupons/page.tsx
+4:8  Warning: 'Link' is defined but never used.  @typescript-eslint/no-unused-vars
+20:3  Warning: 'X' is defined but never used.  @typescript-eslint/no-unused-vars
+94:9  Warning: 'router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+147:41  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+158:45  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+215:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+248:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+625:13  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+626:23  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/(admin)/admin/orders/[id]/page.tsx
+164:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+168:29  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+186:40  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+190:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+192:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+192:72  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+203:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+216:63  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+216:90  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+218:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+220:49  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+220:82  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+221:66  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/(admin)/admin/products/new/page.tsx
+3:20  Warning: 'useCallback' is defined but never used.  @typescript-eslint/no-unused-vars
+349:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+354:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+362:42  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+368:56  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+369:60  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+381:43  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+458:9  Warning: 'addAllCombinationsForValue' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+699:53  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+1057:19  Warning: 'primaryAttr' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+1058:19  Warning: 'secondaryAttrs' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/(admin)/admin/products/page.tsx
+407:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(auth)/register/_components/register-form.tsx
+18:3  Warning: 'CheckCircle2' is defined but never used.  @typescript-eslint/no-unused-vars
+126:9  Warning: 'router' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/(blog)/blog/[slug]/page.tsx
+148:16  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+379:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(blog)/blog/page.tsx
+5:10  Warning: 'Badge' is defined but never used.  @typescript-eslint/no-unused-vars
+27:16  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+222:27  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./app/(shop)/search/page.tsx
+4:18  Warning: 'SlidersHorizontal' is defined but never used.  @typescript-eslint/no-unused-vars
+55:16  Warning: 'getRelatedCategories' is defined but never used.  @typescript-eslint/no-unused-vars
+75:9  Warning: 'currencyFmt' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/blog/route.ts
+11:12  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/coupons/[id]/route.ts
+58:41  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+59:45  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/api/admin/coupons/route.ts
+47:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+49:38  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+50:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/api/admin/products/[id]/route.ts
+190:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+212:13  Warning: 'updatedProduct' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/blog/[slug]/like/route.ts
+4:10  Warning: 'headers' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/products/upsells/route.ts
+71:44  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/api/qa/results/route.ts
+10:7  Warning: Unused eslint-disable directive (no problems were reported from 'no-console').
+12:14  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+29:7  Warning: Unused eslint-disable directive (no problems were reported from 'no-console').
+31:14  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/layout.tsx
+5:10  Warning: 'Navbar' is defined but never used.  @typescript-eslint/no-unused-vars
+6:10  Warning: 'Footer' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/qa/[suite]/_components/suite-runner.tsx
+66:12  Warning: 'startTransition' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/qa/[suite]/page.tsx
+54:5  Warning: Unused eslint-disable directive (no problems were reported from 'no-console').
+56:12  Warning: 'e' is defined but never used.  @typescript-eslint/no-unused-vars
+64:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./app/qa/page.tsx
+136:49  Warning: 'bg' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./components/account/account-sidebar.tsx
+46:11  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/account/address-autocomplete.tsx
+135:15  Warning: 'errorText' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/account/address-manager.tsx
+11:3  Warning: 'MapPinned' is defined but never used.  @typescript-eslint/no-unused-vars
+35:3  Warning: 'CardHeader' is defined but never used.  @typescript-eslint/no-unused-vars
+36:3  Warning: 'CardTitle' is defined but never used.  @typescript-eslint/no-unused-vars
+37:3  Warning: 'CardDescription' is defined but never used.  @typescript-eslint/no-unused-vars
+346:52  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/account/profile-form.tsx
+40:5  Warning: 'watch' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+174:17  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+349:100  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/account/suburb-selector.tsx
+21:30  Warning: 'Suburb' is defined but never used.  @typescript-eslint/no-unused-vars
+47:9  Warning: 'selectedSuburb' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/admin/admin-preloader.tsx
+48:5  Warning: Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps').
+
+./components/admin/admin-sidebar.tsx
+17:3  Warning: 'Settings' is defined but never used.  @typescript-eslint/no-unused-vars
+18:3  Warning: 'Bell' is defined but never used.  @typescript-eslint/no-unused-vars
+20:3  Warning: 'ChevronDown' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/admin/blog-rich-editor.tsx
+445:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+486:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/admin/blog-tag-manager.tsx
+18:21  Warning: 'Hash' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/admin/customers-client.tsx
+34:3  Warning: Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element').
+36:5  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/admin/image-uploader.tsx
+16:10  Warning: 'Button' is defined but never used.  @typescript-eslint/no-unused-vars
+17:10  Warning: 'Input' is defined but never used.  @typescript-eslint/no-unused-vars
+95:30  Warning: 'key' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/admin/membership-client.tsx
+6:3  Warning: 'Users' is defined but never used.  @typescript-eslint/no-unused-vars
+11:21  Warning: 'grantMembership' is defined but never used.  @typescript-eslint/no-unused-vars
+27:3  Warning: Unused eslint-disable directive (no problems were reported from '@next/next/no-img-element').
+29:5  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/admin/order-row-status-form.tsx
+52:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/admin/order-status-update.tsx
+6:10  Warning: 'Button' is defined but never used.  @typescript-eslint/no-unused-vars
+102:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/blog/blog-like-button.tsx
+61:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/blog/blog-social-share.tsx
+8:3  Warning: 'Share2' is defined but never used.  @typescript-eslint/no-unused-vars
+11:3  Warning: 'ExternalLink' is defined but never used.  @typescript-eslint/no-unused-vars
+36:14  Warning: 'err' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/shop/cancel-order-button.tsx
+49:17  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/shop/cart-summary.tsx
+4:29  Warning: 'Sparkles' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/shop/home-trending-product-card.tsx
+35:42  Warning: React Hook useEffect has a missing dependency: 'setMounted'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/shop/product-card.tsx
+7:39  Warning: 'Zap' is defined but never used.  @typescript-eslint/no-unused-vars
+46:20  Warning: 'isMember' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+60:5  Warning: 'reviewLabel' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+80:5  Warning: 'addToCartButtonClassName' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+81:5  Warning: 'addToCartIcon' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+129:9  Warning: 'handleBuyNow' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./components/shop/product-reviews.tsx
+282:70  Warning: 'reviewCount' is defined but never used. Allowed unused args must match /^_/u.  @typescript-eslint/no-unused-vars
+
+./components/shop/variant-selector.tsx
+63:9  Warning: 'validCombinations' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+166:6  Warning: React Hook useMemo has a missing dependency: 'getAvailableValuesForAttribute'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/shop/wishlist-item.tsx
+6:31  Warning: 'Trash2' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/shop/wishlist-page.tsx
+4:22  Warning: 'Heart' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules

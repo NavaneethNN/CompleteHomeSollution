@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { resolveMemberPrice } from "@/lib/member-price";
 
 interface VariantAttribute {
   id: string;
@@ -49,6 +50,7 @@ interface VariantSelectorProps {
   variants: ProductVariant[];
   variantMap: Record<string, ProductVariant>;
   defaultVariant: ProductVariant | null;
+  productMemberPrice: number | null;
   onVariantChange?: (variant: ProductVariant | null) => void;
 }
 
@@ -57,51 +59,9 @@ export function VariantSelector({
   variants,
   variantMap,
   defaultVariant,
+  productMemberPrice,
   onVariantChange,
 }: VariantSelectorProps) {
-  // Build a lookup of which value combinations exist
-  const validCombinations = useMemo(() => {
-    const combos = new Set<string>();
-    variants.forEach((variant) => {
-      const key = variant.values
-        .map((v) => `${v.variantValue.variantAttribute.id}:${v.variantValue.id}`)
-        .sort()
-        .join("|");
-      combos.add(key);
-    });
-    return combos;
-  }, [variants]);
-
-  // Get available values for an attribute given current selections
-  const getAvailableValuesForAttribute = (attributeId: string) => {
-    const available = new Set<string>();
-    
-    variants.forEach((variant) => {
-      const variantValues = variant.values;
-      // Check if this variant matches all current selections (except for the attribute we're checking)
-      const matches = attributes.every((attr) => {
-        if (attr.id === attributeId) return true; // Skip the attribute we're checking
-        const selectedValueId = selections[attr.id];
-        if (!selectedValueId) return true; // No selection yet, consider it a match
-        return variantValues.some(
-          (v) => v.variantValue.variantAttribute.id === attr.id && 
-                 v.variantValue.id === selectedValueId
-        );
-      });
-      
-      if (matches) {
-        const valueForAttr = variantValues.find(
-          (v) => v.variantValue.variantAttribute.id === attributeId
-        );
-        if (valueForAttr) {
-          available.add(valueForAttr.variantValue.id);
-        }
-      }
-    });
-    
-    return available;
-  };
-
   const [selections, setSelections] = useState<Record<string, string>>(() => {
     if (!defaultVariant) return {};
     return defaultVariant.values.reduce((acc, v) => {
@@ -122,6 +82,9 @@ export function VariantSelector({
       .join("|");
     return variantMap[key] || null;
   }, [selections, attributes, variantMap]);
+  const selectedMemberPrice = selectedVariant
+    ? resolveMemberPrice(selectedVariant.price, selectedVariant.memberPrice, productMemberPrice)
+    : null;
 
   // Notify parent when variant changes
   useEffect(() => {
@@ -158,6 +121,36 @@ export function VariantSelector({
 
   // Get available values for each attribute
   const availableValuesByAttribute = useMemo(() => {
+    // Get available values for an attribute given current selections
+    const getAvailableValuesForAttribute = (attributeId: string) => {
+      const available = new Set<string>();
+
+      variants.forEach((variant) => {
+        const variantValues = variant.values;
+        // Check if this variant matches all current selections (except for the attribute we're checking)
+        const matches = attributes.every((attr) => {
+          if (attr.id === attributeId) return true; // Skip the attribute we're checking
+          const selectedValueId = selections[attr.id];
+          if (!selectedValueId) return true; // No selection yet, consider it a match
+          return variantValues.some(
+            (v) => v.variantValue.variantAttribute.id === attr.id &&
+                   v.variantValue.id === selectedValueId
+          );
+        });
+
+        if (matches) {
+          const valueForAttr = variantValues.find(
+            (v) => v.variantValue.variantAttribute.id === attributeId
+          );
+          if (valueForAttr) {
+            available.add(valueForAttr.variantValue.id);
+          }
+        }
+      });
+
+      return available;
+    };
+
     const available: Record<string, Set<string>> = {};
     attributes.forEach((attr) => {
       available[attr.id] = getAvailableValuesForAttribute(attr.id);
@@ -215,14 +208,14 @@ export function VariantSelector({
         <div className="flex items-center justify-between py-2 border-t border-border text-sm">
           <span className="text-muted-foreground">
             {selectedVariant.stock > 0 ? (
-              <span className="text-green-600">● In Stock</span>
+              <span className="text-green-800">● In Stock</span>
             ) : (
               <span className="text-destructive">Out of stock</span>
             )}
           </span>
-          {selectedVariant.memberPrice && (
+          {selectedMemberPrice !== null && (
             <span className="text-primary font-medium">
-              Member: ${selectedVariant.memberPrice.toLocaleString()}
+              Member: ${selectedMemberPrice.toLocaleString()}
             </span>
           )}
         </div>

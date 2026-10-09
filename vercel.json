@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reconcile-onlinepay",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/send-stock-alerts",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/send-email-jobs",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/check-operations",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

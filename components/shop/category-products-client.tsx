@@ -75,6 +75,7 @@ export function CategoryProductsClient({ products, isMember = false, categoryNam
             <div className="mt-12 flex items-center justify-center gap-1">
               <button
                 onClick={() => handlePageChange(page - 1)}
+                aria-label="Previous page"
                 disabled={page === 1}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
@@ -98,6 +99,7 @@ export function CategoryProductsClient({ products, isMember = false, categoryNam
 
               <button
                 onClick={() => handlePageChange(page + 1)}
+                aria-label="Next page"
                 disabled={page === totalPages}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >

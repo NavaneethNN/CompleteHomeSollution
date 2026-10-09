@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ADMIN_FULFILMENT_STATUSES, ORDER_TRANSITIONS } from "@/lib/order-state";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -63,7 +64,7 @@ export function OrderRowStatusForm({ orderId, currentStatus }: OrderRowStatusFor
         disabled={isUpdating}
         className="h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 disabled:opacity-50 cursor-pointer"
       >
-        {STATUS_OPTIONS.map((s) => (
+        {STATUS_OPTIONS.filter((item) => item.value === currentStatus || ((ADMIN_FULFILMENT_STATUSES as readonly string[]).includes(item.value) && ORDER_TRANSITIONS[currentStatus]?.includes(item.value))).map((s) => (
           <option key={s.value} value={s.value}>
             {s.label}
           </option>

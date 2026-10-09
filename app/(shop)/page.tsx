@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { hasActiveMembership } from "@/lib/membership";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { AnimateIn } from "@/components/shared/animate-in";
@@ -136,6 +137,21 @@ async function getTrendingProducts() {
   }
 }
 
+async function getMemberStatus(userId?: string) {
+  if (!userId) return false;
+
+  try {
+    const membership = await db.user.findUnique({
+      where: { id: userId },
+      select: { isMember: true, membershipExpiry: true },
+    });
+    return hasActiveMembership(membership);
+  } catch {
+    // Public storefront pages remain available when the database is offline.
+    return false;
+  }
+}
+
 interface SectionHeadingProps { readonly tag: string; readonly title: string; }
 function SectionHeading({ tag, title }: SectionHeadingProps) {
   return (
@@ -152,17 +168,14 @@ function SectionHeading({ tag, title }: SectionHeadingProps) {
 
 export default async function HomePage() {
   const session = await auth();
-  const [trendingProducts, categories, dbUser] = await Promise.all([
+  const [trendingProducts, categories, isMember] = await Promise.all([
     getTrendingProducts(),
     getCategories(),
-    session?.user?.id
-      ? db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
-      : Promise.resolve(null),
+    getMemberStatus(session?.user?.id),
   ]);
-  const isMember = dbUser?.isMember ?? false;
 
   return (
-    <div>
+    <main>
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden bg-white min-h-[520px] md:min-h-[600px] flex items-center">
         <div className="absolute inset-0 lg:hidden">
@@ -462,6 +475,6 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 }

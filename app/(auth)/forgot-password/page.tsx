@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Mail, ArrowLeft } from "lucide-react";
+import { requestPasswordReset } from "./actions";
 
 export const metadata: Metadata = { title: "Forgot Password — Complete Home Sollution" };
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage({ searchParams }: { searchParams: Promise<{ sent?: string }> }) {
+  const { sent } = await searchParams;
   return (
     <div className="flex-1 flex items-center justify-center px-5 py-14 bg-secondary/30">
       <div className="w-full max-w-md bg-white rounded-2xl border border-border shadow-sm p-8 text-center">
@@ -12,11 +14,13 @@ export default function ForgotPasswordPage() {
           <Mail className="h-7 w-7 text-primary" />
         </div>
         <h1 className="text-2xl font-black text-foreground mb-2">Forgot your password?</h1>
-        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-          Password reset is coming soon. In the meantime, if you signed up with Google,
-          you can continue using Google sign-in. For email/password accounts, please
-          contact our support team.
-        </p>
+        <p className="text-sm text-muted-foreground mb-6 leading-relaxed">Enter your account email. If a password account exists, we’ll send a one-hour reset link.</p>
+        {sent && <p className="mb-5 rounded-xl bg-green-50 p-3 text-sm text-green-800">If that account exists, a reset link has been sent.</p>}
+        <form action={requestPasswordReset} className="mb-4 space-y-3 text-left">
+          <label htmlFor="email" className="text-sm font-semibold">Email address</label>
+          <input id="email" name="email" type="email" required autoComplete="email" className="w-full rounded-xl border px-4 py-3" />
+          <button className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-white hover:bg-primary/90">Send reset link</button>
+        </form>
         <div className="space-y-3">
           <Link
             href="/login"

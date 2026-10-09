@@ -11,7 +11,7 @@ export default async function AdminMembershipPage() {
 
   const activePlans = plans.filter((p) => p.isActive).length;
   // Revenue comes from actual MembershipPayment records, not a member count × plan price estimate
-  const revenueResult = await db.membershipPayment.aggregate({ _sum: { amount: true } });
+  const revenueResult = await db.membershipPayment.aggregate({ where: { refundedAt: null }, _sum: { amount: true } });
   const totalRevenue = revenueResult._sum.amount ?? 0;
 
   const statCards = [

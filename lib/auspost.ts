@@ -1,3 +1,5 @@
+import type { ParcelGroup } from "@/lib/shipping-packages";
+
 const AUSPOST_API_BASE = "https://digitalapi.auspost.com.au";
 const FROM_POSTCODE = process.env.AUSPOST_FROM_POSTCODE ?? "3000";
 
@@ -65,14 +67,18 @@ function formatDeliveryTime(raw: string | null): string | null {
  * 2. Calls calculate.json in parallel for each service to get delivery_time.
  *
  * @param toPostcode  - Destination 4-digit AU postcode
- * @param weightKg    - Total parcel weight in kg (capped at 22 kg)
+ * @param groups      - Actual packaged dimensions, weight, and quantity groups
  */
-export async function getDomesticParcelRates(
+async function getSingleParcelRates(
   toPostcode: string,
-  weightKg: number
+  parcel: Omit<ParcelGroup, "count">
 ): Promise<AusPostRate[]> {
-  const weight = Math.min(Math.max(weightKg, 0.1), 22);
-  const dims = { length: "30", width: "30", height: "30", weight: weight.toFixed(2) };
+  const dims = {
+    length: parcel.lengthCm.toFixed(1),
+    width: parcel.widthCm.toFixed(1),
+    height: parcel.heightCm.toFixed(1),
+    weight: parcel.weightKg.toFixed(3),
+  };
 
   // Step 1: get all services + prices
   const serviceUrl = new URL(`${AUSPOST_API_BASE}/postage/parcel/domestic/service.json`);
@@ -82,7 +88,8 @@ export async function getDomesticParcelRates(
 
   const serviceRes = await fetch(serviceUrl.toString(), {
     headers: authHeaders(),
-    cache: "no-store",
+    next: { revalidate: 300 },
+          signal: AbortSignal.timeout(8000),
   });
 
   if (!serviceRes.ok) {
@@ -108,7 +115,8 @@ export async function getDomesticParcelRates(
 
         const calcRes = await fetch(calcUrl.toString(), {
           headers: authHeaders(),
-          cache: "no-store",
+          next: { revalidate: 300 },
+    signal: AbortSignal.timeout(8000),
         });
         if (!calcRes.ok) return null;
         const calcData: PACCalculateResponse = await calcRes.json();
@@ -125,4 +133,34 @@ export async function getDomesticParcelRates(
     price: parseFloat(String(s.price)),
     deliveryTime: formatDeliveryTime(deliveryTimes[i]),
   }));
+}
+
+/** Quote every physical parcel and combine matching services. Quantities are
+ * multiplied only after a real quote for that packaged size succeeds. */
+export async function getDomesticParcelRates(
+  toPostcode: string,
+  groups: ParcelGroup[]
+): Promise<AusPostRate[]> {
+  if (!groups.length) return [];
+  const quoted = await Promise.all(groups.map(async group => ({
+    group,
+    rates: await getSingleParcelRates(toPostcode, group),
+  })));
+  const serviceCodes = quoted
+    .map(entry => new Set(entry.rates.map(rate => rate.serviceCode)))
+    .reduce((common, codes) => new Set([...common].filter(code => codes.has(code))));
+  return [...serviceCodes].map(serviceCode => {
+    const matches = quoted.map(entry => ({
+      group: entry.group,
+      rate: entry.rates.find(rate => rate.serviceCode === serviceCode)!,
+    }));
+    return {
+      serviceCode,
+      serviceName: matches[0].rate.serviceName,
+      price: Math.round(matches.reduce((sum, match) => sum + match.rate.price * match.group.count, 0) * 100) / 100,
+      deliveryTime: matches.every(match => match.rate.deliveryTime === matches[0].rate.deliveryTime)
+        ? matches[0].rate.deliveryTime
+        : null,
+    };
+  });
 }

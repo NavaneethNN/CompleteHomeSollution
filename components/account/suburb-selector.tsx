@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useId } from "react";
 import { Check, ChevronsUpDown, MapPinned } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { AUSTRALIAN_SUBURBS, Suburb, getSuburbsByState } from "@/lib/data/australian-suburbs";
+import { AUSTRALIAN_SUBURBS, getSuburbsByState } from "@/lib/data/australian-suburbs";
 
 interface SuburbSelectorProps {
   value: string;
@@ -35,7 +35,9 @@ export function SuburbSelector({
   error,
   disabled,
 }: SuburbSelectorProps) {
+  const fieldId = useId();
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const suburbs = useMemo(() => {
     if (state) {
@@ -44,17 +46,20 @@ export function SuburbSelector({
     return AUSTRALIAN_SUBURBS;
   }, [state]);
 
-  const selectedSuburb = suburbs.find((suburb) => suburb.name === value);
 
   return (
     <div className="space-y-2">
-      <Label htmlFor="suburb" className="text-sm font-medium flex items-center gap-2">
+      <Label htmlFor={fieldId} className="text-sm font-medium flex items-center gap-2">
         <MapPinned className="h-4 w-4 text-muted-foreground" />
         Suburb
       </Label>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
+            id={fieldId}
+            type="button"
+            aria-invalid={!!error}
+            aria-describedby={error ? `${fieldId}-error` : undefined}
             variant="outline"
             role="combobox"
             aria-expanded={open}
@@ -71,9 +76,15 @@ export function SuburbSelector({
         </PopoverTrigger>
         <PopoverContent className="w-[300px] p-0">
           <Command>
-            <CommandInput placeholder="Search suburb..." />
+            <CommandInput aria-label="Search suburb" placeholder="Search or enter suburb..." value={query} onValueChange={setQuery} maxLength={50} />
             <CommandList>
-              <CommandEmpty>No suburb found.</CommandEmpty>
+              <CommandEmpty>
+                <p>No matching suggestion.</p>
+                {query.trim() && <Button type="button" variant="outline" className="mt-2" onClick={() => {
+                  onChange(query.trim());
+                  setOpen(false);
+                }}>Use “{query.trim()}”</Button>}
+              </CommandEmpty>
               <CommandGroup heading={state ? `${state} Suburbs` : "All Suburbs"}>
                 {suburbs.map((suburb) => (
                   <CommandItem
@@ -99,7 +110,7 @@ export function SuburbSelector({
           </Command>
         </PopoverContent>
       </Popover>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p id={`${fieldId}-error`} role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }

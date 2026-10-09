@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { ProductsClient } from "@/components/shop/products-client";
 import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
+import { hasActiveMembership } from "@/lib/membership";
 
 export const metadata: Metadata = {
   title: "All Products — Complete Home Sollution",
@@ -75,16 +76,26 @@ async function getCategories() {
   }
 }
 
+async function getMemberStatus(userId?: string) {
+  if (!userId) return false;
+  try {
+    const membership = await db.user.findUnique({
+      where: { id: userId },
+      select: { isMember: true, membershipExpiry: true },
+    });
+    return hasActiveMembership(membership);
+  } catch {
+    return false;
+  }
+}
+
 export default async function ProductsPage() {
   const session = await auth();
-  const [products, categories, dbUser] = await Promise.all([
+  const [products, categories, isMember] = await Promise.all([
     getProducts(),
     getCategories(),
-    session?.user?.id
-      ? db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
-      : Promise.resolve(null),
+    getMemberStatus(session?.user?.id),
   ]);
-  const isMember = dbUser?.isMember ?? false;
 
   return (
     <main className="min-h-screen bg-background">

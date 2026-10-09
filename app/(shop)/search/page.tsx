@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { Search, SlidersHorizontal, Package, ArrowRight } from "lucide-react";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { auth } from "@/auth";
+import { hasActiveMembership } from "@/lib/membership";
 
 interface SearchPageProps {
   searchParams: Promise<{ q?: string; page?: string }>;
@@ -65,9 +66,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const page    = Math.max(1, parseInt(pageParam));
   const session = await auth();
   const dbUser  = session?.user?.id
-    ? await db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true } })
+    ? await db.user.findUnique({
+        where: { id: session.user.id },
+        select: { isMember: true, membershipExpiry: true },
+      })
     : null;
-  const isMember = dbUser?.isMember ?? false;
+  const isMember = hasActiveMembership(dbUser);
 
   const { products, total } = await searchProducts(q, page);
   const totalPages = Math.ceil(total / LIMIT);
@@ -228,4 +232,3 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     </div>
   );
 }
-

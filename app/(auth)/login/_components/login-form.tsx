@@ -239,7 +239,7 @@ function LoginFormInner() {
               <p className="text-3xl xl:text-[38px] font-script text-primary italic leading-snug">
                 Home Awaits
               </p>
-              <p className="text-white/65 text-sm leading-relaxed mt-4 max-w-[340px]">
+              <p className="text-white/80 text-sm leading-relaxed mt-4 max-w-[340px]">
                 Sign in to access your orders, track deliveries, manage your
                 account and unlock exclusive member pricing on every purchase.
               </p>
@@ -256,7 +256,7 @@ function LoginFormInner() {
                     <p className="text-white text-sm font-semibold leading-none mb-1">
                       {title}
                     </p>
-                    <p className="text-white/55 text-xs leading-relaxed">{desc}</p>
+                    <p className="text-white/80 text-xs leading-relaxed">{desc}</p>
                   </div>
                 </li>
               ))}
@@ -264,7 +264,7 @@ function LoginFormInner() {
           </div>
 
           {/* Bottom link */}
-          <p className="text-white/50 text-sm">
+          <p className="text-white/80 text-sm">
             New to Complete Home Sollution?{" "}
             <Link
               href="/register"

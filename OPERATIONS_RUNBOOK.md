@@ -1,0 +1,24 @@
+# Payment and notification operations
+
+Owner: the store operations administrator with access to the payment provider, Brevo, Sentry, and the admin orders page. Assign a named person and backup in the deployment record.
+
+## Monitors
+
+- Poll `GET /api/health` from the deployed host. Any 503 means the app cannot read its database.
+- Poll `GET /api/health/operations` with `Authorization: Bearer <CRON_SECRET>` from a trusted monitor. A 503 or nonzero `refundActions`, `overdueEmailJobs`, `failedStockAlerts`, `paymentReviews`, or `fulfillmentReviews` needs investigation. Do not expose the secret in a public monitor URL.
+- Configure Sentry alert rules for server errors and the cron routes. Set a notification destination and verify a test alert arrives before launch.
+- The scheduled `check-operations` route queues one staff email per stuck payment or unfulfilled order. `send-email-jobs` sends those alerts and paid-order confirmations. `send-stock-alerts` sends restock notices. Review their scheduler execution logs daily.
+
+Pending order items hold available stock. When `paymentReviews` is nonzero, inspect the provider checkout before closing the order: a payment can still complete after the browser leaves. A provider-confirmed rejection or expiry releases the hold when the order becomes `CANCELLED`. Unknown outcomes stay pending and need reconciliation; do not cancel them only to free inventory.
+
+## Refund required after payment
+
+An approved payment with exhausted stock becomes `CANCELLED` with `refundRequested=true`. A durable `REFUND_ACTION` email job points staff to the order. Confirm the provider's captured payment, issue the refund through the admin order refund panel or the provider dashboard, and verify both the provider transaction and local `REFUNDED` state. Record the case privately; do not copy customer details into repository issues. If the provider outcome is unknown, reconcile it before retrying a refund.
+
+## Notification delivery
+
+`EmailJob` records are created in the payment transaction and retried by the cron worker with a claim lease and capped backoff. `StockAlert` records use the same claim and retry pattern after inventory returns. Inspect records with `status=PENDING` and `attempts>=3` or stock alerts with `attempts>=3`; fix Brevo credentials or provider availability, then let the scheduler retry. Brevo's idempotency key limits duplicates for recent retries, but it expires; check provider delivery history when a send succeeded and the database confirmation failed.
+
+## Deployment checks
+
+Run `npm run release:preflight` on staging before serving the release. Migrate before the new cron code starts. Confirm that `CRON_SECRET`, `BREVO_API_KEY`, `SENTRY_DSN`, gateway credentials, and Redis credentials are configured. Confirm each scheduler route receives authorized requests on the actual host. Run payment, refund, email, restore, and rollback acceptance cases from the readiness report before live payments.

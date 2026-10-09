@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
-import { sendShippingUpdateEmail } from "@/lib/brevo";
-import { sendShippingUpdateSms } from "@/lib/twilio";
+import { queueShippingEmail } from "@/lib/email-outbox";
+import { z } from "zod";
+
+const eventSchema = z.object({
+  retailer_invoice: z.string().trim().min(1).max(120),
+  state: z.string().max(50),
+  tracking_number: z.string().trim().min(1).max(200).optional(),
+  courier_name: z.string().trim().min(1).max(120).optional(),
+}).passthrough();
+
+const dispatchedEventSchema = eventSchema.extend({
+  state: z.literal("dispatched"),
+  tracking_number: z.string().trim().min(1).max(200),
+  courier_name: z.string().trim().min(1).max(120),
+});
+
+const SHIPPABLE_STATUSES = ["PAID", "CONFIRMED", "PROCESSING"] as const;
 
 /**
  * Verify Shippit webhook signature using HMAC-SHA256.
@@ -33,41 +48,45 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = JSON.parse(rawBody);
-    const { retailer_invoice: orderId, tracking_number, courier_name, state } = body;
+    let json: unknown;
+    try {
+      json = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
 
-    if (state !== "dispatched") {
+    const event = eventSchema.safeParse(json);
+    if (!event.success) {
+      return NextResponse.json({ error: "Invalid event" }, { status: 400 });
+    }
+    if (event.data.state !== "dispatched") {
       return NextResponse.json({ received: true });
     }
 
-    const order = await db.order.update({
-      where: { id: orderId },
+    const parsed = dispatchedEventSchema.safeParse(json);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "Invalid event" }, { status: 400 });
+    }
+    const { retailer_invoice: orderId, tracking_number, courier_name } = parsed.data;
+
+    // The state predicate makes this transition atomic: delayed and replayed
+    // events cannot revive pending, cancelled, refunded, or delivered orders.
+    const transition = await db.$transaction(async tx => {
+      const changed = await tx.order.updateMany({
+      where: { id: orderId, status: { in: [...SHIPPABLE_STATUSES] } },
       data: {
         status: "SHIPPED",
         trackingNumber: tracking_number,
         carrier: courier_name,
       },
-      include: { user: true, address: true },
     });
 
-    const email = order.user?.email ?? order.guestEmail;
-    const name = order.user?.name ?? "Customer";
-    const phone = order.user?.phone ?? order.guestPhone;
+      if (changed.count) await queueShippingEmail(tx, orderId);
+      return changed;
+    });
 
-    if (email) {
-      await sendShippingUpdateEmail({
-        email,
-        name,
-        orderId: order.id,
-        trackingNumber: tracking_number,
-        carrier: courier_name,
-      }).catch((e) => console.error("Shipping email failed", e));
-    }
-
-    if (phone) {
-      await sendShippingUpdateSms(phone, order.id, tracking_number, courier_name).catch(
-        (e) => console.error("Shipping SMS failed", e)
-      );
+    if (transition.count === 0) {
+      return NextResponse.json({ received: true, ignored: true });
     }
 
     return NextResponse.json({ received: true });

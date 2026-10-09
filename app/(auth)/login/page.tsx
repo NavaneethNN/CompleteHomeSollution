@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginForm />;
+  return <main className="flex flex-1 flex-col"><LoginForm /></main>;
 }

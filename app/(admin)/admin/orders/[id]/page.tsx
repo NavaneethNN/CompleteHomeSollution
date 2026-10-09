@@ -40,6 +40,7 @@ const ORDER_STATUS_CONFIG: Record<
 > = {
   PENDING:          { label: "Pending",          icon: Clock,          variant: "outline",     color: "text-amber-600" },
   PAID:             { label: "Paid",             icon: CheckCircle2,   variant: "secondary",   color: "text-blue-600" },
+  CONFIRMED:        { label: "Confirmed",        icon: CheckCircle2,   variant: "secondary",   color: "text-teal-600" },
   PROCESSING:       { label: "Processing",       icon: Package,        variant: "default",     color: "text-indigo-600" },
   SHIPPED:          { label: "Shipped",          icon: Truck,          variant: "default",     color: "text-purple-600" },
   OUT_FOR_DELIVERY: { label: "Out for Delivery", icon: Truck,          variant: "default",     color: "text-violet-600" },
@@ -65,7 +66,8 @@ async function getOrder(id: string) {
       refundReason: true,
       refundAmount: true,
       refundedAt: true,
-      refundStripeId: true,
+      paywayRefundId: true,
+      stripePaymentId: true,
       createdAt: true,
       updatedAt: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
@@ -252,7 +254,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 <div>
                   <p className="text-sm text-slate-500">Payment Method</p>
                   <p className="font-medium text-slate-900">
-                    {order.paywayTransactionId ? "Credit/Debit Card (PayWay)" : "Not specified"}
+                    {order.paywayTransactionId?.startsWith("ONLINEPAY:") ? "Westpac OnlinePay" : order.paywayTransactionId ? "PayWay" : order.stripePaymentId ? "Stripe" : "Awaiting payment"}
                   </p>
                 </div>
                 <div>
@@ -406,7 +408,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </Card>
 
           {/* Refund Management */}
-          {["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "REFUNDED"].includes(order.status) && (
+          {(["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED", "REFUNDED"].includes(order.status) || (order.status === "CANCELLED" && order.refundRequested && !!order.paywayTransactionId)) && (
             <Card>
               <CardHeader className="pb-4">
                 <CardTitle className="text-base flex items-center gap-2">

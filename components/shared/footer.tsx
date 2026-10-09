@@ -54,10 +54,10 @@ export function Footer() {
                 Complete Home Sollution
               </span>
             </Link>
-            <p className="text-sm text-white/50 leading-relaxed mb-6">
+            <p className="text-sm text-white/75 leading-relaxed mb-6">
               Premium furniture delivered across Australia. Quality pieces for every room, proudly based in South Australia.
             </p>
-            <div className="space-y-2.5 text-sm text-white/50">
+            <div className="space-y-2.5 text-sm text-white/75">
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
                 <span>33 Edward Street<br />Paralowie SA 5108</span>
@@ -81,7 +81,7 @@ export function Footer() {
                   <li key={label}>
                     <Link
                       href={href}
-                      className="text-sm text-white/50 hover:text-primary transition-colors"
+                      className="text-sm text-white/75 hover:text-white transition-colors"
                     >
                       {label}
                     </Link>
@@ -93,7 +93,7 @@ export function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/30">
+        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-white/75">
           <p>© {new Date().getFullYear()} Complete Home Sollution. All rights reserved.</p>
           <p>Prices in AUD · GST included · Delivery across Australia</p>
         </div>

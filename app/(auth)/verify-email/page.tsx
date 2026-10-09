@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2, XCircle, MailX, ArrowRight } from "lucide-react";
-import { db } from "@/lib/db";
 import { consumeVerificationToken } from "@/lib/token";
 
 export const metadata: Metadata = {
@@ -25,22 +24,7 @@ export default async function VerifyEmailPage({
     return <Result type="invalid" message={result.error} />;
   }
 
-  const user = await db.user.findUnique({ where: { email: result.email } });
-
-  if (!user) {
-    return <Result type="invalid" message="Account not found. Please register again." />;
-  }
-
-  if (user.emailVerified) {
-    return <Result type="already" message="Your email is already verified. You can sign in." />;
-  }
-
-  await db.user.update({
-    where: { email: result.email },
-    data: { emailVerified: new Date() },
-  });
-
-  return <Result type="success" message={`Welcome, ${user.name?.split(" ")[0] ?? ""}! Your email has been verified.`} />;
+  return <Result type="success" message="Your email has been verified. You can now sign in." />;
 }
 
 function Result({
@@ -70,7 +54,7 @@ function Result({
       iconBg: "bg-red-100",
       iconColor: "text-red-500",
       title: "Verification Failed",
-      cta: { label: "Back to Register", href: "/register" },
+      cta: { label: "Request a New Link", href: "/resend-verification" },
     },
   }[type];
 
