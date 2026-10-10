@@ -2,19 +2,19 @@
   "crons": [
     {
       "path": "/api/cron/reconcile-onlinepay",
-      "schedule": "* * * * *"
+      "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/send-stock-alerts",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/send-email-jobs",
-      "schedule": "* * * * *"
+      "schedule": "0 2 * * *"
     },
     {
       "path": "/api/cron/check-operations",
-      "schedule": "0 * * * *"
+      "schedule": "0 1 * * *"
     }
   ]
 }

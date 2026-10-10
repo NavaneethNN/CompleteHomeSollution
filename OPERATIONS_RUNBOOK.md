@@ -9,6 +9,12 @@ Owner: the store operations administrator with access to the payment provider, B
 - Configure Sentry alert rules for server errors and the cron routes. Set a notification destination and verify a test alert arrives before launch.
 - The scheduled `check-operations` route queues one staff email per stuck payment or unfulfilled order. `send-email-jobs` sends those alerts and paid-order confirmations. `send-stock-alerts` sends restock notices. Review their scheduler execution logs daily.
 
+### Vercel Hobby test schedule
+
+`vercel.json` schedules each of the four workers **once daily** to meet [Vercel Hobby's cron restriction](https://vercel.com/docs/cron-jobs/manage-cron-jobs): payment reconciliation at 00:00 UTC, operations checks at 01:00 UTC, queued emails at 02:00 UTC, and restock notices at 03:00 UTC. On Hobby, each invocation can occur at any time during its scheduled hour. Set the same `CRON_SECRET` (at least 32 characters for this app) in Vercel; Vercel supplies it as a bearer token when it invokes a cron route. Confirm each job returns 200 in the Vercel logs after deployment. Vercel does not automatically retry a failed cron invocation.
+
+This daily cadence is only a deployment/testing fallback. Payment return and provider webhooks can settle an order promptly, but a closed browser plus a missed webhook may wait roughly a day for reconciliation. Queued receipts, staff alerts, and restock notices can also wait roughly a day; each email run processes at most 20 jobs, so a backlog may take longer. Do not promise prompt notifications or payment recovery with this schedule. Before live operation, arrange a permitted host/scheduler with frequent authenticated calls to these existing routes and verify their logs and failure alerts. Vercel also [restricts Hobby to non-commercial personal use](https://vercel.com/docs/plans/hobby), so the store cannot use that plan for live commercial sales.
+
 Pending order items hold available stock. When `paymentReviews` is nonzero, inspect the provider checkout before closing the order: a payment can still complete after the browser leaves. A provider-confirmed rejection or expiry releases the hold when the order becomes `CANCELLED`. Unknown outcomes stay pending and need reconciliation; do not cancel them only to free inventory.
 
 ## Refund required after payment
