@@ -17,48 +17,48 @@ import {
   RotateCcw,
   BadgeCheck,
   Tag,
-  Leaf,
+  Sparkles,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Home — Complete Home Sollution" };
 
 const FEATURES = [
-  { icon: Award,       title: "Premium Quality", sub: "Crafted with high-grade materials" },
-  { icon: Truck,       title: "Fast Delivery",   sub: "Quick & reliable nationwide delivery" },
-  { icon: ShieldCheck, title: "Secure Payment",  sub: "100% secure & encrypted checkout" },
-  { icon: Headphones,  title: "24/7 Support",    sub: "Dedicated support whenever you need" },
+  { icon: Award,       title: "Considered design", sub: "Pieces for real homes" },
+  { icon: Truck,       title: "Australia-wide",   sub: "Delivery options at checkout" },
+  { icon: ShieldCheck, title: "Secure checkout",  sub: "Protected payment" },
+  { icon: Headphones,  title: "Here to help",     sub: "Questions? Get in touch" },
 ];
 
 const WHY_US = [
   {
     icon: Award,
-    title: "Premium Quality",
-    desc: "Crafted with high-grade materials and rigorous quality standards — built to last a lifetime.",
+    title: "Furniture with purpose",
+    desc: "Find practical pieces that bring comfort and character to the rooms you use every day.",
   },
   {
     icon: Truck,
-    title: "Fast Delivery",
-    desc: "Australia-wide shipping. Free on orders over \$1,200 and on every order for members.",
+    title: "Delivery across Australia",
+    desc: "Enter your address at checkout to see the shipping options available for your order.",
   },
   {
     icon: ShieldCheck,
     title: "Secure Payments",
-    desc: "Stripe-powered security ensures your payment information is always protected.",
+    desc: "Check out through our secure payment provider with clear pricing before you pay.",
   },
   {
     icon: RotateCcw,
-    title: "Easy Returns",
-    desc: "7-day hassle-free return policy — shop with complete peace of mind.",
+    title: "Shop with clarity",
+    desc: "Review product details, prices and delivery options before placing your order.",
   },
   {
     icon: BadgeCheck,
-    title: "Warranty Cover",
-    desc: "12-month structural warranty included on every product, with member-extended cover.",
+    title: "Support when you need it",
+    desc: "Our team can help you find the right piece for your space.",
   },
   {
     icon: Tag,
-    title: "Best Prices",
-    desc: "Price-match guarantee plus exclusive member discounts automatically applied at checkout.",
+    title: "Member savings",
+    desc: "Members can access special prices on eligible pieces and free shipping.",
   },
 ];
 
@@ -155,13 +155,9 @@ async function getMemberStatus(userId?: string) {
 interface SectionHeadingProps { readonly tag: string; readonly title: string; }
 function SectionHeading({ tag, title }: SectionHeadingProps) {
   return (
-    <div className="text-center mb-10">
-      <p className="text-xs font-semibold tracking-[0.22em] text-primary uppercase mb-2">{tag}</p>
-      <h2 className="text-3xl md:text-4xl font-black text-foreground mb-3">{title}</h2>
-      <div className="flex items-center justify-center gap-2">
-        <span className="w-8 h-[3px] rounded-full bg-primary" />
-        <span className="w-3 h-[3px] rounded-full bg-primary/30" />
-      </div>
+    <div className="mb-7 md:mb-10">
+      <p className="text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-2">{tag}</p>
+      <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">{title}</h2>
     </div>
   );
 }
@@ -177,62 +173,44 @@ export default async function HomePage() {
   return (
     <main>
       {/* ── Hero ──────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-white min-h-[520px] md:min-h-[600px] flex items-center">
-        <div className="absolute inset-0 lg:hidden">
-          <Image src="/hero_bg.webp" alt="" fill className="object-cover object-center" priority />
-          <div className="absolute inset-0 bg-white/85" />
-        </div>
-
-        <div className="container mx-auto px-5 md:px-6 xl:px-8 relative z-10">
-          <div className="max-w-[520px] py-8 md:py-16 lg:py-20">
-            <p className="text-[11px] md:text-xs font-semibold tracking-[0.25em] text-muted-foreground uppercase mb-3 md:mb-4 animate-fade-in delay-0">
-              MAKE YOUR HOUSE A
-            </p>
-            <h1 className="text-[42px] md:text-6xl xl:text-[72px] font-black leading-[1.05] text-foreground animate-fade-up delay-100">
-              Complete<br />Comfort
-            </h1>
-            <p className="text-2xl md:text-4xl font-script text-primary italic mb-4 md:mb-5 leading-snug mt-2 animate-fade-up delay-200">
-              Live Beautifully
-            </p>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-7 md:mb-8 max-w-[380px] animate-fade-in delay-300">
-              Discover premium quality furniture that combines elegance, comfort and functionality — delivered across Australia.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 animate-fade-up delay-400">
-              <Link
-                href="/products"
-                className="inline-flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors shadow-md w-full sm:w-auto"
-              >
-                SHOP NOW <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                href="/categories"
-                className="inline-flex items-center justify-center gap-2 border border-foreground/30 text-foreground hover:bg-foreground hover:text-white font-bold text-sm px-7 py-3.5 rounded-lg transition-colors w-full sm:w-auto"
-              >
-                BROWSE CATEGORIES
-              </Link>
+      <section className="bg-[#f7f3ed] overflow-hidden">
+        <div className="mx-auto grid max-w-[1500px] lg:min-h-[590px] lg:grid-cols-[46%_54%]">
+          <div className="flex items-center px-5 pb-7 pt-10 sm:px-8 sm:py-14 lg:px-12 xl:px-20">
+            <div className="max-w-[540px]">
+              <p className="mb-4 inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
+                <span className="h-px w-7 bg-primary" /> Furniture for the way you live
+              </p>
+              <h1 className="max-w-[10ch] text-[clamp(2.8rem,10vw,4.2rem)] font-semibold leading-[1.04] tracking-[-0.055em] text-foreground lg:text-[clamp(3.8rem,5vw,5.6rem)]">
+                Make room for better living.
+              </h1>
+              <p className="mt-5 max-w-[440px] text-[15px] leading-7 text-muted-foreground sm:text-base">
+                Thoughtfully chosen furniture for the spaces that make a house feel like home.
+              </p>
+              <div className="mt-7 flex flex-wrap items-center gap-x-7 gap-y-4">
+                <Link href="/products" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-7 text-sm font-bold text-white transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+                  Explore furniture <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link href="/categories" className="inline-flex min-h-12 items-center gap-2 text-sm font-semibold text-foreground underline decoration-primary/50 underline-offset-8 hover:text-primary">
+                  Shop by room <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+              <p className="mt-8 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Truck className="h-4 w-4 text-primary" /> Delivery options across Australia</p>
             </div>
           </div>
-        </div>
-
-        <div className="absolute inset-y-0 right-0 hidden lg:block w-[58%] animate-fade-in delay-0">
-          <Image
-            src="/hero_bg.webp"
-            alt="Modern living room with premium furniture"
-            fill
-            className="object-cover object-center"
-            priority
-          />
-          <div className="absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-white via-white/60 to-transparent" />
+          <div className="relative min-h-[270px] sm:min-h-[380px] lg:min-h-full">
+            <Image src="/hero_bg.webp" alt="Warm living room with a cream sofa and coffee table" fill priority sizes="(max-width: 1023px) 100vw, 54vw" className="object-cover object-[62%_center] sm:object-center" />
+            <div className="absolute bottom-4 right-4 rounded-full border border-white/60 bg-white/90 px-4 py-2 text-[11px] font-semibold tracking-wide text-foreground shadow-sm backdrop-blur-sm sm:bottom-6 sm:right-6">Spaces to come home to</div>
+          </div>
         </div>
       </section>
 
       {/* ── Features bar ──────────────────────────────────────────── */}
-      <section className="bg-white border-y border-border py-6 md:py-8 shadow-sm">
+      <section className="border-b border-border bg-white py-5 md:py-6">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-5 md:grid-cols-4 md:gap-6">
             {FEATURES.map(({ icon: Icon, title, sub }, i) => (
               <AnimateIn key={title} variant="fade-up" delay={i * 80} className="flex items-center gap-3 md:gap-4">
-                <div className="w-9 h-9 md:w-11 md:h-11 rounded-full border-2 border-primary/20 bg-primary/5 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-secondary flex items-center justify-center shrink-0">
                   <Icon className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                 </div>
                 <div className="min-w-0">
@@ -246,10 +224,10 @@ export default async function HomePage() {
       </section>
 
       {/* ── Shop By Category ──────────────────────────────────────── */}
-      <section className="py-10 md:py-16 bg-white">
+      <section className="bg-white py-12 md:py-20">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <AnimateIn variant="fade-up">
-            <SectionHeading tag="BROWSE BY CATEGORY" title="Shop By Category" />
+            <SectionHeading tag="Find your space" title="Shop by room" />
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={150}>
             <CategorySlider categories={categories} />
@@ -257,25 +235,49 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Popular Products ──────────────────────────────────────── */}
+      <section className="bg-[#faf8f5] py-12 md:py-20">
+        <div className="container mx-auto px-5 md:px-6 xl:px-8">
+          <AnimateIn variant="fade-up">
+            <SectionHeading tag="The edit" title="Pieces to start with" />
+          </AnimateIn>
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+            {trendingProducts.map((p, i) => (
+              <AnimateIn key={p.id} variant="fade-up" delay={i * 80}>
+                <HomeTrendingProductCard product={p} isMember={isMember} />
+              </AnimateIn>
+            ))}
+          </div>
+          <AnimateIn variant="fade-in" className="text-center mt-10">
+            <Link
+              href="/products"
+              className="inline-flex min-h-12 items-center gap-2 rounded-full border border-foreground/25 px-7 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary"
+            >
+              View all furniture <ArrowRight className="h-4 w-4" />
+            </Link>
+          </AnimateIn>
+        </div>
+      </section>
+
       {/* ── Promo Banners ─────────────────────────────────────────── */}
-      <section className="py-4 pb-10 md:pb-16">
+      <section className="bg-white py-12 md:py-20">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <div className="grid md:grid-cols-2 gap-4 md:gap-6">
 
             {/* Dark card */}
-            <AnimateIn variant="slide-left" className="relative rounded-2xl overflow-hidden bg-navy min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
+            <AnimateIn variant="slide-left" className="relative rounded-2xl overflow-hidden bg-navy min-h-[250px] md:min-h-[300px] flex items-center p-6 md:p-10">
               <div className="relative z-10 max-w-[260px]">
-                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">— CUSTOM FURNITURE</p>
-                <h3 className="text-3xl font-black text-white leading-tight mb-3">Designed Just<br />For You</h3>
-                <p className="text-sm text-white/60 mb-6 leading-relaxed">Personalised furniture crafted to match your exact style and space.</p>
-                <Link href="/products" className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-6 py-3 rounded transition-colors">
-                  EXPLORE RANGE
+                <p className="text-xs font-bold tracking-widest text-white/70 uppercase mb-3">LIVING ROOM EDIT</p>
+                <h3 className="text-3xl font-semibold tracking-tight text-white leading-tight mb-3">A room to<br />unwind in.</h3>
+                <p className="text-sm text-white/75 mb-6 leading-relaxed">Sofas, chairs and considered details for everyday comfort.</p>
+                <Link href="/categories/living-room" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-navy transition-colors hover:bg-secondary">
+                  Explore living room <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
               <div className="absolute right-0 bottom-0 h-full w-[55%] hidden sm:block">
                 <Image
                   src="https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?auto=format&fit=crop&w=600&q=80"
-                  alt="Custom armchair"
+                  alt="Living room furniture"
                   fill
                   className="object-cover object-top opacity-80"
                 />
@@ -284,19 +286,16 @@ export default async function HomePage() {
             </AnimateIn>
 
             {/* Light card */}
-            <AnimateIn variant="slide-right" delay={100} className="relative rounded-2xl overflow-hidden bg-secondary min-h-[220px] md:min-h-[260px] flex items-center p-6 md:p-10">
-              <div className="relative z-10 max-w-[calc(100%-5rem)] sm:max-w-[260px]">
-                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">— MEMBER OFFER</p>
-                <h3 className="text-3xl md:text-4xl font-black text-foreground leading-tight mb-1">Up to 30% Off</h3>
-                <p className="text-sm md:text-base font-semibold text-foreground/70 mb-5">on Selected Items</p>
-                <Link href="/products" className="inline-block bg-primary hover:bg-primary/90 text-white font-bold text-sm px-5 py-3 md:px-6 md:py-3.5 rounded transition-colors">
-                  SHOP NOW
+            <AnimateIn variant="slide-right" delay={100} className="relative rounded-2xl overflow-hidden bg-secondary min-h-[250px] md:min-h-[300px] flex items-center p-6 md:p-10">
+              <div className="relative z-10 max-w-[220px] sm:max-w-[260px]">
+                <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">A LITTLE MORE FOR MEMBERS</p>
+                <h3 className="text-3xl font-semibold tracking-tight text-foreground leading-tight mb-3">Make more of your home.</h3>
+                <p className="text-sm text-foreground/70 mb-5">Special member prices and free shipping on eligible orders.</p>
+                <Link href="/account/membership" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-foreground/25 px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary">
+                  Explore membership <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
-              <div className="absolute top-5 right-5 w-14 h-14 md:w-16 md:h-16 bg-primary rounded-full flex flex-col items-center justify-center text-white shadow-lg z-20">
-                <span className="text-base md:text-lg font-black leading-none">30%</span>
-                <span className="text-[8px] md:text-[9px] font-bold tracking-widest">OFF</span>
-              </div>
+              <Sparkles className="absolute right-5 top-5 h-6 w-6 text-primary/70" />
               <div className="absolute right-0 bottom-0 h-full w-[50%] hidden sm:block">
                 <Image
                   src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80"
@@ -311,32 +310,8 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Popular Products ──────────────────────────────────────── */}
-      <section className="py-4 pb-14 md:pb-20 bg-white">
-        <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <AnimateIn variant="fade-up">
-            <SectionHeading tag="TRENDING PRODUCTS" title="Popular Picks For You" />
-          </AnimateIn>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
-            {trendingProducts.map((p, i) => (
-              <AnimateIn key={p.id} variant="fade-up" delay={i * 80}>
-                <HomeTrendingProductCard product={p} isMember={isMember} />
-              </AnimateIn>
-            ))}
-          </div>
-          <AnimateIn variant="fade-in" className="text-center mt-10">
-            <Link
-              href="/products"
-              className="inline-flex items-center gap-2 border-2 border-primary text-primary hover:bg-primary hover:text-white font-bold text-sm px-8 py-3.5 rounded transition-colors"
-            >
-              VIEW ALL PRODUCTS <ArrowRight className="h-4 w-4" />
-            </Link>
-          </AnimateIn>
-        </div>
-      </section>
-
       {/* ── About Us ─────────────────────────────────────────────── */}
-      <section className="py-12 md:py-16 lg:py-20 bg-slate-50 overflow-hidden">
+      <section className="overflow-hidden bg-[#f7f3ed] py-14 md:py-20">
         <div className="container mx-auto px-4 sm:px-5 md:px-6 xl:px-8">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 items-center">
             <AnimateIn variant="fade-up" className="order-2 lg:order-1">
@@ -344,7 +319,7 @@ export default async function HomePage() {
                 <div className="aspect-[4/3] rounded-xl sm:rounded-2xl overflow-hidden shadow-lg">
                   <Image
                     src="https://images.unsplash.com/photo-1493663284031-b7e3aefcae8e?auto=format&fit=crop&w=800&q=80"
-                    alt="Complete Home Solution — premium furniture showroom"
+                    alt="Warm, furnished living room"
                     fill
                     className="object-cover hover:scale-105 transition-transform duration-500"
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 600px"
@@ -353,34 +328,25 @@ export default async function HomePage() {
               </div>
             </AnimateIn>
             <AnimateIn variant="fade-up" delay={150} className="order-1 lg:order-2">
-              <div className="text-center lg:text-left">
-                <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2 sm:mb-3">About Us</span>
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground mb-4 sm:mb-6 leading-tight">
-                  Crafting Beautiful Spaces for Your Home
+              <div className="text-left">
+                <span className="inline-block text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-3">Our story</span>
+                <h2 className="max-w-[15ch] text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-foreground mb-5 leading-tight">
+                  Good furniture makes room for life.
                 </h2>
-                <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl mx-auto lg:mx-0">
+                <div className="space-y-3 text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl">
                   <p>
-                    Complete Home Solution is a South Australian family-owned furniture business bringing
-                    premium quality furniture to homes across Australia. Based in Golden Grove, SA, we have
-                    built our reputation on exceptional craftsmanship and outstanding customer service.
+                    Based in South Australia, Complete Home Solution brings together furniture for comfortable, useful and welcoming spaces.
                   </p>
                   <p>
-                    We believe everyone deserves to live beautifully. Our curated collection features
-                    everything from cosy living room essentials to elegant dining pieces, designed to
-                    transform your house into a home you love.
-                  </p>
-                  <p>
-                    With our exclusive membership program, enjoy special discounts, early access to
-                    sales, and personalised service — plus fast nationwide delivery backed by our
-                    7-day easy returns policy and comprehensive warranty protection.
+                    Explore pieces for the living room, bedroom, dining room and beyond, and find what feels right for your home.
                   </p>
                 </div>
                 <div className="mt-6 sm:mt-8">
                   <Link
                     href="/products"
-                    className="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-sm px-6 sm:px-8 py-3 rounded-lg transition-colors shadow-md"
+                    className="inline-flex min-h-12 items-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90"
                   >
-                    Explore Our Collection <ArrowRight className="h-4 w-4" />
+                    Shop the collection <ArrowRight className="h-4 w-4" />
                   </Link>
                 </div>
               </div>
@@ -390,29 +356,22 @@ export default async function HomePage() {
       </section>
 
       {/* ── Why Choose Us ────────────────────────────────────────── */}
-      <section className="py-12 sm:py-14 md:py-16 lg:py-20 bg-white">
+      <section className="bg-white py-14 md:py-20">
         <div className="container mx-auto px-4 sm:px-5 md:px-6 xl:px-8">
           <AnimateIn variant="fade-up">
-            <div className="text-center mb-8 sm:mb-10 lg:mb-12">
-              <span className="inline-block text-xs sm:text-sm font-semibold tracking-widest text-primary uppercase mb-2">Why Choose Us</span>
-              <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-foreground">The Complete Home Difference</h2>
-              <div className="flex items-center justify-center gap-2 mt-3">
-                <span className="w-8 h-[3px] rounded-full bg-primary" />
-                <span className="w-3 h-[3px] rounded-full bg-primary/30" />
-              </div>
-            </div>
+            <SectionHeading tag="The details" title="A simpler way to shop for home" />
           </AnimateIn>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 lg:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
             {WHY_US.map(({ icon: Icon, title, desc }, i) => (
               <AnimateIn key={title} variant="fade-up" delay={i * 80}>
-                <div className="group h-full p-5 sm:p-6 rounded-xl sm:rounded-2xl border border-border bg-slate-50 hover:bg-primary hover:border-primary hover:shadow-lg transition-all duration-300">
+                <div className="group h-full rounded-2xl border border-border bg-white p-5 sm:p-6 transition-colors hover:border-primary/30 hover:bg-[#faf8f5]">
                   <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-primary/10 group-hover:bg-white/20 flex items-center justify-center shrink-0 transition-colors">
-                      <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary group-hover:text-white transition-colors" />
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-secondary flex items-center justify-center shrink-0">
+                      <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-base sm:text-lg font-bold text-foreground group-hover:text-white mb-1.5 transition-colors">{title}</h3>
-                      <p className="text-sm text-muted-foreground group-hover:text-white/90 leading-relaxed transition-colors">{desc}</p>
+                      <h3 className="text-base sm:text-lg font-semibold text-foreground mb-1.5">{title}</h3>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
                     </div>
                   </div>
                 </div>
@@ -428,11 +387,10 @@ export default async function HomePage() {
           <AnimateIn variant="fade-up" className="text-center">
             <p className="text-xs font-bold tracking-[0.22em] text-primary uppercase mb-3">EXCLUSIVE MEMBERSHIP</p>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white mb-3 leading-tight">
-              Save up to 30% on Every Order
+              A little extra for your home
             </h2>
             <p className="text-sm sm:text-base text-white/60 mb-7 max-w-lg mx-auto leading-relaxed">
-              Join CHS Premium and unlock member pricing, free express delivery, extended warranty,
-              and early access to sales — on every order, every day.
+              Join CHS Membership for special member prices and free shipping on eligible orders.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
@@ -452,29 +410,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── Trust bar ─────────────────────────────────────────────── */}
-      <section className="bg-slate-100 py-6 md:py-8 border-t border-slate-200">
-        <div className="container mx-auto px-5 md:px-6 xl:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-            {[
-              { icon: RotateCcw,  title: "7-Day Returns",       sub: "Hassle-free returns policy" },
-              { icon: BadgeCheck, title: "Warranty Protection",  sub: "Long-term structural assurance" },
-              { icon: Tag,        title: "Best Price Guarantee", sub: "Unbeatable prices, always" },
-              { icon: Leaf,       title: "Eco-Friendly",         sub: "Responsibly sourced materials" },
-            ].map(({ icon: Icon, title, sub }, i) => (
-              <AnimateIn key={title} variant="fade-up" delay={i * 80} className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-full border border-primary/20 bg-primary/10 flex items-center justify-center shrink-0">
-                  <Icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-bold text-slate-800 leading-tight">{title}</p>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-snug">{sub}</p>
-                </div>
-              </AnimateIn>
-            ))}
-          </div>
-        </div>
-      </section>
     </main>
   );
 }
