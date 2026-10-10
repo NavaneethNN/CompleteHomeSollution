@@ -30,9 +30,14 @@ export async function GET(req: NextRequest) {
   if (!limit.allowed) return rateLimitResponse(limit);
   try {
     const products = await getEligibleShip123Products();
-    return NextResponse.json({ available: products.length > 0 }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
-    return NextResponse.json({ available: false }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ available: products.length > 0, reason: products.length ? null : "NO_SUPPORTED_COURIER" }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("[shipping-availability] Ship123 check failed", {
+      message: error instanceof Ship123Error ? error.message : "Unexpected availability failure",
+      code: error instanceof Ship123Error ? error.code : undefined,
+      traceId: error instanceof Ship123Error ? error.traceId : undefined,
+    });
+    return NextResponse.json({ available: false, reason: "PROVIDER_UNAVAILABLE" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 }
 

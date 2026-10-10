@@ -169,17 +169,35 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [ratesError, setRatesError] = useState<string | null>(null);
   const [shippingAvailable, setShippingAvailable] = useState<boolean | null>(null);
+  const [shippingAvailabilityError, setShippingAvailabilityError] = useState<string | null>(null);
+  const [shippingAvailabilityAttempt, setShippingAvailabilityAttempt] = useState(0);
   const shippingRequestRef = useRef(0);
   useEffect(() => {
     const controller = new AbortController();
+    setShippingAvailable(null);
+    setShippingAvailabilityError(null);
     fetch("/api/shipping/ship123", { signal: controller.signal, cache: "no-store" })
       .then(async response => {
         const data = await response.json();
-        if (!controller.signal.aborted) setShippingAvailable(response.ok && data.available === true);
+        if (controller.signal.aborted) return;
+        const available = response.ok && data.available === true;
+        setShippingAvailable(available);
+        if (!available) {
+          setShippingAvailabilityError(response.status === 429
+            ? "Shipping checks are temporarily limited. Please wait a minute, then retry."
+            : response.ok && data.reason === "NO_SUPPORTED_COURIER"
+              ? "Shipping is unavailable until a supported courier is enabled. Please contact support."
+              : "We couldn't check shipping availability. Please retry in a moment. If this continues, contact support.");
+        }
       })
-      .catch(() => { if (!controller.signal.aborted) setShippingAvailable(false); });
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setShippingAvailable(false);
+          setShippingAvailabilityError("We couldn't connect to check shipping availability. Please retry.");
+        }
+      });
     return () => controller.abort();
-  }, []);
+  }, [shippingAvailabilityAttempt]);
   // Cart state
   const storedItems = useCartStore((state) => state.items);
   const [freshPrices, setFreshPrices] = useState<Record<string, { price: number; memberPrice: number | null; stock: number; weight: number }>>({});
@@ -1112,7 +1130,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           {usesOnlinePay && paymentError && <p role="alert" className="mt-2 text-sm text-destructive">{paymentError}</p>}
           {pricesError && <p role="alert" className="mt-2 text-sm text-destructive">{pricesError}</p>}
           {unavailable && <p role="alert" className="mt-2 text-sm text-destructive">An item is unavailable or exceeds stock. Update your cart before paying.</p>}
-          {shippingAvailable === false && <p role="alert" className="mt-2 text-sm text-destructive">Shipping is unavailable until a supported courier is enabled. Please contact support.</p>}
+          {shippingAvailable === false && <div className="mt-2">
+            <p role="alert" className="text-sm text-destructive">{shippingAvailabilityError}</p>
+            <Button type="button" variant="outline" className="mt-2" onClick={() => {
+              setShippingAvailable(null);
+              setShippingAvailabilityAttempt(attempt => attempt + 1);
+            }}>Retry shipping check</Button>
+          </div>}
           {/* Place Order Button */}
           <Button
             className="mt-5 w-full h-12 text-sm font-semibold"
