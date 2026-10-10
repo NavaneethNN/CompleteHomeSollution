@@ -7,15 +7,16 @@ import { chargeToken, PayWayApiError } from "@/lib/payway";
 import { activateMembershipInTransaction } from "@/lib/membership";
 import { queueOrderConfirmation, queueRefundAction } from "@/lib/email-outbox";
 import { sendOrderConfirmationSms, sendOrderWhatsApp } from "@/lib/twilio";
-import { getDomesticParcelRates } from "@/lib/auspost";
+import { getEligibleShip123Products, getShip123Rates } from "@/lib/ship123";
 import { createOnlinePayCheckout, getOnlinePayCheckout, OnlinePayCheckoutError, validateOnlinePayConfiguration } from "@/lib/onlinepay";
-import { verifyShippingQuoteToken } from "@/lib/shipping-quote";
+import { shippingDestinationKey, verifyShippingQuoteToken } from "@/lib/shipping-quote";
 import { calculateCartPricing, moneyToCents, splitLineForGateway } from "@/lib/cart-pricing";
 import { releaseCouponReservation } from "@/lib/coupon-reservation";
 import { buildParcelGroups, FreightRequiredError, shipmentKey } from "@/lib/shipping-packages";
 import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { assertInventoryAvailableForPendingOrder, InventoryUnavailableError } from "@/lib/inventory-reservation";
 import { resolveMemberPrice } from "@/lib/member-price";
+import { checkoutTotals } from "@/lib/checkout-totals";
 
 const addressSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -89,11 +90,11 @@ export async function POST(req: NextRequest) {
       validateOnlinePayConfiguration();
       const returnUrl = process.env.ONLINEPAY_RETURN_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;
       if (!returnUrl || !URL.canParse(returnUrl) || new URL(returnUrl).protocol !== "https:") {
-        return NextResponse.json({ error: "OnlinePay requires HTTPS. Configure ONLINEPAY_RETURN_BASE_URL with your HTTPS app or development tunnel URL." }, { status: 503 });
+        return NextResponse.json({ error: "OnlinePay requires HTTPS. Configure ONLINEPAY_RETURN_BASE_URL with your HTTPS app URL (https://localhost:3000 for local testing)." }, { status: 503 });
       }
       const returnOrigin = new URL(returnUrl);
       if (["localhost", "127.0.0.1", "[::1]"].includes(returnOrigin.hostname) && req.nextUrl.origin !== returnOrigin.origin) {
-        return NextResponse.json({ error: "The payment return URL points to HTTPS localhost, but this site is running at a different address. Use an HTTPS development tunnel for ONLINEPAY_RETURN_BASE_URL and open the store through that address." }, { status: 503 });
+        return NextResponse.json({ error: "The payment return URL points to HTTPS localhost, but this site is running at a different address. Start npm run dev and open https://localhost:3000." }, { status: 503 });
       }
     }
 
@@ -326,12 +327,19 @@ export async function POST(req: NextRequest) {
     }
 
     // ── SEC-4: Server-side shipping cost verification ─────────────────────────
-    // The client submits shippingCost and shippingRateCode. We re-fetch the
-    // AusPost quote server-side and reject if the submitted cost does not match
-    // the authoritative server price (within a $0.10 rounding tolerance).
-    // This prevents customers from manipulating the shipping cost in transit.
+    // A signed Ship123 quote is bound to the full destination and parcel set.
+    // Without a valid token, fetch a fresh quote and require exact cents.
     let shippingCost: number;
+    let shippingServiceCode: string | null = null;
     if (freeShipping) {
+      try {
+        const rates = await getShip123Rates(deliveryAddress, parcelGroups);
+        if (!rates.length) throw new Error("No eligible shipping rate");
+        shippingServiceCode = rates[0].serviceCode;
+      } catch (error) {
+        console.error("[checkout] No Ship123 service for free-shipping order", error);
+        return NextResponse.json({ error: "Shipping is currently unavailable for this order. Please contact support." }, { status: 503 });
+      }
       shippingCost = 0;
     } else {
       const toPostcode = deliveryAddress.postcode;
@@ -342,27 +350,32 @@ export async function POST(req: NextRequest) {
       if (verifyShippingQuoteToken({
         token: input.shippingQuoteToken,
         postcode: toPostcode,
+        destinationKey: shippingDestinationKey(deliveryAddress),
         shipmentKey: parcelShipmentKey,
         serviceCode: input.shippingRateCode,
         price: clientCost,
       })) {
-        serverShippingCost = clientCost;
+        try {
+          const eligible = await getEligibleShip123Products();
+          if (eligible.some(product => product.code === input.shippingRateCode)) serverShippingCost = clientCost;
+        } catch (error) {
+          console.error("[checkout] Ship123 service eligibility check failed", error);
+        }
       } else if (toPostcode && /^\d{4}$/.test(toPostcode) && input.shippingRateCode) {
         try {
-          const rates = await getDomesticParcelRates(toPostcode, parcelGroups);
+          const rates = await getShip123Rates(deliveryAddress, parcelGroups);
           const matchedRate = rates.find((r) => r.serviceCode === input.shippingRateCode);
           if (matchedRate) {
             serverShippingCost = matchedRate.price;
           }
-        } catch (auspostErr) {
-          console.error("[checkout] AusPost rate fetch failed", auspostErr);
+        } catch (ship123Error) {
+          console.error("[checkout] Ship123 rate fetch failed", ship123Error);
         }
       }
 
       if (serverShippingCost !== null) {
         const serverCost = Math.round(serverShippingCost * 100) / 100;
-        const TOLERANCE = 0.10; // allow up to $0.10 rounding difference
-        if (Math.abs(clientCost - serverCost) > TOLERANCE) {
+        if (Math.round(clientCost * 100) !== Math.round(serverCost * 100)) {
           return NextResponse.json(
             {
               error: `Shipping cost mismatch. Expected $${serverCost.toFixed(2)}, received $${clientCost.toFixed(2)}. Please refresh and try again.`,
@@ -371,14 +384,13 @@ export async function POST(req: NextRequest) {
           );
         }
         shippingCost = serverCost;
+        shippingServiceCode = input.shippingRateCode ?? null;
       } else {
         // Do not charge an unverified client-supplied shipping amount.
         return NextResponse.json({ error: "Shipping could not be verified. Refresh shipping options and try again." }, { status: 503 });
       }
     }
-    // REL-8: GST applies to both goods and shipping in Australia
-    const tax = Math.round((subtotal + shippingCost) * 0.1 * 100) / 100;
-    const total = Math.round((subtotal + shippingCost + tax + membershipCharge) * 100) / 100;
+    const { tax, total } = checkoutTotals(subtotal, shippingCost, membershipCharge);
 
     // ── Create order in DB (PENDING until payment confirmed) ─────────────────
     let order;
@@ -408,6 +420,7 @@ export async function POST(req: NextRequest) {
         address: { create: deliveryAddress },
         subtotal,
         shippingCost,
+        shippingServiceCode,
         tax,
         discount: couponDiscount,
         total,
@@ -483,9 +496,8 @@ export async function POST(req: NextRequest) {
     }
 
     // OnlinePay HPP keeps card data entirely on Westpac's hosted page. Orders
-    // remain PENDING until the OnlinePay webhook is configured and confirms the
-    // transaction; the return URL is only for customer navigation, never proof
-    // of payment.
+    // remain PENDING until a webhook or the signed return page verifies the
+    // transaction server-to-server; the redirect itself is never payment proof.
     if (useOnlinePay) {
       let hostedCheckout: Awaited<ReturnType<typeof createOnlinePayCheckout>> | null = null;
       try {
@@ -494,16 +506,17 @@ export async function POST(req: NextRequest) {
           throw new Error("NEXT_PUBLIC_APP_URL must be configured for OnlinePay checkout.");
         }
         if (new URL(appUrl).protocol !== "https:") {
-          throw new Error("OnlinePay requires an HTTPS return URL. Configure ONLINEPAY_RETURN_BASE_URL with your HTTPS application or development tunnel URL.");
+          throw new Error("OnlinePay requires an HTTPS return URL. Configure ONLINEPAY_RETURN_BASE_URL with your HTTPS application URL.");
         }
         const email = order.user?.email ?? order.guestEmail;
         if (!email) throw new Error("An email address is required for OnlinePay checkout.");
         const [firstName = "Customer", ...rest] = (order.address.name || "Customer").trim().split(/\s+/);
+        const signedReturnUrl = `${appUrl.replace(/\/$/, "")}/order-confirmation/${order.id}?return_token=${createOrderReturnToken(order.id)}`;
         hostedCheckout = await createOnlinePayCheckout({
           amountCents: Math.round(order.total * 100),
           merchantReference: order.id,
-          returnUrl: `${appUrl}/order-confirmation/${order.id}?return_token=${createOrderReturnToken(order.id)}`,
-          shopUrl: `${appUrl}/checkout`,
+          returnUrl: signedReturnUrl,
+          shopUrl: signedReturnUrl,
           customer: {
             email, firstName, lastName: rest.join(" ") || "Customer", address1: order.address.line1,
             city: order.address.suburb, state: order.address.state, postcode: order.address.postcode,

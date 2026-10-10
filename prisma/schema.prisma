@@ -253,6 +253,11 @@ model Order {
   paywayTransactionId String?
   trackingNumber  String?
   carrier         String?
+  shippingServiceCode String?
+  ship123OrderNo String? @unique
+  ship123LabelUrl String?
+  ship123CreateState String?
+  ship123CreateStartedAt DateTime?
   // Idempotency key — client-generated UUID sent with each checkout POST.
   // Prevents duplicate orders when the browser retries a slow/failed request.
   idempotencyKey  String?     @unique

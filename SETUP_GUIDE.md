@@ -135,8 +135,15 @@ R2_BUCKET_NAME="your-bucket-name"
 # Redis (for caching)
 REDIS_URL="redis://localhost:6379"
 
-# Shippit (for shipping)
-SHIPPIT_API_KEY="your-api-key"
+# Ship123 (freight quotes and manual shipping labels)
+SHIP_123_API_KEY="your-api-secret"
+SHIP123_SENDER_NAME="Sender contact"
+SHIP123_SENDER_LINE1="1 Example Street"
+# SHIP123_SENDER_STREET may be used instead of SHIP123_SENDER_LINE1.
+SHIP123_SENDER_SUBURB="Melbourne"
+SHIP123_SENDER_STATE="VIC"
+SHIP123_SENDER_POSTCODE="3000"
+SHIP123_SENDER_PHONE="0400000000"
 ```
 
 ## 4. Database Setup
@@ -147,13 +154,14 @@ SHIPPIT_API_KEY="your-api-key"
 npx prisma generate
 ```
 
-### Push Schema to Database
+### Apply Reviewed Migrations
 
 ```bash
-npx prisma db push
+npm run db:deploy
 ```
 
-This will create all tables in your Neon PostgreSQL database based on the schema in `prisma/schema.prisma`.
+This applies the checked-in Prisma migrations to the configured database. Use a
+test database for local development; do not use `prisma db push` for releases.
 
 ### (Optional) View Database with Prisma Studio
 
@@ -169,15 +177,31 @@ This opens a visual database explorer in your browser.
 npm run dev
 ```
 
-The application will be available at [http://localhost:3000](http://localhost:3000).
-The default command uses HTTP so browsers and IDE previews can load the site
-without a local certificate. The `dev:http` script sets the local app and auth
-URLs to HTTP for that process.
+The application will be available at [https://localhost:3000](https://localhost:3000).
+Include the `https://` prefix when opening it. `http://localhost:3000` connects
+to the HTTPS-only port as plain HTTP and produces an empty-response browser
+error. An IDE preview must also use HTTPS for this port.
+The default command serves HTTPS and sets the local app, auth, and OnlinePay
+return URLs to that origin. It creates an ignored, self-signed localhost
+certificate when needed (OpenSSL is required). Accept the browser's local
+certificate warning before starting a test checkout. Use `npm run dev:http`
+only when testing features that do not need OnlinePay. Both local commands
+use the in-process development rate limiter; `dev:tunnel` reads the configured
+shared Redis credentials when testing a public staging-like origin.
 
 ### Test OnlinePay locally
 
-OnlinePay needs an HTTPS return address that reaches this app. One way to
-expose local port 3000 is a Cloudflare Quick Tunnel:
+For a normal sandbox payment, open `https://localhost:3000` and complete the
+hosted checkout in the same browser. OnlinePay redirects the browser back to
+the signed order page, which verifies the checkout with OnlinePay's API and
+settles a successful payment. A public tunnel is not required. If the payment
+page is closed before returning, revisit the pending order's signed return
+link and use **Check again**; the local app cannot receive webhooks while
+offline or hidden behind localhost. Do not treat the browser redirect alone as
+proof of payment.
+
+To test OnlinePay webhooks as well, expose local port 3000 with a Cloudflare
+Quick Tunnel:
 
 ```bash
 brew install cloudflared
@@ -200,16 +224,42 @@ Start the app with `npm run dev:tunnel` and open the store through the tunnel
 address. This script serves HTTP behind the tunnel and reads the URLs from
 `.env.local` instead of forcing localhost. If you use Google sign-in, register
 the tunnel's callback URL with Google too.
-The tunnel must remain running until OnlinePay redirects the browser back.
-To test automatic order settlement, register
+The tunnel must remain running while testing webhooks. Register
 `https://your-tunnel.example/api/webhooks/onlinepay` as the test webhook URL
 in the OnlinePay dashboard.
 
-Do not use `https://localhost:3000` as the return URL while the HTTP dev server
-is running: the redirect will fail to connect. `npm run dev:https` is available
-for local HTTPS testing with `certificates/localhost-key.pem` and
-`certificates/localhost.pem`, but those existing self signed files can trigger a
-certificate warning and localhost is not reachable by OnlinePay webhooks.
+Do not use `https://localhost:3000` as the return URL while `dev:http` is
+running: the browser redirect will fail to connect. Localhost is not reachable
+by OnlinePay webhooks; the signed return page handles normal local test
+payments instead.
+
+### Ship123 shipping
+
+For a plain-language explanation of checkout, labels, and the remaining account
+setup, read [CHECKOUT_AND_SHIP123_GUIDE.md](CHECKOUT_AND_SHIP123_GUIDE.md).
+
+Set `SHIP_123_API_KEY` in `.env`. Checkout sends the full Australian delivery
+address and packaged dimensions to Ship123's freight-calculation API. Ship123
+currently returns this account's quotes in USD; the server converts them to AUD
+using the latest matching daily USD and AUD [ECB reference rates](https://data.ecb.europa.eu/help/api/data-examples).
+If Ship123 or the FX source is unavailable, paid shipping checkout stops rather
+than accepting an unverified amount. The signed quote binds the exact AUD cents,
+delivery address, package set, and service for ten minutes.
+
+This account lists named Australia Post services through Ship123; these are
+allowed. The store does not call the Australia Post API directly. The generic
+`AUTO_LOWEST_PRICE` service remains excluded so a named carrier and service
+are recorded on each order. Physical checkout still requires a successful
+Ship123 quote, including for free-shipping orders. Standalone membership
+purchases are unaffected. Check the [Ship123 product-list API](https://ship123-api.readme.io/reference/listavailableproductusingpost)
+if account services change.
+
+Shipping labels are created manually from an administrator's order page after
+payment. Add the sender address variables shown above first. The action stores
+the Ship123 order number before looking up tracking and the label URL. If an
+order-creation request times out, it blocks automatic retries; find the
+`customerOrderNo` in Ship123 and attach its existing order number from the
+admin page. No label is created automatically on payment.
 
 ## 6. Build for Production
 

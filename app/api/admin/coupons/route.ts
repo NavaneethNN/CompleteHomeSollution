@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 
@@ -25,13 +25,11 @@ const couponSchema = z.object({
 // GET /api/admin/coupons - List all coupons
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    if (!await hasFreshAdminSession()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const coupons = await (db as any).coupon.findMany({
+    const coupons = await db.coupon.findMany({
       include: {
         products: {
           include: { product: { select: { id: true, name: true } } },
@@ -44,10 +42,10 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      coupons: coupons.map((c: any) => ({
+      coupons: coupons.map((c) => ({
         ...c,
-        products: c.products.map((p: any) => p.product),
-        categories: c.categories.map((cat: any) => cat.category),
+        products: c.products.map((p) => p.product),
+        categories: c.categories.map((cat) => cat.category),
       })),
     });
   } catch (error) {
@@ -59,24 +57,25 @@ export async function GET() {
 // POST /api/admin/coupons - Create a new coupon
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    if (!await hasFreshAdminSession()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json();
-    console.log("[POST /api/admin/coupons] Received body:", JSON.stringify(body, null, 2));
+    let body: unknown;
+    try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     
     const data = couponSchema.parse(body);
-    console.log("[POST /api/admin/coupons] Parsed data:", JSON.stringify(data, null, 2));
 
     // Check for duplicate code
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existing = await (db as any).coupon.findUnique({
+    const existing = await db.coupon.findUnique({
       where: { code: data.code },
     });
     if (existing) {
       return NextResponse.json({ error: "Coupon code already exists" }, { status: 400 });
+    }
+
+    if (data.discountType === "PERCENTAGE" && data.discountValue > 100) {
+      return NextResponse.json({ error: "Percentage discount cannot exceed 100" }, { status: 400 });
     }
 
     // Validate product/category selections
@@ -99,8 +98,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const coupon = await (db as any).coupon.create({
+    const coupon = await db.coupon.create({
       data: {
         code: data.code,
         name: data.name,

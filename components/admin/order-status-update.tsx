@@ -167,7 +167,7 @@ export function OrderStatusUpdate({
                   className="mt-1"
                   value={carrier}
                   onChange={(e) => setCarrier(e.target.value)}
-                  placeholder="e.g. Australia Post, FedEx, DHL"
+                  placeholder="e.g. FedEx, DHL"
                 />
               </div>
             </>

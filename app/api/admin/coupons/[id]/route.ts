@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const couponUpdateSchema = z.object({
@@ -28,15 +29,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    if (!await hasFreshAdminSession()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const coupon = await (db as any).coupon.findUnique({
+    const coupon = await db.coupon.findUnique({
       where: { id },
       include: {
         products: {
@@ -55,8 +54,8 @@ export async function GET(
 
     return NextResponse.json({
       ...coupon,
-      products: coupon.products.map((p: any) => p.product),
-      categories: coupon.categories.map((c: any) => c.category),
+      products: coupon.products.map((p) => p.product),
+      categories: coupon.categories.map((c) => c.category),
     });
   } catch (error) {
     console.error("[GET /api/admin/coupons/[id]]", error);
@@ -70,54 +69,46 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    if (!await hasFreshAdminSession()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
-    const body = await req.json();
+    let body: unknown;
+    try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     const data = couponUpdateSchema.parse(body);
 
     // Check if coupon exists
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const existing = await (db as any).coupon.findUnique({ where: { id } });
+    const existing = await db.coupon.findUnique({ where: { id }, include: { products: true, categories: true } });
     if (!existing) {
       return NextResponse.json({ error: "Coupon not found" }, { status: 404 });
     }
 
     // Check for duplicate code if changing code
     if (data.code && data.code !== existing.code) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const duplicate = await (db as any).coupon.findUnique({ where: { code: data.code } });
+      const duplicate = await db.coupon.findUnique({ where: { code: data.code } });
       if (duplicate) {
         return NextResponse.json({ error: "Coupon code already exists" }, { status: 400 });
       }
     }
 
-    // Validate product/category selections
-    if (data.type === "PRODUCT" && data.productIds?.length === 0) {
-      return NextResponse.json({ error: "At least one product required" }, { status: 400 });
+    const type = data.type ?? existing.type;
+    const productIds = [...new Set(data.productIds ?? existing.products.map(item => item.productId))];
+    const categoryIds = [...new Set(data.categoryIds ?? existing.categories.map(item => item.categoryId))];
+    if ((type === "PRODUCT" && !productIds.length) || (type === "CATEGORY" && !categoryIds.length)) {
+      return NextResponse.json({ error: "At least one applicable product or category is required" }, { status: 400 });
     }
-    if (data.type === "CATEGORY" && data.categoryIds?.length === 0) {
-      return NextResponse.json({ error: "At least one category required" }, { status: 400 });
+    const startDate = data.startDate === undefined ? existing.startDate : data.startDate ? new Date(data.startDate) : null;
+    const endDate = data.endDate === undefined ? existing.endDate : data.endDate ? new Date(data.endDate) : null;
+    if (startDate && endDate && startDate >= endDate) {
+      return NextResponse.json({ error: "End date must be after start date" }, { status: 400 });
     }
-
-    // Validate dates (only if both are provided and non-empty)
-    if (data.startDate && data.endDate) {
-      const start = new Date(data.startDate as string);
-      const end = new Date(data.endDate as string);
-      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-        return NextResponse.json({ error: "Invalid date format" }, { status: 400 });
-      }
-      if (start >= end) {
-        return NextResponse.json({ error: "End date must be after start date" }, { status: 400 });
-      }
+    if ((data.discountType ?? existing.discountType) === "PERCENTAGE" && (data.discountValue ?? existing.discountValue) > 100) {
+      return NextResponse.json({ error: "Percentage discount cannot exceed 100" }, { status: 400 });
     }
 
     // Update coupon
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const updateData: any = {
+    const updateData: Prisma.CouponUpdateInput = {
       ...(data.code && { code: data.code }),
       ...(data.name && { name: data.name }),
       ...(data.description !== undefined && { description: data.description && data.description !== "" ? data.description : null }),
@@ -129,38 +120,17 @@ export async function PUT(
       ...(data.usageLimit !== undefined && { usageLimit: data.usageLimit }),
       ...(data.perUserLimit !== undefined && { perUserLimit: data.perUserLimit }),
       ...(data.memberEligibility && { memberEligibility: data.memberEligibility }),
-      ...(data.startDate && data.startDate !== "" && { startDate: new Date(data.startDate) }),
-      ...(data.endDate && data.endDate !== "" && { endDate: new Date(data.endDate) }),
+      ...(data.startDate !== undefined && { startDate }),
+      ...(data.endDate !== undefined && { endDate }),
       ...(data.isActive !== undefined && { isActive: data.isActive }),
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const coupon = await (db as any).coupon.update({
-      where: { id },
-      data: updateData,
-    });
-
-    // Update product/category relations if type changed or specific selections changed
-    if (data.type === "GLOBAL") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).couponProduct.deleteMany({ where: { couponId: id } });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).couponCategory.deleteMany({ where: { couponId: id } });
-    } else if (data.type === "PRODUCT" && data.productIds) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).couponProduct.deleteMany({ where: { couponId: id } });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).couponProduct.createMany({
-        data: data.productIds.map((productId: string) => ({ couponId: id, productId })),
-      });
-    } else if (data.type === "CATEGORY" && data.categoryIds) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).couponCategory.deleteMany({ where: { couponId: id } });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).couponCategory.createMany({
-        data: data.categoryIds.map((categoryId: string) => ({ couponId: id, categoryId })),
-      });
+    // Nested relation replacement commits with the coupon itself or rolls back.
+    if (data.type !== undefined || data.productIds !== undefined || data.categoryIds !== undefined) {
+      updateData.products = { deleteMany: {}, create: type === "PRODUCT" ? productIds.map(productId => ({ productId })) : [] };
+      updateData.categories = { deleteMany: {}, create: type === "CATEGORY" ? categoryIds.map(categoryId => ({ categoryId })) : [] };
     }
+    const coupon = await db.coupon.update({ where: { id }, data: updateData });
 
     return NextResponse.json({ coupon });
   } catch (error) {
@@ -178,16 +148,14 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    if (!await hasFreshAdminSession()) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
 
     // Check if coupon has been used in orders
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const coupon = await (db as any).coupon.findUnique({
+    const coupon = await db.coupon.findUnique({
       where: { id },
       include: { _count: { select: { orders: true } } },
     });
@@ -198,8 +166,7 @@ export async function DELETE(
 
     if (coupon._count.orders > 0) {
       // Instead of deleting, deactivate
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any).coupon.update({
+      await db.coupon.update({
         where: { id },
         data: { isActive: false },
       });
@@ -207,14 +174,11 @@ export async function DELETE(
     }
 
     // Delete relations first
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (db as any).couponProduct.deleteMany({ where: { couponId: id } });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (db as any).couponCategory.deleteMany({ where: { couponId: id } });
+    await db.couponProduct.deleteMany({ where: { couponId: id } });
+    await db.couponCategory.deleteMany({ where: { couponId: id } });
 
     // Delete coupon
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (db as any).coupon.delete({ where: { id } });
+    await db.coupon.delete({ where: { id } });
 
     return NextResponse.json({ message: "Coupon deleted" });
   } catch (error) {

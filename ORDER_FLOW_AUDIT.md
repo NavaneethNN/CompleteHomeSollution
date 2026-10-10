@@ -1,9 +1,13 @@
 # Order Flow Audit Report
 
-**Scope:** Cart → Checkout → Order Confirmation → Admin Orders Panel  
-**Date:** September 7, 2026  
-**Project:** CompleteHomeSollution  
-**Auditor:** Kiro AI  
+**Scope:** Cart → Checkout → Order Confirmation → Admin Orders Panel
+**Initial audit:** 7 September 2026
+**Independent re-review:** 9 October 2026
+**Status: NOT READY for production.** The prior “23/23 complete” and “Production Ready: Yes” statements were not supported by the implementation or environment checks.
+
+The re-review found guest shipping blocked by authentication, mismatched displayed/charged totals, stale coupon amounts after membership changes, rejection of non-variant coupon carts, malformed-JSON error classification, and incomplete admin coupon edits. These have been corrected and covered by additional regression checks. See the [independent review](reports/production-audit-2026-09-21/implementation-review-2026-10-09.md).
+
+The earlier completion summary under `.agents/tasks/` is historical and is superseded by this review. Removing casts or passing the old test suite did not establish complete coverage, tax compliance, or production readiness. The findings below retain their original audit context; use the production readiness report for the current release decision.
 
 ---
 

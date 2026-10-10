@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
     const returnOrigin = new URL(appUrl);
     if (["localhost", "127.0.0.1", "[::1]"].includes(returnOrigin.hostname) && req.nextUrl.origin !== returnOrigin.origin) {
-      return NextResponse.json({ error: "The payment return URL points to HTTPS localhost, but this site is running at a different address. Use an HTTPS development tunnel for ONLINEPAY_RETURN_BASE_URL and open the store through that address." }, { status: 503 });
+      return NextResponse.json({ error: "The payment return URL points to HTTPS localhost, but this site is running at a different address. Start npm run dev and open https://localhost:3000." }, { status: 503 });
     }
     validateOnlinePayConfiguration();
     if (!(process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET)) {
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     stage = "create-hosted-checkout";
     const checkout = await createOnlinePayCheckout({
       amountCents: Math.round(order.total * 100), merchantReference: order.id,
-      returnUrl, shopUrl: `${appUrl.replace(/\/$/, "")}/membership`,
+      returnUrl, shopUrl: returnUrl,
       customer: { email: session.user.email, firstName, lastName: lastName.join(" ") || firstName,
         address1: address.line1, city: address.suburb, state: address.state, postcode: address.postcode },
       lineItems: [{ name: `${plan.name} membership`, quantity: 1, unitPriceCents: Math.round(order.total * 100) }],

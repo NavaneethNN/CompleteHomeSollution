@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { Address } from "@prisma/client";
 import { cn } from "@/lib/utils";
+import { checkoutTotals } from "@/lib/checkout-totals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -125,6 +126,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const [appliedCouponCode, setAppliedCouponCode] = useState(""); // Store the code that was successfully applied
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{
+    pricingKey: string;
     code: string;
     discountType: "PERCENTAGE" | "FIXED";
     discountValue: number;
@@ -160,11 +162,23 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     return emailRegex.test(email) && email.length <= 254;
   };
 
-  // Australia Post shipping rates
+  // Ship123 shipping rates
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [selectedRateCode, setSelectedRateCode] = useState<string | null>(null);
   const [isFetchingRates, setIsFetchingRates] = useState(false);
   const [ratesError, setRatesError] = useState<string | null>(null);
+  const [shippingAvailable, setShippingAvailable] = useState<boolean | null>(null);
+  const shippingRequestRef = useRef(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/shipping/ship123", { signal: controller.signal, cache: "no-store" })
+      .then(async response => {
+        const data = await response.json();
+        if (!controller.signal.aborted) setShippingAvailable(response.ok && data.available === true);
+      })
+      .catch(() => { if (!controller.signal.aborted) setShippingAvailable(false); });
+    return () => controller.abort();
+  }, []);
   // Cart state
   const storedItems = useCartStore((state) => state.items);
   const [freshPrices, setFreshPrices] = useState<Record<string, { price: number; memberPrice: number | null; stock: number; weight: number }>>({});
@@ -209,19 +223,25 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const memberSavings = fullSubtotal - subtotal;
   const itemCount = items.reduce((total, item) => total + item.quantity, 0);
 
+  const pricingKey = JSON.stringify([effectiveMember, items.map(item => [item.product.id, item.product.variantId ?? null, item.quantity, item.product.price, getMemberPrice(item)])]);
+  const pricingKeyRef = useRef(pricingKey);
+  pricingKeyRef.current = pricingKey;
+  const couponRequestRef = useRef(0);
+  const currentCoupon = appliedCoupon?.pricingKey === pricingKey ? appliedCoupon : null;
+  const couponNeedsRefresh = !!appliedCouponCode && !currentCoupon;
+
   // Calculate totals with proper coupon discount
   // The validation endpoint calculates this from the coupon's eligible items.
   // Reusing that result avoids incorrectly showing a product/category coupon as
   // a discount on the entire cart.
-  const displayedSubtotal = appliedCoupon?.subtotal ?? subtotal;
-  const discount = Math.min(appliedCoupon?.discount ?? 0, displayedSubtotal);
-  const discountedSubtotal = appliedCoupon?.discountedSubtotal ?? displayedSubtotal - discount;
+  const displayedSubtotal = currentCoupon?.subtotal ?? subtotal;
+  const discount = Math.min(currentCoupon?.discount ?? 0, displayedSubtotal);
+  const discountedSubtotal = currentCoupon?.discountedSubtotal ?? displayedSubtotal - discount;
   const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode);
   const freeShipping = effectiveMember || discountedSubtotal >= 1200;
   const shippingCost = freeShipping ? 0 : (selectedRate?.price ?? null);
-  const gst = Math.round(discountedSubtotal * 0.1 * 100) / 100;
   const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
-  const total = Math.round((discountedSubtotal + (shippingCost ?? 0) + gst + membershipAdd) * 100) / 100;
+  const { tax: gst, total } = checkoutTotals(discountedSubtotal, shippingCost ?? 0, membershipAdd);
   // Net benefit: savings on items minus membership fee
   const netBenefit = memberSavings - MEMBERSHIP_PRICE;
 
@@ -249,20 +269,21 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   const addressState = watchAddress("state");
 
-  // Fetch Australia Post rates when destination postcode is known
-  const fetchAusPostRates = useCallback(
-    async (postcode: string) => {
-      if (!/^\d{4}$/.test(postcode) || !pricesReady || freeShipping) return;
+  // Ship123 needs the complete destination, and stale responses must not replace a newer quote.
+  const fetchShip123Rates = useCallback(
+    async (address: AddressInput | Address) => {
+      const requestId = ++shippingRequestRef.current;
+      if (!/^\d{4}$/.test(address.postcode) || !pricesReady || freeShipping) return;
       setIsFetchingRates(true);
       setRatesError(null);
       setShippingRates([]);
       setSelectedRateCode(null);
       try {
-        const res = await fetch("/api/shipping/auspost", {
+        const res = await fetch("/api/shipping/ship123", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            postcode,
+            address,
             items: items.map(item => ({
               productId: item.product.id,
               variantId: item.product.variantId,
@@ -271,6 +292,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           }),
         });
         const data = await res.json();
+        if (requestId !== shippingRequestRef.current) return;
         if (!res.ok) {
           setRatesError(data.error ?? "Could not fetch shipping rates.");
         } else if (data.rates?.length) {
@@ -280,9 +302,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           setRatesError("No shipping services available for this postcode.");
         }
       } catch {
-        setRatesError("Could not connect to shipping service.");
+        if (requestId === shippingRequestRef.current) setRatesError("Could not connect to shipping service.");
       } finally {
-        setIsFetchingRates(false);
+        if (requestId === shippingRequestRef.current) setIsFetchingRates(false);
       }
     },
     [items, pricesReady, freeShipping]
@@ -292,13 +314,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   useEffect(() => {
     if (!selectedAddressId) return;
     const addr = addresses.find((a) => a.id === selectedAddressId);
-    if (addr?.postcode) fetchAusPostRates(addr.postcode);
-  }, [selectedAddressId, addresses, fetchAusPostRates]);
+    if (addr?.postcode) fetchShip123Rates(addr);
+  }, [selectedAddressId, addresses, fetchShip123Rates]);
 
   // Fetch rates when guest address is set
   useEffect(() => {
-    if (guestAddress?.postcode) fetchAusPostRates(guestAddress.postcode);
-  }, [guestAddress, fetchAusPostRates]);
+    if (guestAddress?.postcode) fetchShip123Rates(guestAddress);
+  }, [guestAddress, fetchShip123Rates]);
 
   // Show cancelled toast
   useEffect(() => {
@@ -310,20 +332,6 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       });
     }
   }, [searchParams, toast]);
-
-  // Re-validate coupon when membership status changes (prices change)
-  useEffect(() => {
-    if (appliedCoupon && appliedCouponCode) {
-      // PERF-3: Skip re-validation if coupon eligibility is "ALL" (not membership-dependent)
-      if (appliedCoupon.memberEligibility && appliedCoupon.memberEligibility !== "ALL") {
-        // Temporarily set couponCode back to the applied code for re-validation
-        setCouponCode(appliedCouponCode);
-        // Re-apply the coupon with new prices
-        applyCoupon(appliedCouponCode);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveMember]);
 
   // Address management functions
   const openAddDialog = () => {
@@ -429,17 +437,19 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     }
   };
 
-  const applyCoupon = async (codeOverride?: string) => {
+  const applyCoupon = async (codeOverride?: string, revalidation = false) => {
     const code = (codeOverride ?? couponCode).trim();
     if (!code) return;
 
+    const requestId = ++couponRequestRef.current;
+    const requestedPricingKey = pricingKey;
     setIsApplyingCoupon(true);
 
     // Prepare items for coupon validation - use effectiveMember to account for membership toggle
     const itemsForValidation = items.map((item) => {
       return {
         productId: item.product.id,
-        variantId: item.product.variantId,
+        variantId: item.product.variantId ?? undefined,
         quantity: item.quantity,
       };
     });
@@ -456,13 +466,17 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         }),
       });
       const data = await res.json();
+      if (requestId !== couponRequestRef.current || requestedPricingKey !== pricingKeyRef.current) return;
 
       if (!res.ok) {
+        setAppliedCoupon(null);
+        setAppliedCouponCode("");
         toast({ title: "Invalid Coupon", description: data.error || "The coupon code is not valid.", variant: "destructive" });
         return;
       }
 
       setAppliedCoupon({
+        pricingKey: requestedPricingKey,
         code: data.coupon.code,
         discountType: data.coupon.discountType,
         discountValue: data.coupon.discountValue,
@@ -475,22 +489,35 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       });
       setAppliedCouponCode(code); // Store the applied code for re-validation
       setCouponCode(""); // Clear input after successful application
-      toast({ title: "Coupon Applied", description: `${data.coupon.name} - ${data.coupon.discountType === "PERCENTAGE" ? data.coupon.discountValue + "%" : "$" + data.coupon.discountValue} off` });
+      if (!revalidation) toast({ title: "Coupon Applied", description: `${data.coupon.name} - ${data.coupon.discountType === "PERCENTAGE" ? data.coupon.discountValue + "%" : "$" + data.coupon.discountValue} off` });
     } catch (error) {
+      if (requestId !== couponRequestRef.current || requestedPricingKey !== pricingKeyRef.current) return;
+      setAppliedCoupon(null);
+      setAppliedCouponCode("");
       console.error("Coupon validation error:", error);
       toast({ title: "Error", description: "Failed to validate coupon. Please try again.", variant: "destructive" });
     } finally {
-      setIsApplyingCoupon(false);
+      if (requestId === couponRequestRef.current) setIsApplyingCoupon(false);
     }
   };
 
+  // Every price/quantity/membership change affects coupon amounts, including ALL coupons.
+  useEffect(() => {
+    if (appliedCouponCode) void applyCoupon(appliedCouponCode, true);
+    // Revalidate only when inputs change, not when the response updates coupon state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pricingKey]);
+
   const removeCoupon = () => {
+    couponRequestRef.current++;
+    setIsApplyingCoupon(false);
     setAppliedCoupon(null);
     setAppliedCouponCode("");
     setCouponCode("");
   };
   // Place order — validate then request a PayWay single-use token
   const submitOrderWithToken = async (tokenId: string) => {
+    if (couponNeedsRefresh || isApplyingCoupon) { setAwaitingToken(false); return; }
     setAwaitingToken(false);
     setIsProcessing(true);
     try {      const response = await fetch("/api/checkout/session", {
@@ -922,13 +949,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             </p>
           )}
 
-          {/* Australia Post shipping options */}
+          {/* Ship123 shipping options */}
           {!freeShipping && (
             <div className="mt-4">
               {isFetchingRates && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Fetching Australia Post rates…
+                  Fetching shipping rates…
                 </div>
               )}
               {ratesError && !isFetchingRates && (
@@ -1082,11 +1109,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           {usesOnlinePay && paymentError && <p role="alert" className="mt-2 text-sm text-destructive">{paymentError}</p>}
           {pricesError && <p role="alert" className="mt-2 text-sm text-destructive">{pricesError}</p>}
           {unavailable && <p role="alert" className="mt-2 text-sm text-destructive">An item is unavailable or exceeds stock. Update your cart before paying.</p>}
+          {shippingAvailable === false && <p role="alert" className="mt-2 text-sm text-destructive">Shipping is unavailable until a supported courier is enabled. Please contact support.</p>}
           {/* Place Order Button */}
           <Button
             className="mt-5 w-full h-12 text-sm font-semibold"
             onClick={handlePlaceOrder}
-            disabled={!pricesReady || unavailable || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
+            disabled={shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
           >
             {isProcessing ? (
               <>
@@ -1133,7 +1161,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         }
         setIsAddressDialogOpen(open);
       }}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto" hideCloseButton={!isAuthenticated && !guestAddress}>
+        <DialogContent className="sm:max-w-lg max-h-[calc(100%-2rem)] overflow-y-auto" hideCloseButton={!isAuthenticated && !guestAddress}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
@@ -1211,7 +1239,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
             {/* Apt / Unit */}
             <div className="space-y-2">
-              <Label htmlFor="dlg-line2" className="text-sm font-medium flex items-center gap-2">
+              <Label htmlFor="dlg-line2" className="text-sm font-medium flex flex-wrap items-center gap-2">
                 <Building className="h-4 w-4 text-muted-foreground" />
                 Apartment, Suite, Unit <span className="text-muted-foreground font-normal">(Optional)</span>
               </Label>

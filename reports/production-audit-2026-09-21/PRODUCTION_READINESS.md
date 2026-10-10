@@ -2,6 +2,33 @@
 
 **Verdict: NOT READY for production. Do not enable live payments yet.**
 
+## Ship123 carrier migration — 10 October 2026
+
+The Australia Post direct API quote route and client were replaced with Ship123 product discovery and freight calculation. The account's configured API key works: product discovery returned three named Australia Post products and `AUTO_LOWEST_PRICE`; a read-only sample freight calculation returned a USD amount. **The owner clarified on 10 October that Australia Post is allowed through Ship123.** The named Australia Post products are now accepted. The generic `AUTO_LOWEST_PRICE` product remains excluded because it does not identify a specific carrier/service. Physical checkout, including free-shipping orders, still requires a successful Ship123 quote; standalone membership purchases are unaffected.
+
+The new quote flow uses full destination and parcel data, converts USD to AUD from matching daily ECB reference rates, signs the exact AUD quote against the destination and package set, and rechecks service eligibility at payment. Paid orders can create a Ship123 label from an admin-only action. Creation claims the order first; uncertain provider outcomes block retries and require attaching a verified existing Ship123 order number. The additive `20261009000200_ship123_fulfillment` migration was applied to the authorized test database, and the runtime schema check passed. The sender address validates using the configured `SHIP123_SENDER_STREET` alias. A read-only sample address/parcel check returned AUD quotes for all three named Australia Post services after sequential requests with a bounded retry for Ship123's temporary throttle response. The full suite passed **113/113** and TypeScript passed. No Ship123 shipping order or label was purchased or created. A real checkout and label still need end-to-end acceptance before release.
+
+## Tunnel-free sandbox checkout — 9 October 2026
+
+The default `npm run dev` now serves `https://localhost:3000`, generates a local certificate if needed, and aligns the app/auth/OnlinePay return origins. Both product and membership hosted checkouts use the signed order page for payment and cancellation returns. That page polls OnlinePay server-to-server and settles only after matching the provider reference, amount, currency, and success event; a public webhook tunnel is not needed for a normal browser return. An unpaid OnlinePay sandbox checkout was created and looked up successfully with the localhost URL. The HTTPS storefront responded with HTTP 200, and the local route suite passed 102 tests.
+
+The owner confirmed that the configured Neon database is a test database. Five additive Prisma migrations were applied successfully and `prisma migrate status` reports the schema is up to date. `check:checkout` now passes, as do rollback-only order and membership transaction checks, TypeScript, lint (with existing warnings), the 102-test suite, and a production build. The database-backed product API responds over local HTTPS, and a non-paying checkout request passes the real HTTPS origin guard. No card payment was submitted, so a paid 3DS browser journey remains unverified. The configured Upstash Redis hostname does not resolve; the local dev commands now use the intended in-process limiter, while production readiness requires working shared Redis. Localhost cannot receive webhooks; production/staging acceptance still requires a public endpoint.
+
+## Independent implementation review — 9 October 2026
+
+**The later model's “all findings resolved / production-ready” conclusion is rejected.** Its changes introduced checkout regressions that were not detected by the existing 92 tests. The [review and verification record](implementation-review-2026-10-09.md) documents the corrections and remaining prerequisites.
+
+- Restored rate-limited **guest shipping quotes**; authentication is not required to obtain a quote.
+- Replaced divergent UI/server totals with a shared integer-cent calculation. The unapproved server-only shipping-tax change was reverted to the existing store calculation pending merchant approval. No tax/legal compliance certification is claimed.
+- Revalidate **all coupons** on membership, quantity, or price changes; ignore obsolete responses, discard invalid coupons, and block payment while revalidation is pending. Non-variant carts with a persisted null variant ID are accepted.
+- Shipping/coupon POST endpoints return **400 for malformed JSON**. Admin coupon routes now require a fresh database-confirmed admin role, remove request-body logging and remaining unsafe casts, clear nullable dates correctly, validate merged updates, and atomically replace coupon restrictions.
+- The simple coupon utility now delegates to the authoritative cent-allocation calculator rather than maintaining a different cap rule.
+- Retained the preceding durable notification, email escaping, schema/Redis readiness and accessibility repairs. The address dialog's zoom height and wrapping received an additional correction.
+
+**Release is still on hold.** Current read-only checks confirm a missing `EmailJob` table and missing order/stock-alert columns. Local configuration lacks `CRON_SECRET`, has an invalid Sentry DSN, and uses a localhost app origin. Apply the reviewed migrations and configure the eventual staging host before runtime/payment acceptance. Deployment and merchant decisions remain deferred at the user's request; no migrations, deployment, payments, refunds, emails, or SMS were performed in this review.
+
+The older sections and original evidence below are historical snapshots, not the current verification results.
+
 ## Fifth remediation batch — 5 October 2026
 
 The next five unresolved findings were reviewed in report order:

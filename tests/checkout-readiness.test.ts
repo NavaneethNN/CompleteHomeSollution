@@ -6,6 +6,7 @@ import { NextRequest } from "next/server";
 const require = createRequire(import.meta.url);
 const productId = "c1234567890123456789012345";
 const variantId = "c1234567890123456789012346";
+let guest = false;
 let memberProductPrice = 10;
 let activeVariants: Array<{ id: string; productId: string; price: number; memberPrice: number | null; stock: number; isActive: boolean; weight: number; length: number; width: number; height: number }> = [];
 let order: Record<string, any> | null;
@@ -73,8 +74,9 @@ const db: any = {
 function stub(path: string, exports: unknown) {
   require.cache[require.resolve(path)] = { exports } as NodeModule;
 }
-stub("../auth", { auth: async () => ({ user: { id: "user", role: "CUSTOMER", email: "buyer@example.com" } }) });
+stub("../auth", { auth: async () => guest ? null : ({ user: { id: "user", role: "CUSTOMER", email: "buyer@example.com" } }) });
 stub("../lib/db", { db });
+stub("../lib/ship123", { getShip123Rates: async () => [{ serviceCode: "STANDARD", price: 12 }], getEligibleShip123Products: async () => [{ code: "STANDARD" }] });
 stub("../lib/brevo", { sendOrderConfirmationEmail: async () => {} });
 stub("../lib/twilio", { sendOrderConfirmationSms: async () => {}, sendOrderWhatsApp: async () => {} });
 stub("next/server", { ...require("next/server"), after: () => {} });
@@ -88,6 +90,8 @@ function request(body: unknown) {
 }
 
 function setup(t: TestContext) {
+  guest = false;
+  require("../lib/rate-limit").clearRateLimitsForTests();
   order = null; coupon = null; failCheckoutIdSave = false; usageCount = 0; userCouponCount = 0; pendingQuantity = 0; memberProductPrice = 10; activeVariants = [];
   const values = { PAYMENT_GATEWAY: "onlinepay", ONLINEPAY_MODE: "test", ONLINEPAY_RETURN_BASE_URL: "https://shop.example", ONLINEPAY_USER_UID: "test", ONLINEPAY_API_KEY: "test", ONLINEPAY_ENTITY_ID: "test", ONLINEPAY_PPC_ID: "test", ONLINEPAY_3DS_ID: "test", AUTH_SECRET: "checkout-readiness-test" };
   for (const [key, value] of Object.entries(values)) {
@@ -130,6 +134,24 @@ test("OnlinePay setup rejects HTTP returns and an HTTPS localhost return on a di
   assert.equal(mismatched.status, 503);
   assert.match((await mismatched.json()).error, /different address/);
   assert.equal(order, null);
+});
+
+test("HTTPS localhost checkout returns to the signed order page without a tunnel", async t => {
+  setup(t);
+  process.env.ONLINEPAY_RETURN_BASE_URL = "https://localhost:3000";
+  let providerBody: any;
+  t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    providerBody = JSON.parse(init.body as string);
+    return Response.json({ id: "checkout-123", url: "https://provider.example/checkout" });
+  });
+  const localRequest = new NextRequest("https://localhost:3000/api/checkout/session", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(baseBody),
+  });
+  const response = await checkout(localRequest);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).status, "redirect");
+  assert.match(providerBody.return_url, /^https:\/\/localhost:3000\/order-confirmation\/[^?]+\?return_token=/);
+  assert.equal(providerBody.shop_url, providerBody.return_url);
 });
 
 test("pending stock holds block a second checkout before a provider payment is created", async t => {
@@ -191,4 +213,22 @@ test("variant checkout inherits the product member price in the order and provid
   assert.equal(order?.subtotal, 21);
   assert.equal(order?.items[0].unitPrice, 7);
   assert.equal(providerTotal, 2310);
+});
+
+
+test("guest shipping charge and tax match the displayed calculator and gateway cents", async t => {
+  setup(t); guest = true;
+  let providerTotal = 0;
+  t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    const payload = JSON.parse(init.body as string);
+    providerTotal = payload.line_items.reduce((sum: number, line: any) => sum + line.total_amount, 0);
+    return Response.json({ id: "checkout-guest", url: "https://provider.example/checkout" });
+  });
+  const response = await checkout(request({ ...baseBody, guestEmail: "guest@example.com", shippingCost: 12, shippingRateCode: "STANDARD" }));
+  assert.equal(response.status, 200);
+  assert.equal(order?.shippingCost, 12);
+  const displayed = require("../lib/checkout-totals").checkoutTotals(30, 12, 0);
+  assert.equal(order?.tax, displayed.tax);
+  assert.equal(order?.total, displayed.total);
+  assert.equal(providerTotal, Math.round(displayed.total * 100));
 });

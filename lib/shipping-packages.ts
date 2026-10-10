@@ -26,14 +26,13 @@ export function buildParcelGroups(items: ShippingItem[]): ParcelGroup[] {
       throw new FreightRequiredError("Invalid shipment quantity.");
     }
     const dimensions = [item.length, item.width, item.height];
-    if (!item.weight || item.weight <= 0 || dimensions.some(value => !value || value <= 0)) {
+    if (!item.weight || !Number.isFinite(item.weight) || item.weight <= 0 ||
+        dimensions.some(value => !value || !Number.isFinite(value) || value <= 0)) {
       throw new FreightRequiredError("This item needs a manual freight quote because its packaged dimensions are unavailable.");
     }
     const [length, width, height] = dimensions as number[];
-    const girth = 2 * (width + height);
-    const cubicMetres = length * width * height / 1_000_000;
-    if (item.weight > 22 || Math.max(length, width, height) > 105 || girth > 140 || cubicMetres > 0.25) {
-      throw new FreightRequiredError("This item is outside Australia Post parcel limits and needs a manual freight quote.");
+    if (item.weight > 1000 || Math.max(length, width, height) > 1000) {
+      throw new FreightRequiredError("This item is outside automatic shipping quote limits and needs a manual freight quote.");
     }
     const parcel = {
       weightKg: Math.round(item.weight * 1000) / 1000,

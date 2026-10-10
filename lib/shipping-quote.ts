@@ -1,7 +1,18 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+
+export type ShippingDestination = {
+  line1: string; line2?: string | null; suburb: string; state: string; postcode: string;
+};
+
+export function shippingDestinationKey(address: ShippingDestination): string {
+  const fields = [address.line1, address.line2 ?? "", address.suburb, address.state, address.postcode]
+    .map(value => value.trim().replace(/\s+/g, " ").toUpperCase());
+  return createHash("sha256").update(JSON.stringify(fields)).digest("base64url");
+}
 
 type ShippingQuotePayload = {
   postcode: string;
+  destinationKey: string;
   shipmentKey: string;
   serviceCode: string;
   priceCents: number;
@@ -24,6 +35,7 @@ function sign(encodedPayload: string): string {
 
 export function createShippingQuoteToken(input: {
   postcode: string;
+  destinationKey: string;
   shipmentKey: string;
   serviceCode: string;
   price: number;
@@ -31,6 +43,7 @@ export function createShippingQuoteToken(input: {
 }): string {
   const payload: ShippingQuotePayload = {
     postcode: input.postcode,
+    destinationKey: input.destinationKey,
     shipmentKey: input.shipmentKey,
     serviceCode: input.serviceCode,
     priceCents: Math.round(input.price * 100),
@@ -43,6 +56,7 @@ export function createShippingQuoteToken(input: {
 export function verifyShippingQuoteToken(input: {
   token: string | null | undefined;
   postcode: string;
+  destinationKey: string;
   shipmentKey: string;
   serviceCode: string | null | undefined;
   price: number | null | undefined;
@@ -61,6 +75,7 @@ export function verifyShippingQuoteToken(input: {
 
   if (payload.expires <= Math.floor((input.now ?? Date.now()) / 1000)) return false;
   if (payload.postcode !== input.postcode) return false;
+  if (payload.destinationKey !== input.destinationKey) return false;
   if (payload.serviceCode !== input.serviceCode) return false;
   if (payload.priceCents !== Math.round(input.price * 100)) return false;
   if (payload.shipmentKey !== input.shipmentKey) return false;

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { AdminRefundPanel } from "@/components/admin/refund-panel";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
+import { Ship123LabelPanel } from "@/components/admin/ship123-label-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -349,6 +350,9 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             currentTrackingNumber={order.trackingNumber}
             currentCarrier={order.carrier}
           />
+
+          {order.items.length > 0 && ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status) &&
+            <Ship123LabelPanel orderId={order.id} />}
 
           {/* Order Timeline */}
           <Card>

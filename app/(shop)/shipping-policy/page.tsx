@@ -17,8 +17,7 @@ export default function ShippingPolicyPage() {
           <h2 className="text-xl font-semibold mb-4">1. Shipping Overview</h2>
           <p className="text-muted-foreground mb-4">
             Complete Home Solution delivers furniture and home goods across Australia. 
-            We partner with trusted carriers including Australia Post and Shippit to ensure 
-            your orders arrive safely and on time.
+            We use Ship123 to arrange delivery with the available courier services shown at checkout.
           </p>
         </section>
 
@@ -27,7 +26,7 @@ export default function ShippingPolicyPage() {
           <h3 className="text-lg font-medium mb-2">2.1 Standard Delivery</h3>
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
             <li>Delivery to your door or ground floor entrance</li>
-            <li>Carrier: Australia Post or Shippit</li>
+            <li>Carrier: the eligible courier service selected at checkout</li>
             <li>Tracking provided via email and SMS</li>
             <li>Signature required for high-value items</li>
           </ul>

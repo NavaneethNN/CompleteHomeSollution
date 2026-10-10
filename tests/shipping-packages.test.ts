@@ -12,10 +12,10 @@ test("shipping uses every quantity and groups identical real packages", () => {
   assert.equal(shipmentKey(groups), shipmentKey(structuredClone(groups)));
 });
 
-test("unknown, heavy, and oversized packages require freight instead of being capped", () => {
+test("unknown or implausible packages require manual freight; Ship123 evaluates larger furniture", () => {
   const base = { key: "sofa", quantity: 1, weight: 10, length: 80, width: 30, height: 20 };
   assert.throws(() => buildParcelGroups([{ ...base, weight: null }]), FreightRequiredError);
-  assert.throws(() => buildParcelGroups([{ ...base, weight: 22.1 }]), FreightRequiredError);
-  assert.throws(() => buildParcelGroups([{ ...base, length: 106 }]), FreightRequiredError);
-  assert.throws(() => buildParcelGroups([{ ...base, width: 50, height: 30 }]), FreightRequiredError);
+  assert.equal(buildParcelGroups([{ ...base, weight: 22.1, length: 106 }])[0].weightKg, 22.1);
+  assert.throws(() => buildParcelGroups([{ ...base, weight: 1001 }]), FreightRequiredError);
+  assert.throws(() => buildParcelGroups([{ ...base, length: 1001 }]), FreightRequiredError);
 });

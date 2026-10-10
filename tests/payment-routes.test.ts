@@ -183,6 +183,7 @@ test("standalone membership creates a hosted order with a snapshot and reuses th
     const body = JSON.parse(init.body as string);
     assert.equal(body.amount, 3000); assert.equal(body.merchant_reference, id);
     assert.equal(body.customer_details.billing.postal_code, "2000");
+    assert.equal(body.shop_url, body.return_url);
     return Response.json({ id: "checkout-123", url: "https://provider.example/pay" });
   });
   const body = { address: { name: "Test Buyer", phone: "0400000000", line1: "1 Test Street", suburb: "Sydney", state: "NSW", postcode: "2000" } };
@@ -197,6 +198,22 @@ test("standalone membership creates a hosted order with a snapshot and reuses th
   assert.equal(createdOrders, 1); assert.equal(hostedRequests, 1);
   activeMember = true;
   assert.equal((await membershipCheckout(request(body))).status, 409);
+});
+
+test("standalone membership checkout accepts matching HTTPS localhost return", async t => {
+  reset(); membershipEnvironment(t);
+  process.env.ONLINEPAY_RETURN_BASE_URL = "https://localhost:3000";
+  t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(init.body as string);
+    assert.match(body.return_url, /^https:\/\/localhost:3000\/order-confirmation\/[^?]+\?return_token=/);
+    assert.equal(body.shop_url, body.return_url);
+    return Response.json({ id: "checkout-123", url: "https://provider.example/pay" });
+  });
+  const response = await membershipCheckout(new NextRequest("https://localhost:3000/api/membership/checkout", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(membershipBody),
+  }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).url, "https://provider.example/pay");
 });
 
 function membershipEnvironment(t: TestContext) {
@@ -295,6 +312,18 @@ test("verified membership payment settles and activates exactly once across repe
   assert.ok(expiry >= before + 30 * 86400000 && expiry <= Date.now() + 30 * 86400000);
   assert.equal((await poll(new NextRequest("https://shop.example/poll"), context)).status, 200);
   assert.equal(payments.length, 1);
+  assert.equal(stock, 0);
+});
+
+test("a cancelled hosted checkout returns to the order page and releases its pending order", async t => {
+  reset(); provider(t);
+  order.status = "PENDING";
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    id: "checkout-123", merchant_reference: id, amount: 3000, currency_code: "AUD", status: "CANCELLED",
+  }));
+  const response = await poll(new NextRequest("https://shop.example/poll"), context);
+  assert.equal(response.status, 402);
+  assert.equal(order.status, "CANCELLED");
   assert.equal(stock, 0);
 });
 

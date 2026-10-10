@@ -8,7 +8,7 @@ import { resolveMemberPrice } from "@/lib/member-price";
 
 const itemsSchema = z.array(z.object({
   productId: z.string().cuid(),
-  variantId: z.string().cuid().optional(),
+  variantId: z.preprocess(value => value === null ? undefined : value, z.string().cuid().optional()),
   quantity: z.number().int().positive().max(100),
 }).strip()).min(1).max(50);
 
@@ -168,7 +168,8 @@ export async function GET(req: NextRequest) {
 // CODE-6: Add POST handler for coupon validation
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    let body: unknown;
+    try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     const input = validateCouponSchema.parse(body);
     return await validateCoupon(input);
   } catch (error) {

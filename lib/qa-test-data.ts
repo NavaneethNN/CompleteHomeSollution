@@ -95,7 +95,7 @@ export const TEST_CASES: TestCase[] = [
   { id: "CH-001", suite: "checkout", category: "Checkout", description: "View checkout page", steps: "Navigate to checkout with items in cart", expected: "Checkout form with order summary displayed" },
   { id: "CH-002", suite: "checkout", category: "Checkout", description: "Add new address", steps: "Fill address form, click Save", expected: "Address saved and selected" },
   { id: "CH-003", suite: "checkout", category: "Checkout", description: "Select saved address", steps: "Click on saved address card", expected: "Address selected, shipping rates fetched" },
-  { id: "CH-004", suite: "checkout", category: "Checkout", description: "Calculate shipping rates", steps: "Enter valid postcode", expected: "Australia Post shipping rates displayed" },
+  { id: "CH-004", suite: "checkout", category: "Checkout", description: "Calculate shipping rates", steps: "Enter a complete Australian delivery address", expected: "Eligible Ship123 courier rates displayed in AUD" },
   { id: "CH-005", suite: "checkout", category: "Checkout", description: "Apply coupon code", steps: "Enter valid coupon code, click Apply", expected: "Discount applied, total recalculated" },
   { id: "CH-006", suite: "checkout", category: "Checkout", description: "Invalid coupon code", steps: "Enter invalid coupon code, click Apply", expected: "Error message: invalid coupon" },
   { id: "CH-007", suite: "checkout", category: "Checkout", description: "Remove coupon", steps: "Click Remove on applied coupon", expected: "Discount removed, total updated" },

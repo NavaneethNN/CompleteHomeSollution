@@ -1,0 +1,6 @@
+{
+  "allCouponRepriced": true,
+  "paymentBlockedDuringRevalidation": true,
+  "staleResponsesIgnored": true,
+  "errors": []
+}
