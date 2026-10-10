@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone, MapPin, BadgeCheck } from "lucide-react";
 
 const footerLinks = [
   {
@@ -60,7 +60,7 @@ export function Footer() {
             <div className="space-y-2.5 text-sm text-white/75">
               <div className="flex items-start gap-2">
                 <MapPin className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
-                <span>33 Edward Street<br />Paralowie SA 5108</span>
+                <span>18 Edison Drive<br />Golden Grove SA 5125</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -69,6 +69,10 @@ export function Footer() {
               <div className="flex items-center gap-2">
                 <Mail className="h-3.5 w-3.5 text-primary shrink-0" />
                 <a href="mailto:info@completehomesollution.com.au" className="hover:text-primary transition-colors">info@completehomesollution.com.au</a>
+              </div>
+              <div className="flex items-center gap-2">
+                <BadgeCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span>ABN 52 921 008 361</span>
               </div>
             </div>
           </div>
