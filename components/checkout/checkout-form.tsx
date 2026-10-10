@@ -88,6 +88,7 @@ interface CheckoutFormProps {
   readonly memberPriceMap?: Record<string, number | null>;
   readonly activePlan?: ActivePlan;
   readonly usesOnlinePay?: boolean;
+  readonly paymentAvailable?: boolean;
 }
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
@@ -103,7 +104,7 @@ interface ShippingRate {
   quoteToken?: string;
 }
 
-export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userId: _userId, userProfile, isMember, hasExpiredMembership = false, memberPriceMap, activePlan, usesOnlinePay = false }: CheckoutFormProps) {
+export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userId: _userId, userProfile, isMember, hasExpiredMembership = false, memberPriceMap, activePlan, usesOnlinePay = false, paymentAvailable = true }: CheckoutFormProps) {
   const MEMBERSHIP_PRICE = activePlan?.price ?? 30;
   const membershipLabel = activePlan ? `${activePlan.name} (${activePlan.durationDays >= 365 ? `${Math.round(activePlan.durationDays / 365)}yr` : `${activePlan.durationDays}d`})` : "CHS Membership";
   const router = useRouter();
@@ -604,6 +605,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   }, [awaitingToken, singleUseTokenId]);
 
   const handlePlaceOrder = () => {
+    if (!paymentAvailable) return;
     if (items.length === 0) {
       toast({ title: "Cart is empty", description: "Add items to your cart first.", variant: "destructive" });
       return;
@@ -1083,7 +1085,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           )}
 
           {/* PayWay is retained until OnlinePay is enabled through the gateway switch. */}
-          {!usesOnlinePay && <div className="mt-4">
+          {paymentAvailable && !usesOnlinePay && <div className="mt-4">
             <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               Card Details
@@ -1106,6 +1108,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             )}
           </div>}
 
+          {!paymentAvailable && <p role="alert" className="mt-4 text-sm text-destructive">Payment checkout is temporarily unavailable. Please try again later.</p>}
           {usesOnlinePay && paymentError && <p role="alert" className="mt-2 text-sm text-destructive">{paymentError}</p>}
           {pricesError && <p role="alert" className="mt-2 text-sm text-destructive">{pricesError}</p>}
           {unavailable && <p role="alert" className="mt-2 text-sm text-destructive">An item is unavailable or exceeds stock. Update your cart before paying.</p>}
@@ -1114,7 +1117,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           <Button
             className="mt-5 w-full h-12 text-sm font-semibold"
             onClick={handlePlaceOrder}
-            disabled={shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
+            disabled={!paymentAvailable || shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
           >
             {isProcessing ? (
               <>
@@ -1131,9 +1134,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             )}
           </Button>
 
-          <p className="mt-3 text-center text-[11px] text-muted-foreground leading-relaxed">
+          {paymentAvailable && <p className="mt-3 text-center text-[11px] text-muted-foreground leading-relaxed">
             Your payment is processed securely by {usesOnlinePay ? "Westpac OnlinePay" : "PayWay (Westpac)"}. Card details never touch our servers.
-          </p>
+          </p>}
 
           {/* Trust badges */}
           <div className="mt-5 flex items-center justify-center gap-4 border-t border-border pt-4">

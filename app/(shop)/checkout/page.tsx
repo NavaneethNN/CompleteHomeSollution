@@ -6,6 +6,7 @@ import { getAddresses } from "@/lib/actions/address";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { db } from "@/lib/db";
 import { getActiveMembershipPlan } from "@/lib/membership-plan";
+import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
@@ -36,6 +37,7 @@ export default async function CheckoutPage() {
   }
 
   const activePlan = await getActiveMembershipPlan();
+  const gateway = configuredPaymentGateway(process.env);
 
   return (
     <main className="bg-background py-8 md:py-12">
@@ -57,7 +59,8 @@ export default async function CheckoutPage() {
 
         {/* Checkout Form */}
         <CheckoutForm
-          usesOnlinePay={(process.env.PAYMENT_GATEWAY ?? process.env.NEXT_PUBLIC_PAYMENT_GATEWAY) === "onlinepay"}
+          usesOnlinePay={gateway === "onlinepay"}
+          paymentAvailable={gateway !== null}
           savedAddresses={addresses || []}
           addressesError={addressError}
           isAuthenticated={!!session}

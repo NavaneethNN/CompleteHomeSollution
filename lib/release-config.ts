@@ -9,7 +9,7 @@ function httpsOrigin(value: string | undefined): string | null {
 
 export function releaseConfigErrors(env: ReleaseEnv): string[] {
   const required = ["DATABASE_URL", "NEXT_PUBLIC_APP_URL", "AUTH_SECRET", "CRON_SECRET", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "BREVO_API_KEY", "SENTRY_DSN"];
-  const gateway = env.PAYMENT_GATEWAY ?? env.NEXT_PUBLIC_PAYMENT_GATEWAY;
+  const gateway = env.PAYMENT_GATEWAY;
   if (gateway === "onlinepay") required.push("ONLINEPAY_USER_UID", "ONLINEPAY_API_KEY", "ONLINEPAY_ENTITY_ID", "ONLINEPAY_PPC_ID", "ONLINEPAY_3DS_ID", "ONLINEPAY_WEBHOOK_SECRET", "ONLINEPAY_RETURN_BASE_URL", "ONLINEPAY_MODE");
   else if (gateway === "payway") required.push("PAYWAY_SECRET_KEY", "PAYWAY_MERCHANT_ID", "NEXT_PUBLIC_PAYWAY_PUBLISHABLE_KEY");
   else required.push("PAYMENT_GATEWAY (onlinepay or payway)");
@@ -41,6 +41,6 @@ export function releaseConfigErrors(env: ReleaseEnv): string[] {
     if (env.ONLINEPAY_WEBHOOK_SECRET && env.ONLINEPAY_WEBHOOK_SECRET.length < 32) errors.push("ONLINEPAY_WEBHOOK_SECRET must have at least 32 characters");
     if (env.ONLINEPAY_MODE && !["test", "live"].includes(env.ONLINEPAY_MODE)) errors.push("ONLINEPAY_MODE must be test or live");
   }
-  if (env.NEXT_PUBLIC_PAYMENT_GATEWAY && gateway !== env.NEXT_PUBLIC_PAYMENT_GATEWAY) errors.push("PAYMENT_GATEWAY and NEXT_PUBLIC_PAYMENT_GATEWAY must match");
+  if (!env.NEXT_PUBLIC_PAYMENT_GATEWAY || gateway !== env.NEXT_PUBLIC_PAYMENT_GATEWAY) errors.push("PAYMENT_GATEWAY and NEXT_PUBLIC_PAYMENT_GATEWAY must both be set to the same gateway");
   return errors;
 }

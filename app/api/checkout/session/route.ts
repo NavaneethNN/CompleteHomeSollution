@@ -17,6 +17,7 @@ import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-lim
 import { assertInventoryAvailableForPendingOrder, InventoryUnavailableError } from "@/lib/inventory-reservation";
 import { resolveMemberPrice } from "@/lib/member-price";
 import { checkoutTotals } from "@/lib/checkout-totals";
+import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
 
 const addressSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -74,6 +75,8 @@ const checkoutSchema = z
 
 export async function POST(req: NextRequest) {
   try {
+    const gateway = configuredPaymentGateway(process.env);
+    if (!gateway) return NextResponse.json({ error: "Payment checkout is temporarily unavailable." }, { status: 503 });
     const session = await auth();
     const limit = await consumeRateLimit("checkout", `${getClientIp(req.headers)}:${session?.user?.id ?? "guest"}`, 12, 10 * 60);
     if (!limit.allowed) return rateLimitResponse(limit);
@@ -81,7 +84,7 @@ export async function POST(req: NextRequest) {
     let body: unknown;
     try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     const input = checkoutSchema.parse(body);
-    const useOnlinePay = (process.env.PAYMENT_GATEWAY ?? process.env.NEXT_PUBLIC_PAYMENT_GATEWAY) === "onlinepay";
+    const useOnlinePay = gateway === "onlinepay";
     if (!useOnlinePay && !input.singleUseTokenId) {
       return NextResponse.json({ error: "Payment details are required." }, { status: 400 });
     }

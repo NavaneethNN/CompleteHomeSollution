@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { createOnlinePayCheckout, validateOnlinePayConfiguration, OnlinePayCheckoutError } from "@/lib/onlinepay";
 import { createOrderReturnToken } from "@/lib/order-access";
 import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
 
 const bodySchema = z.object({
   planId: z.string().cuid().optional(),
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (!limit.allowed) return rateLimitResponse(limit);
     const parsed = bodySchema.safeParse(await req.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-    if ((process.env.PAYMENT_GATEWAY ?? process.env.NEXT_PUBLIC_PAYMENT_GATEWAY) !== "onlinepay") {
+    if (configuredPaymentGateway(process.env) !== "onlinepay") {
       return NextResponse.json({ error: "OnlinePay membership checkout is unavailable." }, { status: 503 });
     }
     const appUrl = process.env.ONLINEPAY_RETURN_BASE_URL || process.env.NEXT_PUBLIC_APP_URL;

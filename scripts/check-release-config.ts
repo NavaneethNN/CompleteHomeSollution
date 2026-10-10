@@ -4,7 +4,7 @@ import { releaseConfigErrors } from "../lib/release-config";
 config({ quiet: true });
 config({ path: ".env.local", override: true, quiet: true });
 
-const gateway = process.env.PAYMENT_GATEWAY ?? process.env.NEXT_PUBLIC_PAYMENT_GATEWAY;
+const gateway = process.env.PAYMENT_GATEWAY;
 const errors = releaseConfigErrors(process.env);
 if (errors.length) {
   console.error(`Release configuration failed: ${errors.join("; ")}`);

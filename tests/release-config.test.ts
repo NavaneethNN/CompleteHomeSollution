@@ -57,3 +57,8 @@ test("release preflight rejects placeholder monitoring and invalid shared limite
   assert.ok(errors.some(error => error.includes("SENTRY_DSN")));
   assert.ok(errors.some(error => error.includes("UPSTASH_REDIS_REST_URL")));
 });
+
+test("release preflight requires explicit matching server and public gateway settings", () => {
+  assert.ok(releaseConfigErrors({ ...valid, PAYMENT_GATEWAY: undefined }).some(error => error.includes("PAYMENT_GATEWAY")));
+  assert.ok(releaseConfigErrors({ ...valid, NEXT_PUBLIC_PAYMENT_GATEWAY: undefined }).some(error => error.includes("NEXT_PUBLIC_PAYMENT_GATEWAY")));
+});

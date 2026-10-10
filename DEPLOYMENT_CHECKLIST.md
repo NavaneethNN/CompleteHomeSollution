@@ -1,5 +1,27 @@
 # Deployment Checklist - Westpac OnlinePay Integration
 
+## Current domain: completehomesollution.com.au (checked 10 October 2026)
+
+**OnlinePay is the chosen gateway, but the deployed checkout is not ready for a payment test yet.** The public checkout rendered PayWay, `/api/health` returned HTTP 503, and `/api/shipping/ship123` returned HTTP 429 on repeated checks. The latter two results are consistent with a missing/unavailable shared Redis rate limiter and/or an incomplete database migration; the public responses do not identify which dependency failed. The code now requires an explicit server gateway selection, so a missing selection disables checkout instead of presenting PayWay.
+
+In **Vercel → this project → Settings → Environment Variables**, set these for **Production** and redeploy after saving them:
+
+```env
+PAYMENT_GATEWAY=onlinepay
+NEXT_PUBLIC_PAYMENT_GATEWAY=onlinepay
+ONLINEPAY_MODE=test
+NEXT_PUBLIC_APP_URL=https://completehomesollution.com.au
+ONLINEPAY_RETURN_BASE_URL=https://completehomesollution.com.au
+AUTH_URL=https://completehomesollution.com.au
+NEXTAUTH_URL=https://completehomesollution.com.au
+```
+
+Use your actual OnlinePay **test** `ONLINEPAY_USER_UID`, `ONLINEPAY_API_KEY`, `ONLINEPAY_ENTITY_ID`, `ONLINEPAY_PPC_ID`, and `ONLINEPAY_3DS_ID`, plus a distinct 32+ character `ONLINEPAY_WEBHOOK_SECRET`. Also set working `DATABASE_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and other release variables listed below. Keep all secret values server-only. Your local `.env` does not populate Vercel.
+
+Apply pending Prisma migrations to **the database Vercel uses**, then verify `/api/health` returns HTTP 200 with `{"status":"ok"}`. Check `/api/shipping/ship123` no longer returns HTTP 429 and checkout visibly says **Westpac OnlinePay**. Configure the OnlinePay test notification URL as `https://completehomesollution.com.au/api/webhooks/onlinepay?secret=<the same webhook secret>` with the two transaction events and full payload. Only then place a small sandbox order, verify its browser return reaches the order confirmation and its stored status becomes paid, and check Vercel logs for webhook/settlement errors. Do not use live credentials or take real payments until that complete test passes. Creating a Ship123 label remains a separate manual action and can create a real charge even for a sandbox-paid order.
+
+To switch to actual payments later, replace **all** OnlinePay test credentials with the corresponding live credentials and set `ONLINEPAY_MODE=live`; redeploy and complete a small real-payment/refund acceptance test. A successful build or reachable homepage alone does not prove the gateway is working.
+
 ## 🚨 CRITICAL - Must Complete Before Going Live
 
 ### 1. Rotate Webhook Secret
