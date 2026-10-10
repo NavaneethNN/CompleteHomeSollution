@@ -20,7 +20,7 @@ const schema = z.object({
   }),
   items: z.array(z.object({
     productId: z.string().cuid(),
-    variantId: z.string().cuid().optional(),
+    variantId: z.string().cuid().nullish(),
     quantity: z.number().int().positive().max(100),
   })).min(1).max(50),
 });
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: error.issues[0].message },
+        { error: `Please check ${error.issues[0].path.join(".") || "shipping details"}: ${error.issues[0].message}` },
         { status: 400 }
       );
     }
