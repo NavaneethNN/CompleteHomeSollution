@@ -21,6 +21,12 @@ test("Ship123 accepts the sender street key used in local configuration", t => {
 });
 
 function apiKey(t: TestContext) {
+  const sender = { SHIP123_SENDER_NAME: "Test Sender", SHIP123_SENDER_LINE1: "18 Edison Drive", SHIP123_SENDER_SUBURB: "Golden Grove", SHIP123_SENDER_STATE: "SA", SHIP123_SENDER_POSTCODE: "5125", SHIP123_SENDER_PHONE: "0400000000" };
+  for (const [key, value] of Object.entries(sender)) {
+    const previous = process.env[key];
+    process.env[key] = value;
+    t.after(() => { if (previous === undefined) delete process.env[key]; else process.env[key] = previous; });
+  }
   const previous = process.env.SHIP_123_API_KEY;
   process.env.SHIP_123_API_KEY = "test-secret";
   t.after(() => { if (previous === undefined) delete process.env.SHIP_123_API_KEY; else process.env.SHIP_123_API_KEY = previous; });
@@ -51,6 +57,11 @@ test("Ship123 quotes use real parcel quantities and current ECB USD-to-AUD conve
       const body = JSON.parse(init?.body as string);
       assert.equal(body.productCode, "DHL_EXPRESS");
       assert.equal(body.shipTo.cityName, "Sydney");
+      assert.equal(body.shipTo.postalCode, "2000");
+      assert.equal(body.shipFrom.cityName, "Golden Grove");
+      assert.equal(body.shipFrom.postalCode, "5125");
+      assert.equal(body.shipFrom.countryRegionCode, "AU");
+      assert.equal(body.bsFlag, 0);
       assert.equal(body.packageList[0].quantity, 2);
       return Response.json({ success: true, data: { productCode: "DHL_EXPRESS", productName: "DHL Express", totalPrice: 10, currencyCode: "USD" } });
     }
@@ -60,6 +71,44 @@ test("Ship123 quotes use real parcel quantities and current ECB USD-to-AUD conve
   });
   const rates = await getShip123Rates(address, groups);
   assert.deepEqual(rates, [{ serviceCode: "DHL_EXPRESS", serviceName: "DHL Express", price: 16, deliveryTime: null }]);
+});
+
+test("documented product responses work without customCarrier and display readable service names", async t => {
+  apiKey(t);
+  t.mock.method(globalThis, "fetch", async () => Response.json({ success: true, data: [
+    { productCode: "AU_POST_EPARCEL", productName: "AU_POST_EPARCEL" },
+    { productCode: "AU_POST_EXPRESS", productName: "AU_POST_EXPRESS" },
+    { productCode: "AUTO_LOWEST_PRICE", productName: "Automatic" },
+  ] }));
+  assert.deepEqual(await getEligibleShip123Products(), [
+    { code: "AU_POST_EPARCEL", name: "Australia Post eParcel", carrier: "AUSTRALIA POST" },
+    { code: "AU_POST_EXPRESS", name: "Australia Post Express", carrier: "AUSTRALIA POST" },
+  ]);
+});
+
+test("quotes fail clearly before contacting the provider when sender configuration is missing", async t => {
+  apiKey(t);
+  delete process.env.SHIP123_SENDER_POSTCODE;
+  t.mock.method(globalThis, "fetch", async () => { assert.fail("Must not request a quote without its origin"); });
+  await assert.rejects(getShip123Rates(address, groups), /sender address is not configured/);
+});
+
+test("changing destination sends a fresh quote request with the same configured origin", async t => {
+  apiKey(t);
+  const postcodes: string[] = [];
+  t.mock.method(globalThis, "fetch", async (url: string, init?: RequestInit) => {
+    assert.match(url, /order\/calculate$/);
+    assert.equal(init?.cache, "no-store");
+    const body = JSON.parse(init?.body as string);
+    postcodes.push(body.shipTo.postalCode);
+    assert.equal(body.shipFrom.postalCode, "5125");
+    return Response.json({ success: true, data: { productCode: body.productCode, totalPrice: body.shipTo.postalCode === "5000" ? 10 : 20, currencyCode: "AUD" } });
+  });
+  const nearby = await calculateShip123Rate("AU_POST_STANDARD", { ...address, suburb: "Adelaide", state: "SA", postcode: "5000" }, groups);
+  const distant = await calculateShip123Rate("AU_POST_STANDARD", { ...address, suburb: "Perth", state: "WA", postcode: "6000" }, groups);
+  assert.deepEqual(postcodes, ["5000", "6000"]);
+  assert.equal(nearby.amount, 10);
+  assert.equal(distant.amount, 20);
 });
 
 test("Ship123 quotes the named Australia Post service when it is the only available carrier", async t => {

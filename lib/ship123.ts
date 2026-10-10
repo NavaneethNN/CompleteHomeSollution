@@ -48,11 +48,12 @@ function apiSecret(): string {
 }
 
 async function request<T>(path: string, body: unknown): Promise<T> {
+  const secret = apiSecret();
   let response: Response;
   try {
     response = await fetch(`${API_BASE}${path}`, {
       method: "POST",
-      headers: { "Api-Secret": apiSecret(), "Content-Type": "application/json", Accept: "application/json" },
+      headers: { "Api-Secret": secret, "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(body),
       cache: "no-store",
       signal: AbortSignal.timeout(15_000),
@@ -85,12 +86,13 @@ export async function getEligibleShip123Products(): Promise<Array<{ code: string
   if (!Array.isArray(data)) throw new Ship123Error("Ship123 product list is invalid");
   return (data as Product[]).flatMap(product => {
     const code = product.productCode;
-    const carrier = product.customCarrier;
-    if (typeof code !== "string" || !/^[A-Z0-9_-]{1,50}$/.test(code) ||
-        typeof carrier !== "string" || /^(?:other|auto|unknown)$/i.test(carrier.trim()) ||
-        code === "AUTO_LOWEST_PRICE") return [];
+    if (typeof code !== "string" || !/^[A-Z0-9_-]{1,50}$/.test(code) || code === "AUTO_LOWEST_PRICE") return [];
+    // customCarrier is returned by some accounts but is not part of the published schema.
+    const suppliedCarrier = typeof product.customCarrier === "string" ? product.customCarrier.trim() : "";
+    const carrier = suppliedCarrier || (Object.hasOwn(SERVICE_NAMES, code) ? "AUSTRALIA POST" : "");
+    if (!carrier || /^(?:other|auto|unknown)$/i.test(carrier)) return [];
     const providerName = typeof product.productName === "string" ? product.productName.trim() : "";
-    return [{ code, name: providerName || SERVICE_NAMES[code] || code.replaceAll("_", " "), carrier }];
+    return [{ code, name: (providerName && providerName !== code ? providerName : SERVICE_NAMES[code]) || providerName || code.replaceAll("_", " "), carrier }];
   });
 }
 
@@ -116,6 +118,7 @@ export async function calculateShip123Rate(code: string, destination: Ship123Add
   const data = await request<Quote>("/ship-order/openApi/order/calculate", {
     bsFlag: 0,
     productCode: code,
+    shipFrom: toProviderAddress(ship123SenderFromEnv()),
     shipTo: toProviderAddress(destination),
     packageList: groups.map(group => ({
       quantity: group.count, length: group.lengthCm, width: group.widthCm,
@@ -131,6 +134,8 @@ export async function calculateShip123Rate(code: string, destination: Ship123Add
 
 export async function getShip123Rates(destination: Ship123Address, groups: ParcelGroup[]): Promise<Ship123Rate[]> {
   if (!groups.length) return [];
+  // Validate before per-service error handling so configuration failures stay actionable.
+  ship123SenderFromEnv();
   const products = await getEligibleShip123Products();
   if (!products.length) throw new Ship123Error("No named shipping services are enabled in Ship123");
   const { convertShippingToAud } = await import("@/lib/shipping-fx");

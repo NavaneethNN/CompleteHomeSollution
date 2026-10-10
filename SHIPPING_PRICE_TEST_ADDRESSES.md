@@ -30,7 +30,7 @@ Official address sources: [Adelaide Town Hall](https://www.adelaidetownhall.com.
 
 Price variation alone does not prove correctness. Rates can depend on service, delivery zone, and parcel details; two destinations can share a price, and a farther destination need not cost more.
 
-Implementation note: `lib/ship123.ts` currently sends the destination and parcel details to the quote endpoint, without an explicit sender address. Confirm the origin configured in Ship123 matches Golden Grove before interpreting these as quotes from that sender.
+Implementation note: `lib/ship123.ts` sends the configured sender, destination, and parcel details to the quote endpoint. Ensure the production `SHIP123_SENDER_*` variables match the Golden Grove origin before comparing prices.
 
 ## Results
 

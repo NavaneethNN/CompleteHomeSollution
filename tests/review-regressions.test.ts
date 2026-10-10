@@ -50,7 +50,7 @@ test("shipping availability endpoint reports whether an allowed courier is confi
   allowed = true;
   const response = await shipping.GET(new NextRequest("https://shop.example/api/shipping/ship123"));
   assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { available: true });
+  assert.deepEqual(await response.json(), { available: true, reason: null });
 });
 
 test("shipping and coupon POST classify malformed JSON as a client error", async () => {
