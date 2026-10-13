@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { resolveMemberPrice } from "@/lib/member-price";
 
 interface VariantAttribute {
   id: string;
@@ -50,7 +49,6 @@ interface VariantSelectorProps {
   variants: ProductVariant[];
   variantMap: Record<string, ProductVariant>;
   defaultVariant: ProductVariant | null;
-  productMemberPrice: number | null;
   onVariantChange?: (variant: ProductVariant | null) => void;
 }
 
@@ -59,7 +57,6 @@ export function VariantSelector({
   variants,
   variantMap,
   defaultVariant,
-  productMemberPrice,
   onVariantChange,
 }: VariantSelectorProps) {
   const [selections, setSelections] = useState<Record<string, string>>(() => {
@@ -73,6 +70,8 @@ export function VariantSelector({
   // Find selected variant based on all selections
   const selectedVariant = useMemo(() => {
     const key = attributes
+      .slice()
+      .sort((a, b) => a.name.localeCompare(b.name))
       .map((attr) => {
         const valueId = selections[attr.id];
         const value = attr.variantValues.find((v) => v.id === valueId);
@@ -82,9 +81,6 @@ export function VariantSelector({
       .join("|");
     return variantMap[key] || null;
   }, [selections, attributes, variantMap]);
-  const selectedMemberPrice = selectedVariant
-    ? resolveMemberPrice(selectedVariant.price, selectedVariant.memberPrice, productMemberPrice)
-    : null;
 
   // Notify parent when variant changes
   useEffect(() => {
@@ -97,6 +93,8 @@ export function VariantSelector({
       
       // Check if the new combination is valid
       const newKey = attributes
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
         .map((attr) => {
           const selValueId = newSelections[attr.id];
           const value = attr.variantValues.find((v) => v.id === selValueId);
@@ -159,17 +157,18 @@ export function VariantSelector({
   }, [selections, attributes, variants]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5 border-t border-border pt-5">
       {/* Variant Attributes */}
       {attributes.map((attribute) => {
         const availableValues = availableValuesByAttribute[attribute.id] || new Set();
         
         return (
           <div key={attribute.id}>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5 uppercase tracking-wide">
-              {attribute.name}
-            </label>
-            <div className="flex flex-wrap gap-1.5">
+            <p className="mb-2.5 text-sm font-semibold text-foreground">
+              Choose {attribute.name.toLowerCase()}
+              {selections[attribute.id] && <span className="ml-2 font-normal text-muted-foreground">— {attribute.variantValues.find(value => value.id === selections[attribute.id])?.value}</span>}
+            </p>
+            <div className="flex flex-wrap gap-2">
               {attribute.variantValues.map((value) => {
                 const isSelected = selections[attribute.id] === value.id;
                 const isAvailable = availableValues.has(value.id);
@@ -177,24 +176,26 @@ export function VariantSelector({
                 return (
                   <button
                     key={value.id}
+                    type="button"
+                    aria-pressed={isSelected}
                     onClick={() => isAvailable && handleSelect(attribute.id, value.id)}
                     disabled={!isAvailable}
                     className={cn(
-                      "relative px-3 py-1.5 rounded-md border text-xs font-medium transition-all",
+                      "relative inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       isSelected
-                        ? "border-primary bg-primary text-primary-foreground"
+                        ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
                         : isAvailable
-                        ? "border-border bg-white hover:border-primary/50"
+                        ? "border-border bg-white text-foreground hover:border-primary/50"
                         : "border-border/50 bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     )}
                   >
                     {value.hexCode && (
                       <span
-                        className="inline-block w-3 h-3 rounded-full mr-1.5 border border-border align-middle"
+                        className="inline-block h-4 w-4 rounded-full border border-foreground/20"
                         style={{ backgroundColor: value.hexCode }}
                       />
                     )}
-                    {value.value}
+                    <span className="capitalize">{value.value}</span>
                   </button>
                 );
               })}
@@ -203,23 +204,6 @@ export function VariantSelector({
         );
       })}
 
-      {/* Selected Variant Info - Compact */}
-      {selectedVariant && (
-        <div className="flex items-center justify-between py-2 border-t border-border text-sm">
-          <span className="text-muted-foreground">
-            {selectedVariant.stock > 0 ? (
-              <span className="text-green-800">● In Stock</span>
-            ) : (
-              <span className="text-destructive">Out of stock</span>
-            )}
-          </span>
-          {selectedMemberPrice !== null && (
-            <span className="text-primary font-medium">
-              Member: ${selectedMemberPrice.toLocaleString()}
-            </span>
-          )}
-        </div>
-      )}
     </div>
   );
 }

@@ -11,7 +11,8 @@ import { ProductDetailsClient } from "@/components/shop/product-details-client";
 import { RecommendedProducts } from "@/components/shop/recommended-products";
 import { WishlistToggleButton } from "@/components/shop/wishlist-toggle-button";
 import { MembershipUpsellBanner } from "@/components/shop/membership-upsell-banner";
-import { Truck, RotateCcw, ShieldCheck, Star } from "lucide-react";
+import { ProductAssurance } from "@/components/shop/product-assurance";
+import { Star } from "lucide-react";
 
 export const revalidate = 3600;
 
@@ -40,6 +41,7 @@ async function getProduct(slug: string) {
       },
       productVariants: {
         where: { isActive: true },
+        orderBy: { price: "asc" },
         include: {
           values: {
             include: {
@@ -74,7 +76,8 @@ async function getProduct(slug: string) {
     ...product,
     // Group variants by their attribute combinations
     variantMap: product.productVariants.reduce((acc, variant) => {
-      const key = variant.values
+      const key = [...variant.values]
+        .sort((a, b) => a.variantValue.variantAttribute.name.localeCompare(b.variantValue.variantAttribute.name))
         .map((v) => `${v.variantValue.variantAttribute.name}:${v.variantValue.value}`)
         .join("|");
       acc[key] = variant;
@@ -129,7 +132,12 @@ export default async function ProductDetailPage({
     : false;
 
   // Default to first variant if product has variants
-  const defaultVariant = product.hasVariants ? product.productVariants[0] : null;
+  const defaultVariant = product.hasVariants ? (product.productVariants.find(variant => variant.stock > 0) ?? product.productVariants[0]) : null;
+  // The recliner's first uploaded image is a generic room scene. Lead with the
+  // actual product photo until the catalog has dedicated images per variant.
+  const productImages = product.slug === "recliner-sofa" && product.images.length > 1
+    ? [product.images[1], product.images[0], ...product.images.slice(2)]
+    : product.images;
 
   const avgRating =
     product.reviews.length > 0
@@ -149,7 +157,7 @@ export default async function ProductDetailPage({
     price: product.basePrice ?? 0,
     comparePrice: product.comparePrice ?? null,
     memberPrice: product.memberPrice ?? null,
-    images: product.images?.length ? product.images : ["/placeholder.jpg"],
+    images: productImages,
     stock: product.stock ?? 0,
     description: product.description ?? "",
     material: product.material ?? null,
@@ -157,9 +165,9 @@ export default async function ProductDetailPage({
   };
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-white">
       {/* Breadcrumbs */}
-      <div className="container mx-auto px-4 md:px-6 xl:px-8 py-3">
+      <div className="container mx-auto px-4 py-4 md:px-6 md:py-6 xl:px-8">
         <Breadcrumbs
           items={[
             { label: "Home", href: "/" },
@@ -170,7 +178,7 @@ export default async function ProductDetailPage({
         />
       </div>
 
-      <div className="container mx-auto px-4 md:px-6 xl:px-8 pb-12 space-y-12">
+      <div className="container mx-auto space-y-14 px-4 pb-16 md:px-6 md:pb-24 xl:px-8">
         {/* ── Product Detail ── */}
         {product.hasVariants ? (
           <ProductDetailsClient
@@ -183,7 +191,7 @@ export default async function ProductDetailPage({
               comparePrice: product.comparePrice,
               memberPrice: product.memberPrice,
               stock: product.stock,
-              images: product.images,
+              images: productImages,
               description: product.description,
               material: product.material,
               weight: product.weight,
@@ -200,19 +208,19 @@ export default async function ProductDetailPage({
             defaultVariant={defaultVariant}
           />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-10">
-            <div className="w-full max-w-[480px] mx-auto md:mx-0">
-              <ProductGallery images={product.images} productName={product.name} />
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(390px,0.88fr)] lg:items-start lg:gap-12 xl:gap-16">
+            <div className="min-w-0 lg:sticky lg:top-24">
+              <ProductGallery images={productImages} productName={product.name} />
             </div>
-            <div className="space-y-4">
+            <div className="space-y-5">
               {/* Header */}
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">{product.category.name}</p>
-                  <h1 className="text-xl md:text-2xl font-semibold text-foreground mt-0.5">{product.name}</h1>
+                  <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{product.name}</h1>
                   {product.material && <p className="text-xs text-muted-foreground mt-0.5">{product.material}</p>}
                 </div>
-                <WishlistToggleButton product={wishlistProduct} className="h-9 w-9 shrink-0" />
+                <WishlistToggleButton product={wishlistProduct} className="h-11 w-11 shrink-0" />
               </div>
 
               {/* Rating summary */}
@@ -255,7 +263,7 @@ export default async function ProductDetailPage({
               )}
 
               {/* Description */}
-              <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
+              {product.description.trim() && <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>}
 
               {/* SKU / Stock */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
@@ -273,7 +281,7 @@ export default async function ProductDetailPage({
                   slug: product.slug,
                   price: product.basePrice ?? 0,
                   memberPrice: product.memberPrice ?? null,
-                  images: product.images?.length ? product.images : ["/placeholder.jpg"],
+                  images: productImages,
                   stock: product.stock ?? 0,
                   description: product.description ?? "",
                 }}
@@ -302,21 +310,7 @@ export default async function ProductDetailPage({
                 </div>
               )}
 
-              {/* Trust badges */}
-              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
-                <div className="flex flex-col items-center gap-1 text-center p-2 rounded-lg bg-muted/50">
-                  <Truck className="h-4 w-4 text-primary" />
-                  <span className="text-xs text-muted-foreground">Free Delivery</span>
-                </div>
-                <div className="flex flex-col items-center gap-1 text-center p-2 rounded-lg bg-muted/50">
-                  <RotateCcw className="h-4 w-4 text-primary" />
-                  <span className="text-xs text-muted-foreground">30-Day Returns</span>
-                </div>
-                <div className="flex flex-col items-center gap-1 text-center p-2 rounded-lg bg-muted/50">
-                  <ShieldCheck className="h-4 w-4 text-primary" />
-                  <span className="text-xs text-muted-foreground">2-Year Warranty</span>
-                </div>
-              </div>
+              <ProductAssurance />
             </div>
           </div>
         )}
