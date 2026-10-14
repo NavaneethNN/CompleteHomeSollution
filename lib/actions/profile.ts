@@ -1,5 +1,7 @@
 "use server";
 
+import { hasActiveMembership } from "@/lib/membership";
+
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { profileSchema, ProfileInput } from "@/lib/validations/address";
@@ -51,12 +53,13 @@ export async function getProfile() {
         phone: true,
         image: true,
         isMember: true,
+        membershipExpiry: true,
         memberSince: true,
         createdAt: true,
       },
     });
 
-    return user;
+    return user ? { ...user, isMember: hasActiveMembership(user) } : null;
   } catch (error) {
     console.error("Failed to fetch profile:", error);
     return null;

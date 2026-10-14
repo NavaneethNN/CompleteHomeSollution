@@ -110,12 +110,12 @@ export async function activateMembershipInTransaction(
 
   // Renewal: extend from existing expiry if it hasn't lapsed yet
   const baseDate =
-    user?.membershipExpiry && user.membershipExpiry > now
+    user?.isMember && user.membershipExpiry && user.membershipExpiry > now
       ? user.membershipExpiry
       : now;
 
   const expiresAt = new Date(baseDate);
-  expiresAt.setDate(expiresAt.getDate() + durationDays);
+  expiresAt.setUTCDate(expiresAt.getUTCDate() + durationDays);
 
   // Update user — always set membershipExpiry, preserve original memberSince
   await tx.user.update({
@@ -136,7 +136,7 @@ export async function activateMembershipInTransaction(
         planId: resolvedPlanId,
         amount: amountPaid!,
         expiresAt,
-        previousExpiry: user?.membershipExpiry ?? null,
+        previousExpiry: user?.isMember ? user.membershipExpiry : null,
         paywaySessionId,
       },
     });
@@ -178,31 +178,8 @@ export async function grantMembership(
   userId: string,
   durationDays?: number
 ): Promise<Date> {
-  let days = durationDays ?? 365;
-
-  if (!durationDays) {
-    const defaultPlan = await db.membershipPlan.findFirst({
-      where: { isActive: true, isDefault: true },
-      select: { durationDays: true },
-      orderBy: { createdAt: "asc" },
-    });
-    if (defaultPlan) days = defaultPlan.durationDays;
-  }
-
-  const now = new Date();
-  const expiresAt = new Date(now);
-  expiresAt.setDate(expiresAt.getDate() + days);
-
-  await db.user.update({
-    where: { id: userId },
-    data: {
-      isMember: true,
-      memberSince: now,
-      membershipExpiry: expiresAt,
-    },
-  });
-
-  return expiresAt;
+  const result = await activateMembership({ userId, durationDays });
+  return result.expiresAt!;
 }
 
 /**
@@ -211,22 +188,11 @@ export async function grantMembership(
  * Call this on any auth-protected page that cares about membership status.
  */
 export async function enforceExpiry(userId: string): Promise<boolean> {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { isMember: true, membershipExpiry: true },
+  const result = await db.user.updateMany({
+    where: { id: userId, isMember: true, membershipExpiry: { lte: new Date() } },
+    data: { isMember: false },
   });
-
-  if (!user?.isMember) return false;
-
-  // Memberships with no expiry (legacy admin grants before fix) are still valid
-  if (!user.membershipExpiry) return false;
-
-  if (user.membershipExpiry < new Date()) {
-    await expireMembership(userId);
-    return true;
-  }
-
-  return false;
+  return result.count > 0;
 }
 
 /** Remove this purchase's membership time, preserving later paid time and

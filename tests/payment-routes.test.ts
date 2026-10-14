@@ -272,7 +272,11 @@ test("uncertain provider failure preserves the order and prevents a second check
   t.mock.method(console, "error", () => {});
   let attempts = 0;
   t.mock.method(globalThis, "fetch", async () => { attempts++; throw new Error("Connection interrupted"); });
-  assert.equal((await membershipCheckout(request(membershipBody))).status, 502);
+  const response = await membershipCheckout(request(membershipBody));
+  assert.equal(response.status, 502);
+  const failure = await response.json();
+  assert.match(failure.error, /Do not pay again/);
+  assert.equal(failure.orderUrl, `/order-confirmation/${id}`);
   assert.equal(order.status, "PENDING");
   assert.equal((await membershipCheckout(request(membershipBody))).status, 200);
   assert.equal(attempts, 1);
@@ -394,4 +398,17 @@ test("refund commit requires a durable receipt and can recover without double st
   assert.equal(keys[0], keys[1]);
   assert.equal(stock, 1);
   assert.equal(queuedJobs.length, 2);
+});
+
+
+test("definite provider rejection allows retry without reporting an unknown charge", async t => {
+  reset(); membershipEnvironment(t);
+  t.mock.method(console, "error", () => {});
+  t.mock.method(globalThis, "fetch", async () => Response.json({ error: "Unavailable" }, { status: 400 }));
+  const response = await membershipCheckout(request(membershipBody));
+  assert.equal(response.status, 502);
+  const failure = await response.json();
+  assert.match(failure.error, /could not start checkout/);
+  assert.equal(failure.orderUrl, undefined);
+  assert.equal(order.status, "CANCELLED");
 });

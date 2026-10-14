@@ -108,6 +108,14 @@ export async function POST(req: NextRequest) {
     if (error instanceof OnlinePayCheckoutError && error.definitelyRejected && error.invalidFields.some(field => field.startsWith("customer_details.billing."))) {
       return NextResponse.json({ error: "The payment provider rejected your billing details. Please check your name and address and try again." }, { status: 400 });
     }
-    return NextResponse.json({ error: "Checkout could not be confirmed. Check your orders or contact support before trying again." }, { status: 502 });
+    if (error instanceof OnlinePayCheckoutError && error.definitelyRejected) {
+      return NextResponse.json({ error: "The payment provider could not start checkout. Your membership has not been activated. Please try again later." }, { status: 502 });
+    }
+    return NextResponse.json({
+      error: createdOrderId
+        ? "We could not confirm your payment checkout. Do not pay again until you check this order or contact support."
+        : "Membership checkout is temporarily unavailable. Please try again later.",
+      ...(createdOrderId ? { orderUrl: `/order-confirmation/${createdOrderId}` } : {}),
+    }, { status: 502 });
   }
 }
