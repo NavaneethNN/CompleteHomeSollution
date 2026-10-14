@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
+        hostname: "images.completehomesollution.com.au",
+      },
+      {
+        protocol: "https",
         hostname: "*.r2.dev",
       },
       {

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { imageUploadError, IMAGE_UPLOAD_LIMIT_LABEL } from "@/lib/upload-policy";
 
 interface UploadingFile {
   name: string;
@@ -54,17 +55,11 @@ export function ImageUploader({
         toast.warning(`Only ${allowed} more image(s) can be added. Uploading first ${allowed}.`);
       }
 
-      const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif"];
-      const MAX_SIZE = 5 * 1024 * 1024;
-
       const validFiles: File[] = [];
       for (const file of toUpload) {
-        if (!ALLOWED_TYPES.includes(file.type)) {
-          toast.error(`${file.name}: unsupported type. Use JPEG, PNG, WebP, or GIF.`);
-          continue;
-        }
-        if (file.size > MAX_SIZE) {
-          toast.error(`${file.name}: exceeds 5 MB limit.`);
+        const error = imageUploadError(file);
+        if (error) {
+          toast.error(`${file.name}: ${error}`);
           continue;
         }
         validFiles.push(file);
@@ -89,10 +84,10 @@ export function ImageUploader({
 
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            throw new Error(err.error ?? `Server error ${res.status}`);
+            throw new Error(res.status === 413 ? "Image is too large. Please resize it to under 4 MB and try again." : err.error ?? "Upload failed. Please try again.");
           }
 
-          const { publicUrl, key } = await res.json();
+          const { publicUrl } = await res.json();
           
           // Validate the public URL
           if (!publicUrl) {
@@ -118,7 +113,7 @@ export function ImageUploader({
         toast.success(`${uploadedUrls.length} image${uploadedUrls.length > 1 ? "s" : ""} uploaded`);
       }
 
-      setTimeout(() => setUploading([]), 1500);
+      setUploading(prev => prev.filter(file => file.progress === "error"));
     },
     [images, maxImages, folder, onChange]
   );
@@ -177,7 +172,7 @@ export function ImageUploader({
             className="hidden"
             onChange={handleFileInput}
           />
-          {uploading.length > 0 ? (
+          {uploading.some(file => file.progress === "uploading") ? (
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           ) : (
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-200">
@@ -186,10 +181,10 @@ export function ImageUploader({
           )}
           <div className="text-center">
             <p className="text-sm font-medium text-slate-700">
-              {uploading.length > 0 ? "Uploading to Cloudflare R2..." : "Click or drag images here"}
+              {uploading.some(file => file.progress === "uploading") ? "Uploading to Cloudflare R2..." : "Click or drag images here"}
             </p>
             <p className="text-xs text-slate-400 mt-0.5">
-              JPEG, PNG, WebP, GIF · Max 5 MB each · Up to {maxImages} images
+              JPEG, PNG, WebP, AVIF, GIF · Max {IMAGE_UPLOAD_LIMIT_LABEL} each · Up to {maxImages} images
             </p>
           </div>
           <p className="text-xs text-slate-400">

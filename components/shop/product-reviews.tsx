@@ -1,5 +1,7 @@
 "use client";
 
+import { imageUploadError } from "@/lib/upload-policy";
+
 import { useState, useCallback, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -98,17 +100,21 @@ function ReviewForm({
     setUploading(true);
     const urls: string[] = [];
     for (const file of toUpload) {
-      if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} exceeds 5 MB`); continue; }
+      const validationError = imageUploadError(file);
+      if (validationError) { toast.error(`${file.name}: ${validationError}`); continue; }
       try {
         const form = new FormData();
         form.append("file", file);
         form.append("folder", "reviews");
         const res = await fetch("/api/upload", { method: "POST", body: form });
-        if (!res.ok) throw new Error((await res.json()).error ?? "Upload failed");
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(res.status === 413 ? "Please resize the image to under 4 MB." : body.error ?? "Upload failed");
+        }
         const { publicUrl } = await res.json();
         urls.push(publicUrl);
-      } catch {
-        toast.error(`Failed to upload ${file.name}`);
+      } catch (error) {
+        toast.error(`${file.name}: ${error instanceof Error ? error.message : "Upload failed"}`);
       }
     }
     if (urls.length) setImages((prev) => [...prev, ...urls]);

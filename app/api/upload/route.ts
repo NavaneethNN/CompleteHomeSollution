@@ -3,94 +3,71 @@ import { auth } from "@/auth";
 import { r2, generateImageKey, getPublicUrl } from "@/lib/r2";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { imageUploadError, MAX_IMAGE_UPLOAD_BYTES, uploadStorageConfigurationError } from "@/lib/upload-policy";
 
-export const config = {
-  api: { bodyParser: false },
-};
-
-// Raise Next.js body size limit for file uploads
 export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"];
-const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
-
 export async function POST(req: NextRequest) {
+  let isAdmin = false;
   try {
-    console.log("[Upload] Starting upload request");
-    
     const session = await auth();
-    console.log("[Upload] Session:", session?.user?.id ? `User ${session.user.id}` : "No session");
-    
-    // Allow authenticated users to upload images (for reviews, profile pictures)
-    // Admins can upload for products
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized - Please sign in" }, { status: 401 });
     }
+    isAdmin = session.user.role === "ADMIN";
     const limit = await consumeRateLimit("upload", `${getClientIp(req.headers)}:${session.user.id}`, 20, 60 * 60);
     if (!limit.allowed) return rateLimitResponse(limit);
-    
-    const isAdmin = session.user.role === "ADMIN";
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
-    const folder = (formData.get("folder") as string | null) ?? "products";
-    
-    console.log(`[Upload] File: ${file?.name}, Folder: ${folder}, Admin: ${isAdmin}`);
-    
-    // Non-admin users can only upload to specific folders
+
+    // This check cannot override the hosting limit; clients also validate before sending.
+    if (Number(req.headers.get("content-length")) > MAX_IMAGE_UPLOAD_BYTES + 64 * 1024) {
+      return NextResponse.json({ error: "Upload is too large. Please choose an image under 4 MB." }, { status: 413 });
+    }
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return NextResponse.json({ error: "Invalid upload. Please select your image again." }, { status: 400 });
+    }
+    const file = formData.get("file");
+    const folder = formData.get("folder") ?? "products";
+    if (typeof folder !== "string" || !/^[a-zA-Z0-9_-]+$/.test(folder)) {
+      return NextResponse.json({ error: "Invalid upload folder" }, { status: 400 });
+    }
     if (!isAdmin && !["reviews", "profile"].includes(folder)) {
       return NextResponse.json({ error: "Unauthorized folder for non-admin users" }, { status: 403 });
     }
-
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "No image file provided" }, { status: 400 });
     }
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: `Unsupported file type: ${file.type}` }, { status: 400 });
+    const validationError = imageUploadError(file);
+    if (validationError) {
+      return NextResponse.json({ error: validationError }, { status: file.size > MAX_IMAGE_UPLOAD_BYTES ? 413 : 400 });
     }
-
-    if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: "File exceeds 5 MB limit" }, { status: 400 });
+    const configError = uploadStorageConfigurationError(process.env);
+    if (configError) {
+      console.error("[Upload]", configError);
+      return NextResponse.json({ error: isAdmin ? configError : "Image uploads are temporarily unavailable. Please contact support." }, { status: 503 });
     }
-
     const key = generateImageKey(folder, file.name);
-    console.log(`[Upload] Generated key: ${key}`);
-    
     const buffer = Buffer.from(await file.arrayBuffer());
-    console.log(`[Upload] Buffer size: ${buffer.length} bytes`);
-
-    console.log(`[Upload] Uploading to R2 bucket: ${process.env.R2_BUCKET_NAME}`);
-    await r2.send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME!,
-        Key: key,
-        Body: buffer,
-        ContentType: file.type,
-        ContentLength: buffer.length,
-      })
-    );
-    console.log(`[Upload] R2 upload successful`);
-
-    const publicUrl = getPublicUrl(key);
-    console.log(`[Upload] Generated public URL: ${publicUrl}`);
-    
-    // Validate the public URL was generated
-    if (!publicUrl) {
-      return NextResponse.json(
-        { error: "Failed to generate public URL. Check R2 environment variables." },
-        { status: 500 }
-      );
-    }
-    
-    console.log(`[Upload] Successfully uploaded ${key} to ${publicUrl}`);
-    
-    return NextResponse.json({ key, publicUrl });
+    await r2.send(new PutObjectCommand({
+      Bucket: process.env.R2_BUCKET_NAME!, Key: key, Body: buffer,
+      ContentType: file.type, ContentLength: buffer.length,
+    }));
+    return NextResponse.json({ key, publicUrl: getPublicUrl(key) });
   } catch (error) {
     console.error("[POST /api/upload]", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Upload failed" },
-      { status: 500 }
-    );
+    const code = error instanceof Error ? error.name : "";
+    const providerStatus = (error as { $metadata?: { httpStatusCode?: number } } | null)?.$metadata?.httpStatusCode;
+    const credentialsRejected = ["Unauthorized", "AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch", "CredentialsProviderError"].includes(code)
+      || providerStatus === 401 || providerStatus === 403
+      || (error instanceof Error && error.message === "Unauthorized");
+    const message = isAdmin && credentialsRejected
+      ? "Image storage rejected the upload credentials. Check the R2 access keys and bucket write permissions in Vercel, then redeploy."
+      : isAdmin && code === "NoSuchBucket"
+        ? "The image storage bucket was not found. Check R2_BUCKET_NAME and R2_ACCOUNT_ID in Vercel."
+        : "Image upload failed. Please try again. If it continues, contact support.";
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }
