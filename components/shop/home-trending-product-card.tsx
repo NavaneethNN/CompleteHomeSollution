@@ -94,14 +94,15 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
   };
 
   return (
-    <div className="group block h-full">
-      <div className="overflow-hidden h-full flex flex-col">
-        <div className="relative aspect-square bg-secondary overflow-hidden">
+    <div className="group h-full overflow-hidden rounded-2xl border border-border/70 bg-white transition-shadow hover:shadow-md">
+      <div className="h-full flex flex-col">
+        <div className="relative aspect-[4/4.3] bg-secondary overflow-hidden sm:aspect-square">
           <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
           <Image
             src={product.img}
             alt={product.name}
             fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
           </Link>
@@ -123,19 +124,19 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
           )}
         </div>
 
-        <div className="p-4 flex flex-col flex-1">
+        <div className="p-3 sm:p-4 flex flex-col flex-1">
           <div className="flex-1 flex flex-col">
             <Link href={`/categories/${product.category.slug}`} className="text-xs text-muted-foreground hover:text-primary transition-colors">
               {product.category.name}
             </Link>
 
             <Link href={`/products/${product.slug}`}>
-              <h4 className="mt-1 text-sm font-semibold text-foreground leading-snug line-clamp-2 hover:text-primary transition-colors">
+              <h3 className="mt-1 text-sm sm:text-base font-semibold text-foreground leading-snug line-clamp-2 hover:text-primary transition-colors">
                 {product.name}
-              </h4>
+              </h3>
             </Link>
 
-            <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+            <p className="mt-1 hidden text-xs text-muted-foreground line-clamp-2 sm:block">
               {product.description}
             </p>
 
@@ -145,7 +146,7 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
               return (
                 <>
                   <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-                    <span className="text-base font-black text-foreground">
+                    <span className="text-base sm:text-lg font-bold text-foreground">
                       ${displayPrice.toLocaleString()}
                     </span>
                     {hasMemberPrice ? (
@@ -175,7 +176,7 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
               onClick={handleAddToCart}
               disabled={outOfStock}
               className={cn(
-                "w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-colors",
+                "w-full min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs sm:text-sm font-semibold transition-colors",
                 addToCartClassName
               )}
             >

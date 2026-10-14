@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Truck, RotateCcw, ShieldCheck } from "lucide-react";
+import { Star } from "lucide-react";
+import Link from "next/link";
 import { ProductGallery } from "./product-gallery";
+import { ProductAssurance } from "./product-assurance";
 import { VariantSelector } from "./variant-selector";
 import { AddToCartButton } from "./add-to-cart-button";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
@@ -118,199 +120,82 @@ export function ProductDetailsClient({
   const displayLength = selectedVariant?.length ?? product.length;
   const displayWidth  = selectedVariant?.width  ?? product.width;
   const displayHeight = selectedVariant?.height ?? product.height;
-  const hasDimensions = displayWeight || displayLength || displayWidth || displayHeight;
+  const hasDimensions = displayWeight || (displayLength && displayWidth && displayHeight);
 
   // Generate variant label from selected variant's attribute values
   const variantLabel = selectedVariant?.values
     ?.map((v) => v.variantValue.value)
     .join(" / ");
+  const money = (amount: number) => amount.toLocaleString("en-AU", { style: "currency", currency: "AUD" });
 
   const handleVariantChange = useCallback((variant: ProductVariant | null) => {
     setSelectedVariant(variant);
   }, []);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-      {/* Product Gallery */}
-      <div className="w-full max-w-[480px] mx-auto md:mx-0">
-        <ProductGallery
-          images={displayImages}
-          productName={product.name}
-          key={selectedVariant?.id || "default"}
-        />
+    <div className="grid gap-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(390px,0.88fr)] lg:items-start lg:gap-12 xl:gap-16">
+      <div className="min-w-0 lg:sticky lg:top-24">
+        <ProductGallery images={displayImages} productName={product.name} key={selectedVariant?.id || "default"} />
+        {product.slug === "recliner-sofa" && (
+          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Images are for reference. Colour and size options do not yet have separate product photos.</p>
+        )}
       </div>
 
-      {/* Product Info */}
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0 pb-4">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              {product.category?.name ?? "Model, Size, Color"}
-            </p>
-            <h1 className="text-xl md:text-2xl font-semibold text-foreground mt-0.5">
-              {product.name}
-            </h1>
-            {product.material && (
-              <p className="text-xs text-muted-foreground mt-0.5">{product.material}</p>
+            {product.category?.slug && <Link href={`/categories/${product.category.slug}`} className="text-[11px] font-bold uppercase tracking-[0.18em] text-primary hover:underline">{product.category.name}</Link>}
+            <h1 className="mt-2 text-3xl font-semibold leading-[1.08] tracking-tight text-foreground sm:text-4xl">{product.name}</h1>
+            {product.material && <p className="mt-2 text-sm text-muted-foreground">Material: {product.material}</p>}
+          </div>
+          <WishlistToggleButton product={{ id: product.id, name: product.name, slug: product.slug, sku: displaySku, price: displayPrice, comparePrice: displayComparePrice, memberPrice: displayMemberPrice, images: displayImages, stock: displayStock, description: product.description, material: product.material, category: product.category ?? { name: "", slug: "" }, variantId: selectedVariant?.id ?? null, variantLabel }} className="h-11 w-11 shrink-0" />
+        </div>
+
+        {product.avgRating != null && product.reviewCount != null && product.reviewCount > 0 && (
+          <div className="mt-3 flex items-center gap-1.5 text-sm">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            <span className="font-semibold text-foreground">{product.avgRating.toFixed(1)}</span>
+            <span className="text-muted-foreground">({product.reviewCount} {product.reviewCount === 1 ? "review" : "reviews"})</span>
+          </div>
+        )}
+
+        <div className="mt-6 border-b border-border pb-6">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-2">
+            <span className="text-3xl font-semibold tracking-tight text-foreground">{money(displayPrice)}</span>
+            {displayComparePrice != null && displayComparePrice > displayPrice && (
+              <><span className="text-base text-muted-foreground line-through">{money(displayComparePrice)}</span><span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Save {Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)}%</span></>
             )}
           </div>
-          <WishlistToggleButton
-            product={{
-              id: product.id,
-              name: product.name,
-              slug: product.slug,
-              sku: displaySku,
-              price: displayPrice,
-              comparePrice: displayComparePrice,
-              memberPrice: displayMemberPrice,
-              images: displayImages,
-              stock: displayStock,
-              description: product.description,
-              material: product.material,
-              category: product.category ?? { name: "", slug: "" },
-            }}
-            className="h-9 w-9 shrink-0"
-          />
-        </div>
-
-        {/* Rating */}
-        {product.avgRating != null && product.reviewCount != null && product.reviewCount > 0 && (
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <svg key={i} className={`h-4 w-4 ${i < Math.round(product.avgRating!) ? "fill-amber-400 text-amber-400" : "fill-none text-muted-foreground/30"}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-              </svg>
-            ))}
-            <span className="text-xs text-muted-foreground ml-1">
-              {product.avgRating.toFixed(1)} ({product.reviewCount} {product.reviewCount === 1 ? "review" : "reviews"})
-            </span>
-          </div>
-        )}
-
-        {/* Pricing */}
-        <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-semibold text-foreground">
-            ${displayPrice.toLocaleString()}
-          </span>
-          {displayComparePrice && displayComparePrice > displayPrice && (
-            <>
-              <span className="text-sm text-muted-foreground line-through">
-                ${displayComparePrice.toLocaleString()}
-              </span>
-              <span className="text-xs font-medium text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
-                Save {Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)}%
-              </span>
-            </>
+          {displayMemberPrice != null && displayMemberPrice < displayPrice && (
+            <p className="mt-3 text-sm text-muted-foreground"><span className="font-semibold text-primary">{money(displayMemberPrice)} member price</span> · save {money(displayPrice - displayMemberPrice)}</p>
           )}
         </div>
 
-        {/* Member Price */}
-        {displayMemberPrice && (
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-primary font-medium">Member: ${displayMemberPrice.toLocaleString()}</span>
-            <span className="text-xs text-muted-foreground">(Save ${(displayPrice - displayMemberPrice).toLocaleString()})</span>
-          </div>
-        )}
-
-        {/* Description */}
-        <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
-
-        {/* Variant Selector with Dynamic Filtering */}
-        <VariantSelector
-          attributes={attributes}
-          variants={variants}
-          variantMap={variantMap}
-          defaultVariant={defaultVariant}
-          productMemberPrice={product.memberPrice}
-          onVariantChange={handleVariantChange}
-        />
-
-        {/* Stock & SKU */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <span>SKU: {displaySku}</span>
-          {displayStock > 0 ? (
-            <span className="text-green-800 font-medium">● In Stock ({displayStock} available)</span>
-          ) : (
-            <span className="text-destructive font-medium">● Out of Stock</span>
-          )}
+        <p className="mt-6 text-sm leading-7 text-muted-foreground sm:text-base">{product.description.trim() || "Choose the size and colour that suit your space. Review the selected option and delivery availability before checkout."}</p>
+        <div className="mt-6">
+          <VariantSelector attributes={attributes} variants={variants} variantMap={variantMap} defaultVariant={defaultVariant} onVariantChange={handleVariantChange} />
         </div>
 
-        {/* Add to Cart */}
-        <AddToCartButton
-          product={{
-            id: product.id,
-            name: product.name,
-            slug: product.slug,
-            sku: displaySku,
-            price: displayPrice,
-            memberPrice: displayMemberPrice,
-            images: displayImages,
-            stock: displayStock,
-            description: product.description,
-            variantId: selectedVariant?.id ?? null,
-            variantLabel,
-          }}
-          disabled={displayStock === 0}
-          hasVariants={true}
-        />
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span className={displayStock > 0 ? "font-medium text-emerald-800" : "font-medium text-destructive"}>{displayStock > 0 ? `In stock · ${displayStock} available` : "Out of stock"}</span>
+          <span className="text-xs text-muted-foreground">SKU {displaySku}</span>
+        </div>
+        <div className="mt-4">
+          <AddToCartButton product={{ id: product.id, name: product.name, slug: product.slug, sku: displaySku, price: displayPrice, memberPrice: displayMemberPrice, images: displayImages, stock: displayStock, description: product.description, variantId: selectedVariant?.id ?? null, variantLabel }} disabled={displayStock <= 0} hasVariants />
+        </div>
+        <p className="mt-3 text-center text-xs text-muted-foreground">Shipping options are calculated from your address at checkout.</p>
 
-        {/* Weight & Dimensions */}
         {hasDimensions && (
-          <div className="pt-3 border-t border-border">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Specifications</p>
-            <div className="grid grid-cols-1 gap-y-2 text-sm">
-              {displayWeight && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Weight</span>
-                  <span className="font-medium text-foreground">{displayWeight} kg</span>
-                </div>
-              )}
-              {(displayLength && displayWidth && displayHeight) && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Dimensions</span>
-                  <span className="font-medium text-foreground">
-                    {displayLength} × {displayWidth} × {displayHeight} cm
-                  </span>
-                </div>
-              )}
-              {displayLength && !(displayWidth && displayHeight) && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Length</span>
-                  <span className="font-medium text-foreground">{displayLength} cm</span>
-                </div>
-              )}
-              {displayWidth && !(displayLength && displayHeight) && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Width</span>
-                  <span className="font-medium text-foreground">{displayWidth} cm</span>
-                </div>
-              )}
-              {displayHeight && !(displayLength && displayWidth) && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Height</span>
-                  <span className="font-medium text-foreground">{displayHeight} cm</span>
-                </div>
-              )}
-            </div>
+          <div className="mt-8 border-t border-border pt-6">
+            <h2 className="text-base font-semibold text-foreground">Product details</h2>
+            <dl className="mt-3 divide-y divide-border/70 text-sm">
+              {product.material && <div className="flex justify-between gap-4 py-3"><dt className="text-muted-foreground">Material</dt><dd className="text-right font-medium text-foreground">{product.material}</dd></div>}
+              {displayWeight != null && <div className="flex justify-between gap-4 py-3"><dt className="text-muted-foreground">Estimated package weight</dt><dd className="text-right font-medium text-foreground">{displayWeight} kg</dd></div>}
+              {displayLength != null && displayWidth != null && displayHeight != null && <div className="flex justify-between gap-4 py-3"><dt className="text-muted-foreground">Estimated package size (L × W × H)</dt><dd className="text-right font-medium text-foreground">{displayLength} × {displayWidth} × {displayHeight} cm</dd></div>}
+            </dl>
           </div>
         )}
-
-        {/* Trust Badges */}
-        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
-          <div className="flex flex-col items-center gap-1 text-center p-2 rounded-lg bg-muted/50">
-            <Truck className="h-4 w-4 text-primary" />
-            <span className="text-xs text-muted-foreground">Free Delivery</span>
-          </div>
-          <div className="flex flex-col items-center gap-1 text-center p-2 rounded-lg bg-muted/50">
-            <RotateCcw className="h-4 w-4 text-primary" />
-            <span className="text-xs text-muted-foreground">30-Day Returns</span>
-          </div>
-          <div className="flex flex-col items-center gap-1 text-center p-2 rounded-lg bg-muted/50">
-            <ShieldCheck className="h-4 w-4 text-primary" />
-            <span className="text-xs text-muted-foreground">2-Year Warranty</span>
-          </div>
-        </div>
+        <div className="mt-7"><ProductAssurance /></div>
       </div>
     </div>
   );
