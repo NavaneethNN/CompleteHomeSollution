@@ -1,3 +1,4 @@
+import { hasActiveMembership } from "@/lib/membership";
 import { orderContentsLabel } from "@/lib/order-display";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -68,10 +69,10 @@ export default async function AccountDashboardPage() {
     getOrderStats(),
     getAddresses(),
     db.cartItem.count({ where: { userId: user.id } }),
-    db.user.findUnique({ where: { id: user.id }, select: { isMember: true, memberSince: true } }),
+    db.user.findUnique({ where: { id: user.id }, select: { isMember: true, memberSince: true, membershipExpiry: true } }),
   ]);
 
-  const isMember = dbUser?.isMember ?? false;
+  const isMember = hasActiveMembership(dbUser);
   const isAdmin = user.role === "ADMIN";
   const NAV_LINKS = isAdmin
     ? [...BASE_NAV_LINKS, { label: "Admin Panel", href: "/admin", Icon: ShieldCheck }]

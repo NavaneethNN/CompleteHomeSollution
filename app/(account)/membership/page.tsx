@@ -3,7 +3,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getActiveMembershipPlan, durationLabel } from "@/lib/membership-plan";
-import { enforceExpiry } from "@/lib/membership";
+import { enforceExpiry, hasActiveMembership } from "@/lib/membership";
 import {
   Crown, CheckCircle2, Truck, ShieldCheck, Tag, Zap,
   CalendarDays, ChevronRight, LayoutDashboard, Package,
@@ -32,6 +32,8 @@ export default async function MembershipPage() {
   const session = await auth();
   const user = session!.user;
 
+  await enforceExpiry(user.id);
+
   // Always read from DB — JWT may be stale after checkout activation
   const [dbUser, activePlan] = await Promise.all([
     db.user.findUnique({
@@ -42,8 +44,7 @@ export default async function MembershipPage() {
   ]);
 
   // Enforce expiry via central utility
-  const wasRevoked = await enforceExpiry(user.id);
-  const isMember = (dbUser?.isMember ?? false) && !wasRevoked;
+  const isMember = hasActiveMembership(dbUser);
   const memberSince = dbUser?.memberSince;
   const expiredAt = dbUser?.membershipExpiry && dbUser.membershipExpiry <= new Date()
     ? dbUser.membershipExpiry
@@ -154,6 +155,12 @@ export default async function MembershipPage() {
                       <span className="text-xs font-semibold text-green-600 bg-green-50 px-3 py-1 rounded-full">{planName}</span>
                     </div>
                   </div>
+                )}
+
+                {dbUser?.membershipExpiry && (
+                  <p className="text-sm text-muted-foreground">
+                    Benefits expire on {dbUser.membershipExpiry.toLocaleString("en-AU", { timeZone: "Australia/Sydney", dateStyle: "long", timeStyle: "short" })} (Sydney time). Renew after expiry to continue your benefits.
+                  </p>
                 )}
 
                 {/* Active perks grid */}

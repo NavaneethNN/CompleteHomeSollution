@@ -1,3 +1,4 @@
+import { hasActiveMembership } from "@/lib/membership";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
@@ -93,9 +94,9 @@ export async function POST(req: NextRequest) {
     if (session?.user?.id) {
       const currentUser = await db.user.findUnique({
         where: { id: session.user.id },
-        select: { isMember: true },
+        select: { isMember: true, membershipExpiry: true },
       });
-      isMemberFromDb = currentUser?.isMember ?? false;
+      isMemberFromDb = hasActiveMembership(currentUser);
     }
 
     const products = await db.product.findMany({

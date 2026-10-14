@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { db } from "../lib/db";
 import type { Prisma } from "@prisma/client";
-import { activateMembershipInTransaction, hasActiveMembership, refundOrderMembership } from "../lib/membership";
+import { activateMembershipInTransaction, hasActiveMembership, refundOrderMembership, enforceExpiry } from "../lib/membership";
 
 test("active membership uses one exact expiry boundary", () => {
   const now = new Date("2026-09-24T00:00:00.000Z");
@@ -98,4 +99,43 @@ test("refunding an earlier membership removes its time while preserving a subseq
   assert.equal(payments[1].refundedAt, undefined);
   await refundOrderMembership(tx, "order2");
   assert.equal(state.isMember, false);
+});
+
+
+test("expiry enforcement uses an atomic inclusive boundary and preserves the expiry date", async t => {
+  const now = new Date("2026-10-14T00:00:00Z");
+  t.mock.timers.enable({ apis: ["Date"], now });
+  let changed = 1;
+  const original = db.user.updateMany;
+  t.after(() => { db.user.updateMany = original; });
+  db.user.updateMany = (async ({ where, data }: Prisma.UserUpdateManyArgs) => {
+    assert.deepEqual(where, { id: "user", isMember: true, membershipExpiry: { lte: now } });
+    assert.deepEqual(data, { isMember: false });
+    return { count: changed };
+  }) as unknown as typeof db.user.updateMany;
+  assert.equal(await enforceExpiry("user"), true);
+  changed = 0;
+  assert.equal(await enforceExpiry("user"), false);
+});
+
+test("lapsed and revoked memberships start a fresh paid duration", async () => {
+  for (const isMember of [true, false]) {
+    const { tx, state, payments } = transaction();
+    state.isMember = isMember;
+    state.membershipExpiry = new Date(Date.now() + (isMember ? -10 : 10) * 86400000);
+    const before = Date.now();
+    await activateMembershipInTransaction(tx, purchase);
+    assert.ok(state.membershipExpiry!.getTime() >= before + 30 * 86400000);
+    assert.ok(state.membershipExpiry!.getTime() <= Date.now() + 30 * 86400000);
+    if (!isMember) assert.equal(payments[0].previousExpiry, null);
+  }
+});
+
+test("invalid purchased durations do not activate membership", async () => {
+  for (const durationDays of [0, -1, 1.5, NaN]) {
+    const { tx, state, payments } = transaction();
+    await assert.rejects(activateMembershipInTransaction(tx, { ...purchase, durationDays }), /Invalid membership duration/);
+    assert.equal(state.isMember, false);
+    assert.equal(payments.length, 0);
+  }
 });

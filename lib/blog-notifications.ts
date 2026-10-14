@@ -18,6 +18,7 @@ export async function sendNewBlogPostNotifications(post: BlogPost) {
     const members = await db.user.findMany({
       where: {
         isMember: true,
+        OR: [{ membershipExpiry: null }, { membershipExpiry: { gt: new Date() } }],
         email: {
           not: null,
         },

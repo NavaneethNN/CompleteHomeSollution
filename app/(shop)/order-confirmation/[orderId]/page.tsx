@@ -134,6 +134,17 @@ export default async function OrderConfirmationPage({
           </p>
         </div>
 
+        {membershipCharge > 0 && !paid && (
+          <div role="status" className="mb-6 rounded-xl border p-4 text-sm">
+            {order.status === "PENDING"
+              ? "This purchase has not activated your membership yet. Benefits start only after payment is confirmed."
+              : order.status === "CANCELLED" && !order.refundRequested
+                ? "This membership payment was unsuccessful or cancelled. No membership benefits were added by this order. You can return to membership to try again. If your bank shows a charge, contact support before paying again."
+                : "This order does not provide active membership benefits. Check your membership page for your current status and contact support about any refund."}
+            <Link href="/membership" className="ml-2 underline">View membership</Link>
+          </div>
+        )}
+
         {/* Order Details Card */}
         <div className="rounded-2xl border border-border bg-card p-6 md:p-8 space-y-6">
           {/* Order ID */}

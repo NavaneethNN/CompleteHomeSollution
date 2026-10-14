@@ -120,7 +120,7 @@ export async function getMembers(): Promise<MemberUser[]> {
       isMember: true,
       OR: [
         { membershipExpiry: null },            // legacy admin-granted with no expiry (kept valid)
-        { membershipExpiry: { gte: now } },    // not yet expired
+        { membershipExpiry: { gt: now } },    // not yet expired
       ],
     },
     select: {
