@@ -4,7 +4,6 @@ import Image from "next/image";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { ProductsClient } from "@/components/shop/products-client";
-import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 import { hasActiveMembership } from "@/lib/membership";
 
 export const metadata: Metadata = {
@@ -31,10 +30,6 @@ async function getProducts() {
       orderBy: { createdAt: "desc" },
     });
 
-    if (products.length === 0) {
-      return fallbackProducts;
-    }
-
     return products.map((p) => ({
       id: p.id,
       name: p.name,
@@ -58,8 +53,9 @@ async function getProducts() {
         image: p.productVariants[0].images[0]?.url,
       } : null,
     }));
-  } catch {
-    return fallbackProducts;
+  } catch (error) {
+    console.error("[products] Unable to load catalog", error);
+    throw new Error("The catalog is temporarily unavailable.");
   }
 }
 
@@ -70,9 +66,10 @@ async function getCategories() {
       orderBy: { name: "asc" },
     });
 
-    return categories.length > 0 ? categories : fallbackCategories;
-  } catch {
-    return fallbackCategories;
+    return categories;
+  } catch (error) {
+    console.error("[categories] Unable to load catalog", error);
+    throw new Error("The catalog is temporarily unavailable.");
   }
 }
 

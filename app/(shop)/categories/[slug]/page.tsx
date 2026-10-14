@@ -6,7 +6,6 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { hasActiveMembership } from "@/lib/membership";
 import { CategoryProductsClient } from "@/components/shop/category-products-client";
-import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 
 export const revalidate = 3600;
 
@@ -20,15 +19,7 @@ async function getCategory(slug: string) {
       where: { slug },
     });
 
-    if (!category) {
-      const fallbackCategory = fallbackCategories.find((item) => item.slug === slug);
-      if (!fallbackCategory) return null;
-
-      return {
-        category: fallbackCategory,
-        products: fallbackProducts.filter((product) => product.category.slug === slug),
-      };
-    }
+    if (!category) return null;
 
     const products = await db.product.findMany({
       where: { categoryId: category.id, isActive: true },
@@ -43,13 +34,6 @@ async function getCategory(slug: string) {
       },
       orderBy: { createdAt: "desc" },
     });
-
-    if (products.length === 0) {
-      return {
-        category,
-        products: fallbackProducts.filter((product) => product.category.slug === slug),
-      };
-    }
 
     return {
       category,
@@ -78,14 +62,9 @@ async function getCategory(slug: string) {
         } : null,
       })),
     };
-  } catch {
-    const fallbackCategory = fallbackCategories.find((item) => item.slug === slug);
-    if (!fallbackCategory) return null;
-
-    return {
-      category: fallbackCategory,
-      products: fallbackProducts.filter((product) => product.category.slug === slug),
-    };
+  } catch (error) {
+    console.error("[category] Unable to load catalog", error);
+    throw new Error("The catalog is temporarily unavailable.");
   }
 }
 

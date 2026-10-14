@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
-import { fallbackCategories } from "@/lib/data/fallback-shop-data";
 
 export const metadata: Metadata = { title: "Categories — Complete Home Sollution" };
 export const dynamic = "force-dynamic";
@@ -14,13 +13,15 @@ export default async function CategoriesPage() {
       include: { _count: { select: { products: { where: { isActive: true } } } } },
       orderBy: { name: "asc" },
     });
-  } catch {
-    categories = fallbackCategories.map(category => ({ ...category, image: category.image ?? null }));
+  } catch (error) {
+    console.error("[categories] Unable to load catalog", error);
+    throw new Error("The catalog is temporarily unavailable.");
   }
   return (
     <main className="container mx-auto px-5 py-12">
       <h1 className="text-3xl font-black">Shop by category</h1>
       <p className="mt-2 text-muted-foreground">Browse our furniture collections by room and purpose.</p>
+      {categories.length === 0 && <p className="mt-8 text-muted-foreground">No categories are available yet. Please check back soon.</p>}
       <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {categories.map(category => (
           <Link key={category.id} href={`/categories/${category.slug}`} className="overflow-hidden rounded-2xl border bg-card hover:shadow-md transition-shadow">

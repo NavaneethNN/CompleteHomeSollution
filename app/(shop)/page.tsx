@@ -7,7 +7,6 @@ import { hasActiveMembership } from "@/lib/membership";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { AnimateIn } from "@/components/shared/animate-in";
-import { fallbackCategories, fallbackProducts } from "@/lib/data/fallback-shop-data";
 import {
   ArrowRight,
   Award,
@@ -68,9 +67,10 @@ async function getCategories() {
       include: { _count: { select: { products: true } } },
       orderBy: { name: "asc" },
     });
-    return categories.length > 0 ? categories : fallbackCategories;
-  } catch {
-    return fallbackCategories;
+    return categories;
+  } catch (error) {
+    console.error("[categories] Unable to load catalog", error);
+    throw new Error("The catalog is temporarily unavailable.");
   }
 }
 
@@ -95,17 +95,6 @@ async function getTrendingProducts() {
       take: 4,
     });
 
-    if (products.length === 0) {
-      return fallbackProducts.slice(0, 4).map((p) => ({
-        id: p.id, name: p.name, slug: p.slug, price: p.basePrice,
-        originalPrice: p.comparePrice ?? p.basePrice,
-        discount: p.comparePrice && p.comparePrice > p.basePrice
-          ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%` : null,
-        reviews: p.reviewCount, img: p.images[0], description: p.description,
-        memberPrice: p.memberPrice, stock: p.stock, category: p.category,
-      }));
-    }
-
     return products.map((p) => {
       const variant = p.hasVariants && p.productVariants[0] ? p.productVariants[0] : null;
       const price = variant?.price ?? p.basePrice;
@@ -125,15 +114,9 @@ async function getTrendingProducts() {
         stock, category: p.category,
       };
     });
-  } catch {
-    return fallbackProducts.slice(0, 4).map((p) => ({
-      id: p.id, name: p.name, slug: p.slug, price: p.basePrice,
-      originalPrice: p.comparePrice ?? p.basePrice,
-      discount: p.comparePrice && p.comparePrice > p.basePrice
-        ? `-${Math.round(((p.comparePrice - p.basePrice) / p.comparePrice) * 100)}%` : null,
-      reviews: p.reviewCount, img: p.images[0], description: p.description,
-      memberPrice: p.memberPrice, stock: p.stock, category: p.category,
-    }));
+  } catch (error) {
+    console.error("[home products] Unable to load catalog", error);
+    throw new Error("The catalog is temporarily unavailable.");
   }
 }
 
@@ -241,6 +224,9 @@ export default async function HomePage() {
           <AnimateIn variant="fade-up">
             <SectionHeading tag="The edit" title="Pieces to start with" />
           </AnimateIn>
+          {trendingProducts.length === 0 && (
+            <p className="py-8 text-center text-muted-foreground">No products are available yet. Please check back soon.</p>
+          )}
           <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
             {trendingProducts.map((p, i) => (
               <AnimateIn key={p.id} variant="fade-up" delay={i * 80}>
@@ -270,7 +256,7 @@ export default async function HomePage() {
                 <p className="text-xs font-bold tracking-widest text-white/70 uppercase mb-3">LIVING ROOM EDIT</p>
                 <h3 className="text-3xl font-semibold tracking-tight text-white leading-tight mb-3">A room to<br />unwind in.</h3>
                 <p className="text-sm text-white/75 mb-6 leading-relaxed">Sofas, chairs and considered details for everyday comfort.</p>
-                <Link href="/categories/living-room" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-navy transition-colors hover:bg-secondary">
+                <Link href={categories.some(category => category.slug === "living-room") ? "/categories/living-room" : "/products"} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-navy transition-colors hover:bg-secondary">
                   Explore living room <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
