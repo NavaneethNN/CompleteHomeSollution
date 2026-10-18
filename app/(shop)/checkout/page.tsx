@@ -40,17 +40,24 @@ export default async function CheckoutPage() {
   const gateway = configuredPaymentGateway(process.env);
 
   return (
-    <main className="bg-background py-8 md:py-12">
+    <main className="bg-background pb-28 pt-5 md:pb-12 md:pt-12">
       <div className="container mx-auto px-4 md:px-6 xl:px-8">
         {/* Header */}
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Secure Checkout</p>
-            <h1 className="mt-2 text-3xl font-black text-foreground md:text-4xl">Complete your order</h1>
+        <div className="mb-6 flex items-center gap-3 md:mb-8">
+          <Link
+            href="/cart"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border text-foreground transition-colors hover:bg-secondary md:hidden"
+            aria-label="Back to cart"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-primary md:text-xs">Secure Checkout</p>
+            <h1 className="text-xl font-black text-foreground md:mt-1 md:text-4xl">Complete your order</h1>
           </div>
           <Link
             href="/cart"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+            className="hidden items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary md:inline-flex"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to Cart

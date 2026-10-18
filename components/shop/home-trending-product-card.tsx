@@ -96,7 +96,7 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
   return (
     <div className="group h-full overflow-hidden rounded-2xl border border-border/70 bg-white transition-shadow hover:shadow-md">
       <div className="h-full flex flex-col">
-        <div className="relative aspect-[4/4.3] bg-secondary overflow-hidden sm:aspect-square">
+        <div className="relative aspect-[4/3.2] bg-secondary overflow-hidden sm:aspect-square">
           <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
           <Image
             src={product.img}
@@ -136,7 +136,7 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
               </h3>
             </Link>
 
-            <p className="mt-1 hidden text-xs text-muted-foreground line-clamp-2 sm:block">
+            <p className="mt-1 hidden text-xs text-muted-foreground sm:line-clamp-2">
               {product.description}
             </p>
 

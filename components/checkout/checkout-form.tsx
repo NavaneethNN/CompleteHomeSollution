@@ -678,16 +678,16 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_380px] lg:items-start">
-      {/* Main Content */}
-      <div className="space-y-6">
+    <div className="grid gap-5 lg:grid-cols-[1fr_380px] lg:items-start">
+      {/* Main Content — form sections: order-2 on mobile, natural on lg */}
+      <div className="order-2 space-y-4 lg:order-1 lg:space-y-6">
         {/* Order Items */}
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
             <ShoppingBag className="h-4 w-4 text-muted-foreground" />
             Items ({itemCount})
           </h2>
-          <div className="mt-4 divide-y divide-border">
+        <div className="mt-3 divide-y divide-border">
             {items.map((item, index) => {
               const memberPrice = getMemberPrice(item);
               const basePrice = Math.max(0, item.product.price ?? 0);
@@ -695,8 +695,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               const hasMemberDiscount = effectiveMember && memberPrice && memberPrice > 0 && memberPrice < basePrice;
               const itemKey = `${item.product.id ?? 'unknown'}-${item.product.variantId ?? 'default'}-${index}`;
               return (
-                <div key={itemKey} className="flex gap-4 py-4 first:pt-0 last:pb-0">
-                  <Link href={`/products/${item.product.slug}`} className="relative h-16 w-16 rounded-lg overflow-hidden bg-muted shrink-0 block hover:opacity-80 transition-opacity">
+                <div key={itemKey} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+                  <Link href={`/products/${item.product.slug}`} className="relative h-14 w-14 rounded-lg overflow-hidden bg-muted shrink-0 block hover:opacity-80 transition-opacity sm:h-16 sm:w-16">
                     {item.product.images?.[0] && (
                       <Image
                         src={item.product.images[0]}
@@ -892,8 +892,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         </section>
       </div>
 
-      {/* Order Summary Sidebar */}
-      <aside className="lg:sticky lg:top-24 space-y-6">
+      {/* Order Summary Sidebar — order-1 on mobile (top), order-2 on desktop (right column) */}
+      <aside className="order-1 lg:order-2 lg:sticky lg:top-24 space-y-6">
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="text-base font-semibold text-foreground">Order Summary</h2>
 
@@ -1137,9 +1137,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               setShippingAvailabilityAttempt(attempt => attempt + 1);
             }}>Retry shipping check</Button>
           </div>}
-          {/* Place Order Button */}
+          {/* Place Order Button — hidden on mobile (sticky bottom bar handles it) */}
           <Button
-            className="mt-5 w-full h-12 text-sm font-semibold"
+            className="mt-5 hidden w-full h-12 text-sm font-semibold lg:flex"
             onClick={handlePlaceOrder}
             disabled={!paymentAvailable || shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
           >
@@ -1158,12 +1158,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             )}
           </Button>
 
-          {paymentAvailable && <p className="mt-3 text-center text-[11px] text-muted-foreground leading-relaxed">
+          {paymentAvailable && <p className="mt-3 hidden text-center text-[11px] text-muted-foreground leading-relaxed lg:block">
             Your payment is processed securely by {usesOnlinePay ? "Westpac OnlinePay" : "PayWay (Westpac)"}. Card details never touch our servers.
           </p>}
 
-          {/* Trust badges */}
-          <div className="mt-5 flex items-center justify-center gap-4 border-t border-border pt-4">
+          {/* Trust badges — hidden on mobile */}
+          <div className="mt-5 hidden items-center justify-center gap-4 border-t border-border pt-4 lg:flex">
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <Lock className="h-3.5 w-3.5" />
               <span>SSL Encrypted</span>
@@ -1175,6 +1175,32 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           </div>
         </div>
       </aside>
+
+      {/* ── Mobile sticky bottom CTA ─────────────────────────── */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm lg:hidden">
+        <div className="mx-auto flex max-w-lg items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] text-muted-foreground leading-none">Order total</p>
+            <p className="mt-0.5 text-lg font-black text-foreground leading-none">
+              {freeShipping || shippingCost !== null
+                ? currencyFormatter.format(total)
+                : "—"}
+            </p>
+          </div>
+          <Button
+            className="h-11 min-w-[160px] rounded-xl text-sm font-bold"
+            onClick={handlePlaceOrder}
+            disabled={!paymentAvailable || shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
+          >
+            {isProcessing ? (
+              <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Processing...</>
+            ) : (
+              <><Lock className="mr-1.5 h-3.5 w-3.5" />
+                {addMembership && !isMember ? "Pay & Join" : "Place Order"}</>
+            )}
+          </Button>
+        </div>
+      </div>
 
       {/* Add / Edit Address Dialog */}
       <Dialog open={isAddressDialogOpen} onOpenChange={(open) => {

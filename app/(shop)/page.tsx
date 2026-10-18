@@ -227,9 +227,9 @@ export default async function HomePage() {
           {trendingProducts.length === 0 && (
             <p className="py-8 text-center text-muted-foreground">No products are available yet. Please check back soon.</p>
           )}
-          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+          <div className="-mx-5 flex snap-x snap-mandatory gap-3.5 overflow-x-auto overscroll-x-contain px-5 pb-3 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-5 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4">
             {trendingProducts.map((p, i) => (
-              <AnimateIn key={p.id} variant="fade-up" delay={i * 80}>
+              <AnimateIn key={p.id} variant="fade-up" delay={i * 80} className="w-[68%] shrink-0 snap-start min-[480px]:w-[55%] sm:w-auto sm:shrink">
                 <HomeTrendingProductCard product={p} isMember={isMember} />
               </AnimateIn>
             ))}
