@@ -1,4 +1,5 @@
 import { after, NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createGuestOrderToken, createOrderReturnToken } from "@/lib/order-access";
 import { db } from "@/lib/db";
@@ -690,6 +691,9 @@ export async function POST(req: NextRequest) {
         return true;
       });
       if (!settled) return NextResponse.json({ orderId: order.id, guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "pending" });
+      if (order.membershipAmount > 0) {
+        try { revalidatePath("/admin/membership"); } catch {}
+      }
     } catch (txErr) {
       const message = txErr instanceof Error ? txErr.message : "";
       if (message.startsWith("OUT_OF_STOCK:")) {

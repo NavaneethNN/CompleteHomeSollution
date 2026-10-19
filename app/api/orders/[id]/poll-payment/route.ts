@@ -24,6 +24,7 @@
  */
 
 import { after, NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { verifyGuestOrderToken, verifyOrderReturnToken } from "@/lib/order-access";
@@ -226,6 +227,9 @@ export async function GET(req: NextRequest, { params }: Params) {
           return true;
         });
         if (!settled) return NextResponse.json({ status: "pending", orderId }, { status: 202 });
+        if (order.membershipAmount > 0) {
+          try { revalidatePath("/admin/membership"); } catch {}
+        }
       } catch (txErr) {
         const message = txErr instanceof Error ? txErr.message : "";
         if (message.startsWith("OUT_OF_STOCK:")) {

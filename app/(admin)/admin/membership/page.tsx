@@ -4,15 +4,43 @@ import { MembershipClient } from "@/components/admin/membership-client";
 import { Crown, Users, DollarSign } from "lucide-react";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata: Metadata = { title: "Membership — Admin" };
 
 export default async function AdminMembershipPage() {
   const [plans, members] = await Promise.all([getPlans(), getMembers()]);
 
   const activePlans = plans.filter((p) => p.isActive).length;
-  // Revenue comes from actual MembershipPayment records, not a member count × plan price estimate
-  const revenueResult = await db.membershipPayment.aggregate({ where: { refundedAt: null }, _sum: { amount: true } });
-  const totalRevenue = revenueResult._sum.amount ?? 0;
+
+  // Revenue comes from actual MembershipPayment records + any paid orders with membershipAmount
+  const [paymentsResult, orderPayments, paidOrders] = await Promise.all([
+    db.membershipPayment.aggregate({ where: { refundedAt: null }, _sum: { amount: true } }),
+    db.membershipPayment.findMany({
+      where: { refundedAt: null, paywaySessionId: { startsWith: "order:" } },
+      select: { paywaySessionId: true },
+    }),
+    db.order.findMany({
+      where: {
+        status: { in: ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] },
+        membershipAmount: { gt: 0 },
+      },
+      select: { id: true, membershipAmount: true },
+    }),
+  ]);
+
+  const recordedOrderIds = new Set(
+    orderPayments
+      .map((p) => p.paywaySessionId?.replace(/^order:/, "").replace(/:membership$/, ""))
+      .filter(Boolean)
+  );
+
+  const unrecordedOrderAmount = paidOrders
+    .filter((o) => !recordedOrderIds.has(o.id))
+    .reduce((sum, o) => sum + o.membershipAmount, 0);
+
+  const totalRevenue = (paymentsResult._sum.amount ?? 0) + unrecordedOrderAmount;
 
   const statCards = [
     { label: "Plans",          value: plans.length,   sub: `${activePlans} active`,             icon: Crown,       accent: "bg-amber-500" },
