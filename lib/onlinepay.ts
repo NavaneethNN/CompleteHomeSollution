@@ -112,9 +112,12 @@ export async function createOnlinePayCheckout(input: {
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.url || !payload.id) {
-    const message = typeof payload?.message === "string" ? payload.message : "OnlinePay could not create a checkout.";
+    const reason = typeof payload?.details?.reason === "string" ? payload.details.reason : "";
+    const baseMessage = typeof payload?.message === "string" ? payload.message : "OnlinePay could not create a checkout.";
+    const message = reason ? `${baseMessage}: ${reason}` : baseMessage;
     const invalidFields = payload?.details && typeof payload.details === "object"
       ? Object.keys(payload.details).filter(key => /^[a-zA-Z0-9_.[\]-]{1,150}$/.test(key)) : [];
+    console.error("[OnlinePay] Checkout creation rejected by provider", { status: response.status, details: payload?.details, message: payload?.message });
     throw new OnlinePayCheckoutError(message, [400, 401, 403, 404, 422].includes(response.status), response.status, invalidFields);
   }
   if (typeof payload.url !== "string" || !URL.canParse(payload.url) || new URL(payload.url).protocol !== "https:") throw new OnlinePayCheckoutError("Invalid hosted checkout URL", false);
