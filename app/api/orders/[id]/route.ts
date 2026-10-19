@@ -56,7 +56,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({ data: order });
+    return NextResponse.json({ data: order }, { headers: { "Cache-Control": "private, no-store, max-age=0" } });
   } catch (error) {
     console.error("[GET /api/orders/[id]]", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

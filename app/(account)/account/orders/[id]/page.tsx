@@ -24,8 +24,10 @@ import {
 } from "lucide-react";
 import { CancelOrderButton } from "@/components/shop/cancel-order-button";
 import { BuyAgainButton } from "@/components/shop/buy-again-button";
+import { RefreshOrderStatus } from "@/components/account/refresh-order-status";
 
 export const metadata: Metadata = { title: "Order Details — Complete Home Sollution" };
+export const dynamic = "force-dynamic";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
@@ -48,7 +50,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
     hour: "2-digit", minute: "2-digit",
   });
 
-  const isPaid = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(order.status);
+  const isPaid = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
   const trackingUrl = order.trackingNumber ? getTrackingUrl(order.carrier, order.trackingNumber) : null;
   const isPreShip = ["PAID", "CONFIRMED", "PROCESSING"].includes(order.status);
   const isPostShip = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
@@ -56,6 +58,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
   return (
     <div className="min-h-screen bg-secondary/30">
+      <RefreshOrderStatus orderId={order.id} status={order.status} updatedAt={order.updatedAt.toISOString()} />
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 xl:px-10 py-8 lg:py-12">
 
         {/* Breadcrumb */}
@@ -79,10 +82,32 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <BuyAgainButton items={order.items} variant="outline" size="sm" />
-            <span className={getStatusStyle(order.status)}>{order.status}</span>
+            {order.status !== "PENDING" && <BuyAgainButton items={order.items} variant="outline" size="sm" />}
+            <span className={getStatusStyle(order.status)}>{formatStatusLabel(order.status)}</span>
           </div>
         </div>
+
+        {/* ── Pending Payment Banner ── */}
+        {order.status === "PENDING" && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-900 text-sm">Payment not completed</p>
+                <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                  This order is waiting for payment. Your items are reserved but will not be confirmed until payment is completed.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/order-confirmation/${order.id}`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-5 py-2.5 transition-colors shrink-0"
+            >
+              <CreditCard className="h-4 w-4" />
+              Complete Payment
+            </Link>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -229,10 +254,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 <div className="mt-4 pt-4 border-t border-border space-y-2.5">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Payment Status</span>
-                    <span className={`flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1 rounded-full ${isPaid ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                    <span className={`flex items-center gap-1.5 font-semibold text-xs px-2.5 py-1 rounded-full ${isPaid ? "bg-emerald-100 text-emerald-700" : order.status === "REFUNDED" ? "bg-gray-100 text-gray-700" : order.status === "CANCELLED" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
                       {isPaid
                         ? <><CheckCircle2 className="h-3.5 w-3.5" /> Paid</>
-                        : <><Clock className="h-3.5 w-3.5" /> Pending</>
+                        : order.status === "REFUNDED"
+                          ? "Refunded"
+                          : order.status === "CANCELLED"
+                            ? order.refundRequested ? "Refund pending" : "Cancelled"
+                            : <><Clock className="h-3.5 w-3.5" /> Pending</>
                       }
                     </span>
                   </div>
@@ -348,11 +377,17 @@ function getStatusStyle(status: string): string {
   switch (status) {
     case "PENDING":    return `${base} bg-amber-100 text-amber-700`;
     case "PAID":       return `${base} bg-blue-100 text-blue-700`;
+    case "CONFIRMED":  return `${base} bg-blue-100 text-blue-700`;
     case "PROCESSING": return `${base} bg-purple-100 text-purple-700`;
     case "SHIPPED":    return `${base} bg-indigo-100 text-indigo-700`;
+    case "OUT_FOR_DELIVERY": return `${base} bg-indigo-100 text-indigo-700`;
     case "DELIVERED":  return `${base} bg-emerald-100 text-emerald-700`;
     case "CANCELLED":  return `${base} bg-red-100 text-red-700`;
     case "REFUNDED":   return `${base} bg-gray-100 text-gray-700`;
     default:           return `${base} bg-gray-100 text-gray-700`;
   }
+}
+
+function formatStatusLabel(status: string): string {
+  return status.toLowerCase().split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }

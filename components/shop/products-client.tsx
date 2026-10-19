@@ -156,7 +156,7 @@ export function ProductsClient({ categories, products, isMember = false }: Produ
 
         {pagedProducts.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-5 sm:gap-y-10">
+            <div className="grid auto-rows-fr grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-5 sm:gap-y-10">
               {pagedProducts.map((product) => (
                 <ProductCard key={product.id} product={product} isMember={isMember} />
               ))}

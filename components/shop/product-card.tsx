@@ -149,7 +149,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
 
   return (
     <>
-      <div className="group flex flex-col">
+      <div className="group flex h-full flex-col">
 
         {/* Image */}
         <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
@@ -213,7 +213,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
         </div>
 
         {/* Info */}
-        <div className="mt-2.5 flex flex-col gap-0.5">
+        <div className="mt-2.5 flex flex-1 flex-col gap-0.5">
           <Link
             href={`/categories/${product.category.slug}`}
             className="text-[10px] sm:text-xs text-muted-foreground hover:text-primary transition-colors uppercase tracking-wide"
@@ -258,7 +258,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
             onClick={() => setIsPopupOpen(true)}
             disabled={displayStock === 0}
             className={cn(
-              "sm:hidden mt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors",
+              "sm:hidden mt-auto pt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors",
               displayStock === 0
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : isInCart

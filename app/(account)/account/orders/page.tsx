@@ -190,7 +190,16 @@ export default async function OrdersPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <BuyAgainButton items={order.items} variant="outline" size="sm" />
+                          {order.status === "PENDING" ? (
+                            <Link
+                              href={`/order-confirmation/${order.id}`}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-4 py-2 transition-colors"
+                            >
+                              Complete Payment
+                            </Link>
+                          ) : (
+                            <BuyAgainButton items={order.items} variant="outline" size="sm" />
+                          )}
                           <Link
                             href={`/account/orders/${order.id}`}
                             className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"

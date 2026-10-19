@@ -176,12 +176,22 @@ export default async function OrdersPage() {
                         {order.membershipAmount > 0 && order.items.length === 0 ? "Digital membership" : `${order.address.suburb}, ${order.address.state} ${order.address.postcode}`}
                       </span>
                     </div>
-                    <Link
-                      href={`/account/orders/${order.id}`}
-                      className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
-                    >
-                      View Details <ChevronRight className="h-4 w-4" />
-                    </Link>
+                    <div className="flex items-center gap-3">
+                      {order.status === "PENDING" && (
+                        <Link
+                          href={`/order-confirmation/${order.id}`}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-4 py-2 transition-colors"
+                        >
+                          Complete Payment
+                        </Link>
+                      )}
+                      <Link
+                        href={`/account/orders/${order.id}`}
+                        className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+                      >
+                        View Details <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>

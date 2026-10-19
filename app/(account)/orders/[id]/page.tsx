@@ -76,6 +76,28 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
           <span className={getStatusStyle(order.status)}>{order.status}</span>
         </div>
 
+        {/* ── Pending Payment Banner ── */}
+        {order.status === "PENDING" && (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-900 text-sm">Payment not completed</p>
+                <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                  This order is waiting for payment. Your items are reserved but will not be confirmed until payment is completed.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/order-confirmation/${order.id}`}
+              className="inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-5 py-2.5 transition-colors shrink-0"
+            >
+              <CreditCard className="h-4 w-4" />
+              Complete Payment
+            </Link>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
           {/* ── Left Column ── */}
