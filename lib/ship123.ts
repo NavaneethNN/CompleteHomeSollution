@@ -42,7 +42,7 @@ export class Ship123Error extends Error {
 }
 
 function apiSecret(): string {
-  const secret = process.env.SHIP_123_API_KEY;
+  const secret = process.env.SHIP_123_API_KEY?.trim() || process.env.SHIP123_API_KEY?.trim() || process.env.SHIP123_API_SECRET?.trim();
   if (!secret) throw new Ship123Error("Ship123 API key is not configured");
   return secret;
 }

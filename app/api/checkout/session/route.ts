@@ -341,8 +341,19 @@ export async function POST(req: NextRequest) {
         if (!rates.length) throw new Error("No eligible shipping rate");
         shippingServiceCode = rates[0].serviceCode;
       } catch (error) {
-        console.error("[checkout] No Ship123 service for free-shipping order", error);
-        return NextResponse.json({ error: "Shipping is currently unavailable for this order. Please contact support." }, { status: 503 });
+        // Fallback: If live per-parcel quote calculation failed (e.g. timeout or throttling),
+        // try to assign the first eligible named courier product directly so $0 free shipping orders proceed.
+        try {
+          const products = await getEligibleShip123Products();
+          if (products.length > 0) {
+            shippingServiceCode = products[0].code;
+          } else {
+            throw error;
+          }
+        } catch {
+          console.error("[checkout] No Ship123 service for free-shipping order", error);
+          return NextResponse.json({ error: "Shipping is currently unavailable for this order. Please contact support." }, { status: 503 });
+        }
       }
       shippingCost = 0;
     } else {
