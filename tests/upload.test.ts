@@ -19,9 +19,9 @@ require.cache[require.resolve("../lib/r2")] = { exports: {
 const { POST } = require("../app/api/upload/route");
 const validEnv = { R2_ACCOUNT_ID: "test", R2_ACCESS_KEY_ID: "test", R2_SECRET_ACCESS_KEY: "test", R2_BUCKET_NAME: "images", R2_PUBLIC_URL: "https://images.example" };
 
-function request(file: File | string = new File(["image"], "test.png", { type: "image/png" })) {
+function request(file: File | string = new File(["image"], "test.png", { type: "image/png" }), folder = "categories") {
   const body = new FormData();
-  body.set("folder", "categories"); body.set("file", file);
+  body.set("folder", folder); body.set("file", file);
   return new NextRequest("https://shop.example/api/upload", { method: "POST", body });
 }
 
@@ -48,6 +48,10 @@ test("upload route validates access and file payload before storage", async t =>
   session = original;
   assert.equal((await POST(request("not-a-file"))).status, 400);
   assert.equal((await POST(request(new File([new Uint8Array(MAX_IMAGE_UPLOAD_BYTES + 1)], "large.png", { type: "image/png" })))).status, 413);
+  // Rejects invalid folder names or traversal attempts
+  assert.equal((await POST(request(new File(["image"], "test.png", { type: "image/png" }), "../products"))).status, 400);
+  assert.equal((await POST(request(new File(["image"], "test.png", { type: "image/png" }), "products/../variants"))).status, 400);
+  assert.equal((await POST(request(new File(["image"], "test.png", { type: "image/png" }), "products//variants"))).status, 400);
   assert.equal(uploads, 0);
 });
 
@@ -77,4 +81,6 @@ test("upload route reports storage configuration and provider failures without l
   const success = await POST(request());
   assert.equal(success.status, 200);
   assert.equal((await success.json()).publicUrl, "https://images.example/categories/test.png");
+  const variantUpload = await POST(request(new File(["image"], "variant.png", { type: "image/png" }), "products/variants"));
+  assert.equal(variantUpload.status, 200);
 });

@@ -30,8 +30,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid upload. Please select your image again." }, { status: 400 });
     }
     const file = formData.get("file");
-    const folder = formData.get("folder") ?? "products";
-    if (typeof folder !== "string" || !/^[a-zA-Z0-9_-]+$/.test(folder)) {
+    const rawFolder = formData.get("folder");
+    const folder = (typeof rawFolder === "string" && rawFolder.trim() ? rawFolder.trim().replace(/^\/+|\/+$/g, "") : null) ?? "products";
+    if (!/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*$/.test(folder)) {
       return NextResponse.json({ error: "Invalid upload folder" }, { status: 400 });
     }
     if (!isAdmin && !["reviews", "profile"].includes(folder)) {
