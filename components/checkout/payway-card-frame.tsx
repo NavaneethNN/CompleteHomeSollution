@@ -203,18 +203,18 @@ return () => {
   }, [getToken]);
 
   return (
-    <div className={`space-y-2 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
+    <div className={`space-y-2 w-full max-w-full min-w-0 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
       {/* The provider iframe already renders its own card border. Do not put it
           inside another padded/bordered card: that creates the large empty
           panel seen around the fixed 278 × 306px narrow frame. */}
-      <div className="relative h-[306px] overflow-hidden">
+      <div className="relative h-[306px] w-full max-w-full overflow-hidden">
         {!frameReady && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-white">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             <p className="text-xs text-muted-foreground">Loading secure card form…</p>
           </div>
         )}
-        <div id={CONTAINER_ID} className="flex h-full w-full justify-center" />
+        <div id={CONTAINER_ID} className="flex h-full w-full justify-center max-w-full overflow-hidden" />
       </div>
       <div className="flex items-center justify-between text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">

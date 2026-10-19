@@ -678,9 +678,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_380px] lg:items-start">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start w-full min-w-0 max-w-full">
       {/* Main Content — form sections: order-2 on mobile, natural on lg */}
-      <div className="order-2 space-y-4 lg:order-1 lg:space-y-6">
+      <div className="order-2 space-y-4 lg:order-1 lg:space-y-6 min-w-0 max-w-full">
         {/* Order Items */}
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -810,19 +810,19 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             <div className="mt-4">
               {guestAddress ? (
                 <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
+                  <div className="flex items-start justify-between gap-3 min-w-0">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
                       <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 border-primary bg-primary">
                         <Check className="h-2.5 w-2.5 text-white" />
                       </div>
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground">{guestAddress.name}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5 break-words">
                           {guestAddress.line1}{guestAddress.line2 ? `, ${guestAddress.line2}` : ""}
                         </p>
                         <p className="text-xs text-muted-foreground">{guestAddress.suburb}, {guestAddress.state} {guestAddress.postcode}</p>
                         <p className="text-xs text-muted-foreground">{guestAddress.phone}</p>
-                        {guestAddress.email && <p className="text-xs text-muted-foreground">{guestAddress.email}</p>}
+                        {guestAddress.email && <p className="text-xs text-muted-foreground break-all">{guestAddress.email}</p>}
                       </div>
                     </div>
                     <Button type="button" variant="ghost" size="sm" onClick={openAddDialog} className="h-7 px-2 text-xs shrink-0">
@@ -853,33 +853,33 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           </h2>
 
           {appliedCoupon ? (
-            <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3">
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">
+            <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 p-3 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                <Check className="h-4 w-4 text-green-600 shrink-0" />
+                <span className="text-sm font-medium text-green-800 truncate">
                   {appliedCoupon.code} &mdash; {appliedCoupon.discountType === "PERCENTAGE" ? appliedCoupon.discountValue + "%" : "$" + appliedCoupon.discountValue} off
                 </span>
               </div>
-              <Button type="button" variant="ghost" size="sm" onClick={removeCoupon} className="text-xs h-7">
+              <Button type="button" variant="ghost" size="sm" onClick={removeCoupon} className="text-xs h-7 shrink-0">
                 Remove
               </Button>
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="flex gap-2 min-w-0">
               <Input
                 placeholder="Enter code"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && !isApplyingCoupon && applyCoupon()}
                 disabled={isApplyingCoupon}
-                className="h-10 flex-1"
+                className="h-10 flex-1 min-w-0"
               />
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => applyCoupon()}
                 disabled={!couponCode.trim() || isApplyingCoupon}
-                className="h-10 px-5 min-w-[80px]"
+                className="h-10 px-5 shrink-0"
               >
                 {isApplyingCoupon ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -893,7 +893,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       </div>
 
       {/* Order Summary Sidebar — order-1 on mobile (top), order-2 on desktop (right column) */}
-      <aside className="order-1 lg:order-2 lg:sticky lg:top-24 space-y-6">
+      <aside className="order-1 lg:order-2 lg:sticky lg:top-24 space-y-6 min-w-0 max-w-full">
         <div className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="text-base font-semibold text-foreground">Order Summary</h2>
 
@@ -1023,16 +1023,16 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           {/* ── Membership Add-on Card (BookMyShow style) ── */}
           {isAuthenticated && !isMember && (
             <div className={cn(
-              "mt-4 rounded-xl border-2 transition-all duration-200 overflow-hidden",
+              "mt-4 rounded-xl border-2 transition-all duration-200 overflow-hidden min-w-0 w-full",
               addMembership ? "border-primary bg-primary/5" : "border-border bg-secondary/50"
             )}>
               {/* Toggle header */}
               <button
                 type="button"
                 onClick={() => setAddMembership(!addMembership)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left"
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left min-w-0"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {/* Checkbox */}
                   <div className={cn(
                     "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
@@ -1040,7 +1040,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   )}>
                     {addMembership && <Check className="h-3 w-3 text-white" />}
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                       <Crown className="h-3.5 w-3.5 text-primary shrink-0" />
                       <span className="text-sm font-bold text-foreground">
@@ -1177,7 +1177,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       </aside>
 
       {/* ── Mobile sticky bottom CTA ─────────────────────────── */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 p-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm lg:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-white/95 px-4 py-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur-sm lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-lg items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[11px] text-muted-foreground leading-none">Order total</p>
@@ -1188,7 +1188,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             </p>
           </div>
           <Button
-            className="h-11 min-w-[160px] rounded-xl text-sm font-bold"
+            className="h-11 min-w-[140px] sm:min-w-[160px] rounded-xl text-sm font-bold shrink-0"
             onClick={handlePlaceOrder}
             disabled={!paymentAvailable || shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
           >

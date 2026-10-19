@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { auth } from "@/auth";
@@ -7,6 +7,13 @@ import { CheckoutForm } from "@/components/checkout/checkout-form";
 import { db } from "@/lib/db";
 import { getActiveMembershipPlan } from "@/lib/membership-plan";
 import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
@@ -40,8 +47,8 @@ export default async function CheckoutPage() {
   const gateway = configuredPaymentGateway(process.env);
 
   return (
-    <main className="bg-background pb-28 pt-5 md:pb-12 md:pt-12">
-      <div className="container mx-auto px-4 md:px-6 xl:px-8">
+    <main className="bg-background pb-32 pt-4 lg:pb-12 lg:pt-10 w-full max-w-full overflow-x-hidden">
+      <div className="container mx-auto px-4 md:px-6 xl:px-8 max-w-full">
         {/* Header */}
         <div className="mb-6 flex items-center gap-3 md:mb-8">
           <Link

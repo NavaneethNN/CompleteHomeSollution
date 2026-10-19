@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/shared/providers";
@@ -13,6 +13,13 @@ const dancingScript = Dancing_Script({
   variable: "--font-dancing-script",
   weight: ["400", "700"],
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin()),
@@ -50,7 +57,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en-AU" suppressHydrationWarning>
-      <body className={`${inter.variable} ${dancingScript.variable} font-sans antialiased flex flex-col min-h-screen`}>
+      <body className={`${inter.variable} ${dancingScript.variable} font-sans antialiased flex flex-col min-h-screen overflow-x-hidden`}>
         <Providers>
           <ShopShell>{children}</ShopShell>
         </Providers>
