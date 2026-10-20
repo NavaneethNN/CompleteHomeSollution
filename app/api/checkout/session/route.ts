@@ -8,6 +8,7 @@ import { chargeToken, PayWayApiError } from "@/lib/payway";
 import { activateMembershipInTransaction } from "@/lib/membership";
 import { queueOrderConfirmation, queueRefundAction } from "@/lib/email-outbox";
 import { sendOrderConfirmationSms, sendOrderWhatsApp } from "@/lib/twilio";
+import { processDueEmailJobs } from "@/app/api/cron/send-email-jobs/route";
 import { getEligibleShip123Products, getShip123Rates } from "@/lib/ship123";
 import { createOnlinePayCheckout, getOnlinePayCheckout, OnlinePayCheckoutError, validateOnlinePayConfiguration } from "@/lib/onlinepay";
 import { shippingDestinationKey, verifyShippingQuoteToken } from "@/lib/shipping-quote";
@@ -742,11 +743,13 @@ export async function POST(req: NextRequest) {
     const phone = order.user?.phone ?? order.guestPhone;
 
     after(async () => {
-    if (phone) {
-      await sendOrderConfirmationSms(phone, order.id, order.total).catch(() => {});
-      await sendOrderWhatsApp(phone, order.id, order.total).catch(() => {});
-    }
-
+      if (phone) {
+        await sendOrderConfirmationSms(phone, order.id, order.total).catch(() => {});
+        await sendOrderWhatsApp(phone, order.id, order.total).catch(() => {});
+      }
+      await processDueEmailJobs().catch((err) => {
+        console.error("[checkout/session] Immediate email job processing failed", err);
+      });
     });
 
     return NextResponse.json({

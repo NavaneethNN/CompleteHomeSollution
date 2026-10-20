@@ -127,6 +127,8 @@ export async function sendVerificationEmail(
   });
 
   if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    console.error("[Brevo] Verification email delivery failed", { status: res.status, message: err?.message, code: err?.code });
     throw new Error(`Brevo API error (HTTP ${res.status})`);
   }
 }
@@ -150,7 +152,11 @@ async function sendTransactionalEmail(email: string, name: string, subject: stri
       to: [{ email, name }], subject, htmlContent,
     }),
   });
-  if (!response.ok) throw new Error(`Brevo API error (HTTP ${response.status})`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    console.error("[Brevo] Transactional email delivery failed", { status: response.status, message: err?.message, code: err?.code });
+    throw new Error(`Brevo API error (HTTP ${response.status})`);
+  }
 }
 
 export async function sendPasswordResetEmail(email: string, name: string, token: string): Promise<void> {

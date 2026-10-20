@@ -33,6 +33,7 @@ import { getOnlinePayCheckout, onlinePayPaymentFailed, onlinePayPaymentSucceeded
 import { activateMembershipInTransaction } from "@/lib/membership";
 import { queueOrderConfirmation, queueRefundAction } from "@/lib/email-outbox";
 import { sendOrderConfirmationSms, sendOrderWhatsApp } from "@/lib/twilio";
+import { processDueEmailJobs } from "@/app/api/cron/send-email-jobs/route";
 import { timingSafeEqual } from "crypto";
 import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
 
@@ -268,7 +269,9 @@ export async function GET(req: NextRequest, { params }: Params) {
         await sendOrderConfirmationSms(phone, order.id, order.total).catch(() => {});
         await sendOrderWhatsApp(phone, order.id, order.total).catch(() => {});
       }
-
+      await processDueEmailJobs().catch((err) => {
+        console.error("[poll-payment] Immediate email job processing failed", err);
+      });
     });
 
       return NextResponse.json({ status: "paid", orderId: order.id });

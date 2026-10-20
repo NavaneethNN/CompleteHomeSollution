@@ -18,17 +18,16 @@ const refundPayload = z.object({
   audience: z.enum(["customer", "admin"]),
 });
 
-export async function GET(req: NextRequest) {
-  if (!hasValidCronSecret(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function processDueEmailJobs(options?: { deadlineMs?: number; batchSize?: number }) {
   const now = new Date();
-  const deadline = Date.now() + 40_000;
+  const deadline = Date.now() + (options?.deadlineMs ?? 40_000);
   const due = await db.emailJob.findMany({
     where: { OR: [
       { status: "PENDING", nextAttemptAt: { lte: now } },
       { status: "CLAIMED", claimUntil: { lte: now } },
     ] },
     orderBy: [{ nextAttemptAt: "asc" }, { createdAt: "asc" }],
-    take: 20,
+    take: options?.batchSize ?? 20,
   });
   let sent = 0;
   let failed = 0;
@@ -140,5 +139,11 @@ export async function GET(req: NextRequest) {
       failed++;
     }
   }
-  return NextResponse.json({ checked: due.length, sent, failed });
+  return { checked: due.length, sent, failed };
+}
+
+export async function GET(req: NextRequest) {
+  if (!hasValidCronSecret(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await processDueEmailJobs();
+  return NextResponse.json(result);
 }

@@ -23,14 +23,18 @@ export async function sendEmail(params: SendEmailParams): Promise<void> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      sender: { email: "noreply@completehomesollution.com.au", name: "Complete Home Sollution" },
+      sender: {
+        email: process.env.BREVO_FROM_EMAIL || "noreply@completehomesollution.com.au",
+        name: process.env.BREVO_FROM_NAME || "Complete Home Sollution",
+      },
       ...params,
     }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
+    const error = await response.json().catch(() => null);
     if (response.status === 400 && params.headers?.idempotencyKey && error?.code === "duplicate_parameter") return;
+    console.error("[Brevo] Email delivery failed", { status: response.status, code: error?.code, message: error?.message });
     throw new Error(`Brevo email failed (HTTP ${response.status})`);
   }
 }
