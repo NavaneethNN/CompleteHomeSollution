@@ -338,7 +338,7 @@ export function AddressAutocomplete({
           aria-invalid={!!error}
           aria-describedby={error ? `${fieldId}-error` : undefined}
           type="text"
-          placeholder={isApiReady ? "Start typing your address..." : "Enter address manually..."}
+          placeholder="e.g. 123 Main Street"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={() => value.length >= 3 && suggestions.length > 0 && setShowSuggestions(true)}
@@ -376,12 +376,7 @@ export function AddressAutocomplete({
         </div>
       )}
       
-      {!isApiReady && loadError && (
-        <p className="text-xs text-amber-800">
-          Enter your street address manually.
-        </p>
-      )}
-      
+
       {error && (
         <p id={`${fieldId}-error`} role="alert" className="text-sm text-destructive">{error}</p>
       )}

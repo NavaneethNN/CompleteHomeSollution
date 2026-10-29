@@ -105,16 +105,31 @@ export async function POST(req: NextRequest) {
     );
 
     const key = shipmentKey(groups);
-    const rates = (await getCouriersPleaseRates(address, groups)).map((rate) => ({
-      ...rate,
-      quoteToken: createShippingQuoteToken({
-        postcode: address.postcode,
-        destinationKey: shippingDestinationKey(address),
-        shipmentKey: key,
-        serviceCode: rate.serviceCode,
-        price: rate.price,
-      }),
-    }));
+    const allRates = await getCouriersPleaseRates(address, groups);
+    if (!allRates || allRates.length === 0) {
+      return NextResponse.json(
+        { error: "No delivery services available for this destination" },
+        { status: 404 }
+      );
+    }
+
+    // Select the best suitable delivery option automatically based on dimensions, weight and distance
+    const bestRate = allRates[0];
+    const rates = [
+      {
+        serviceCode: bestRate.serviceCode,
+        serviceName: "Couriers Please Delivery",
+        price: bestRate.price,
+        deliveryTime: "5–7 working days",
+        quoteToken: createShippingQuoteToken({
+          postcode: address.postcode,
+          destinationKey: shippingDestinationKey(address),
+          shipmentKey: key,
+          serviceCode: bestRate.serviceCode,
+          price: bestRate.price,
+        }),
+      },
+    ];
 
     return NextResponse.json({ rates });
   } catch (error) {

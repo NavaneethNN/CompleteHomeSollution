@@ -77,7 +77,7 @@ export default async function CheckoutPage() {
           paymentAvailable={gateway !== null}
           savedAddresses={addresses || []}
           addressesError={addressError}
-          isAuthenticated={!!session}
+          isAuthenticated={!!session?.user?.id}
           userId={session?.user?.id}
           userProfile={userProfile}
           isMember={isMember}

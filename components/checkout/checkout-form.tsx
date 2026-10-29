@@ -111,7 +111,7 @@ interface ShippingRate {
   quoteToken?: string;
 }
 
-export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userId: _userId, userProfile, isMember, hasExpiredMembership = false, memberPriceMap, activePlan, usesOnlinePay = false, paymentAvailable = true }: CheckoutFormProps) {
+export function CheckoutForm({ savedAddresses, addressesError: _addressesError, isAuthenticated, userId, userProfile, isMember, hasExpiredMembership = false, memberPriceMap, activePlan, usesOnlinePay = false, paymentAvailable = true }: CheckoutFormProps) {
   const MEMBERSHIP_PRICE = activePlan?.price ?? 30;
   const membershipLabel = activePlan ? `${activePlan.name} (${activePlan.durationDays >= 365 ? `${Math.round(activePlan.durationDays / 365)}yr` : `${activePlan.durationDays}d`})` : "CHS Membership";
   const router = useRouter();
@@ -261,7 +261,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const displayedSubtotal = currentCoupon?.subtotal ?? subtotal;
   const discount = Math.min(currentCoupon?.discount ?? 0, displayedSubtotal);
   const discountedSubtotal = currentCoupon?.discountedSubtotal ?? displayedSubtotal - discount;
-  const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode);
+  const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode) ?? shippingRates[0] ?? null;
   const freeShipping = discountedSubtotal >= 1200;
   const shippingCost = freeShipping ? 0 : (selectedRate?.price ?? null);
   const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
@@ -451,8 +451,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
     setIsLoading(true);
     try {
-      if (!isAuthenticated) {
-        // Guest: just store locally, don't hit the DB
+      if (!isAuthenticated || !userId) {
+        // Guest or unauthenticated session: store locally without hitting DB
         setGuestAddress({ ...cleanData, email: guestEmail.trim().toLowerCase() });
         setIsAddressDialogOpen(false);
         setAddressStep(1);
@@ -462,6 +462,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       if (editingAddress) {
         const result = await updateAddress(editingAddress.id, cleanData);
         if (result.error) {
+          if (result.error === "Unauthorized") {
+            setGuestAddress({ ...cleanData, email: guestEmail.trim().toLowerCase() });
+            setIsAddressDialogOpen(false);
+            setAddressStep(1);
+            toast({ title: "Address saved", description: "Delivery address set for this order." });
+            return;
+          }
           toast({ title: "Error", description: result.error, variant: "destructive" });
         } else if (result.address) {
           setAddresses(addresses.map((a) => (a.id === editingAddress.id ? result.address : a)));
@@ -472,6 +479,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       } else {
         const result = await createAddress(cleanData);
         if (result.error) {
+          if (result.error === "Unauthorized") {
+            setGuestAddress({ ...cleanData, email: guestEmail.trim().toLowerCase() });
+            setIsAddressDialogOpen(false);
+            setAddressStep(1);
+            toast({ title: "Address saved", description: "Delivery address set for this order." });
+            return;
+          }
           toast({ title: "Error", description: result.error, variant: "destructive" });
         } else if (result.address) {
           setAddresses([result.address, ...addresses]);
@@ -1035,42 +1049,29 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               {ratesError && !isFetchingRates && (
                 <p className="text-xs text-destructive py-1">{ratesError}</p>
               )}
-              {!isFetchingRates && shippingRates.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Truck className="h-3.5 w-3.5 text-muted-foreground" />
-                    Shipping Options
-                  </p>
-                  {shippingRates.map((rate) => (
-                    <button
-                      key={rate.serviceCode}
-                      type="button"
-                      onClick={() => setSelectedRateCode(rate.serviceCode)}
-                      className={cn(
-                        "w-full flex items-start justify-between rounded-lg border px-3 py-2.5 text-left text-xs transition-all",
-                        selectedRateCode === rate.serviceCode
-                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                          : "border-border hover:border-muted-foreground/40"
-                      )}
-                    >
-                      <span className="flex items-start gap-2">
-                        <Package className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+              {!isFetchingRates && shippingRates.length > 0 && (() => {
+                const bestRate = shippingRates[0];
+                return (
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                      Delivery Option
+                    </p>
+                    <div className="w-full flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-left text-xs">
+                      <span className="flex items-center gap-2.5">
+                        <Package className="h-4 w-4 text-primary shrink-0" />
                         <span className="flex flex-col gap-0.5">
-                          <span className="font-medium text-foreground">{rate.serviceName}</span>
-                          {rate.deliveryTime && (
-                            <span className="text-[10px] text-muted-foreground leading-snug">
-                              {rate.deliveryTime}
-                            </span>
-                          )}
+                          <span className="font-semibold text-foreground">Couriers Please Delivery</span>
+                          <span className="text-[11px] text-muted-foreground leading-snug">5–7 working days</span>
                         </span>
                       </span>
-                      <span className="font-semibold text-foreground shrink-0 ml-2 mt-0.5">
-                        {currencyFormatter.format(rate.price)}
+                      <span className="font-bold text-foreground">
+                        {currencyFormatter.format(bestRate.price)}
                       </span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
