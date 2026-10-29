@@ -3,6 +3,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { ProductsClient } from "@/components/shop/products-client";
+import { PromoBannerCarousel } from "@/components/shop/promo-banner-carousel";
+import { getActivePromotions } from "@/lib/actions/promotions";
 import { hasActiveMembership } from "@/lib/membership";
 import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
@@ -99,10 +101,11 @@ async function getMemberStatus(userId?: string) {
 
 export default async function ProductsPage() {
   const session = await auth();
-  const [products, categories, isMember] = await Promise.all([
+  const [products, categories, isMember, promotions] = await Promise.all([
     getProducts(),
     getCategories(),
     getMemberStatus(session?.user?.id),
+    getActivePromotions(),
   ]);
 
   return (
@@ -121,6 +124,9 @@ export default async function ProductsPage() {
           </div>
         </div>
       </div>
+
+      {/* Promotional Banner Carousel */}
+      <PromoBannerCarousel promotions={promotions} className="pt-6" />
 
       {/* Products with Client-side Filtering */}
       <div className="container mx-auto px-4 md:px-6 xl:px-8 py-6 md:py-8">

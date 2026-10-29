@@ -21,6 +21,7 @@ import {
   FolderTree,
   BookOpen,
   Tag,
+  Megaphone,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Menu, X } from "lucide-react";
@@ -43,6 +44,7 @@ const NAV_GROUPS = [
   {
     label: "Content",
     items: [
+      { href: "/admin/promotions", label: "Posters & Banners", icon: Megaphone },
       { href: "/admin/blog", label: "Blog", icon: BookOpen },
     ],
   },

@@ -8,6 +8,9 @@ import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { AnimateIn } from "@/components/shared/animate-in";
+import { PromoPopup } from "@/components/shop/promo-popup";
+import { PromoBannerCarousel } from "@/components/shop/promo-banner-carousel";
+import { getActivePromotions } from "@/lib/actions/promotions";
 import {
   ArrowRight,
   Award,
@@ -159,14 +162,18 @@ function SectionHeading({ tag, title }: SectionHeadingProps) {
 
 export default async function HomePage() {
   const session = await auth();
-  const [trendingProducts, categories, isMember] = await Promise.all([
+  const [trendingProducts, categories, isMember, promotions] = await Promise.all([
     getTrendingProducts(),
     getCategories(),
     getMemberStatus(session?.user?.id),
+    getActivePromotions(),
   ]);
 
   return (
     <main>
+      {/* ── Pop-up Ad Placeholder ─────────────────────────────────── */}
+      <PromoPopup promotions={promotions} />
+
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section className="bg-[#f7f3ed] overflow-hidden">
         <div className="mx-auto grid max-w-[1500px] lg:min-h-[590px] lg:grid-cols-[46%_54%]">
@@ -217,6 +224,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Promotional Banner Carousel ──────────────────────────── */}
+      <PromoBannerCarousel promotions={promotions} className="pt-6 sm:pt-8" />
 
       {/* ── Shop By Category ──────────────────────────────────────── */}
       <section className="bg-white py-12 md:py-20">

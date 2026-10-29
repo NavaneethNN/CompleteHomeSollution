@@ -117,6 +117,7 @@ export const CACHE_KEYS = {
   productsAll: "products:all",
   categories: "categories:all",
   homeTrending: "home:trending:products",
+  promotions: "promotions:active",
   searchSuggest: (q: string) => `search:suggest:${q.trim().toLowerCase()}`,
   rateLimit: (identifier: string) => `rate_limit:${identifier}`,
 } as const;
@@ -129,6 +130,7 @@ export const CACHE_TTL = {
   productsAll: 60 * 30,          // 30 minutes
   categories: 60 * 60,           // 1 hour
   homeTrending: 60 * 15,         // 15 minutes
+  promotions: 60 * 15,           // 15 minutes
   searchSuggest: 60 * 10,        // 10 minutes
 } as const;
 
