@@ -22,6 +22,7 @@ export async function RecommendedProducts({
           categoryId,
           id: { not: currentProductId },
           isActive: true,
+          isPreOrder: false,
         },
         select: {
           id: true,

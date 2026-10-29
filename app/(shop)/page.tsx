@@ -186,7 +186,7 @@ export default async function HomePage() {
                   Explore furniture <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link href="/categories" className="inline-flex min-h-12 items-center gap-2 text-sm font-semibold text-foreground underline decoration-primary/50 underline-offset-8 hover:text-primary">
-                  Shop by room <ArrowRight className="h-4 w-4" />
+                  Shop by Categories <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
               <p className="mt-8 flex items-center gap-2 text-xs font-medium text-muted-foreground"><Truck className="h-4 w-4 text-primary" /> Delivery options across Australia</p>
@@ -222,7 +222,7 @@ export default async function HomePage() {
       <section className="bg-white py-12 md:py-20">
         <div className="container mx-auto px-5 md:px-6 xl:px-8">
           <AnimateIn variant="fade-up">
-            <SectionHeading tag="Find your space" title="Shop by room" />
+            <SectionHeading tag="Find your space" title="Shop by Categories" />
           </AnimateIn>
           <AnimateIn variant="fade-in" delay={150}>
             <CategorySlider categories={categories} />

@@ -249,21 +249,25 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
             <p className="text-[10px] sm:text-xs text-muted-foreground">{product.material}</p>
           )}
 
-          <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-            <span className="text-sm sm:text-base font-bold text-foreground">
-              ${displayPrice.toLocaleString()}
-            </span>
-            {hasDiscount && (
-              <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
-                ${displayComparePrice.toLocaleString()}
-              </span>
-            )}
-          </div>
+          {!product.isPreOrder && (
+            <>
+              <div className="mt-1 flex items-baseline gap-2 flex-wrap">
+                <span className="text-sm sm:text-base font-bold text-foreground">
+                  ${displayPrice.toLocaleString()}
+                </span>
+                {hasDiscount && (
+                  <span className="text-[10px] sm:text-xs text-muted-foreground line-through">
+                    ${displayComparePrice.toLocaleString()}
+                  </span>
+                )}
+              </div>
 
-          {displayMemberPrice && (
-            <p className="text-[10px] sm:text-xs text-primary font-semibold">
-              Member: ${displayMemberPrice.toLocaleString()}
-            </p>
+              {displayMemberPrice && (
+                <p className="text-[10px] sm:text-xs text-primary font-semibold">
+                  Member: ${displayMemberPrice.toLocaleString()}
+                </p>
+              )}
+            </>
           )}
 
           {!product.isPreOrder && displayStock > 0 && displayStock <= 5 && (

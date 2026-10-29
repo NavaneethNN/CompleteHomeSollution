@@ -249,30 +249,34 @@ export default async function ProductDetailPage({
                 </div>
               )}
 
-              {/* Price */}
-              <div className="border-y border-border/70 py-3 sm:py-4">
-                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-                  <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">${product.basePrice.toLocaleString()}</span>
-                  {product.comparePrice && product.comparePrice > product.basePrice && (
-                    <>
-                      <span className="text-sm sm:text-base text-muted-foreground line-through">${product.comparePrice.toLocaleString()}</span>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                        Save {Math.round(((product.comparePrice - product.basePrice) / product.comparePrice) * 100)}%
-                      </span>
-                    </>
-                  )}
-                </div>
-                {product.memberPrice && (
-                  <p className="mt-1.5 text-xs sm:text-sm text-primary font-medium">
-                    Member price: ${product.memberPrice.toLocaleString()}
-                    <span className="text-xs text-muted-foreground font-normal ml-1">(Save ${(product.basePrice - product.memberPrice).toLocaleString()})</span>
-                  </p>
-                )}
-              </div>
+              {/* Price (hidden for pre-order custom products) */}
+              {!product.isPreOrder && (
+                <>
+                  <div className="border-y border-border/70 py-3 sm:py-4">
+                    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                      <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">${product.basePrice.toLocaleString()}</span>
+                      {product.comparePrice && product.comparePrice > product.basePrice && (
+                        <>
+                          <span className="text-sm sm:text-base text-muted-foreground line-through">${product.comparePrice.toLocaleString()}</span>
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                            Save {Math.round(((product.comparePrice - product.basePrice) / product.comparePrice) * 100)}%
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {product.memberPrice && (
+                      <p className="mt-1.5 text-xs sm:text-sm text-primary font-medium">
+                        Member price: ${product.memberPrice.toLocaleString()}
+                        <span className="text-xs text-muted-foreground font-normal ml-1">(Save ${(product.basePrice - product.memberPrice).toLocaleString()})</span>
+                      </p>
+                    )}
+                  </div>
 
-              {/* Membership Upsell for Non-Members */}
-              {!isMember && potentialSavings > 0 && (
-                <MembershipUpsellBanner savings={potentialSavings} />
+                  {/* Membership Upsell for Non-Members */}
+                  {!isMember && potentialSavings > 0 && (
+                    <MembershipUpsellBanner savings={potentialSavings} />
+                  )}
+                </>
               )}
 
               {/* SKU / Stock */}

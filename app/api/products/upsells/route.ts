@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
         where: {
           id: { notIn: excludeIds },
           isActive: true,
+          isPreOrder: false,
           OR: [
             { categoryId: { in: categoryIds } },
             // Cross-category recommendations (e.g., if buying furniture, suggest accessories)
@@ -52,6 +53,7 @@ export async function GET(req: NextRequest) {
         where: {
           id: { notIn: excludeIds },
           isActive: true,
+          isPreOrder: false,
         },
         include: {
           category: { select: { name: true } },

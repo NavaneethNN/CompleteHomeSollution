@@ -100,60 +100,64 @@ export function ProductPopupModal({
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-1">
-              <div className="flex items-baseline gap-2.5">
-                <span className="text-2xl sm:text-3xl font-black text-foreground">
-                  ${unitPrice.toLocaleString()}
-                </span>
-                {memberPrice ? (
-                  <span className="text-xs sm:text-sm text-primary font-semibold">
-                    Member: ${memberPrice.toLocaleString()}
-                  </span>
-                ) : null}
-              </div>
+            {!product.isPreOrder && (
+              <>
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-2xl sm:text-3xl font-black text-foreground">
+                      ${unitPrice.toLocaleString()}
+                    </span>
+                    {memberPrice ? (
+                      <span className="text-xs sm:text-sm text-primary font-semibold">
+                        Member: ${memberPrice.toLocaleString()}
+                      </span>
+                    ) : null}
+                  </div>
 
-              {product.variantLabel ? (
-                <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {product.variantLabel}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="rounded-xl sm:rounded-2xl border border-border bg-secondary/40 p-3 sm:p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs sm:text-sm font-semibold text-foreground">Quantity</p>
-                  <p className="text-[11px] sm:text-xs text-muted-foreground">Default starts at 1.</p>
+                  {product.variantLabel ? (
+                    <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      {product.variantLabel}
+                    </p>
+                  ) : null}
                 </div>
-                <div className="flex items-center rounded-xl border border-border bg-white shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-                    className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:text-muted-foreground"
-                    disabled={isOutOfStock}
-                    aria-label="Decrease quantity"
-                  >
-                    <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </button>
-                  <span className="min-w-9 sm:min-w-12 px-2 sm:px-3 text-center text-xs sm:text-sm font-bold text-foreground">
-                    {quantity}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setQuantity((current) => Math.min(current + 1, product.stock || current + 1))}
-                    className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:text-muted-foreground"
-                    disabled={isOutOfStock}
-                    aria-label="Increase quantity"
-                  >
-                    <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </button>
-                </div>
-              </div>
 
-              {stockMessage ? (
-                <p className={cn("mt-2 text-xs sm:text-sm font-medium", stockMessageTone === "destructive" ? "text-destructive" : "text-amber-600")}>{stockMessage}</p>
-              ) : null}
-            </div>
+                <div className="rounded-xl sm:rounded-2xl border border-border bg-secondary/40 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs sm:text-sm font-semibold text-foreground">Quantity</p>
+                      <p className="text-[11px] sm:text-xs text-muted-foreground">Default starts at 1.</p>
+                    </div>
+                    <div className="flex items-center rounded-xl border border-border bg-white shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                        className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:text-muted-foreground"
+                        disabled={isOutOfStock}
+                        aria-label="Decrease quantity"
+                      >
+                        <Minus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      </button>
+                      <span className="min-w-9 sm:min-w-12 px-2 sm:px-3 text-center text-xs sm:text-sm font-bold text-foreground">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((current) => Math.min(current + 1, product.stock || current + 1))}
+                        className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:text-muted-foreground"
+                        disabled={isOutOfStock}
+                        aria-label="Increase quantity"
+                      >
+                        <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {stockMessage ? (
+                    <p className={cn("mt-2 text-xs sm:text-sm font-medium", stockMessageTone === "destructive" ? "text-destructive" : "text-amber-600")}>{stockMessage}</p>
+                  ) : null}
+                </div>
+              </>
+            )}
 
             <div className="mt-auto flex flex-col gap-2 pt-1 sm:pt-2">
               {product.isPreOrder ? (

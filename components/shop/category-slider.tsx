@@ -55,7 +55,7 @@ export function CategorySlider({ categories }: { readonly categories: Category[]
       <div
         ref={trackRef}
         onScroll={updatePosition}
-        aria-label="Shop by room categories"
+        aria-label="Shop by categories"
         className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {items.map((category) => (

@@ -142,33 +142,37 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
               {product.description}
             </p>
 
-            {(() => {
-              const hasMemberPrice = isMember && product.memberPrice != null && product.memberPrice > 0 && product.memberPrice < product.price;
-              const displayPrice = hasMemberPrice ? product.memberPrice! : product.price;
-              return (
-                <>
-                  <div className="mt-3 flex items-baseline gap-2 flex-wrap">
-                    <span className="text-base sm:text-lg font-bold text-foreground">
-                      ${displayPrice.toLocaleString()}
-                    </span>
-                    {hasMemberPrice ? (
-                      <span className="text-xs text-muted-foreground line-through">${product.price.toLocaleString()}</span>
-                    ) : product.originalPrice > product.price ? (
-                      <span className="text-xs text-muted-foreground line-through">${product.originalPrice.toLocaleString()}</span>
-                    ) : null}
-                  </div>
-                  {hasMemberPrice && (
-                    <p className="text-xs text-primary font-semibold mt-0.5">Member price applied</p>
-                  )}
-                </>
-              );
-            })()}
+            {!product.isPreOrder && (
+              <>
+                {(() => {
+                  const hasMemberPrice = isMember && product.memberPrice != null && product.memberPrice > 0 && product.memberPrice < product.price;
+                  const displayPrice = hasMemberPrice ? product.memberPrice! : product.price;
+                  return (
+                    <>
+                      <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                        <span className="text-base sm:text-lg font-bold text-foreground">
+                          ${displayPrice.toLocaleString()}
+                        </span>
+                        {hasMemberPrice ? (
+                          <span className="text-xs text-muted-foreground line-through">${product.price.toLocaleString()}</span>
+                        ) : product.originalPrice > product.price ? (
+                          <span className="text-xs text-muted-foreground line-through">${product.originalPrice.toLocaleString()}</span>
+                        ) : null}
+                      </div>
+                      {hasMemberPrice && (
+                        <p className="text-xs text-primary font-semibold mt-0.5">Member price applied</p>
+                      )}
+                    </>
+                  );
+                })()}
 
-            {/* Stock indicator */}
-            {product.stock > 0 && product.stock <= 5 && (
-              <p className="mt-2 text-xs text-amber-600 font-medium">
-                Only {product.stock} left!
-              </p>
+                {/* Stock indicator */}
+                {product.stock > 0 && product.stock <= 5 && (
+                  <p className="mt-2 text-xs text-amber-600 font-medium">
+                    Only {product.stock} left!
+                  </p>
+                )}
+              </>
             )}
           </div>
 

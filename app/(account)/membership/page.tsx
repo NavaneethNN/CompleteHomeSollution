@@ -7,19 +7,8 @@ import { enforceExpiry, hasActiveMembership } from "@/lib/membership";
 import { MembershipAutopayControls } from "@/components/account/membership-autopay-controls";
 import {
   Crown, CheckCircle2, ShieldCheck, Tag, Zap,
-  CalendarDays, ChevronRight, LayoutDashboard, Package,
-  UserCircle, MapPin, ArrowRight, Sparkles, AlertCircle, XCircle,
+  CalendarDays, ChevronRight, ArrowRight, Sparkles, AlertCircle, XCircle, Package,
 } from "lucide-react";
-
-export const metadata: Metadata = { title: "Membership — Complete Home Sollution" };
-
-const NAV_LINKS = [
-  { label: "Dashboard",  href: "/account/dashboard",  Icon: LayoutDashboard },
-  { label: "My Orders",  href: "/account/orders",     Icon: Package },
-  { label: "Membership", href: "/account/membership", Icon: Crown },
-  { label: "Profile",    href: "/account/profile",    Icon: UserCircle },
-  { label: "Addresses",  href: "/account/addresses",  Icon: MapPin },
-] as const;
 
 const currencyFmt = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 0 });
 
@@ -70,56 +59,23 @@ export default async function MembershipPage() {
     ...BASE_PERKS,
   ];
 
-  const initials = user.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-    : (user.email?.[0] ?? "U").toUpperCase();
-
   const isCancelled = dbUser?.membershipStatus === "CANCELLED";
   const isPaymentFailed = dbUser?.membershipStatus === "REVOKED_PAYMENT_FAILURE";
 
   return (
     <div className="min-h-screen bg-secondary/30">
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 xl:px-10 py-8 lg:py-12">
-        <div className="flex flex-col lg:flex-row gap-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 xl:px-10 py-8 lg:py-12">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <Link href="/account/dashboard" className="hover:text-primary transition-colors">
+            Dashboard
+          </Link>
+          <ChevronRight className="h-3.5 w-3.5" />
+          <span className="text-foreground font-medium">Membership</span>
+        </div>
 
-          {/* ── Sidebar ── */}
-          <aside className="lg:w-60 xl:w-64 shrink-0">
-            <div
-              className="rounded-2xl p-6 mb-4 flex flex-col items-center text-center text-white"
-              style={{ backgroundColor: "var(--navy)" }}
-            >
-              <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center ring-4 ring-white/20 mb-3">
-                <span className="text-2xl font-black text-white">{initials}</span>
-              </div>
-              <p className="font-bold text-base leading-tight">{user.name ?? "Welcome"}</p>
-              <p className="text-white/55 text-xs mt-0.5 truncate max-w-full">{user.email}</p>
-              {isMember && (
-                <span className="mt-3 inline-flex items-center gap-1 bg-amber-400/20 text-amber-300 text-[11px] font-bold px-3 py-1 rounded-full">
-                  <Crown className="h-3 w-3" /> MEMBER
-                </span>
-              )}
-            </div>
-            <nav className="bg-white rounded-2xl overflow-hidden border border-border shadow-sm">
-              {NAV_LINKS.map(({ label, href, Icon }, i) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`flex items-center gap-3 px-4 py-3.5 text-sm font-medium transition-colors group
-                    ${href === "/account/membership"
-                      ? "bg-primary/8 text-primary border-l-[3px] border-primary"
-                      : "text-foreground hover:bg-secondary hover:text-primary border-l-[3px] border-transparent"}
-                    ${i !== 0 ? "border-t border-border" : ""}`}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {label}
-                  <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-40 group-hover:opacity-100 transition-opacity" />
-                </Link>
-              ))}
-            </nav>
-          </aside>
-
-          {/* ── Main content ── */}
-          <main className="flex-1 min-w-0 space-y-6">
+        {/* ── Main content ── */}
+        <main className="space-y-6">
 
             {/* Status alerts for past cancellations / revocations */}
             {!isMember && isPaymentFailed && (
@@ -345,7 +301,6 @@ export default async function MembershipPage() {
             )}
 
           </main>
-        </div>
       </div>
     </div>
   );

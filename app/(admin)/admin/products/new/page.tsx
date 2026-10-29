@@ -800,7 +800,7 @@ export default function NewProductPage() {
 
     // Validate prices are not negative
     const basePriceNum = parseFloat(basePrice);
-    if (basePriceNum < 0) {
+    if (!isPreOrder && basePrice && basePriceNum < 0) {
       toast.error("Selling price cannot be negative");
       return;
     }
@@ -858,7 +858,7 @@ export default function NewProductPage() {
         basePrice: parseFloat(basePrice) || 0,
         comparePrice: comparePrice ? parseFloat(comparePrice) : undefined,
         memberPrice: memberPrice ? parseFloat(memberPrice) : undefined,
-        stock: parseInt(stock) || 0,
+        stock: isPreOrder ? 0 : (parseInt(stock) || 0),
         sku,
         categoryId,
         material: material || undefined,

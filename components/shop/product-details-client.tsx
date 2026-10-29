@@ -221,30 +221,32 @@ export function ProductDetailsClient({
           </div>
         )}
 
-        {/* Pricing */}
-        <div className="border-y border-border/70 py-3 sm:py-4">
-          <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-            <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              {money(displayPrice)}
-            </span>
-            {displayComparePrice != null && displayComparePrice > displayPrice && (
-              <>
-                <span className="text-sm sm:text-base text-muted-foreground line-through">
-                  {money(displayComparePrice)}
-                </span>
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                  Save {Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)}%
-                </span>
-              </>
+        {/* Pricing (hidden for pre-order custom products) */}
+        {!product.isPreOrder && (
+          <div className="border-y border-border/70 py-3 sm:py-4">
+            <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {money(displayPrice)}
+              </span>
+              {displayComparePrice != null && displayComparePrice > displayPrice && (
+                <>
+                  <span className="text-sm sm:text-base text-muted-foreground line-through">
+                    {money(displayComparePrice)}
+                  </span>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                    Save {Math.round(((displayComparePrice - displayPrice) / displayComparePrice) * 100)}%
+                  </span>
+                </>
+              )}
+            </div>
+            {displayMemberPrice != null && displayMemberPrice < displayPrice && (
+              <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
+                <span className="font-semibold text-primary">{money(displayMemberPrice)} member price</span>
+                {" · "}save {money(displayPrice - displayMemberPrice)}
+              </p>
             )}
           </div>
-          {displayMemberPrice != null && displayMemberPrice < displayPrice && (
-            <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground">
-              <span className="font-semibold text-primary">{money(displayMemberPrice)} member price</span>
-              {" · "}save {money(displayPrice - displayMemberPrice)}
-            </p>
-          )}
-        </div>
+        )}
 
         {/* Variant Selector — Positioned immediately under price so mobile customers don't have to scroll */}
         <div className="pt-0.5">
