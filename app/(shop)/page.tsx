@@ -121,7 +121,7 @@ async function getTrendingProducts() {
             discount, reviews: p._count.reviews, variantId: variant?.id ?? null,
             sku: variant?.sku ?? p.sku, variantLabel, hasVariants: p.hasVariants, img: image,
             description: p.description, memberPrice: variant?.memberPrice ?? p.memberPrice,
-            stock, category: p.category,
+            stock, isPreOrder: p.isPreOrder ?? false, category: p.category,
           };
         });
       }

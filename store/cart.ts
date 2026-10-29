@@ -11,6 +11,7 @@ export interface CartProduct {
   images: string[];
   stock: number;
   description?: string;
+  isPreOrder?: boolean;
   variantId?: string | null;
   variantLabel?: string;
 }
@@ -41,7 +42,7 @@ export const useCartStore = create<CartState>()(
       items: [],
 
       addItem: (product, quantity = 1) => {
-        if (!Number.isInteger(quantity) || quantity <= 0 || product.stock <= 0) return;
+        if (!Number.isInteger(quantity) || quantity <= 0 || product.stock <= 0 || (product as any).isPreOrder) return;
         set((state) => {
           const key = getCartItemKey(product.id, product.variantId ?? null);
           const existing = state.items.find(

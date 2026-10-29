@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import { Minus, Plus, ShoppingBag } from "lucide-react";
+import { Minus, Plus, ShoppingBag, PhoneCall } from "lucide-react";
+import { STORE_PHONE } from "@/lib/store-info";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ export interface ProductPopupModalProduct {
   images: string[];
   stock: number;
   description?: string;
+  isPreOrder?: boolean;
   variantId?: string | null;
   variantLabel?: string;
 }
@@ -154,20 +156,30 @@ export function ProductPopupModal({
             </div>
 
             <div className="mt-auto flex flex-col gap-2 pt-1 sm:pt-2">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                disabled={isOutOfStock}
-                className={cn(
-                  "inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold transition-all duration-200 shadow-md",
-                  isOutOfStock
-                    ? "cursor-not-allowed bg-muted text-muted-foreground"
-                    : "bg-primary text-white hover:bg-primary/90"
-                )}
-              >
-                <ShoppingBag className="h-4 w-4" />
-                {isOutOfStock ? "Out of Stock" : confirmLabel}
-              </button>
+              {product.isPreOrder ? (
+                <a
+                  href={`tel:${STORE_PHONE}`}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold transition-all duration-200 shadow-md bg-primary text-white hover:bg-primary/90"
+                >
+                  <PhoneCall className="h-4 w-4" />
+                  Call & Customize
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={isOutOfStock}
+                  className={cn(
+                    "inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold transition-all duration-200 shadow-md",
+                    isOutOfStock
+                      ? "cursor-not-allowed bg-muted text-muted-foreground"
+                      : "bg-primary text-white hover:bg-primary/90"
+                  )}
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  {isOutOfStock ? "Out of Stock" : confirmLabel}
+                </button>
+              )}
             </div>
           </div>
         </div>

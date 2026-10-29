@@ -430,6 +430,7 @@ const createProductSchema = z.object({
   material: z.string().optional(),
   roomType: z.string().optional(),
   categoryId: z.string().min(1, "Category is required"),
+  isPreOrder: z.boolean().default(false),
   hasVariants: z.boolean().default(false),
   weight: z.number().positive().optional(),
   length: z.number().positive().optional(),
@@ -453,6 +454,7 @@ export async function createProduct(data: {
   material?: string;
   roomType?: string;
   categoryId: string;
+  isPreOrder?: boolean;
   hasVariants?: boolean;
   weight?: number;
   length?: number;
@@ -509,6 +511,7 @@ export async function updateProduct(
     roomType: string | null;
     categoryId: string;
     isActive: boolean;
+    isPreOrder: boolean;
     weight: number | null;
     length: number | null;
     width: number | null;

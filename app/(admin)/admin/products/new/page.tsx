@@ -452,6 +452,7 @@ export default function NewProductPage() {
   const [material, setMaterial] = useState("");
   const [roomType, setRoomType] = useState("");
   const [isActive, setIsActive] = useState(true);
+  const [isPreOrder, setIsPreOrder] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [images, setImages] = useState<string[]>([]);
 
@@ -517,6 +518,7 @@ export default function NewProductPage() {
         setMaterial(p.material || "");
         setRoomType(p.roomType || "");
         setIsActive(p.isActive);
+        setIsPreOrder(p.isPreOrder ?? false);
         setHasVariants(p.hasVariants);
         setImages(p.images || []);
         setWeight(p.weight?.toString() || "");
@@ -862,6 +864,7 @@ export default function NewProductPage() {
         material: material || undefined,
         roomType: roomType || undefined,
         isActive,
+        isPreOrder,
         hasVariants,
         images,
         weight: weight ? parseFloat(weight) : undefined,
@@ -1015,12 +1018,12 @@ export default function NewProductPage() {
       {/* Basic Info Tab */}
       {activeTab === "basic" && (
         <div className="space-y-6">
-          {/* Product Status */}
+          {/* Product Status & Options */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Product Status</CardTitle>
+              <CardTitle className="text-base">Product Status & Options</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Active Product</Label>
@@ -1029,6 +1032,21 @@ export default function NewProductPage() {
                   </p>
                 </div>
                 <Switch checked={isActive} onCheckedChange={setIsActive} />
+              </div>
+
+              <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-semibold text-slate-900">Pre-Order only</Label>
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 text-[10px]">
+                      Call & Customize
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-500">
+                    When enabled, shows "Call & Customize" button instead of "Add to Cart". Stock tracking is disabled.
+                  </p>
+                </div>
+                <Switch checked={isPreOrder} onCheckedChange={setIsPreOrder} />
               </div>
             </CardContent>
           </Card>
@@ -1232,17 +1250,24 @@ export default function NewProductPage() {
                 </div>
 
                 {!hasVariants && (
-                  <div className="space-y-2">
-                    <Label htmlFor="stock">Stock Quantity</Label>
-                    <Input
-                      id="stock"
-                      type="number"
-                      min="0"
-                      value={stock}
-                      onChange={(e) => setStock(e.target.value)}
-                      placeholder="0"
-                    />
-                  </div>
+                  isPreOrder ? (
+                    <div className="rounded-lg bg-amber-50 border border-amber-200/80 p-3 text-xs text-amber-800">
+                      <p className="font-semibold text-amber-900">Pre-Order Product</p>
+                      <p className="mt-0.5 text-amber-700">Stock tracking and inventory limits are disabled. Customers will see "Call & Customize".</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label htmlFor="stock">Stock Quantity</Label>
+                      <Input
+                        id="stock"
+                        type="number"
+                        min="0"
+                        value={stock}
+                        onChange={(e) => setStock(e.target.value)}
+                        placeholder="0"
+                      />
+                    </div>
+                  )
                 )}
 
                 <div className="grid grid-cols-2 gap-4">

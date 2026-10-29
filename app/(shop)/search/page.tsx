@@ -185,6 +185,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                       description:   "",
                       memberPrice:   memberP,
                       stock:         0,
+                      isPreOrder:    p.isPreOrder ?? false,
                       category:      p.category,
                     }}
                   />

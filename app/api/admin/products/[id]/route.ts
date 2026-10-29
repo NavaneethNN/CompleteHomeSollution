@@ -79,6 +79,7 @@ const updateProductSchema = z.object({
   material: z.string().optional().nullable(),
   roomType: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
+  isPreOrder: z.boolean().optional(),
   hasVariants: z.boolean().optional(),
   images: z.array(z.string())
     .max(MAX_IMAGES_COUNT, `Maximum ${MAX_IMAGES_COUNT} images allowed`)
@@ -213,6 +214,7 @@ export async function PUT(
       if (data.material !== undefined) updateData.material = data.material;
       if (data.roomType !== undefined) updateData.roomType = data.roomType;
       if (data.isActive !== undefined) updateData.isActive = data.isActive;
+      if (data.isPreOrder !== undefined) updateData.isPreOrder = data.isPreOrder;
       if (data.hasVariants !== undefined) updateData.hasVariants = data.hasVariants;
       if (data.images !== undefined) updateData.images = data.images;
       if (data.weight !== undefined) updateData.weight = data.weight;

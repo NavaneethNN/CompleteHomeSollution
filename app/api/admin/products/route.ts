@@ -80,6 +80,7 @@ const createProductSchema = z.object({
   material: z.string().optional().nullable(),
   roomType: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
+  isPreOrder: z.boolean().default(false),
   hasVariants: z.boolean().default(false),
   images: z.array(z.string())
     .max(MAX_IMAGES_COUNT, `Maximum ${MAX_IMAGES_COUNT} images allowed`)
@@ -217,6 +218,7 @@ export async function POST(req: Request) {
           material: data.material,
           roomType: data.roomType,
           isActive: data.isActive,
+          isPreOrder: data.isPreOrder ?? false,
           hasVariants: data.hasVariants,
           images: data.images,
           weight: data.weight,

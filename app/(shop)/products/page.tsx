@@ -47,6 +47,7 @@ async function getProducts() {
           images: p.images,
           material: p.material,
           hasVariants: p.hasVariants,
+          isPreOrder: p.isPreOrder ?? false,
           category: p.category,
           reviewCount: p._count.reviews,
           variant: p.hasVariants && p.productVariants[0] ? {

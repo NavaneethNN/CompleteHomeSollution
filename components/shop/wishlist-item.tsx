@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, ShoppingCart, Trash2, Heart, Package, AlertCircle } from "lucide-react";
+import { Check, ShoppingCart, Trash2, Heart, Package, AlertCircle, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { STORE_PHONE } from "@/lib/store-info";
 import { useCartStore } from "@/store/cart";
 import { useWishlistStore, type WishlistProduct } from "@/store/wishlist";
 import { ProductPopupModal, type ProductPopupModalProduct } from "./product-popup-modal";
@@ -36,6 +37,7 @@ export function WishlistItem({ product }: WishlistItemProps) {
     memberPrice: product.memberPrice,
     images: [image],
     stock: product.stock,
+    isPreOrder: product.isPreOrder,
     description: product.description,
     variantId: product.variantId ?? null,
     variantLabel: product.variantLabel,
@@ -165,22 +167,32 @@ export function WishlistItem({ product }: WishlistItemProps) {
 
             {/* Action Button */}
             <div className="mt-3 sm:mt-4">
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isInCart && !outOfStock) {
-                    setMoveOpen(true);
-                  }
-                }}
-                disabled={outOfStock || isInCart}
-                className={cn(
-                  "w-full inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl px-2 py-2.5 sm:py-3 text-[11px] sm:text-xs font-bold transition-colors min-h-[40px] sm:min-h-[44px]",
-                  addToCartClassName
-                )}
-              >
-                {addToCartIcon}
-                {addToCartLabel}
-              </button>
+              {product.isPreOrder ? (
+                <a
+                  href={`tel:${STORE_PHONE}`}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl px-2 py-2.5 sm:py-3 text-[11px] sm:text-xs font-bold transition-colors min-h-[40px] sm:min-h-[44px] bg-primary text-white hover:bg-primary/90 shadow-md"
+                >
+                  <PhoneCall className="h-3.5 w-3.5" />
+                  Call & Customize
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isInCart && !outOfStock) {
+                      setMoveOpen(true);
+                    }
+                  }}
+                  disabled={outOfStock || isInCart}
+                  className={cn(
+                    "w-full inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl px-2 py-2.5 sm:py-3 text-[11px] sm:text-xs font-bold transition-colors min-h-[40px] sm:min-h-[44px]",
+                    addToCartClassName
+                  )}
+                >
+                  {addToCartIcon}
+                  {addToCartLabel}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -13,7 +13,8 @@ import { RecommendedProducts } from "@/components/shop/recommended-products";
 import { WishlistToggleButton } from "@/components/shop/wishlist-toggle-button";
 import { MembershipUpsellBanner } from "@/components/shop/membership-upsell-banner";
 import { ProductAssurance } from "@/components/shop/product-assurance";
-import { Star, Check } from "lucide-react";
+import { Star, Check, PhoneCall, Sparkles } from "lucide-react";
+import { STORE_PHONE, STORE_PHONE_DISPLAY } from "@/lib/store-info";
 
 export const revalidate = 3600;
 
@@ -208,6 +209,7 @@ export default async function ProductDetailPage({
               width: product.width,
               height: product.height,
               category: { name: product.category.name, slug: product.category.slug },
+              isPreOrder: product.isPreOrder ?? false,
               reviewCount: product._count.reviews,
               avgRating,
             }}
@@ -275,30 +277,54 @@ export default async function ProductDetailPage({
 
               {/* SKU / Stock */}
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm pt-1">
-                <span className={product.stock > 0 ? "font-medium text-emerald-800" : "font-medium text-destructive"}>
-                  {product.stock > 0 ? `● In Stock (${product.stock} available)` : "● Out of Stock"}
-                </span>
+                {product.isPreOrder ? (
+                  <span className="inline-flex items-center gap-1.5 font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs">
+                    <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+                    Pre-Order Only • Custom Made to Order
+                  </span>
+                ) : (
+                  <span className={product.stock > 0 ? "font-medium text-emerald-800" : "font-medium text-destructive"}>
+                    {product.stock > 0 ? `● In Stock (${product.stock} available)` : "● Out of Stock"}
+                  </span>
+                )}
                 <span className="text-xs text-muted-foreground">SKU: {product.sku}</span>
               </div>
 
-              {/* Add to Cart */}
-              <div>
-                <AddToCartButton
-                  product={{
-                    id: product.id,
-                    name: product.name,
-                    slug: product.slug,
-                    price: product.basePrice ?? 0,
-                    memberPrice: product.memberPrice ?? null,
-                    images: productImages,
-                    stock: product.stock ?? 0,
-                    description: product.description ?? "",
-                  }}
-                  disabled={!product.stock || product.stock <= 0}
-                  hasVariants={false}
-                />
-              </div>
-              <p className="text-center text-[11px] sm:text-xs text-muted-foreground">Shipping options are calculated from your address at checkout.</p>
+              {/* Add to Cart or Call & Customize */}
+              {product.isPreOrder ? (
+                <div className="space-y-2">
+                  <a
+                    href={`tel:${STORE_PHONE}`}
+                    className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-sm font-bold bg-primary text-white hover:bg-primary/90 shadow-md transition-all duration-200 hover:scale-[1.01]"
+                  >
+                    <PhoneCall className="h-4 w-4" />
+                    Call & Customize
+                  </a>
+                  <p className="text-center text-[11px] sm:text-xs text-muted-foreground">
+                    This product is built to order. Call us directly ({STORE_PHONE_DISPLAY}) to discuss custom sizes, materials, and delivery.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <AddToCartButton
+                      product={{
+                        id: product.id,
+                        name: product.name,
+                        slug: product.slug,
+                        price: product.basePrice ?? 0,
+                        memberPrice: product.memberPrice ?? null,
+                        images: productImages,
+                        stock: product.stock ?? 0,
+                        description: product.description ?? "",
+                      }}
+                      disabled={!product.stock || product.stock <= 0}
+                      hasVariants={false}
+                    />
+                  </div>
+                  <p className="text-center text-[11px] sm:text-xs text-muted-foreground">Shipping options are calculated from your address at checkout.</p>
+                </>
+              )}
 
               {/* Description */}
               {product.description.trim() && (

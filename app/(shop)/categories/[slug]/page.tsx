@@ -55,6 +55,7 @@ async function getCategory(slug: string) {
             material: p.material,
             roomType: p.roomType,
             hasVariants: p.hasVariants,
+            isPreOrder: p.isPreOrder ?? false,
             category: { name: category.name, slug: category.slug },
             reviewCount: p._count.reviews,
             variant: p.hasVariants && p.productVariants[0] ? {

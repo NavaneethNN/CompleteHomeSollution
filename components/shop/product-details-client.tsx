@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Star, Check } from "lucide-react";
+import { Star, Check, PhoneCall, Sparkles } from "lucide-react";
+import { STORE_PHONE, STORE_PHONE_DISPLAY } from "@/lib/store-info";
 import Link from "next/link";
 import { ProductGallery } from "./product-gallery";
 import { ProductAssurance } from "./product-assurance";
@@ -76,6 +77,7 @@ interface ProductDetailsClientProps {
     width?: number | null;
     height?: number | null;
     category?: { name: string; slug: string };
+    isPreOrder?: boolean;
     reviewCount?: number;
     avgRating?: number | null;
   };
@@ -267,35 +269,59 @@ export function ProductDetailsClient({
 
         {/* Stock & SKU */}
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm pt-1">
-          <span className={displayStock > 0 ? "font-medium text-emerald-800" : "font-medium text-destructive"}>
-            {displayStock > 0 ? `● In stock (${displayStock} available)` : "● Out of stock"}
-          </span>
+          {product.isPreOrder ? (
+            <span className="inline-flex items-center gap-1.5 font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full text-xs">
+              <Sparkles className="h-3.5 w-3.5 text-amber-600" />
+              Pre-Order Only • Custom Made to Order
+            </span>
+          ) : (
+            <span className={displayStock > 0 ? "font-medium text-emerald-800" : "font-medium text-destructive"}>
+              {displayStock > 0 ? `● In stock (${displayStock} available)` : "● Out of stock"}
+            </span>
+          )}
           <span className="text-xs text-muted-foreground">SKU: {displaySku}</span>
         </div>
 
-        {/* Add to Cart Button */}
-        <div>
-          <AddToCartButton
-            product={{
-              id: product.id,
-              name: product.name,
-              slug: product.slug,
-              sku: displaySku,
-              price: displayPrice,
-              memberPrice: displayMemberPrice,
-              images: displayImages,
-              stock: displayStock,
-              description: displayDescription,
-              variantId: selectedVariant?.id ?? null,
-              variantLabel,
-            }}
-            disabled={displayStock <= 0}
-            hasVariants
-          />
-        </div>
-        <p className="text-center text-[11px] sm:text-xs text-muted-foreground">
-          Shipping options are calculated from your address at checkout.
-        </p>
+        {/* Add to Cart or Call & Customize Button */}
+        {product.isPreOrder ? (
+          <div className="space-y-2">
+            <a
+              href={`tel:${STORE_PHONE}`}
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-sm font-bold bg-primary text-white hover:bg-primary/90 shadow-md transition-all duration-200 hover:scale-[1.01]"
+            >
+              <PhoneCall className="h-4 w-4" />
+              Call & Customize
+            </a>
+            <p className="text-center text-[11px] sm:text-xs text-muted-foreground">
+              This product is built to order. Call us directly ({STORE_PHONE_DISPLAY}) to discuss custom sizes, materials, and delivery.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <AddToCartButton
+                product={{
+                  id: product.id,
+                  name: product.name,
+                  slug: product.slug,
+                  sku: displaySku,
+                  price: displayPrice,
+                  memberPrice: displayMemberPrice,
+                  images: displayImages,
+                  stock: displayStock,
+                  description: displayDescription,
+                  variantId: selectedVariant?.id ?? null,
+                  variantLabel,
+                }}
+                disabled={displayStock <= 0}
+                hasVariants
+              />
+            </div>
+            <p className="text-center text-[11px] sm:text-xs text-muted-foreground">
+              Shipping options are calculated from your address at checkout.
+            </p>
+          </>
+        )}
 
         {/* Description & Key Features */}
         <div className="border-t border-border/70 pt-4 space-y-3">

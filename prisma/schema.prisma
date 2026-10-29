@@ -125,6 +125,7 @@ model Product {
   material     String?
   roomType     String?
   isActive     Boolean  @default(true)
+  isPreOrder   Boolean  @default(false)
   hasVariants  Boolean  @default(false) // Whether this product uses variant system
   categoryId   String
   createdAt    DateTime @default(now())

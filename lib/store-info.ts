@@ -1,0 +1,2 @@
+export const STORE_PHONE = process.env.NEXT_PUBLIC_STORE_PHONE || "+61401682910";
+export const STORE_PHONE_DISPLAY = "+61 401 682 910";

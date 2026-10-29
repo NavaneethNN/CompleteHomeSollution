@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Check, ShoppingCart } from "lucide-react";
+import { Check, ShoppingCart, PhoneCall } from "lucide-react";
+import { STORE_PHONE } from "@/lib/store-info";
 import { useCartStore } from "@/store/cart";
 import { cn } from "@/lib/utils";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
@@ -27,6 +28,7 @@ interface HomeTrendingProductCardProps {
     readonly sku?: string | null;
     readonly variantLabel?: string;
     readonly hasVariants?: boolean;
+    readonly isPreOrder?: boolean;
   };
 }
 
@@ -171,18 +173,28 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
           </div>
 
           <div className="mt-3">
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={outOfStock}
-              className={cn(
-                "w-full min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs sm:text-sm font-semibold transition-colors",
-                addToCartClassName
-              )}
-            >
-              {addToCartIcon}
-              {addToCartLabel}
-            </button>
+            {product.isPreOrder ? (
+              <a
+                href={`tel:${STORE_PHONE}`}
+                className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs sm:text-sm font-semibold transition-colors bg-primary text-white hover:bg-primary/90 shadow-md"
+              >
+                <PhoneCall className="h-3.5 w-3.5" />
+                Call & Customize
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={outOfStock}
+                className={cn(
+                  "w-full min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs sm:text-sm font-semibold transition-colors",
+                  addToCartClassName
+                )}
+              >
+                {addToCartIcon}
+                {addToCartLabel}
+              </button>
+            )}
           </div>
         </div>
       </div>

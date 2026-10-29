@@ -17,6 +17,7 @@ export interface WishlistProduct {
   images: string[];
   stock: number;
   description?: string;
+  isPreOrder?: boolean;
   material?: string | null;
   category: WishlistCategory;
   variantId?: string | null;

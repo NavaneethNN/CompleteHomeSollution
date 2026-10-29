@@ -417,9 +417,16 @@ export default function AdminProductsPage() {
                             <p className="font-medium text-slate-900 truncate leading-tight">
                               {product.name}
                             </p>
-                            <p className="text-xs text-slate-400 font-mono mt-0.5">
-                              {product.sku}
-                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-xs text-slate-400 font-mono">
+                                {product.sku}
+                              </span>
+                              {product.isPreOrder && (
+                                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                  Pre-Order
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -439,7 +446,13 @@ export default function AdminProductsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3.5">
-                        {getStockDisplay(stock)}
+                        {product.isPreOrder ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                            Pre-Order
+                          </span>
+                        ) : (
+                          getStockDisplay(stock)
+                        )}
                       </td>
                       <td className="px-4 py-3.5">
                         {getStatusBadge(product.isActive, stock)}

@@ -32,6 +32,7 @@ export async function RecommendedProducts({
           comparePrice: true,
           memberPrice: true,
           hasVariants: true,
+          isPreOrder: true,
           material: true,
           _count: { select: { reviews: true } },
           productVariants: {
@@ -93,6 +94,11 @@ export async function RecommendedProducts({
                   className="object-cover group-hover:scale-105 transition-transform duration-500"
                   sizes="(max-width: 640px) 50vw, 25vw"
                 />
+                {product.isPreOrder && (
+                  <span className="absolute top-2 left-2 px-2 py-0.5 bg-amber-600 text-white text-xs font-semibold rounded-md">
+                    Pre-Order
+                  </span>
+                )}
                 {hasDiscount && (
                   <span className="absolute top-2 left-2 px-2 py-0.5 bg-destructive text-white text-xs font-semibold rounded-md">
                     -{discountPct}%

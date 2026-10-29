@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ShoppingCart, Layers, Check, Zap } from "lucide-react";
+import { ShoppingCart, Layers, Check, Zap, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveMemberPrice } from "@/lib/member-price";
+import { STORE_PHONE } from "@/lib/store-info";
 import { useCartStore } from "@/store/cart";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
 import {
@@ -27,6 +28,7 @@ interface ProductCardProps {
     readonly stock: number;
     readonly images: string[];
     readonly material: string | null;
+    readonly isPreOrder?: boolean;
     readonly hasVariants: boolean;
     readonly category: { name: string; slug: string };
     readonly reviewCount: number;
@@ -165,6 +167,11 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
 
           {/* Badges */}
           <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+            {product.isPreOrder && (
+              <span className="px-2 py-0.5 bg-amber-600 text-white text-[10px] font-bold rounded shadow-sm">
+                Pre-Order
+              </span>
+            )}
             {hasDiscount && (
               <span className="px-1.5 py-0.5 bg-destructive text-white text-[10px] font-bold rounded">
                 -{discountPercent}%
@@ -183,7 +190,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
             className="absolute top-2 right-2 z-10 h-7 w-7"
           />
 
-          {displayStock === 0 && (
+          {!product.isPreOrder && displayStock === 0 && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg">
               <span className="px-2.5 py-1 bg-white/90 text-foreground text-xs font-semibold rounded-full">
                 Out of Stock
@@ -191,24 +198,35 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
             </div>
           )}
 
-          {/* Quick add — visible on hover (desktop) */}
+          {/* Quick add or Call & Customize — visible on hover (desktop) */}
           <div className="absolute bottom-0 inset-x-0 translate-y-full group-hover:translate-y-0 transition-transform duration-200 hidden sm:block">
-            <button
-              type="button"
-              onClick={() => setIsPopupOpen(true)}
-              disabled={displayStock === 0}
-              className={cn(
-                "w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors",
-                displayStock === 0
-                  ? "bg-muted text-muted-foreground cursor-not-allowed"
-                  : isInCart
-                  ? "bg-emerald-600 text-white"
-                  : "bg-foreground text-white hover:bg-primary"
-              )}
-            >
-              {isInCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
-              {isInCart ? "Added to Cart" : "Quick Add"}
-            </button>
+            {product.isPreOrder ? (
+              <a
+                href={`tel:${STORE_PHONE}`}
+                className="w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <PhoneCall className="h-3.5 w-3.5" />
+                Call & Customize
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsPopupOpen(true)}
+                disabled={displayStock === 0}
+                className={cn(
+                  "w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors",
+                  displayStock === 0
+                    ? "bg-muted text-muted-foreground cursor-not-allowed"
+                    : isInCart
+                    ? "bg-emerald-600 text-white"
+                    : "bg-foreground text-white hover:bg-primary"
+                )}
+              >
+                {isInCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
+                {isInCart ? "Added to Cart" : "Quick Add"}
+              </button>
+            )}
           </div>
         </div>
 
@@ -248,27 +266,38 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
             </p>
           )}
 
-          {displayStock > 0 && displayStock <= 5 && (
+          {!product.isPreOrder && displayStock > 0 && displayStock <= 5 && (
             <p className="text-[10px] text-amber-800 font-medium">Only {displayStock} left!</p>
           )}
 
-          {/* Mobile add to cart */}
-          <button
-            type="button"
-            onClick={() => setIsPopupOpen(true)}
-            disabled={displayStock === 0}
-            className={cn(
-              "sm:hidden mt-auto pt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors",
-              displayStock === 0
-                ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : isInCart
-                ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
-                : "bg-primary text-white hover:bg-primary/90"
-            )}
-          >
-            {isInCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
-            {addToCartLabel}
-          </button>
+          {/* Mobile add to cart or Call & Customize */}
+          {product.isPreOrder ? (
+            <a
+              href={`tel:${STORE_PHONE}`}
+              className="sm:hidden mt-auto pt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <PhoneCall className="h-3.5 w-3.5" />
+              Call & Customize
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsPopupOpen(true)}
+              disabled={displayStock === 0}
+              className={cn(
+                "sm:hidden mt-auto pt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors",
+                displayStock === 0
+                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                  : isInCart
+                  ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                  : "bg-primary text-white hover:bg-primary/90"
+              )}
+            >
+              {isInCart ? <Check className="h-3.5 w-3.5" /> : <ShoppingCart className="h-3.5 w-3.5" />}
+              {addToCartLabel}
+            </button>
+          )}
         </div>
       </div>
 
