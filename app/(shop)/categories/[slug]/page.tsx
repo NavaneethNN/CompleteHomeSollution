@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
@@ -117,24 +116,14 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       {/* ── Page header ───────────────────────────────────────── */}
       <div className="bg-white border-b border-border">
         <div className="container mx-auto px-4 md:px-6 xl:px-8 py-6 md:py-8 flex items-center gap-4">
-          <Link href="/" className="shrink-0">
-            <Image
-              src="/chs-logo.png"
-              alt="Complete Home Sollution"
-              width={430}
-              height={131}
-              className="h-10 md:h-12 w-auto object-contain"
-            />
-          </Link>
-          <div className="h-8 w-px bg-border hidden sm:block" />
           <div className="min-w-0">
-            <h1 className="text-lg md:text-xl font-bold text-foreground leading-tight truncate">{category.name}</h1>
-            <nav className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5 flex-wrap">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground leading-tight truncate">{category.name}</h1>
+            <nav className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1 flex-wrap">
               <Link href="/" className="hover:text-primary transition-colors">Home</Link>
               <span>/</span>
               <Link href="/products" className="hover:text-primary transition-colors">Products</Link>
               <span>/</span>
-              <span className="text-foreground">{category.name}</span>
+              <span className="text-foreground font-medium">{category.name}</span>
             </nav>
           </div>
         </div>

@@ -63,6 +63,8 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+          <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+          <ChevronRight className="h-3.5 w-3.5" />
           <Link href="/account/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
           <ChevronRight className="h-3.5 w-3.5" />
           <Link href="/account/orders" className="hover:text-primary transition-colors">My Orders</Link>

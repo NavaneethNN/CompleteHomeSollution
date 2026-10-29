@@ -187,7 +187,11 @@ export function Navbar() {
   useEffect(() => {
     fetch("/api/categories")
       .then(r => r.json())
-      .then(d => { if (Array.isArray(d.data)) setCategories(d.data); })
+      .then(d => {
+        if (Array.isArray(d.data)) {
+          setCategories(d.data.filter((c: NavCategory) => (c._count?.products ?? 0) > 0));
+        }
+      })
       .catch(() => {});
   }, []);
 

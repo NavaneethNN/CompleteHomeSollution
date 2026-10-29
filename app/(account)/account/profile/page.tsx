@@ -30,12 +30,16 @@ export default async function ProfilePage() {
           </Link>
           <span className="text-muted-foreground">·</span>
           <div className="flex items-center gap-1.5 text-sm">
-            <Home className="h-3.5 w-3.5 text-muted-foreground" />
+            <Link href="/" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+              <Home className="h-3.5 w-3.5" />
+              <span>Home</span>
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
             <Link href="/account/dashboard" className="text-muted-foreground hover:text-primary transition-colors">
               Dashboard
             </Link>
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-foreground font-medium">Profile</span>
+            <span className="text-foreground font-semibold">Profile</span>
           </div>
         </div>
 

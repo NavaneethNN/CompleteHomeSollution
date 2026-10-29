@@ -167,10 +167,12 @@ export default async function MembershipPage() {
             <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
             {user ? (
               <Link href="/account/dashboard" className="hover:text-primary transition-colors">
-                Account
+                Dashboard
               </Link>
             ) : (
-              <span>Shop</span>
+              <Link href="/products" className="hover:text-primary transition-colors">
+                Shop
+              </Link>
             )}
             <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
             <span className="text-foreground font-semibold">VIP Membership</span>

@@ -38,27 +38,24 @@ export function AccountSidebar({ user }: AccountSidebarProps) {
   return (
     <aside className="hidden lg:block lg:w-60 xl:w-64 shrink-0">
       {/* Avatar card */}
-      <div
-        className="rounded-2xl p-6 mb-4 flex flex-col items-center text-center text-white"
-        style={{ backgroundColor: "var(--navy)" }}
-      >
+      <div className="bg-white rounded-2xl p-6 mb-4 flex flex-col items-center text-center border border-border shadow-xs">
         {user.image ? (
           <img
             src={user.image}
             alt={user.name ?? ""}
             referrerPolicy="no-referrer"
-            className="w-20 h-20 rounded-full object-cover ring-4 ring-white/20 mb-3"
+            className="w-20 h-20 rounded-full object-cover ring-4 ring-secondary mb-3 shadow-xs"
           />
         ) : (
-          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center ring-4 ring-white/20 mb-3">
+          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center ring-4 ring-primary/10 mb-3 shadow-xs">
             <span className="text-2xl font-black text-white">{initials}</span>
           </div>
         )}
-        <p className="font-bold text-base leading-tight">{user.name ?? "Welcome"}</p>
-        <p className="text-white/55 text-xs mt-0.5 truncate max-w-full">{user.email}</p>
+        <p className="font-bold text-base leading-tight text-foreground">{user.name ?? "Welcome"}</p>
+        <p className="text-muted-foreground text-xs mt-1 truncate max-w-full">{user.email}</p>
         {user.isMember && (
-          <span className="mt-3 inline-flex items-center gap-1 bg-amber-400/20 text-amber-300 text-[11px] font-bold px-3 py-1 rounded-full">
-            <Crown className="h-3 w-3" /> MEMBER
+          <span className="mt-3 inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-800 border border-amber-500/20 text-[11px] font-bold px-3 py-1 rounded-full">
+            <Crown className="h-3 w-3 text-amber-600" /> VIP MEMBER
           </span>
         )}
       </div>

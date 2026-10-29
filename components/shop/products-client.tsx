@@ -47,7 +47,11 @@ interface ProductsClientProps {
 export function ProductsClient({ categories, products, isMember = false }: ProductsClientProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const totalProducts = categories.reduce((acc, c) => acc + c._count.products, 0);
+  const activeCategories = useMemo(
+    () => categories.filter((c) => (c._count?.products ?? 0) > 0),
+    [categories]
+  );
+  const totalProducts = products.length;
 
   const filteredProducts = useMemo(() => {
     if (!selectedCategory) return products;
@@ -87,7 +91,7 @@ export function ProductsClient({ categories, products, isMember = false }: Produ
               <span>All Products</span>
               <span className="text-xs tabular-nums text-muted-foreground">{totalProducts}</span>
             </button>
-            {categories.map((cat) => (
+            {activeCategories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryChange(cat.slug)}
@@ -123,7 +127,7 @@ export function ProductsClient({ categories, products, isMember = false }: Produ
             >
               All ({totalProducts})
             </button>
-            {categories.map((cat) => (
+            {activeCategories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => handleCategoryChange(cat.slug)}

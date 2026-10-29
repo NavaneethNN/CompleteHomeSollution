@@ -41,16 +41,18 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="inline-flex flex-col items-start mb-5 gap-1" aria-label="Complete Home Sollution — Home">
-              <Image
-                src="/chs-logo.png"
-                alt="Complete Home Sollution"
-                width={430}
-                height={131}
-                className="h-20 w-auto object-contain brightness-0 invert"
-                style={{ width: "auto" }}
-              />
-              <span className="text-sm font-bold text-white/80 tracking-wide leading-tight">
+            <Link href="/" className="inline-flex flex-col items-start mb-5 gap-2" aria-label="Complete Home Sollution — Home">
+              <div className="bg-white rounded-xl px-3.5 py-2 shadow-xs">
+                <Image
+                  src="/chs-logo.png"
+                  alt="Complete Home Sollution"
+                  width={430}
+                  height={131}
+                  className="h-16 w-auto object-contain"
+                  style={{ width: "auto" }}
+                />
+              </div>
+              <span className="text-sm font-bold text-white/90 tracking-wide leading-tight">
                 Complete Home Sollution
               </span>
             </Link>

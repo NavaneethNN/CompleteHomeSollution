@@ -84,10 +84,12 @@ export default async function AccountDashboardPage() {
           </Link>
           <span className="text-muted-foreground">·</span>
           <div className="flex items-center gap-1.5 text-sm">
-            <Home className="h-3.5 w-3.5 text-muted-foreground" />
-            <Link href="/account/dashboard" className="text-foreground font-medium hover:text-primary transition-colors">
-              Dashboard
+            <Link href="/" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1">
+              <Home className="h-3.5 w-3.5" />
+              <span>Home</span>
             </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-foreground font-semibold">Dashboard</span>
           </div>
         </div>
 
@@ -98,24 +100,22 @@ export default async function AccountDashboardPage() {
           {/* ── Main content ─────────────────────────── */}
           <main className="flex-1 min-w-0 space-y-4 lg:space-y-6">
 
-            {/* Welcome banner - Premium gradient for mobile */}
-            <div className="relative rounded-2xl p-6 lg:p-7 xl:p-9 text-white overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-primary/90">
-              {/* Animated gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-transparent to-primary/10" />
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/30 rounded-full blur-3xl" />
-              <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-blue-500/20 rounded-full blur-3xl" />
+            {/* Welcome banner - Aligned with site theme */}
+            <div className="relative rounded-2xl p-6 lg:p-7 xl:p-9 overflow-hidden bg-gradient-to-br from-[#faf6f0] via-[#f7f2ea] to-[#fffdf9] border border-[#e8dfd3] shadow-sm">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
               
               <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 text-white/80 text-xs font-medium backdrop-blur-sm">
+                <div className="flex items-center gap-2 mb-2.5">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-primary/20 text-primary text-xs font-bold shadow-xs">
                     <Crown className="h-3 w-3" />
-                    {user.isMember ? "Member" : "Guest"}
+                    {user.isMember ? "VIP Member" : "Guest Account"}
                   </span>
                 </div>
-                <h1 className="text-xl lg:text-2xl xl:text-3xl font-bold mb-2">
+                <h1 className="text-xl lg:text-2xl xl:text-3xl font-extrabold text-foreground mb-2">
                   Welcome back, {user.name?.split(" ")[0] ?? "Friend"} 👋
                 </h1>
-                <p className="text-white/70 text-sm max-w-md leading-relaxed">
+                <p className="text-muted-foreground text-sm max-w-md leading-relaxed">
                   {user.isMember
                     ? "You're a valued member. Enjoy your exclusive discounts on every order."
                     : "Upgrade to membership and save 5% (up to $30) or access member prices on every order."}
@@ -123,7 +123,7 @@ export default async function AccountDashboardPage() {
                 {!user.isMember && (
                   <Link
                     href="/account/membership"
-                    className="inline-flex items-center gap-2 mt-4 bg-white text-primary hover:bg-white/90 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-lg"
+                    className="inline-flex items-center gap-2 mt-4 bg-primary hover:bg-primary/90 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all shadow-sm"
                   >
                     <Crown className="h-4 w-4" /> Become a Member
                   </Link>
