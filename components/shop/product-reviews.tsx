@@ -15,7 +15,7 @@ interface Review {
   rating: number;
   comment: string | null;
   images: string[];
-  createdAt: Date;
+  createdAt: Date | string;
   user: {
     name: string | null;
     image: string | null;

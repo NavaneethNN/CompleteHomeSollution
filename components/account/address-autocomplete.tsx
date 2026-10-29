@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Home, MapPin, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { cleanAustralianSuburb } from "@/lib/data/australian-suburbs";
 
 interface AddressAutocompleteProps {
   value: string;
@@ -243,6 +244,8 @@ export function AddressAutocomplete({
         }
         if (types.includes("locality")) {
           suburb = component.longText;
+        } else if (!suburb && (types.includes("sublocality_level_1") || types.includes("sublocality") || types.includes("postal_town"))) {
+          suburb = component.longText;
         }
         if (types.includes("administrative_area_level_1")) {
           state = component.shortText;
@@ -260,6 +263,9 @@ export function AddressAutocomplete({
         const parts = place.formattedAddress.split(",");
         line1 = parts[0]?.trim() || "";
       }
+
+      suburb = cleanAustralianSuburb(suburb);
+      postcode = postcode.replace(/\D/g, "").slice(0, 4);
 
       console.log("[AddressAutocomplete] Parsed address:", { line1, line2, suburb, state, postcode, country });
 

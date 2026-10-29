@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
 export async function GET(req: NextRequest) {
   const q     = req.nextUrl.searchParams.get("q")?.trim() ?? "";
@@ -21,35 +22,39 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    const [products, total] = await Promise.all([
-      db.product.findMany({
-        where,
-        select: {
-          id:           true,
-          name:         true,
-          slug:         true,
-          images:       true,
-          basePrice:    true,
-          comparePrice: true,
-          memberPrice:  true,
-          hasVariants:  true,
-          category:     { select: { name: true, slug: true } },
-          productVariants: {
-            where:   { isActive: true },
-            select:  { price: true },
-            orderBy: { price: "asc" },
-            take:    1,
+    const cacheKey = CACHE_KEYS.searchSuggest(`${q}:${limit}:${page}`);
+    const data = await cacheFetch(cacheKey, CACHE_TTL.searchSuggest, async () => {
+      const [products, total] = await Promise.all([
+        db.product.findMany({
+          where,
+          select: {
+            id:           true,
+            name:         true,
+            slug:         true,
+            images:       true,
+            basePrice:    true,
+            comparePrice: true,
+            memberPrice:  true,
+            hasVariants:  true,
+            category:     { select: { name: true, slug: true } },
+            productVariants: {
+              where:   { isActive: true },
+              select:  { price: true },
+              orderBy: { price: "asc" },
+              take:    1,
+            },
+            _count: { select: { reviews: true } },
           },
-          _count: { select: { reviews: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take:    limit,
-        skip:    (page - 1) * limit,
-      }),
-      db.product.count({ where }),
-    ]);
+          orderBy: { createdAt: "desc" },
+          take:    limit,
+          skip:    (page - 1) * limit,
+        }),
+        db.product.count({ where }),
+      ]);
+      return { products, total, page, limit };
+    });
 
-    return NextResponse.json({ products, total, page, limit });
+    return NextResponse.json(data);
   } catch (error) {
     console.error("[GET /api/search]", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

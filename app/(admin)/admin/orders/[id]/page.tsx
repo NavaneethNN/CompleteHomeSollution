@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { AdminRefundPanel } from "@/components/admin/refund-panel";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
-import { Ship123LabelPanel } from "@/components/admin/ship123-label-panel";
+import { ReadyToShipPanel } from "@/components/admin/ready-to-ship-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,9 +60,15 @@ async function getOrder(id: string) {
       subtotal: true,
       shippingCost: true,
       tax: true,
+      discount: true,
+      couponCode: true,
+      membershipAmount: true,
+      guestEmail: true,
+      guestPhone: true,
       paywayTransactionId: true,
       trackingNumber: true,
       carrier: true,
+      ship123OrderNo: true,
       refundRequested: true,
       refundReason: true,
       refundAmount: true,
@@ -214,12 +220,18 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between text-slate-600">
                     <span>Subtotal</span>
-                    <span>{currencyFormatter.format((order as any).subtotal + ((order as any).discount ?? 0))}</span>
+                    <span>{currencyFormatter.format(order.subtotal + (order.discount ?? 0))}</span>
                   </div>
-                  {(order as any).discount > 0 && (
+                  {(order.discount ?? 0) > 0 && (
                     <div className="flex justify-between text-emerald-600">
-                      <span>Discount {(order as any).couponCode && `(${(order as any).couponCode})`}</span>
-                      <span>-{currencyFormatter.format((order as any).discount)}</span>
+                      <span>Discount {order.couponCode && `(${order.couponCode})`}</span>
+                      <span>-{currencyFormatter.format(order.discount ?? 0)}</span>
+                    </div>
+                  )}
+                  {(order.membershipAmount ?? 0) > 0 && (
+                    <div className="flex justify-between text-indigo-600 font-medium">
+                      <span>CHS Membership</span>
+                      <span>{currencyFormatter.format(order.membershipAmount ?? 0)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-slate-600">
@@ -298,15 +310,20 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                   <User className="h-6 w-6 text-slate-500" />
                 </div>
                 <div>
-                  <p className="font-medium text-slate-900">{order.user?.name || "Guest"}</p>
-                  <p className="text-sm text-slate-500">{order.user?.email}</p>
+                  <p className="font-medium text-slate-900">{order.user?.name || order.address?.name || "Guest Customer"}</p>
+                  <p className="text-sm text-slate-500">{order.user?.email || order.guestEmail || "No email provided"}</p>
+                  {!order.user && (
+                    <span className="inline-block mt-1 text-[10px] font-semibold uppercase bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                      Guest Checkout
+                    </span>
+                  )}
                 </div>
               </div>
               
-              {order.user?.phone && (
+              {(order.user?.phone || order.guestPhone || order.address?.phone) && (
                 <div>
                   <p className="text-sm text-slate-500">Phone</p>
-                  <p className="text-slate-900">{order.user.phone}</p>
+                  <p className="text-slate-900">{order.user?.phone || order.guestPhone || order.address?.phone}</p>
                 </div>
               )}
             </CardContent>
@@ -351,8 +368,14 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             currentCarrier={order.carrier}
           />
 
-          {order.items.length > 0 && ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status) &&
-            <Ship123LabelPanel orderId={order.id} />}
+          {order.items.length > 0 && ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status) && (
+            <ReadyToShipPanel
+              orderId={order.id}
+              currentStatus={order.status}
+              currentTrackingNumber={order.trackingNumber}
+              currentCarrier={order.carrier}
+            />
+          )}
 
           {/* Order Timeline */}
           <Card>

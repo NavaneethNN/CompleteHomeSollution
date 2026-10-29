@@ -40,7 +40,7 @@ const QUICK_ACTIONS = [
   {
     Icon: Crown,
     title: "Membership",
-    desc: "Unlock exclusive discounts up to 30% off",
+    desc: "5% off up to $30 or exclusive member prices",
     href: "/account/membership",
     color: "bg-amber-50 text-amber-600",
   },
@@ -54,7 +54,7 @@ const QUICK_ACTIONS = [
 ] as const;
 
 const PERKS = [
-  { Icon: Tag,          text: "Up to 30% member-only pricing" },
+  { Icon: Tag,          text: "5% off (up to $30) or member prices" },
   { Icon: Truck,        text: "Fast Australia-wide delivery" },
   { Icon: ShieldCheck,  text: "Secure, encrypted checkout" },
   { Icon: Star,         text: "Priority customer support" },
@@ -166,7 +166,7 @@ export default async function AccountDashboardPage() {
                 <p className="text-white/60 text-sm max-w-md">
                   {isMember
                     ? "You're a valued member. Enjoy your exclusive discounts on every order."
-                    : "Upgrade to membership and save up to 30% on every order."}
+                    : "Upgrade to membership and save 5% (up to $30) or access member prices on every order."}
                 </p>
                 {!isMember && (
                   <Link

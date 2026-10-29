@@ -6,10 +6,9 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { chargeToken, PayWayApiError } from "@/lib/payway";
 import { activateMembershipInTransaction } from "@/lib/membership";
-import { queueOrderConfirmation, queueRefundAction } from "@/lib/email-outbox";
+import { queueOrderConfirmation, queueRefundAction, processDueEmailJobs } from "@/lib/email-outbox";
 import { sendOrderConfirmationSms, sendOrderWhatsApp } from "@/lib/twilio";
-import { processDueEmailJobs } from "@/app/api/cron/send-email-jobs/route";
-import { getEligibleShip123Products, getShip123Rates } from "@/lib/ship123";
+import { checkCouriersPleaseAvailability, getCouriersPleaseRates } from "@/lib/couriersplease";
 import { createOnlinePayCheckout, getOnlinePayCheckout, OnlinePayCheckoutError, validateOnlinePayConfiguration } from "@/lib/onlinepay";
 import { shippingDestinationKey, verifyShippingQuoteToken } from "@/lib/shipping-quote";
 import { calculateCartPricing, moneyToCents, splitLineForGateway } from "@/lib/cart-pricing";
@@ -184,7 +183,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "One or more products are unavailable." }, { status: 400 });
     }
 
-    // Expired memberships must not receive member prices, free shipping, or
+    // Expired memberships must not receive member prices or
     // members-only coupons merely because a stale boolean is still set.
     const isMemberFromDb = !!currentUser?.isMember &&
       (!currentUser.membershipExpiry || currentUser.membershipExpiry > new Date());
@@ -302,7 +301,7 @@ export async function POST(req: NextRequest) {
     const subtotal = pricing.subtotalCents / 100;
 
     const membershipCharge = wantsMembership && !alreadyMember ? defaultPlan!.price : 0;
-    const freeShipping = effectiveMember || subtotal >= 1200;
+    const freeShipping = subtotal >= 1200;
     let parcelGroups;
     try {
       parcelGroups = buildParcelGroups(input.items.map(item => {
@@ -332,29 +331,25 @@ export async function POST(req: NextRequest) {
     }
 
     // ── SEC-4: Server-side shipping cost verification ─────────────────────────
-    // A signed Ship123 quote is bound to the full destination and parcel set.
+    // A signed Couriers Please quote is bound to the full destination and parcel set.
     // Without a valid token, fetch a fresh quote and require exact cents.
     let shippingCost: number;
     let shippingServiceCode: string | null = null;
     if (freeShipping) {
-      try {
-        const rates = await getShip123Rates(deliveryAddress, parcelGroups);
-        if (!rates.length) throw new Error("No eligible shipping rate");
-        shippingServiceCode = rates[0].serviceCode;
-      } catch (error) {
-        // Fallback: If live per-parcel quote calculation failed (e.g. timeout or throttling),
-        // try to assign the first eligible named courier product directly so $0 free shipping orders proceed.
+      if (checkCouriersPleaseAvailability().available) {
         try {
-          const products = await getEligibleShip123Products();
-          if (products.length > 0) {
-            shippingServiceCode = products[0].code;
+          const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
+          if (rates.length > 0) {
+            shippingServiceCode = rates[0].serviceCode;
           } else {
-            throw error;
+            shippingServiceCode = "CP_STANDARD";
           }
-        } catch {
-          console.error("[checkout] No Ship123 service for free-shipping order", error);
-          return NextResponse.json({ error: "Shipping is currently unavailable for this order. Please contact support." }, { status: 503 });
+        } catch (error) {
+          console.warn("[checkout] Couriers Please rate check exception for free shipping:", error);
+          shippingServiceCode = "CP_STANDARD";
         }
+      } else {
+        shippingServiceCode = "CP_STANDARD";
       }
       shippingCost = 0;
     } else {
@@ -371,21 +366,22 @@ export async function POST(req: NextRequest) {
         serviceCode: input.shippingRateCode,
         price: clientCost,
       })) {
-        try {
-          const eligible = await getEligibleShip123Products();
-          if (eligible.some(product => product.code === input.shippingRateCode)) serverShippingCost = clientCost;
-        } catch (error) {
-          console.error("[checkout] Ship123 service eligibility check failed", error);
-        }
+        serverShippingCost = clientCost;
       } else if (toPostcode && /^\d{4}$/.test(toPostcode) && input.shippingRateCode) {
         try {
-          const rates = await getShip123Rates(deliveryAddress, parcelGroups);
-          const matchedRate = rates.find((r) => r.serviceCode === input.shippingRateCode);
-          if (matchedRate) {
-            serverShippingCost = matchedRate.price;
+          if (checkCouriersPleaseAvailability().available) {
+            try {
+              const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
+              const matchedRate = rates.find((r) => r.serviceCode === input.shippingRateCode);
+              if (matchedRate) {
+                serverShippingCost = matchedRate.price;
+              }
+            } catch (cpErr) {
+              console.warn("[checkout] Couriers Please rate check exception:", cpErr);
+            }
           }
-        } catch (ship123Error) {
-          console.error("[checkout] Ship123 rate fetch failed", ship123Error);
+        } catch (shippingError) {
+          console.error("[checkout] Shipping rate fetch failed", shippingError);
         }
       }
 
@@ -437,6 +433,7 @@ export async function POST(req: NextRequest) {
         subtotal,
         shippingCost,
         shippingServiceCode,
+        carrier: "Couriers Please",
         tax,
         discount: couponDiscount,
         total,

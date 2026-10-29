@@ -560,7 +560,7 @@ export function Navbar() {
                         <UserPlus className="h-4 w-4" /> Create Account
                       </Link>
                       <p className="text-center text-[11px] text-muted-foreground pt-0.5">
-                        Members save up to 30% on every order
+                        Members save 5% (up to $30) on every order
                       </p>
                     </div>
                   )}
@@ -761,7 +761,7 @@ export function Navbar() {
         {/* Drawer footer */}
         <div className="shrink-0 px-5 py-4 border-t border-border bg-secondary/40">
           <p className="text-center text-xs text-muted-foreground leading-snug">
-            ⭐ Members save up to 30% on every purchase
+            ⭐ Members save 5% (up to $30) on every purchase
           </p>
         </div>
       </aside>

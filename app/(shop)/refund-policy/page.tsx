@@ -171,15 +171,23 @@ export default function RefundPolicyPage() {
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">8. Membership Cancellations</h2>
+          <h2 className="text-xl font-semibold mb-4">8. Membership Cancellations & Autopay</h2>
           <p className="text-muted-foreground mb-4">
-            Membership subscriptions can be cancelled at any time:
+            Customers can manage and cancel their CHS Premium membership at any time:
           </p>
-          <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
-            <li>Cancellation takes effect at the end of the current billing period</li>
-            <li>Membership benefits continue until the end of the paid period</li>
-            <li>Membership fees are non-refundable except as required by law</li>
-            <li>To cancel, go to <Link href="/account/membership" className="text-primary hover:underline">Account &gt; Membership</Link></li>
+          <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-2">
+            <li>
+              <strong>Immediate Cancellation:</strong> When a membership is cancelled manually by the customer, recurring autopay is stopped and all membership benefits are revoked immediately.
+            </li>
+            <li>
+              <strong>Non-Refundable:</strong> Membership fees are non-refundable once billed, except where required by Australian Consumer Law.
+            </li>
+            <li>
+              <strong>Failed Autopay & 2-Day Retry Policy:</strong> During automatic renewal, if payment is not received due to insufficient funds, an expired card, or bank decline, our system will re-attempt payment 2 times on different days. If all retry attempts fail, the membership will be terminated immediately stating a payment method failure issue.
+            </li>
+            <li>
+              <strong>How to Cancel:</strong> To cancel or manage autopay, visit <Link href="/account/membership" className="text-primary hover:underline">Account &gt; Membership</Link>.
+            </li>
           </ul>
         </section>
 

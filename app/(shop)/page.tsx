@@ -4,6 +4,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { hasActiveMembership } from "@/lib/membership";
+import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { AnimateIn } from "@/components/shared/animate-in";
@@ -57,17 +58,22 @@ const WHY_US = [
   {
     icon: Tag,
     title: "Member savings",
-    desc: "Members can access special prices on eligible pieces and free shipping.",
+    desc: "Members access exclusive member prices or 5% off (up to $30) on every item.",
   },
 ];
 
 async function getCategories() {
   try {
-    const categories = await db.category.findMany({
-      include: { _count: { select: { products: true } } },
-      orderBy: { name: "asc" },
-    });
-    return categories;
+    return await cacheFetch(
+      CACHE_KEYS.categories,
+      CACHE_TTL.categories,
+      async () => {
+        return db.category.findMany({
+          include: { _count: { select: { products: true } } },
+          orderBy: { name: "asc" },
+        });
+      }
+    );
   } catch (error) {
     console.error("[categories] Unable to load catalog", error);
     throw new Error("The catalog is temporarily unavailable.");
@@ -76,44 +82,50 @@ async function getCategories() {
 
 async function getTrendingProducts() {
   try {
-    const products = await db.product.findMany({
-      where: { isActive: true },
-      include: {
-        category: { select: { name: true, slug: true } },
-        productVariants: {
+    return await cacheFetch(
+      CACHE_KEYS.homeTrending,
+      CACHE_TTL.homeTrending,
+      async () => {
+        const products = await db.product.findMany({
           where: { isActive: true },
           include: {
-            images: { take: 1, orderBy: { displayOrder: "asc" } },
-            values: { include: { variantValue: true } },
+            category: { select: { name: true, slug: true } },
+            productVariants: {
+              where: { isActive: true },
+              include: {
+                images: { take: 1, orderBy: { displayOrder: "asc" } },
+                values: { include: { variantValue: true } },
+              },
+              orderBy: { price: "asc" },
+              take: 1,
+            },
+            _count: { select: { reviews: true } },
           },
-          orderBy: { price: "asc" },
-          take: 1,
-        },
-        _count: { select: { reviews: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 4,
-    });
+          orderBy: { createdAt: "desc" },
+          take: 4,
+        });
 
-    return products.map((p) => {
-      const variant = p.hasVariants && p.productVariants[0] ? p.productVariants[0] : null;
-      const price = variant?.price ?? p.basePrice;
-      const comparePrice = variant?.comparePrice ?? p.comparePrice;
-      const image = variant?.images[0]?.url ?? p.images[0];
-      const stock = variant?.stock ?? p.stock;
-      const variantLabel = variant?.values
-        ?.map((v: { variantValue: { value: string } }) => v.variantValue.value)
-        .join(" / ");
-      const discount = comparePrice && comparePrice > price
-        ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%` : null;
-      return {
-        id: p.id, name: p.name, slug: p.slug, price, originalPrice: comparePrice || price,
-        discount, reviews: p._count.reviews, variantId: variant?.id ?? null,
-        sku: variant?.sku ?? p.sku, variantLabel, hasVariants: p.hasVariants, img: image,
-        description: p.description, memberPrice: variant?.memberPrice ?? p.memberPrice,
-        stock, category: p.category,
-      };
-    });
+        return products.map((p) => {
+          const variant = p.hasVariants && p.productVariants[0] ? p.productVariants[0] : null;
+          const price = variant?.price ?? p.basePrice;
+          const comparePrice = variant?.comparePrice ?? p.comparePrice;
+          const image = variant?.images[0]?.url ?? p.images[0];
+          const stock = variant?.stock ?? p.stock;
+          const variantLabel = variant?.values
+            ?.map((v: { variantValue: { value: string } }) => v.variantValue.value)
+            .join(" / ");
+          const discount = comparePrice && comparePrice > price
+            ? `-${Math.round(((comparePrice - price) / comparePrice) * 100)}%` : null;
+          return {
+            id: p.id, name: p.name, slug: p.slug, price, originalPrice: comparePrice || price,
+            discount, reviews: p._count.reviews, variantId: variant?.id ?? null,
+            sku: variant?.sku ?? p.sku, variantLabel, hasVariants: p.hasVariants, img: image,
+            description: p.description, memberPrice: variant?.memberPrice ?? p.memberPrice,
+            stock, category: p.category,
+          };
+        });
+      }
+    );
   } catch (error) {
     console.error("[home products] Unable to load catalog", error);
     throw new Error("The catalog is temporarily unavailable.");
@@ -276,7 +288,7 @@ export default async function HomePage() {
               <div className="relative z-10 max-w-[220px] sm:max-w-[260px]">
                 <p className="text-xs font-bold tracking-widest text-primary uppercase mb-3">A LITTLE MORE FOR MEMBERS</p>
                 <h3 className="text-3xl font-semibold tracking-tight text-foreground leading-tight mb-3">Make more of your home.</h3>
-                <p className="text-sm text-foreground/70 mb-5">Special member prices and free shipping on eligible orders.</p>
+                <p className="text-sm text-foreground/70 mb-5">Special member prices or 5% off (up to $30) on every item.</p>
                 <Link href="/account/membership" className="inline-flex min-h-11 items-center gap-2 rounded-full border border-foreground/25 px-5 text-sm font-semibold text-foreground transition-colors hover:border-primary hover:text-primary">
                   Explore membership <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -376,7 +388,7 @@ export default async function HomePage() {
               A little extra for your home
             </h2>
             <p className="text-sm sm:text-base text-white/60 mb-7 max-w-lg mx-auto leading-relaxed">
-              Join CHS Membership for special member prices and free shipping on eligible orders.
+              Join CHS Membership for exclusive member prices or 5% off (up to $30) on every item.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link

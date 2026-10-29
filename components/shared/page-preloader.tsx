@@ -1,48 +1,136 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import Image from "next/image";
 
 export function PagePreloader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [visible, setVisible] = useState(false);
-  const prevPathRef = useRef(pathname + searchParams.toString());
+
+  const prevPathRef = useRef("");
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Initialize prevPathRef on mount
   useEffect(() => {
-    const current = pathname + searchParams.toString();
+    prevPathRef.current = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
+  }, []);
 
-    if (current !== prevPathRef.current) {
-      // Navigation completed — fade out
-      prevPathRef.current = current;
-      if (showTimerRef.current) clearTimeout(showTimerRef.current);
-      setLoading(false);
-      hideTimerRef.current = setTimeout(() => setVisible(false), 400);
+  const finishProgress = useCallback(() => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
     }
-  }, [pathname, searchParams]);
+    if (safetyTimerRef.current) {
+      clearTimeout(safetyTimerRef.current);
+      safetyTimerRef.current = null;
+    }
 
-  // Show preloader on link clicks (capture phase so we catch it before navigation)
+    setProgress(100);
+    hideTimerRef.current = setTimeout(() => {
+      setVisible(false);
+      setProgress(0);
+    }, 300);
+  }, []);
+
+  const startProgress = useCallback(() => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+
+    setVisible(true);
+    setProgress(18);
+
+    let current = 18;
+    progressTimerRef.current = setInterval(() => {
+      current += Math.random() * 14 + 4;
+      if (current >= 85) {
+        current = 85;
+        if (progressTimerRef.current) {
+          clearInterval(progressTimerRef.current);
+          progressTimerRef.current = null;
+        }
+      }
+      setProgress(current);
+    }, 90);
+
+    // Fail-safe: Preloader NEVER spins longer than 2.5s under any circumstance
+    safetyTimerRef.current = setTimeout(() => {
+      finishProgress();
+    }, 2500);
+  }, [finishProgress]);
+
+  // Finish preloader whenever navigation completes
+  useEffect(() => {
+    const current = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
+    if (prevPathRef.current && current !== prevPathRef.current) {
+      prevPathRef.current = current;
+      finishProgress();
+    } else {
+      prevPathRef.current = current;
+    }
+  }, [pathname, searchParams, finishProgress]);
+
+  // Intercept valid internal link clicks
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
+      // Ignore if event was cancelled
+      if (e.defaultPrevented) return;
+
+      // Ignore modifier keys and non-left clicks (e.g. Cmd+click opens new tab)
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
       const target = (e.target as HTMLElement).closest("a");
       if (!target) return;
+
       const href = target.getAttribute("href");
       if (!href) return;
-      // Only trigger for internal, non-hash, non-external links
+
+      // Ignore external protocols
       if (
-        href.startsWith("/") &&
-        !href.startsWith("//") &&
-        !target.getAttribute("download") &&
-        !target.getAttribute("target")
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:") ||
+        href.startsWith("javascript:") ||
+        href.startsWith("#")
       ) {
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-        setVisible(true);
-        // Small delay so instant navigations don't flash
-        showTimerRef.current = setTimeout(() => setLoading(true), 80);
+        return;
+      }
+
+      // Ignore new window/tab or downloads
+      if (target.getAttribute("target") === "_blank" || target.hasAttribute("download")) {
+        return;
+      }
+
+      try {
+        const targetUrl = new URL(target.href, window.location.href);
+        const currentUrl = new URL(window.location.href);
+
+        // Ignore cross-origin navigations
+        if (targetUrl.origin !== currentUrl.origin) return;
+
+        // Ignore same page clicks (e.g. clicking /products while on /products)
+        if (
+          targetUrl.pathname === currentUrl.pathname &&
+          targetUrl.search === currentUrl.search
+        ) {
+          return;
+        }
+
+        // Ignore hash jumps on the same page
+        if (
+          targetUrl.pathname === currentUrl.pathname &&
+          targetUrl.search === currentUrl.search &&
+          targetUrl.hash
+        ) {
+          return;
+        }
+
+        startProgress();
+      } catch {
+        // Fallback: do nothing if URL parsing fails
       }
     };
 
@@ -50,65 +138,30 @@ export function PagePreloader() {
     return () => {
       document.removeEventListener("click", handleClick, true);
       if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      if (showTimerRef.current) clearTimeout(showTimerRef.current);
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+      if (safetyTimerRef.current) clearTimeout(safetyTimerRef.current);
     };
-  }, []);
+  }, [startProgress]);
 
   if (!visible) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-white"
-      style={{
-        opacity: loading ? 1 : 0,
-        transition: "opacity 350ms ease",
-        pointerEvents: loading ? "all" : "none",
-      }}
+    <aside
+      aria-label="Page loading indicator"
+      aria-live="polite"
+      className="fixed top-0 left-0 right-0 z-[9999] pointer-events-none"
     >
-      {/* Spinner ring */}
-      <div className="relative flex items-center justify-center">
-        {/* Outer spinning arc */}
-        <svg
-          className="absolute animate-spin"
-          width="96"
-          height="96"
-          viewBox="0 0 96 96"
-          fill="none"
-          style={{ animationDuration: "900ms" }}
-        >
-          <circle
-            cx="48"
-            cy="48"
-            r="44"
-            stroke="#e5e7eb"
-            strokeWidth="5"
-            fill="none"
-          />
-          <circle
-            cx="48"
-            cy="48"
-            r="44"
-            stroke="var(--color-primary, #e85d1a)"
-            strokeWidth="5"
-            fill="none"
-            strokeLinecap="round"
-            strokeDasharray="276"
-            strokeDashoffset="207"
-          />
-        </svg>
-
-        {/* Logo in centre */}
-        <div className="relative z-10 flex items-center justify-center w-16 h-16">
-          <Image
-            src="/chs-logo.png"
-            alt="Loading…"
-            width={430}
-            height={131}
-            className="w-14 h-auto object-contain"
-            priority
-          />
-        </div>
-      </div>
-    </div>
+      {/* Top progress bar with brand primary gradient & glow */}
+      <div
+        className="h-[3px] bg-gradient-to-r from-amber-500 via-primary to-orange-600 shadow-[0_0_10px_rgba(232,93,26,0.6)]"
+        style={{
+          width: `${progress}%`,
+          transition: progress === 100
+            ? "width 180ms ease-out, opacity 250ms ease 100ms"
+            : "width 90ms ease-out",
+          opacity: progress >= 100 ? 0 : 1,
+        }}
+      />
+    </aside>
   );
 }

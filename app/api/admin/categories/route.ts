@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import slugify from "slugify";
+import { cacheDel, CACHE_KEYS } from "@/lib/redis";
 
 // GET /api/admin/categories - List all categories
 export async function GET() {
@@ -58,6 +59,9 @@ export async function POST(req: Request) {
         image,
       },
     });
+
+    // Invalidate categories cache
+    await cacheDel([CACHE_KEYS.categories, CACHE_KEYS.homeTrending]);
 
     return NextResponse.json({ category }, { status: 201 });
   } catch (error) {

@@ -140,8 +140,13 @@ export async function getOrderById(
   }
 
   try {
+    const isAdmin = session.user.role === "ADMIN";
+    const where = isAdmin
+      ? { id: orderId }
+      : { id: orderId, userId: session.user.id };
+
     const order = await db.order.findFirst({
-      where: { id: orderId, userId: session.user.id },
+      where,
       include: orderInclude,
     });
 

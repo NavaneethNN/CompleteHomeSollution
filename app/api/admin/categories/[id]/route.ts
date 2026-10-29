@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import slugify from "slugify";
+import { cacheDel, CACHE_KEYS } from "@/lib/redis";
 
 // PUT /api/admin/categories/[id] - Update category
 export async function PUT(
@@ -47,6 +48,8 @@ export async function PUT(
         image,
       },
     });
+
+    await cacheDel([CACHE_KEYS.categories, CACHE_KEYS.homeTrending]);
 
     return NextResponse.json({ category });
   } catch (error) {
@@ -98,6 +101,8 @@ export async function DELETE(
     await db.category.delete({
       where: { id },
     });
+
+    await cacheDel([CACHE_KEYS.categories, CACHE_KEYS.homeTrending]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

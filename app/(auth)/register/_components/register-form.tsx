@@ -89,7 +89,7 @@ const BENEFITS = [
   {
     Icon: Crown,
     title: "Member-Exclusive Pricing",
-    desc: "Save up to 30% on every order as a member",
+    desc: "Save 5% (up to $30) or access exclusive member prices",
   },
   {
     Icon: Truck,
@@ -632,8 +632,8 @@ export default function RegisterForm() {
                   >
                     Privacy Policy
                   </Link>
-                  . Members save up to{" "}
-                  <strong className="text-foreground font-bold">30%</strong> on
+                  . Members save 5% (up to{" "}
+                  <strong className="text-foreground font-bold">$30</strong>) on
                   every order.
                 </span>
               </label>

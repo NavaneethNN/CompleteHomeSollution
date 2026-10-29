@@ -7,9 +7,9 @@
   },
   "scripts": {
     "dev": "npm run dev:https",
-    "dev:http": "UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= AUTH_URL=http://localhost:3000 NEXTAUTH_URL=http://localhost:3000 NEXT_PUBLIC_APP_URL=http://localhost:3000 next dev --turbopack --port 3000",
+    "dev:http": "AUTH_URL=http://localhost:3000 NEXTAUTH_URL=http://localhost:3000 NEXT_PUBLIC_APP_URL=http://localhost:3000 next dev --turbopack --port 3000",
     "dev:tunnel": "next dev --turbopack --port 3000",
-    "dev:https": "node scripts/ensure-local-cert.mjs && UPSTASH_REDIS_REST_URL= UPSTASH_REDIS_REST_TOKEN= AUTH_URL=https://localhost:3000 NEXTAUTH_URL=https://localhost:3000 NEXT_PUBLIC_APP_URL=https://localhost:3000 ONLINEPAY_RETURN_BASE_URL=https://localhost:3000 next dev --turbopack --port 3000 --experimental-https --experimental-https-key certificates/localhost-key.pem --experimental-https-cert certificates/localhost.pem",
+    "dev:https": "node scripts/ensure-local-cert.mjs && AUTH_URL=https://localhost:3000 NEXTAUTH_URL=https://localhost:3000 NEXT_PUBLIC_APP_URL=https://localhost:3000 ONLINEPAY_RETURN_BASE_URL=https://localhost:3000 next dev --turbopack --port 3000 --experimental-https --experimental-https-key certificates/localhost-key.pem --experimental-https-cert certificates/localhost.pem",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

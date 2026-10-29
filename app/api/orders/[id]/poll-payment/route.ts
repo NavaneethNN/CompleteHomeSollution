@@ -31,9 +31,8 @@ import { verifyGuestOrderToken, verifyOrderReturnToken } from "@/lib/order-acces
 import { getTransaction, PayWayApiError } from "@/lib/payway";
 import { getOnlinePayCheckout, onlinePayPaymentFailed, onlinePayPaymentSucceeded } from "@/lib/onlinepay";
 import { activateMembershipInTransaction } from "@/lib/membership";
-import { queueOrderConfirmation, queueRefundAction } from "@/lib/email-outbox";
+import { queueOrderConfirmation, queueRefundAction, processDueEmailJobs } from "@/lib/email-outbox";
 import { sendOrderConfirmationSms, sendOrderWhatsApp } from "@/lib/twilio";
-import { processDueEmailJobs } from "@/app/api/cron/send-email-jobs/route";
 import { timingSafeEqual } from "crypto";
 import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
 

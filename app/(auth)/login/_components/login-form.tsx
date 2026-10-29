@@ -66,7 +66,7 @@ const BENEFITS = [
   {
     Icon: Crown,
     title: "Exclusive Member Discounts",
-    desc: "Up to 30% off your entire order every time",
+    desc: "5% off (up to $30) or exclusive member prices",
   },
   {
     Icon: Truck,
@@ -535,7 +535,7 @@ function LoginFormInner() {
               {(
                 [
                   { Icon: ShieldCheck, label: "Secure &\nEncrypted" },
-                  { Icon: Crown,       label: "Members Save\nUp to 30%" },
+                  { Icon: Crown,       label: "Members Save\n5% Off" },
                   { Icon: Truck,       label: "AU-Wide\nDelivery" },
                 ] as const
               ).map(({ Icon, label }) => (

@@ -85,8 +85,8 @@ export default function PrivacyPolicyPage() {
             We share your information only with trusted third parties necessary to provide our services:
           </p>
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
-            <li><strong>Shipping partners</strong> (Ship123 and the selected courier) - for delivery</li>
-            <li><strong>Payment processors</strong> (Stripe) - for secure payments</li>
+            <li><strong>Shipping partners</strong> (Couriers Please) - for delivery</li>
+            <li><strong>Payment processors</strong> (Westpac OnlinePay / PayWay) - for secure payments</li>
             <li><strong>Email/SMS services</strong> (Brevo, Twilio) - for notifications</li>
             <li><strong>Analytics providers</strong> - to improve our website</li>
           </ul>

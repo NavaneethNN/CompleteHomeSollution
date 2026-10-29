@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
       where: { id: { in: [...new Set(ids)] }, isActive: true },
       select: { id: true, name: true, slug: true, sku: true, images: true, hasVariants: true, basePrice: true, memberPrice: true, stock: true, weight: true,
         productVariants: { where: { isActive: true }, select: { id: true, sku: true, price: true, memberPrice: true, stock: true, weight: true,
+          images: { select: { url: true }, orderBy: { displayOrder: "asc" } },
           values: { select: { variantValue: { select: { value: true, variantAttribute: { select: { name: true } } } } } } } } },
     });
     const prices: Record<string, { price: number; memberPrice: number | null; stock: number; weight: number }> = {};
@@ -24,8 +25,9 @@ export async function POST(req: NextRequest) {
       }
       for (const variant of product.productVariants) {
         const memberPrice = resolveMemberPrice(variant.price, variant.memberPrice, product.memberPrice);
+        const variantImages = variant.images?.length > 0 ? variant.images.map(img => img.url) : product.images;
         prices[variant.id] = { price: variant.price, memberPrice, stock: variant.stock, weight: variant.weight ?? product.weight ?? 2 };
-        catalog[variant.id] = { id: product.id, name: product.name, slug: product.slug, sku: variant.sku, images: product.images, price: variant.price, memberPrice, stock: variant.stock, variantId: variant.id,
+        catalog[variant.id] = { id: product.id, name: product.name, slug: product.slug, sku: variant.sku, images: variantImages, price: variant.price, memberPrice, stock: variant.stock, variantId: variant.id,
           variantLabel: variant.values.map(value => `${value.variantValue.variantAttribute.name}: ${value.variantValue.value}`).join(" · ") };
       }
     }

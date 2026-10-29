@@ -4,10 +4,11 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getActiveMembershipPlan, durationLabel } from "@/lib/membership-plan";
 import { enforceExpiry, hasActiveMembership } from "@/lib/membership";
+import { MembershipAutopayControls } from "@/components/account/membership-autopay-controls";
 import {
-  Crown, CheckCircle2, Truck, ShieldCheck, Tag, Zap,
+  Crown, CheckCircle2, ShieldCheck, Tag, Zap,
   CalendarDays, ChevronRight, LayoutDashboard, Package,
-  UserCircle, MapPin, ArrowRight, Sparkles,
+  UserCircle, MapPin, ArrowRight, Sparkles, AlertCircle, XCircle,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Membership — Complete Home Sollution" };
@@ -23,9 +24,9 @@ const NAV_LINKS = [
 const currencyFmt = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 0 });
 
 const BASE_PERKS = [
-  { Icon: Truck,       title: "Free express delivery",    desc: "Free shipping on all orders, regardless of cart size" },
-  { Icon: ShieldCheck, title: "3-year extended warranty", desc: "Double the standard warranty on all purchases" },
-  { Icon: Zap,         title: "Early access to sales",    desc: "Shop new arrivals and sale events before everyone else" },
+  { Icon: Tag,         title: "Member-exclusive discounts", desc: "Exclusive member prices or 5% off (up to $30) on every item" },
+  { Icon: ShieldCheck, title: "3-year extended warranty",   desc: "Double the standard warranty on all purchases" },
+  { Icon: Zap,         title: "Early access to sales",      desc: "Shop new arrivals and sale events before everyone else" },
 ] as const;
 
 export default async function MembershipPage() {
@@ -38,7 +39,18 @@ export default async function MembershipPage() {
   const [dbUser, activePlan] = await Promise.all([
     db.user.findUnique({
       where: { id: user.id },
-      select: { isMember: true, memberSince: true, membershipExpiry: true, name: true },
+      select: {
+        isMember: true,
+        memberSince: true,
+        membershipExpiry: true,
+        membershipAutoRenew: true,
+        membershipStatus: true,
+        membershipCancelReason: true,
+        membershipCancelledAt: true,
+        membershipRetryCount: true,
+        membershipNextRetryAt: true,
+        name: true,
+      },
     }),
     getActiveMembershipPlan(),
   ]);
@@ -61,6 +73,9 @@ export default async function MembershipPage() {
   const initials = user.name
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : (user.email?.[0] ?? "U").toUpperCase();
+
+  const isCancelled = dbUser?.membershipStatus === "CANCELLED";
+  const isPaymentFailed = dbUser?.membershipStatus === "REVOKED_PAYMENT_FAILURE";
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -106,6 +121,41 @@ export default async function MembershipPage() {
           {/* ── Main content ── */}
           <main className="flex-1 min-w-0 space-y-6">
 
+            {/* Status alerts for past cancellations / revocations */}
+            {!isMember && isPaymentFailed && (
+              <div className="rounded-2xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 flex items-start gap-3 shadow-sm">
+                <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-red-950">
+                    Membership Revoked: Payment Method Failure Issue
+                  </p>
+                  <p className="text-red-800 text-xs">
+                    Your CHS Premium membership was revoked because automatic renewal payments failed after 2 retry attempts on different days (due to insufficient funds or card decline). Autopay was cancelled and benefits have been stopped.
+                  </p>
+                  <p className="text-red-700 text-xs font-semibold pt-1">
+                    You can re-subscribe anytime with an updated payment method below.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!isMember && isCancelled && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-800 flex items-start gap-3 shadow-sm">
+                <XCircle className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-900">
+                    Membership Cancelled
+                  </p>
+                  <p className="text-slate-600 text-xs">
+                    Your CHS Premium membership was cancelled manually. Recurring autopay was cancelled and all member benefits were revoked immediately.
+                  </p>
+                  <p className="text-slate-500 text-xs pt-0.5">
+                    Want to join again? You can activate a new membership below anytime.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {isMember ? (
               /* ── ACTIVE MEMBER VIEW ── */
               <>
@@ -125,6 +175,11 @@ export default async function MembershipPage() {
                         <span className="inline-flex items-center gap-1 bg-green-500/20 text-green-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                           <CheckCircle2 className="h-3 w-3" /> ACTIVE
                         </span>
+                        {dbUser?.membershipAutoRenew && (
+                          <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                            AUTOPAY ON
+                          </span>
+                        )}
                       </div>
                       <h1 className="text-2xl font-black mb-1 flex items-center gap-2">
                         CHS Premium Member
@@ -157,11 +212,17 @@ export default async function MembershipPage() {
                   </div>
                 )}
 
-                {dbUser?.membershipExpiry && (
-                  <p className="text-sm text-muted-foreground">
-                    Benefits expire on {dbUser.membershipExpiry.toLocaleString("en-AU", { timeZone: "Australia/Sydney", dateStyle: "long", timeStyle: "short" })} (Sydney time). Renew after expiry to continue your benefits.
-                  </p>
-                )}
+                {/* Autopay & Cancellation Management */}
+                <MembershipAutopayControls
+                  isMember={isMember}
+                  initialAutoRenew={dbUser?.membershipAutoRenew ?? true}
+                  membershipExpiry={dbUser?.membershipExpiry ? dbUser.membershipExpiry.toISOString() : null}
+                  membershipStatus={dbUser?.membershipStatus ?? null}
+                  membershipCancelReason={dbUser?.membershipCancelReason ?? null}
+                  retryCount={dbUser?.membershipRetryCount ?? 0}
+                  nextRetryAt={dbUser?.membershipNextRetryAt ? dbUser.membershipNextRetryAt.toISOString() : null}
+                  isAdmin={user.role === "ADMIN"}
+                />
 
                 {/* Active perks grid */}
                 <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -220,8 +281,8 @@ export default async function MembershipPage() {
                     </h1>
                     <p className="text-white/60 text-sm max-w-md">
                       {expiredAt
-                        ? `Your benefits ended on ${new Date(expiredAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. Renew at checkout to restore your savings and benefits.`
-                        : "Join thousands of Australians saving up to 30% on premium furniture with CHS Premium membership."}
+                        ? `Your benefits ended on ${new Date(expiredAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. Renew today to restore your savings and perks.`
+                        : "Join thousands of Australians saving with exclusive member prices or 5% off (up to $30) on premium furniture with CHS Premium membership."}
                     </p>
                     {activePlan ? (
                       <Link
@@ -235,6 +296,20 @@ export default async function MembershipPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Admin simulation tools even in non-member view so admins can test renewal */}
+                {user.role === "ADMIN" && (
+                  <MembershipAutopayControls
+                    isMember={false}
+                    initialAutoRenew={dbUser?.membershipAutoRenew ?? true}
+                    membershipExpiry={null}
+                    membershipStatus={dbUser?.membershipStatus ?? null}
+                    membershipCancelReason={dbUser?.membershipCancelReason ?? null}
+                    retryCount={dbUser?.membershipRetryCount ?? 0}
+                    nextRetryAt={null}
+                    isAdmin={true}
+                  />
+                )}
 
                 <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
                   <div className="px-6 py-5 border-b border-border">

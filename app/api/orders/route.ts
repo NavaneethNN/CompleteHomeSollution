@@ -173,8 +173,8 @@ export async function POST(req: NextRequest) {
         };
       });
 
-      const tax = subtotal * TAX_RATE;
-      const total = subtotal + shippingCost + tax;
+      const tax = 0;
+      const total = subtotal + shippingCost;
 
       return tx.order.create({
         data: {

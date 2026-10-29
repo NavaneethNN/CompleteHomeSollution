@@ -96,19 +96,32 @@ export default function TermsOfServicePage() {
           <h2 className="text-xl font-semibold mb-4">6. Membership Program</h2>
           <h3 className="text-lg font-medium mb-2">6.1 Membership Benefits</h3>
           <p className="text-muted-foreground mb-4">
-            Our membership program provides exclusive benefits including discounts, early access to sales, 
-            and special promotions. Benefits are subject to change.
+            Our membership program provides exclusive benefits including member pricing (exclusive member prices or 5% discount up to $30), 3-year extended warranty, early access to sales, and special promotions. Benefits are active exclusively while your membership remains in good standing.
           </p>
 
-          <h3 className="text-lg font-medium mb-2">6.2 Membership Fees</h3>
+          <h3 className="text-lg font-medium mb-2">6.2 Membership Fees & Autopay</h3>
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
-            <li>Membership fees are billed according to your selected plan (monthly/annual)</li>
-            <li>Fees are non-refundable except as required by law</li>
-            <li>You may cancel your membership at any time</li>
-            <li>Cancellation takes effect at the end of the current billing period</li>
+            <li>Membership fees are billed according to your selected plan (annual or monthly) with automatic renewal (autopay) enabled.</li>
+            <li>Fees are non-refundable once billed, except as required by Australian Consumer Law.</li>
+            <li>Customers may manage or toggle autopay preferences at any time from their account dashboard.</li>
           </ul>
 
-          <h3 className="text-lg font-medium mb-2">6.3 Termination</h3>
+          <h3 className="text-lg font-medium mb-2">6.3 Immediate Cancellation</h3>
+          <p className="text-muted-foreground mb-4">
+            Customers may cancel their membership at any time. When a membership is cancelled manually by the customer, autopay is immediately revoked and all membership benefits (including member-only discounts and extended warranty) are revoked immediately.
+          </p>
+
+          <h3 className="text-lg font-medium mb-2">6.4 Failed Autopay Payments & 2-Day Retry Policy</h3>
+          <p className="text-muted-foreground mb-4">
+            If an automatic renewal payment cannot be processed due to insufficient funds, an expired card, or bank decline:
+          </p>
+          <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
+            <li>Our system will automatically re-attempt the charge 2 times on different days.</li>
+            <li>You will receive email notifications advising you of each failed attempt so you have the opportunity to update your payment method.</li>
+            <li>If payment is still not received after these 2 retry attempts on different days, the membership will be terminated immediately stating a payment method failure issue.</li>
+          </ul>
+
+          <h3 className="text-lg font-medium mb-2">6.5 Termination</h3>
           <p className="text-muted-foreground mb-4">
             We reserve the right to terminate memberships for violations of these terms or fraudulent activity.
           </p>

@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { hasActiveMembership } from "@/lib/membership";
 import { CategoryProductsClient } from "@/components/shop/category-products-client";
+import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
 export const revalidate = 3600;
 
@@ -15,53 +16,59 @@ interface CategoryPageProps {
 
 async function getCategory(slug: string) {
   try {
-    const category = await db.category.findUnique({
-      where: { slug },
-    });
+    return await cacheFetch(
+      CACHE_KEYS.categoryProducts(slug),
+      CACHE_TTL.categoryProducts,
+      async () => {
+        const category = await db.category.findUnique({
+          where: { slug },
+        });
 
-    if (!category) return null;
+        if (!category) return null;
 
-    const products = await db.product.findMany({
-      where: { categoryId: category.id, isActive: true },
-      include: {
-        productVariants: {
-          where: { isActive: true },
-          include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
-          orderBy: { price: "asc" },
-          take: 1,
-        },
-        _count: { select: { reviews: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        const products = await db.product.findMany({
+          where: { categoryId: category.id, isActive: true },
+          include: {
+            productVariants: {
+              where: { isActive: true },
+              include: { images: { take: 1, orderBy: { displayOrder: "asc" } } },
+              orderBy: { price: "asc" },
+              take: 1,
+            },
+            _count: { select: { reviews: true } },
+          },
+          orderBy: { createdAt: "desc" },
+        });
 
-    return {
-      category,
-      products: products.map((p) => ({
-        id: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        basePrice: p.basePrice,
-        comparePrice: p.comparePrice,
-        memberPrice: p.memberPrice,
-        stock: p.stock,
-        images: p.images,
-        material: p.material,
-        roomType: p.roomType,
-        hasVariants: p.hasVariants,
-        category: { name: category.name, slug: category.slug },
-        reviewCount: p._count.reviews,
-        variant: p.hasVariants && p.productVariants[0] ? {
-          id: p.productVariants[0].id,
-          price: p.productVariants[0].price,
-          comparePrice: p.productVariants[0].comparePrice,
-          memberPrice: p.productVariants[0].memberPrice,
-          stock: p.productVariants[0].stock,
-          image: p.productVariants[0].images[0]?.url,
-        } : null,
-      })),
-    };
+        return {
+          category,
+          products: products.map((p) => ({
+            id: p.id,
+            name: p.name,
+            slug: p.slug,
+            description: p.description,
+            basePrice: p.basePrice,
+            comparePrice: p.comparePrice,
+            memberPrice: p.memberPrice,
+            stock: p.stock,
+            images: p.images,
+            material: p.material,
+            roomType: p.roomType,
+            hasVariants: p.hasVariants,
+            category: { name: category.name, slug: category.slug },
+            reviewCount: p._count.reviews,
+            variant: p.hasVariants && p.productVariants[0] ? {
+              id: p.productVariants[0].id,
+              price: p.productVariants[0].price,
+              comparePrice: p.productVariants[0].comparePrice,
+              memberPrice: p.productVariants[0].memberPrice,
+              stock: p.productVariants[0].stock,
+              image: p.productVariants[0].images[0]?.url,
+            } : null,
+          })),
+        };
+      }
+    );
   } catch (error) {
     console.error("[category] Unable to load catalog", error);
     throw new Error("The catalog is temporarily unavailable.");

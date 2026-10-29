@@ -40,7 +40,7 @@ export function RefreshSessionOnMembership() {
           Welcome to CHS Premium!
         </p>
         <p className="text-sm text-white/70 mt-0.5">
-          Your membership is now active. Enjoy member pricing, free express delivery, and exclusive perks on every order.
+          Your membership is now active. Enjoy member pricing, 5% off (up to $30) on every item, and exclusive perks on every order.
         </p>
       </div>
     </div>

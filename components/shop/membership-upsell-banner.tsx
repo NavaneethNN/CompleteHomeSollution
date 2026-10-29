@@ -47,8 +47,8 @@ export function MembershipUpsellBanner({
             Join Complete Home Membership
           </h3>
           <p className="text-sm text-muted-foreground">
-            Get exclusive discounts, free shipping on all orders, early access to sales, 
-            and member-only pricing. {savings > 0 && (
+            Get member-only pricing or 5% off (up to $30) on every item, early access to sales, 
+            and extended warranty. {savings > 0 && (
               <span className="text-primary font-semibold">
                 Save ${savings.toLocaleString()} on this order alone!
               </span>

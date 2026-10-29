@@ -99,7 +99,7 @@ export const TEST_CASES: TestCase[] = [
   { id: "CH-005", suite: "checkout", category: "Checkout", description: "Apply coupon code", steps: "Enter valid coupon code, click Apply", expected: "Discount applied, total recalculated" },
   { id: "CH-006", suite: "checkout", category: "Checkout", description: "Invalid coupon code", steps: "Enter invalid coupon code, click Apply", expected: "Error message: invalid coupon" },
   { id: "CH-007", suite: "checkout", category: "Checkout", description: "Remove coupon", steps: "Click Remove on applied coupon", expected: "Discount removed, total updated" },
-  { id: "CH-008", suite: "checkout", category: "Checkout", description: "Member gets free shipping", steps: "Login as member, check shipping", expected: "Free shipping displayed" },
+  { id: "CH-008", suite: "checkout", category: "Checkout", description: "Orders over $1,200 get free shipping", steps: "Add items totaling $1,200+, check shipping", expected: "Free shipping displayed" },
   { id: "CH-009", suite: "checkout", category: "Checkout", description: "Add membership during checkout", steps: "Check \"Add Membership\" checkbox", expected: "Membership fee added to total" },
   { id: "CH-010", suite: "checkout", category: "Checkout", description: "Place order", steps: "Fill all required fields, click Place Order", expected: "Redirect to Stripe checkout" },
   { id: "CH-011", suite: "checkout", category: "Checkout", description: "Guest checkout", steps: "Checkout without logging in", expected: "Guest email field shown, order placed successfully" },
@@ -123,7 +123,7 @@ export const TEST_CASES: TestCase[] = [
   { id: "M-001", suite: "membership", category: "Membership", description: "View membership page", steps: "Navigate to /account/membership", expected: "Membership plans and benefits displayed" },
   { id: "M-002", suite: "membership", category: "Membership", description: "Purchase membership", steps: "Click \"Buy Membership\", complete payment", expected: "Membership activated, user marked as member" },
   { id: "M-003", suite: "membership", category: "Membership", description: "Member pricing on products", steps: "Login as member, view products", expected: "Member prices shown on products" },
-  { id: "M-004", suite: "membership", category: "Membership", description: "Member gets free shipping", steps: "Login as member, checkout", expected: "Free shipping applied" },
+  { id: "M-004", suite: "membership", category: "Membership", description: "Member 5% discount up to $30 applied", steps: "Login as member, checkout item without manual member price", expected: "5% discount (up to $30) applied" },
   { id: "M-005", suite: "membership", category: "Membership", description: "Membership status in profile", steps: "View profile as member", expected: "Active Member badge displayed" },
 
   // ═══════════════════════════════════════════════════════════════════════════════

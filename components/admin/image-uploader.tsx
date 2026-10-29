@@ -29,6 +29,7 @@ interface ImageUploaderProps {
   onChange: (images: string[]) => void;
   maxImages?: number;
   folder?: string;
+  compact?: boolean;
 }
 
 export function ImageUploader({
@@ -36,16 +37,20 @@ export function ImageUploader({
   onChange,
   maxImages = 10,
   folder = "products",
+  compact = false,
 }: ImageUploaderProps) {
   const [uploading, setUploading] = useState<UploadingFile[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
 
   const canAddMore = images.length < maxImages;
 
   const uploadFiles = useCallback(
     async (files: File[]) => {
-      const allowed = maxImages - images.length;
+      const currentImages = imagesRef.current;
+      const allowed = maxImages - currentImages.length;
       const toUpload = files.slice(0, allowed);
       if (toUpload.length === 0) {
         toast.error(`Maximum ${maxImages} images allowed`);
@@ -109,13 +114,13 @@ export function ImageUploader({
       }
 
       if (uploadedUrls.length > 0) {
-        onChange([...images, ...uploadedUrls]);
+        onChange([...imagesRef.current, ...uploadedUrls]);
         toast.success(`${uploadedUrls.length} image${uploadedUrls.length > 1 ? "s" : ""} uploaded`);
       }
 
       setUploading(prev => prev.filter(file => file.progress === "error"));
     },
-    [images, maxImages, folder, onChange]
+    [maxImages, folder, onChange]
   );
 
   const handleFileInput = useCallback(
@@ -149,47 +154,47 @@ export function ImageUploader({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Upload area */}
-      {canAddMore && (
+    <div className="space-y-3">
+      {/* Hidden file input — always mounted so any trigger button works reliably */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={handleFileInput}
+      />
+
+      {/* Upload area — shown when no images are added yet */}
+      {images.length === 0 && canAddMore && (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
           className={cn(
-            "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-8 cursor-pointer transition-colors",
+            "flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-colors",
+            compact ? "p-4" : "p-8",
             dragOver
               ? "border-primary bg-primary/5"
               : "border-slate-200 bg-slate-50 hover:border-primary/50 hover:bg-slate-100"
           )}
         >
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileInput}
-          />
           {uploading.some(file => file.progress === "uploading") ? (
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <Loader2 className={cn("animate-spin text-primary", compact ? "h-6 w-6" : "h-8 w-8")} />
           ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-200">
-              <Upload className="h-6 w-6 text-slate-500" />
+            <div className={cn("flex items-center justify-center rounded-xl bg-slate-200", compact ? "h-9 w-9" : "h-12 w-12")}>
+              <Upload className={cn("text-slate-500", compact ? "h-4 w-4" : "h-6 w-6")} />
             </div>
           )}
           <div className="text-center">
-            <p className="text-sm font-medium text-slate-700">
-              {uploading.some(file => file.progress === "uploading") ? "Uploading to Cloudflare R2..." : "Click or drag images here"}
+            <p className={cn("font-medium text-slate-700", compact ? "text-xs" : "text-sm")}>
+              {uploading.some(file => file.progress === "uploading") ? "Uploading to storage..." : "Click or drag images here"}
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              JPEG, PNG, WebP, AVIF, GIF · Max {IMAGE_UPLOAD_LIMIT_LABEL} each · Up to {maxImages} images
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              JPEG, PNG, WebP, AVIF, GIF · Max {IMAGE_UPLOAD_LIMIT_LABEL} · Up to {maxImages} images
             </p>
           </div>
-          <p className="text-xs text-slate-400">
-            {images.length}/{maxImages} added
-          </p>
         </div>
       )}
 
@@ -197,7 +202,7 @@ export function ImageUploader({
       {uploading.length > 0 && (
         <div className="space-y-1.5">
           {uploading.map((f, i) => (
-            <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs">
+            <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs">
               {f.progress === "uploading" && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />}
               {f.progress === "done" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
               {f.progress === "error" && <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />}
@@ -210,9 +215,18 @@ export function ImageUploader({
         </div>
       )}
 
-      {/* Image grid */}
+      {/* Image grid — displayed when images exist */}
       {images.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+        <div
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+          className={cn(
+            "grid gap-2.5 rounded-lg transition-colors",
+            compact ? "grid-cols-3 sm:grid-cols-4 md:grid-cols-6" : "grid-cols-3 sm:grid-cols-4 md:grid-cols-5",
+            dragOver && "ring-2 ring-primary ring-offset-2 bg-primary/5"
+          )}
+        >
           {images.map((url, index) => (
             <div
               key={`${url}-${index}`}
@@ -279,25 +293,26 @@ export function ImageUploader({
             </div>
           ))}
 
-          {/* Add more tile */}
+          {/* Add more tile inside the grid */}
           {canAddMore && (
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 hover:border-primary/50 hover:bg-slate-100 hover:text-primary transition-colors"
+              className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 text-slate-400 hover:border-primary/50 hover:bg-slate-100 hover:text-primary transition-colors cursor-pointer"
               title="Add more images"
             >
-              <ImageIcon className="h-6 w-6" />
-              <span className="text-xs">Add</span>
+              <ImageIcon className={cn(compact ? "h-5 w-5" : "h-6 w-6")} />
+              <span className="text-xs font-medium">Add</span>
             </button>
           )}
         </div>
       )}
 
       {images.length > 0 && (
-        <p className="text-xs text-slate-400">
-          First image is used as the main product image. Use arrows to reorder.
-        </p>
+        <div className="flex items-center justify-between text-[11px] text-slate-400">
+          <span>First image is used as the main image. Use arrows to reorder.</span>
+          <span>{images.length}/{maxImages} images</span>
+        </div>
       )}
     </div>
   );

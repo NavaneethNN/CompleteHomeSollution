@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/db";
+import { cacheFetch, CACHE_TTL } from "@/lib/redis";
 import { ShoppingCart } from "lucide-react";
 
 interface RecommendedProductsProps {
@@ -12,33 +13,38 @@ export async function RecommendedProducts({
   categoryId,
   currentProductId,
 }: RecommendedProductsProps) {
-  const products = await db.product.findMany({
-    where: {
-      categoryId,
-      id: { not: currentProductId },
-      isActive: true,
-    },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      images: true,
-      basePrice: true,
-      comparePrice: true,
-      memberPrice: true,
-      hasVariants: true,
-      material: true,
-      _count: { select: { reviews: true } },
-      productVariants: {
-        where: { isActive: true },
-        orderBy: { price: "asc" },
-        take: 1,
-        select: { price: true, comparePrice: true, stock: true },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 4,
-  });
+  const products = await cacheFetch(
+    `category:recommended:${categoryId}:${currentProductId}`,
+    CACHE_TTL.categoryProducts,
+    () =>
+      db.product.findMany({
+        where: {
+          categoryId,
+          id: { not: currentProductId },
+          isActive: true,
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          images: true,
+          basePrice: true,
+          comparePrice: true,
+          memberPrice: true,
+          hasVariants: true,
+          material: true,
+          _count: { select: { reviews: true } },
+          productVariants: {
+            where: { isActive: true },
+            orderBy: { price: "asc" },
+            take: 1,
+            select: { price: true, comparePrice: true, stock: true },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+      })
+  );
 
   if (products.length === 0) return null;
 

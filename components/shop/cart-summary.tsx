@@ -62,7 +62,7 @@ export function CartSummary({ subtotal, itemCount, isMember = false, memberSavin
       </Link> : <span aria-disabled="true" className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-muted px-6 py-3 text-sm font-bold text-muted-foreground">Checkout unavailable until cart is refreshed</span>}
 
       <p className="mt-3 text-center text-[11px] text-muted-foreground">
-        {isMember ? "GST calculated at checkout. Shipping is free with membership." : "GST & shipping calculated at next step."}
+        {isMember ? "GST included. Shipping is free with membership." : "GST included. Shipping calculated at next step."}
       </p>
     </aside>
   );

@@ -17,7 +17,7 @@ export default function ShippingPolicyPage() {
           <h2 className="text-xl font-semibold mb-4">1. Shipping Overview</h2>
           <p className="text-muted-foreground mb-4">
             Complete Home Solution delivers furniture and home goods across Australia. 
-            We use Ship123 to arrange delivery with the available courier services shown at checkout.
+            We use Couriers Please to arrange delivery across Australia with real-time tracking updates.
           </p>
         </section>
 
@@ -26,7 +26,7 @@ export default function ShippingPolicyPage() {
           <h3 className="text-lg font-medium mb-2">2.1 Standard Delivery</h3>
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
             <li>Delivery to your door or ground floor entrance</li>
-            <li>Carrier: the eligible courier service selected at checkout</li>
+            <li>Carrier: Couriers Please</li>
             <li>Tracking provided via email and SMS</li>
             <li>Signature required for high-value items</li>
           </ul>
@@ -99,8 +99,7 @@ export default function ShippingPolicyPage() {
             Free standard shipping is available for:
           </p>
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
-            <li>Orders over $500 (Australia-wide)</li>
-            <li>Membership holders (all orders, no minimum)</li>
+            <li>Orders over $1,200 (Australia-wide)</li>
             <li>Select promotional items (marked on product page)</li>
           </ul>
 

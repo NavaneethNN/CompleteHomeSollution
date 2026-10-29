@@ -76,6 +76,7 @@ function stub(path: string, exports: unknown) {
 }
 stub("../auth", { auth: async () => guest ? null : ({ user: { id: "user", role: "CUSTOMER", email: "buyer@example.com" } }) });
 stub("../lib/db", { db });
+stub("../lib/couriersplease", { checkCouriersPleaseAvailability: () => ({ available: true, reason: null }), getCouriersPleaseRates: async () => [{ serviceCode: "STANDARD", serviceName: "Standard", price: 12 }] });
 stub("../lib/ship123", { getShip123Rates: async () => [{ serviceCode: "STANDARD", price: 12 }], getEligibleShip123Products: async () => [{ code: "STANDARD" }] });
 stub("../lib/brevo", { sendOrderConfirmationEmail: async () => {} });
 stub("../lib/twilio", { sendOrderConfirmationSms: async () => {}, sendOrderWhatsApp: async () => {} });
@@ -83,7 +84,7 @@ stub("next/server", { ...require("next/server"), after: () => {} });
 const checkout = require("../app/api/checkout/session/route").POST as typeof import("../app/api/checkout/session/route").POST;
 
 const address = { name: "Test Buyer", phone: "0400000000", line1: "1 Test Street", suburb: "Sydney", state: "NSW", postcode: "2000", country: "AU" };
-const baseBody = { items: [{ productId, quantity: 3 }], address, idempotencyKey: "6b620acb-5819-43f9-961e-1c1cdd331233" };
+const baseBody = { items: [{ productId, quantity: 3 }], address, idempotencyKey: "6b620acb-5819-43f9-961e-1c1cdd331233", shippingCost: 12, shippingRateCode: "STANDARD" };
 
 function request(body: unknown) {
   return new NextRequest("https://shop.example/api/checkout/session", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -189,10 +190,11 @@ test("coupon cents match stored totals and provider lines while allowance is res
   const response = await checkout(request({ ...baseBody, couponCode: "SAVE1" }));
   assert.equal(response.status, 200);
   assert.equal(order?.discount, 1);
-  assert.equal(order?.subtotal, 29);
-  assert.equal(order?.tax, 2.9);
-  assert.equal(order?.total, 31.9);
-  assert.equal(providerTotal, 3190);
+  assert.equal(order?.subtotal, 27.5);
+  assert.equal(order?.shippingCost, 12);
+  assert.equal(order?.tax, 0);
+  assert.equal(order?.total, 39.5);
+  assert.equal(providerTotal, 3950);
   assert.equal(usageCount, 1);
   assert.equal(userCouponCount, 1);
   assert.equal(order?.couponReserved, true);
@@ -211,8 +213,10 @@ test("variant checkout inherits the product member price in the order and provid
   const response = await checkout(request({ ...baseBody, items: [{ productId, variantId, quantity: 3 }] }));
   assert.equal(response.status, 200);
   assert.equal(order?.subtotal, 21);
+  assert.equal(order?.shippingCost, 12);
   assert.equal(order?.items[0].unitPrice, 7);
-  assert.equal(providerTotal, 2310);
+  assert.equal(order?.total, 33);
+  assert.equal(providerTotal, 3300);
 });
 
 

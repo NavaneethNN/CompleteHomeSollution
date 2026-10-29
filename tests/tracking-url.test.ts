@@ -11,6 +11,10 @@ test("creates direct links for supported couriers", () => {
     getTrackingUrl("DHL Express", "123456"),
     "https://www.dhl.com/au-en/home/tracking.html?tracking-id=123456"
   );
+  assert.equal(
+    getTrackingUrl("Couriers Please", "CP12345678"),
+    "https://www.couriersplease.com.au/tools-track/result?trackingNumber=CP12345678"
+  );
 });
 
 test("does not create external links from unrecognised courier text", () => {

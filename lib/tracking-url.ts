@@ -19,6 +19,9 @@ export function getTrackingUrl(carrier: string | null | undefined, trackingNumbe
   if (courier.includes("fedex")) {
     return `https://www.fedex.com/fedextrack/?trknbr=${trackingId}`;
   }
+  if (courier.includes("couriers please") || courier.includes("couriersplease")) {
+    return `https://www.couriersplease.com.au/tools-track/result?trackingNumber=${trackingId}`;
+  }
 
   return null;
 }

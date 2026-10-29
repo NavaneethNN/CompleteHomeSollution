@@ -218,10 +218,17 @@ export default async function OrderConfirmationPage({
                 )}
               </span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">GST (10%)</span>
-              <span>{currencyFormatter.format(order.tax)}</span>
-            </div>
+            {order.tax > 0 ? (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">GST (10%)</span>
+                <span>{currencyFormatter.format(order.tax)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">GST</span>
+                <span className="text-emerald-600 font-medium">Included in price</span>
+              </div>
+            )}
             {membershipActivated && (
               <div className="flex justify-between text-sm">
                 <span className="text-primary font-medium flex items-center gap-1">

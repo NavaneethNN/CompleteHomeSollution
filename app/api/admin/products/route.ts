@@ -3,37 +3,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import slugify from "slugify";
-
-// Validation schemas
-const variantValueSchema = z.object({
-  id: z.string(), // temp ID from frontend
-  value: z.string(),
-  hexCode: z.string().optional().nullable(),
-  images: z.array(z.string()).optional(),
-});
-
-const variantAttributeSchema = z.object({
-  id: z.string(), // temp ID from frontend
-  name: z.string(),
-  displayOrder: z.number().default(0),
-  isPrimary: z.boolean().default(false),
-  values: z.array(variantValueSchema),
-});
-
-const productVariantSchema = z.object({
-  sku: z.string().min(1),
-  price: z.number().nonnegative(),
-  comparePrice: z.number().optional().nullable(),
-  memberPrice: z.number().optional().nullable(),
-  stock: z.number().int().min(0).default(0),
-  isActive: z.boolean().default(true),
-  valueIds: z.array(z.string()), // Array of variant value IDs
-  images: z.array(z.string()).optional(),
-  weight: z.number().optional().nullable(),
-  length: z.number().optional().nullable(),
-  width: z.number().optional().nullable(),
-  height: z.number().optional().nullable(),
-});
+import { cacheDel, CACHE_KEYS } from "@/lib/redis";
 
 // Security constants
 const MAX_IMAGE_SIZE_MB = 5;
@@ -62,9 +32,45 @@ const validateImageSize = (imageString: string): boolean => {
   return false;
 };
 
+// Validation schemas
+const variantValueSchema = z.object({
+  id: z.string(), // temp ID from frontend
+  value: z.string(),
+  hexCode: z.string().optional().nullable(),
+  images: z.array(z.string()).optional(),
+});
+
+const variantAttributeSchema = z.object({
+  id: z.string(), // temp ID from frontend
+  name: z.string(),
+  displayOrder: z.number().default(0),
+  isPrimary: z.boolean().default(false),
+  values: z.array(variantValueSchema),
+});
+
+const productVariantSchema = z.object({
+  sku: z.string().min(1),
+  price: z.number().nonnegative(),
+  comparePrice: z.number().optional().nullable(),
+  memberPrice: z.number().optional().nullable(),
+  stock: z.number().int().min(0).default(0),
+  isActive: z.boolean().default(true),
+  valueIds: z.array(z.string()), // Array of variant value IDs
+  images: z.array(z.string()).optional(),
+  description: z.string().max(MAX_DESCRIPTION_LENGTH).optional().nullable(),
+  bulletTitle: z.string().max(100).optional().nullable(),
+  bulletPoints: z.array(z.string()).max(20).default([]),
+  weight: z.number().optional().nullable(),
+  length: z.number().optional().nullable(),
+  width: z.number().optional().nullable(),
+  height: z.number().optional().nullable(),
+});
+
 const createProductSchema = z.object({
   name: z.string().min(1).max(MAX_NAME_LENGTH),
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional().nullable(),
+  bulletTitle: z.string().max(100).optional().nullable(),
+  bulletPoints: z.array(z.string()).max(20).default([]),
   basePrice: z.number().nonnegative(),
   comparePrice: z.number().optional().nullable(),
   memberPrice: z.number().optional().nullable(),
@@ -181,7 +187,7 @@ export async function POST(req: Request) {
     const data = createProductSchema.parse(body);
 
     // Generate slug from name
-    const baseSlug = slugify(data.name, { lower: true, strict: true });
+    const baseSlug = slugify(data.name, { lower: true, strict: true }) || "product";
     let slug = baseSlug;
     let counter = 1;
 
@@ -200,6 +206,8 @@ export async function POST(req: Request) {
           name: data.name,
           slug,
           description: data.description || "",
+          bulletTitle: data.bulletTitle || null,
+          bulletPoints: data.bulletPoints || [],
           basePrice: data.basePrice,
           comparePrice: data.comparePrice,
           memberPrice: data.memberPrice,
@@ -269,6 +277,9 @@ export async function POST(req: Request) {
                 memberPrice: variant.memberPrice,
                 stock: variant.stock,
                 isActive: variant.isActive,
+                description: variant.description || null,
+                bulletTitle: variant.bulletTitle || null,
+                bulletPoints: variant.bulletPoints || [],
                 weight: variant.weight,
                 length: variant.length,
                 width: variant.width,
@@ -309,6 +320,9 @@ export async function POST(req: Request) {
       timeout: 20000, // 20 seconds
     });
 
+    // Invalidate product & catalog caches across L1 and Upstash Redis
+    await cacheDel([CACHE_KEYS.productsAll, CACHE_KEYS.homeTrending, CACHE_KEYS.categories]);
+
     return NextResponse.json({ product }, { status: 201 });
   } catch (error) {
     console.error("[POST /api/admin/products] Error:", error);
@@ -317,6 +331,14 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Validation error", details: error.issues },
         { status: 400 }
+      );
+    }
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+      const target = (error as any).meta?.target;
+      const targetField = Array.isArray(target) ? target.join(", ") : target || "SKU";
+      return NextResponse.json(
+        { error: `A product or variant with this ${targetField} already exists. Please choose a unique ${targetField}.` },
+        { status: 409 }
       );
     }
     // Log more details about the error

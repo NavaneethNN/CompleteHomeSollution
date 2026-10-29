@@ -35,5 +35,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# agents scratch
+.agents/
+
 # prisma
 # prisma/migrations/ — tracked so teammates can run migrate deploy

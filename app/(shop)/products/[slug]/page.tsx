@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { hasActiveMembership } from "@/lib/membership";
+import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
 import { ProductReviews } from "@/components/shop/product-reviews";
@@ -12,7 +13,7 @@ import { RecommendedProducts } from "@/components/shop/recommended-products";
 import { WishlistToggleButton } from "@/components/shop/wishlist-toggle-button";
 import { MembershipUpsellBanner } from "@/components/shop/membership-upsell-banner";
 import { ProductAssurance } from "@/components/shop/product-assurance";
-import { Star } from "lucide-react";
+import { Star, Check } from "lucide-react";
 
 export const revalidate = 3600;
 
@@ -20,70 +21,76 @@ async function getProduct(slug: string) {
   // Security: validate slug format to prevent injection
   if (!/^[a-z0-9-]+$/.test(slug)) return null;
 
-  const product = await db.product.findUnique({
-    where: { slug, isActive: true },
-    include: {
-      category: true,
-      variantAttributes: {
-        orderBy: { displayOrder: "asc" },
+  return await cacheFetch(
+    CACHE_KEYS.product(slug),
+    CACHE_TTL.product,
+    async () => {
+      const product = await db.product.findUnique({
+        where: { slug, isActive: true },
         include: {
-          variantValues: {
-            orderBy: { value: "asc" },
-            select: {
-              id: true,
-              value: true,
-              hexCode: true,
-              images: true,
-              variantAttributeId: true,
-            },
-          },
-        },
-      },
-      productVariants: {
-        where: { isActive: true },
-        orderBy: { price: "asc" },
-        include: {
-          values: {
+          category: true,
+          variantAttributes: {
+            orderBy: { displayOrder: "asc" },
             include: {
-              variantValue: {
-                include: { variantAttribute: true },
+              variantValues: {
+                orderBy: { value: "asc" },
+                select: {
+                  id: true,
+                  value: true,
+                  hexCode: true,
+                  images: true,
+                  variantAttributeId: true,
+                },
               },
             },
           },
-          images: {
-            orderBy: { displayOrder: "asc" },
+          productVariants: {
+            where: { isActive: true },
+            orderBy: { price: "asc" },
+            include: {
+              values: {
+                include: {
+                  variantValue: {
+                    include: { variantAttribute: true },
+                  },
+                },
+              },
+              images: {
+                orderBy: { displayOrder: "asc" },
+              },
+            },
           },
+          reviews: {
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              rating: true,
+              comment: true,
+              images: true,
+              createdAt: true,
+              user: { select: { name: true, image: true } },
+            },
+          },
+          _count: { select: { reviews: true } },
         },
-      },
-      reviews: {
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          rating: true,
-          comment: true,
-          images: true,
-          createdAt: true,
-          user: { select: { name: true, image: true } },
-        },
-      },
-      _count: { select: { reviews: true } },
-    },
-  });
+      });
 
-  if (!product) return null;
+      if (!product) return null;
 
-  return {
-    ...product,
-    // Group variants by their attribute combinations
-    variantMap: product.productVariants.reduce((acc, variant) => {
-      const key = [...variant.values]
-        .sort((a, b) => a.variantValue.variantAttribute.name.localeCompare(b.variantValue.variantAttribute.name))
-        .map((v) => `${v.variantValue.variantAttribute.name}:${v.variantValue.value}`)
-        .join("|");
-      acc[key] = variant;
-      return acc;
-    }, {} as Record<string, typeof product.productVariants[0]>),
-  };
+      return {
+        ...product,
+        // Group variants by their attribute combinations
+        variantMap: product.productVariants.reduce((acc, variant) => {
+          const key = [...variant.values]
+            .sort((a, b) => a.variantValue.variantAttribute.name.localeCompare(b.variantValue.variantAttribute.name))
+            .map((v) => `${v.variantValue.variantAttribute.name}:${v.variantValue.value}`)
+            .join("|");
+          acc[key] = variant;
+          return acc;
+        }, {} as Record<string, typeof product.productVariants[0]>),
+      };
+    }
+  );
 }
 
 export async function generateMetadata({
@@ -167,7 +174,7 @@ export default async function ProductDetailPage({
   return (
     <main className="min-h-screen bg-white">
       {/* Breadcrumbs */}
-      <div className="container mx-auto px-4 py-4 md:px-6 md:py-6 xl:px-8">
+      <div className="container mx-auto px-4 py-2.5 md:px-6 md:py-4 xl:px-8">
         <Breadcrumbs
           items={[
             { label: "Home", href: "/" },
@@ -178,7 +185,7 @@ export default async function ProductDetailPage({
         />
       </div>
 
-      <div className="container mx-auto space-y-14 px-4 pb-16 md:px-6 md:pb-24 xl:px-8">
+      <div className="container mx-auto space-y-10 sm:space-y-14 px-4 pb-16 md:px-6 md:pb-24 xl:px-8">
         {/* ── Product Detail ── */}
         {product.hasVariants ? (
           <ProductDetailsClient
@@ -193,6 +200,8 @@ export default async function ProductDetailPage({
               stock: product.stock,
               images: productImages,
               description: product.description,
+              bulletTitle: product.bulletTitle,
+              bulletPoints: product.bulletPoints,
               material: product.material,
               weight: product.weight,
               length: product.length,
@@ -208,28 +217,28 @@ export default async function ProductDetailPage({
             defaultVariant={defaultVariant}
           />
         ) : (
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(390px,0.88fr)] lg:items-start lg:gap-12 xl:gap-16">
+          <div className="grid grid-cols-1 gap-6 sm:gap-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(390px,0.88fr)] lg:items-start lg:gap-12 xl:gap-16">
             <div className="min-w-0 lg:sticky lg:top-24">
               <ProductGallery images={productImages} productName={product.name} />
             </div>
-            <div className="space-y-5">
+            <div className="space-y-4 sm:space-y-5">
               {/* Header */}
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{product.category.name}</p>
-                  <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">{product.name}</h1>
-                  {product.material && <p className="text-xs text-muted-foreground mt-0.5">{product.material}</p>}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-primary">{product.category.name}</p>
+                  <h1 className="mt-1 text-xl font-bold tracking-tight text-foreground sm:text-2xl md:text-3xl lg:text-4xl leading-snug">{product.name}</h1>
+                  {product.material && <p className="text-xs text-muted-foreground mt-1">Material: {product.material}</p>}
                 </div>
-                <WishlistToggleButton product={wishlistProduct} className="h-11 w-11 shrink-0" />
+                <WishlistToggleButton product={wishlistProduct} className="h-10 w-10 sm:h-11 sm:w-11 shrink-0" />
               </div>
 
               {/* Rating summary */}
               {avgRating !== null && (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 text-xs sm:text-sm">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <Star
                       key={i}
-                      className={`h-4 w-4 ${i < Math.round(avgRating) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
+                      className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${i < Math.round(avgRating) ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"}`}
                     />
                   ))}
                   <span className="text-xs text-muted-foreground ml-1">
@@ -239,78 +248,108 @@ export default async function ProductDetailPage({
               )}
 
               {/* Price */}
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-semibold text-foreground">${product.basePrice.toLocaleString()}</span>
-                {product.comparePrice && product.comparePrice > product.basePrice && (
-                  <>
-                    <span className="text-sm text-muted-foreground line-through">${product.comparePrice.toLocaleString()}</span>
-                    <span className="text-xs font-medium text-destructive bg-destructive/10 px-1.5 py-0.5 rounded">
-                      Save {Math.round(((product.comparePrice - product.basePrice) / product.comparePrice) * 100)}%
-                    </span>
-                  </>
+              <div className="border-y border-border/70 py-3 sm:py-4">
+                <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                  <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">${product.basePrice.toLocaleString()}</span>
+                  {product.comparePrice && product.comparePrice > product.basePrice && (
+                    <>
+                      <span className="text-sm sm:text-base text-muted-foreground line-through">${product.comparePrice.toLocaleString()}</span>
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        Save {Math.round(((product.comparePrice - product.basePrice) / product.comparePrice) * 100)}%
+                      </span>
+                    </>
+                  )}
+                </div>
+                {product.memberPrice && (
+                  <p className="mt-1.5 text-xs sm:text-sm text-primary font-medium">
+                    Member price: ${product.memberPrice.toLocaleString()}
+                    <span className="text-xs text-muted-foreground font-normal ml-1">(Save ${(product.basePrice - product.memberPrice).toLocaleString()})</span>
+                  </p>
                 )}
               </div>
-              {product.memberPrice && (
-                <p className="text-sm text-primary font-medium">
-                  Member price: ${product.memberPrice.toLocaleString()}
-                  <span className="text-xs text-muted-foreground font-normal ml-1">(Save ${(product.basePrice - product.memberPrice).toLocaleString()})</span>
-                </p>
-              )}
 
               {/* Membership Upsell for Non-Members */}
               {!isMember && potentialSavings > 0 && (
                 <MembershipUpsellBanner savings={potentialSavings} />
               )}
 
-              {/* Description */}
-              {product.description.trim() && <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>}
-
               {/* SKU / Stock */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span>SKU: {product.sku}</span>
-                {product.stock > 0
-                  ? <span className="text-green-800 font-medium">● In Stock ({product.stock} available)</span>
-                  : <span className="text-destructive font-medium">● Out of Stock</span>}
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm pt-1">
+                <span className={product.stock > 0 ? "font-medium text-emerald-800" : "font-medium text-destructive"}>
+                  {product.stock > 0 ? `● In Stock (${product.stock} available)` : "● Out of Stock"}
+                </span>
+                <span className="text-xs text-muted-foreground">SKU: {product.sku}</span>
               </div>
 
               {/* Add to Cart */}
-              <AddToCartButton
-                product={{
-                  id: product.id,
-                  name: product.name,
-                  slug: product.slug,
-                  price: product.basePrice ?? 0,
-                  memberPrice: product.memberPrice ?? null,
-                  images: productImages,
-                  stock: product.stock ?? 0,
-                  description: product.description ?? "",
-                }}
-                disabled={!product.stock || product.stock <= 0}
-                hasVariants={false}
-              />
+              <div>
+                <AddToCartButton
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    slug: product.slug,
+                    price: product.basePrice ?? 0,
+                    memberPrice: product.memberPrice ?? null,
+                    images: productImages,
+                    stock: product.stock ?? 0,
+                    description: product.description ?? "",
+                  }}
+                  disabled={!product.stock || product.stock <= 0}
+                  hasVariants={false}
+                />
+              </div>
+              <p className="text-center text-[11px] sm:text-xs text-muted-foreground">Shipping options are calculated from your address at checkout.</p>
+
+              {/* Description */}
+              {product.description.trim() && (
+                <div className="border-t border-border/70 pt-4 space-y-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{product.description}</p>
+                </div>
+              )}
+
+              {/* Bullet Points / Highlights */}
+              {product.bulletPoints && product.bulletPoints.length > 0 && (
+                <div className="rounded-xl border border-border/70 bg-slate-50/70 p-3.5 space-y-2">
+                  <h3 className="text-xs sm:text-sm font-semibold text-foreground tracking-tight flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    {product.bulletTitle?.trim() || "Key Features"}
+                  </h3>
+                  <ul className="space-y-1.5 text-xs sm:text-sm text-muted-foreground">
+                    {product.bulletPoints.map((point, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <Check className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        <span>{point}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Specifications */}
               {(product.weight || product.length || product.width || product.height) && (
-                <div className="pt-3 border-t border-border">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Specifications</p>
-                  <div className="grid grid-cols-1 gap-y-2 text-sm">
+                <div className="pt-4 border-t border-border/70">
+                  <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Specifications</h2>
+                  <div className="grid grid-cols-1 gap-y-2 text-xs sm:text-sm">
                     {product.weight && (
-                      <div className="flex justify-between">
+                      <div className="flex justify-between py-1">
                         <span className="text-muted-foreground">Weight</span>
-                        <span className="font-medium">{product.weight} kg</span>
+                        <span className="font-medium text-foreground">{product.weight} kg</span>
                       </div>
                     )}
                     {product.length && product.width && product.height && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Dimensions</span>
-                        <span className="font-medium">{product.length} × {product.width} × {product.height} cm</span>
+                      <div className="flex justify-between py-1">
+                        <span className="text-muted-foreground">Dimensions (L × W × H)</span>
+                        <span className="font-medium text-foreground">{product.length} × {product.width} × {product.height} cm</span>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              <ProductAssurance />
+              <div className="pt-2">
+                <ProductAssurance />
+              </div>
             </div>
           </div>
         )}

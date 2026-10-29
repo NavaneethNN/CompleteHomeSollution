@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hasFreshAdminSession } from "@/lib/admin-auth";
+import { processDueEmailJobs } from "@/lib/email-outbox";
 import { z } from "zod";
 import { ORDER_TRANSITIONS } from "@/lib/order-state";
 
@@ -73,6 +74,14 @@ export async function PUT(req: NextRequest, { params }: Params) {
     });
 
     if (!changed.count) return NextResponse.json({ error: "Order changed. Refresh and try again." }, { status: 409 });
+
+    // Send status update notification immediately (fits within Vercel free plan)
+    if (data.status !== existingOrder.status) {
+      await processDueEmailJobs().catch((emailErr) => {
+        console.error("[Order status update] Email dispatch note:", emailErr);
+      });
+    }
+
     const order = await db.order.findUniqueOrThrow({ where: { id } });
 
     return NextResponse.json({ data: order });

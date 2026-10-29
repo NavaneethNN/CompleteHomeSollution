@@ -17,8 +17,15 @@ import {
   Check,
   Loader2,
   AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  User,
+  Phone,
+  Sparkles,
 } from "lucide-react";
+import { cleanAustralianSuburb } from "@/lib/data/australian-suburbs";
 import { Address } from "@prisma/client";
+import { cn } from "@/lib/utils";
 import { addressSchema, AddressInput } from "@/lib/validations/address";
 import {
   createAddress,
@@ -78,6 +85,7 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [addressStep, setAddressStep] = useState<1 | 2>(1);
   const { toast } = useToast();
 
   const {
@@ -85,6 +93,7 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
     handleSubmit,
     reset,
     setValue,
+    trigger: triggerValidation,
     formState: { errors },
     watch,
   } = useForm<AddressInput>({
@@ -103,8 +112,16 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
 
   const selectedState = watch("state");
 
+  const handleProceedToStep2 = async () => {
+    const valid = await triggerValidation(["name", "phone"]);
+    if (valid) {
+      setAddressStep(2);
+    }
+  };
+
   const openAddDialog = () => {
     setEditingAddress(null);
+    setAddressStep(1);
     reset({
       name: userProfile?.name || "",
       phone: userProfile?.phone || "",
@@ -120,6 +137,7 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
 
   const openEditDialog = (address: Address) => {
     setEditingAddress(address);
+    setAddressStep(1);
     reset({
       name: address.name || userProfile?.name || "",
       phone: address.phone || userProfile?.phone || "",
@@ -134,10 +152,21 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
   };
 
   const onSubmit = async (data: AddressInput) => {
+    const cleanData: AddressInput = {
+      name: data.name.trim(),
+      line1: data.line1.trim(),
+      line2: data.line2?.trim() || undefined,
+      suburb: cleanAustralianSuburb(data.suburb),
+      state: data.state.trim().toUpperCase(),
+      postcode: data.postcode.replace(/\D/g, "").slice(0, 4),
+      country: "AU",
+      phone: data.phone.trim(),
+    };
+
     setIsLoading(true);
     try {
       if (editingAddress) {
-        const result = await updateAddress(editingAddress.id, data);
+        const result = await updateAddress(editingAddress.id, cleanData);
         if (result.error) {
           toast({
             title: "Error",
@@ -154,9 +183,10 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
             variant: "success",
           });
           setIsDialogOpen(false);
+          setAddressStep(1);
         }
       } else {
-        const result = await createAddress(data);
+        const result = await createAddress(cleanData);
         if (result.error) {
           toast({
             title: "Error",
@@ -171,6 +201,7 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
             variant: "success",
           });
           setIsDialogOpen(false);
+          setAddressStep(1);
         }
       }
     } catch {
@@ -328,172 +359,269 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
         </div>
       )}
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {/* Add/Edit Dialog — Clean 2-Step Experience */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setEditingAddress(null);
+          setAddressStep(1);
+        }
+        setIsDialogOpen(open);
+      }}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" />
-              {editingAddress ? "Edit Address" : "Add New Address"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingAddress
-                ? "Update your delivery address details"
-                : "Enter your delivery address details"}
+          <DialogHeader className="pb-1">
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                <MapPin className="h-5 w-5 text-primary" />
+                {editingAddress ? "Edit Address Details" : "Add New Delivery Address"}
+              </DialogTitle>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                Step {addressStep} of 2
+              </span>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {addressStep === 1
+                ? "Step 1: Contact details for courier delivery SMS & notifications"
+                : "Step 2: Enter delivery street address, suburb, and postcode"}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-4 pt-4">
-            {/* Name & Phone */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="addr-name" className="text-sm font-medium">Full Name</Label>
+          {/* Stepper Progress Bar */}
+          <div className="grid grid-cols-2 gap-2 my-2 p-1.5 bg-secondary/50 rounded-xl border border-border/50">
+            <button
+              type="button"
+              onClick={() => setAddressStep(1)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left",
+                addressStep === 1
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors",
+                addressStep === 1
+                  ? "bg-primary text-white"
+                  : "bg-emerald-600 text-white"
+              )}>
+                {addressStep === 2 ? <Check className="h-3 w-3" /> : "1"}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate leading-none">1. Contact</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleProceedToStep2}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left",
+                addressStep === 2
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors",
+                addressStep === 2
+                  ? "bg-primary text-white"
+                  : "bg-muted text-muted-foreground"
+              )}>
+                2
+              </div>
+              <div className="min-w-0">
+                <p className="truncate leading-none">2. Address</p>
+              </div>
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-4 pt-1">
+            {/* STEP 1: Name & Phone */}
+            <div className={cn("space-y-4", addressStep !== 1 && "hidden")}>
+              <div className="space-y-1.5">
+                <Label htmlFor="addr-name" className="text-sm font-medium flex items-center gap-1.5">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  Full Name <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="addr-name"
-                  placeholder="John Smith"
+                  placeholder="e.g. John Smith"
                   {...register("name")}
                 />
-                {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="addr-phone" className="text-sm font-medium">Phone</Label>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="addr-phone" className="text-sm font-medium flex items-center gap-1.5">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  Mobile Number <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="addr-phone"
                   type="tel"
-                  placeholder="0412 345 678"
+                  placeholder="e.g. 0412 345 678"
                   {...register("phone")}
                 />
-                {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
-              </div>
-            </div>
-
-            {/* Street Address Line 1 with Google Places Autocomplete */}
-            <AddressAutocomplete
-              value={watch("line1")}
-              onChange={(value) => setValue("line1", value)}
-              onAddressSelect={(address) => {
-                setValue("line1", address.line1);
-                if (address.line2) setValue("line2", address.line2);
-                setValue("suburb", address.suburb);
-                setValue("state", address.state);
-                setValue("postcode", address.postcode);
-                setValue("country", address.country);
-              }}
-              error={errors.line1?.message}
-              disabled={isLoading}
-            />
-
-            {/* Street Address Line 2 */}
-            <div className="space-y-2">
-              <Label htmlFor="line2" className="text-sm font-medium flex items-center gap-2">
-                <Building className="h-4 w-4 text-muted-foreground" />
-                Apartment, Suite, Unit (Optional)
-              </Label>
-              <Input
-                id="line2"
-                type="text"
-                placeholder="Apt 4B, Floor 2"
-                {...register("line2")}
-              />
-              {errors.line2 && (
-                <p className="text-sm text-destructive">{errors.line2.message}</p>
-              )}
-            </div>
-
-            {/* Suburb Selector */}
-            <SuburbSelector
-              value={watch("suburb")}
-              onChange={(value) => setValue("suburb", value)}
-              state={selectedState}
-              error={errors.suburb?.message}
-              disabled={isLoading}
-            />
-
-            {/* State and Postcode Row */}
-            <div className="grid grid-cols-2 gap-4">
-              {/* State */}
-              <div className="space-y-2">
-                <Label htmlFor="state" className="text-sm font-medium flex items-center gap-2">
-                  <Navigation className="h-4 w-4 text-muted-foreground" />
-                  State
-                </Label>
-                <Select
-                  value={selectedState}
-                  onValueChange={(value) => setValue("state", value)}
-                >
-                  <SelectTrigger id="state">
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AUSTRALIAN_STATES.map((state) => (
-                      <SelectItem key={state.value} value={state.value}>
-                        {state.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.state && (
-                  <p className="text-sm text-destructive">{errors.state.message}</p>
+                {errors.phone ? (
+                  <p className="text-xs text-destructive">{errors.phone.message}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Couriers Please sends delivery SMS alerts to this number.</p>
                 )}
               </div>
 
-              {/* Postcode */}
-              <div className="space-y-2">
-                <Label htmlFor="postcode" className="text-sm font-medium">
-                  Postcode
+              <DialogFooter className="gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                  disabled={isLoading}
+                >
+                  <X className="h-4 w-4 mr-1.5" />
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleProceedToStep2}
+                  className="w-full sm:w-auto"
+                >
+                  Continue to Address
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
+              </DialogFooter>
+            </div>
+
+            {/* STEP 2: Delivery Address */}
+            <div className={cn("space-y-3.5", addressStep !== 2 && "hidden")}>
+              {/* 1. Street Address Line 1 */}
+              <div className="space-y-1.5">
+                <AddressAutocomplete
+                  value={watch("line1")}
+                  onChange={(value) => setValue("line1", value, { shouldValidate: true })}
+                  onAddressSelect={(address) => {
+                    setValue("line1", address.line1, { shouldValidate: true });
+                    if (address.line2) setValue("line2", address.line2);
+                    if (address.suburb) setValue("suburb", cleanAustralianSuburb(address.suburb), { shouldValidate: true });
+                    if (address.state) setValue("state", address.state, { shouldValidate: true });
+                    if (address.postcode) setValue("postcode", address.postcode.replace(/\D/g, "").slice(0, 4), { shouldValidate: true });
+                    setValue("country", address.country || "AU");
+                  }}
+                  error={errors.line1?.message}
+                  disabled={isLoading}
+                />
+              </div>
+
+              {/* 2. Street Address Line 2 */}
+              <div className="space-y-1.5">
+                <Label htmlFor="line2" className="text-sm font-medium flex items-center gap-1.5">
+                  <Building className="h-4 w-4 text-muted-foreground" />
+                  Apartment, Suite, Unit <span className="text-muted-foreground font-normal text-xs">(Optional)</span>
                 </Label>
                 <Input
-                  id="postcode"
+                  id="line2"
                   type="text"
-                  placeholder="2000"
-                  maxLength={4}
-                  {...register("postcode")}
+                  placeholder="e.g. Apt 4B, Floor 2"
+                  {...register("line2")}
                 />
-                {errors.postcode && (
-                  <p className="text-sm text-destructive">{errors.postcode.message}</p>
+                {errors.line2 && (
+                  <p className="text-xs text-destructive">{errors.line2.message}</p>
                 )}
               </div>
-            </div>
 
-            {/* Country (Read-only) */}
-            <div className="space-y-2">
-              <Label htmlFor="country" className="text-sm font-medium flex items-center gap-2">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-                Country
-              </Label>
-              <Input
-                id="country"
-                type="text"
-                value="Australia"
-                disabled
-                className="bg-muted/50"
-              />
-            </div>
-
-            <DialogFooter className="gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                disabled={isLoading}
-              >
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4 mr-2" />
-                    {editingAddress ? "Update Address" : "Save Address"}
-                  </>
+              {/* 3. Suburb */}
+              <div className="space-y-1.5">
+                <Label htmlFor="addr-suburb" className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  Suburb / City <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="addr-suburb"
+                  type="text"
+                  placeholder="e.g. Adelaide, Sydney, Melbourne, Golden Grove"
+                  {...register("suburb")}
+                />
+                {errors.suburb && (
+                  <p className="text-xs text-destructive">{errors.suburb.message}</p>
                 )}
-              </Button>
-            </DialogFooter>
+              </div>
+
+              {/* 4. State & Postcode */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="addr-state" className="text-sm font-medium flex items-center gap-1.5">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    State <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={selectedState || ""}
+                    onValueChange={(value) => setValue("state", value, { shouldValidate: true })}
+                  >
+                    <SelectTrigger id="addr-state">
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AUSTRALIAN_STATES.map((state) => (
+                        <SelectItem key={state.value} value={state.value}>
+                          {state.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.state && (
+                    <p className="text-xs text-destructive">{errors.state.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="addr-postcode" className="text-sm font-medium flex items-center gap-1.5">
+                    <Navigation className="h-4 w-4 text-muted-foreground" />
+                    Postcode <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="addr-postcode"
+                    type="text"
+                    placeholder="e.g. 5000, 2000, 5125"
+                    maxLength={4}
+                    {...register("postcode")}
+                  />
+                  {errors.postcode && (
+                    <p className="text-xs text-destructive">{errors.postcode.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Country summary */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground py-1.5 px-3 bg-secondary/30 rounded-lg">
+                <span className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  Country: <strong>Australia (AU)</strong>
+                </span>
+                <span>Couriers Please delivery</span>
+              </div>
+
+              <DialogFooter className="gap-2 pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAddressStep(1)}
+                  disabled={isLoading}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1.5" />
+                  Back to Contact
+                </Button>
+                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4 mr-2" />
+                      {editingAddress ? "Update Address" : "Save Address"}
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

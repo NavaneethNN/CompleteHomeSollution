@@ -245,7 +245,11 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                   value={membershipOnly ? "Not required" : order.shippingCost === 0 ? "Free" : `$${order.shippingCost.toFixed(2)}`}
                   valueClass={order.shippingCost === 0 ? "text-emerald-600 font-semibold" : undefined}
                 />
-                <Row label="GST (10%)" value={`$${order.tax.toFixed(2)}`} />
+                {order.tax > 0 ? (
+                  <Row label="GST (10%)" value={`$${order.tax.toFixed(2)}`} />
+                ) : (
+                  <Row label="GST" value="Included in price" valueClass="text-emerald-600 font-medium" />
+                )}
                 <div className="border-t border-border pt-3 flex items-center justify-between">
                   <span className="font-bold text-foreground">Total</span>
                   <span className="text-xl font-bold text-foreground">${order.total.toFixed(2)}</span>

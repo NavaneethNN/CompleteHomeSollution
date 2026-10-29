@@ -88,6 +88,7 @@ export const AUSTRALIAN_SUBURBS: Suburb[] = [
   { name: "Brighton", state: "SA", postcode: "5048" },
   { name: "Henley Beach", state: "SA", postcode: "5022" },
   { name: "Port Adelaide", state: "SA", postcode: "5015" },
+  { name: "Golden Grove", state: "SA", postcode: "5125" },
   { name: "Tea Tree Gully", state: "SA", postcode: "5091" },
   { name: "Modbury", state: "SA", postcode: "5092" },
 
@@ -122,7 +123,73 @@ export function getSuburbsByState(state: string): Suburb[] {
   return AUSTRALIAN_SUBURBS.filter((suburb) => suburb.state === state);
 }
 
+// Get suburbs by exact 4-digit postcode
+export function getSuburbsByPostcode(postcode: string): Suburb[] {
+  const clean = postcode.trim();
+  if (!clean) return [];
+  return AUSTRALIAN_SUBURBS.filter((suburb) => suburb.postcode === clean);
+}
+
+// Automatically resolve Australian State from 4-digit postcode
+export function getStateFromPostcode(postcode: string): string | null {
+  const p = parseInt(postcode.trim(), 10);
+  if (isNaN(p)) return null;
+
+  if (
+    (p >= 1000 && p <= 1999) ||
+    (p >= 2000 && p <= 2599) ||
+    (p >= 2619 && p <= 2899) ||
+    (p >= 2921 && p <= 2999)
+  ) {
+    return "NSW";
+  }
+  if (
+    (p >= 200 && p <= 299) ||
+    (p >= 2600 && p <= 2618) ||
+    (p >= 2900 && p <= 2920)
+  ) {
+    return "ACT";
+  }
+  if ((p >= 3000 && p <= 3999) || (p >= 8000 && p <= 8999)) {
+    return "VIC";
+  }
+  if ((p >= 4000 && p <= 4999) || (p >= 9000 && p <= 9999)) {
+    return "QLD";
+  }
+  if ((p >= 5000 && p <= 5799) || (p >= 5800 && p <= 5999)) {
+    return "SA";
+  }
+  if ((p >= 6000 && p <= 6797) || (p >= 6800 && p <= 6999)) {
+    return "WA";
+  }
+  if ((p >= 7000 && p <= 7799) || (p >= 7800 && p <= 7999)) {
+    return "TAS";
+  }
+  if (p >= 800 && p <= 999) {
+    return "NT";
+  }
+  return null;
+}
+
 // Get all suburbs sorted alphabetically
 export function getAllSuburbs(): Suburb[] {
   return [...AUSTRALIAN_SUBURBS].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Sanitizes and cleans an Australian suburb name for shipping couriers (e.g. Couriers Please).
+ * Strips accidental trailing state codes, postcodes, countries, or quotes that cause courier API rejections.
+ * Examples:
+ *   "Sydney, NSW" -> "Sydney"
+ *   "Adelaide SA 5000" -> "Adelaide"
+ *   "Melbourne, VIC, Australia" -> "Melbourne"
+ */
+export function cleanAustralianSuburb(suburb: string): string {
+  if (!suburb) return "";
+  let s = suburb.replace(/^["']|["']$/g, "").trim();
+  s = s.replace(/,?\s*(Australia|AU)$/i, "").trim();
+  s = s.replace(/,?\s*\b\d{4}\b$/, "").trim();
+  s = s.replace(/,?\s*\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b$/i, "").trim();
+  s = s.replace(/[,.-]+$/, "").trim();
+  return s;
 }

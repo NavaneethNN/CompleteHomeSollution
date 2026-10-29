@@ -48,6 +48,13 @@ model User {
   isMember         Boolean   @default(false)
   memberSince      DateTime?
   membershipExpiry DateTime?
+  membershipAutoRenew Boolean   @default(true)
+  membershipStatus    String?
+  membershipCancelReason String?
+  membershipCancelledAt DateTime?
+  membershipRetryCount  Int       @default(0)
+  membershipNextRetryAt DateTime?
+  membershipLastRetryAt DateTime?
   mfaEnabled  Boolean   @default(false)
   mfaSecret   String?
   createdAt   DateTime  @default(now())
@@ -107,6 +114,8 @@ model Product {
   name         String
   slug         String   @unique
   description  String   @db.Text
+  bulletTitle  String?
+  bulletPoints String[] @default([])
   basePrice    Float    @default(0) // Base price before variants
   comparePrice Float?
   memberPrice  Float?
@@ -180,6 +189,9 @@ model ProductVariant {
   price        Float    // Specific price for this variant combination
   comparePrice Float?
   memberPrice  Float?
+  description  String?  @db.Text
+  bulletTitle  String?
+  bulletPoints String[] @default([])
   stock        Int      @default(0)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())

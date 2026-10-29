@@ -157,18 +157,23 @@ export function VariantSelector({
   }, [selections, attributes, variants]);
 
   return (
-    <div className="space-y-5 border-t border-border pt-5">
+    <div className="space-y-3 sm:space-y-4">
       {/* Variant Attributes */}
       {attributes.map((attribute) => {
         const availableValues = availableValuesByAttribute[attribute.id] || new Set();
+        const selectedValue = attribute.variantValues.find(value => value.id === selections[attribute.id]);
         
         return (
-          <div key={attribute.id}>
-            <p className="mb-2.5 text-sm font-semibold text-foreground">
-              Choose {attribute.name.toLowerCase()}
-              {selections[attribute.id] && <span className="ml-2 font-normal text-muted-foreground">— {attribute.variantValues.find(value => value.id === selections[attribute.id])?.value}</span>}
-            </p>
-            <div className="flex flex-wrap gap-2">
+          <div key={attribute.id} className="space-y-1.5 sm:space-y-2">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
+              <span className="font-semibold text-foreground">
+                {attribute.name}:{" "}
+                <span className="font-normal text-muted-foreground">
+                  {selectedValue?.value || "Select option"}
+                </span>
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
               {attribute.variantValues.map((value) => {
                 const isSelected = selections[attribute.id] === value.id;
                 const isAvailable = availableValues.has(value.id);
@@ -181,9 +186,9 @@ export function VariantSelector({
                     onClick={() => isAvailable && handleSelect(attribute.id, value.id)}
                     disabled={!isAvailable}
                     className={cn(
-                      "relative inline-flex min-h-11 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                      "relative inline-flex min-h-9 sm:min-h-10 items-center gap-1.5 sm:gap-2 rounded-lg sm:rounded-xl border px-3 sm:px-3.5 py-1 sm:py-1.5 text-xs sm:text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       isSelected
-                        ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary"
+                        ? "border-primary bg-primary/10 text-primary font-semibold ring-1 ring-primary shadow-xs"
                         : isAvailable
                         ? "border-border bg-white text-foreground hover:border-primary/50"
                         : "border-border/50 bg-muted text-muted-foreground cursor-not-allowed opacity-50"
@@ -191,7 +196,7 @@ export function VariantSelector({
                   >
                     {value.hexCode && (
                       <span
-                        className="inline-block h-4 w-4 rounded-full border border-foreground/20"
+                        className="inline-block h-3.5 w-3.5 rounded-full border border-foreground/20 shrink-0"
                         style={{ backgroundColor: value.hexCode }}
                       />
                     )}
@@ -203,7 +208,6 @@ export function VariantSelector({
           </div>
         );
       })}
-
     </div>
   );
 }

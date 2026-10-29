@@ -76,9 +76,9 @@ test("ALL coupons change amount when membership changes prices, including non-va
 });
 
 test("shared totals preserve the configured calculation for shipping, membership and cent rounding", () => {
-  assert.deepEqual(checkoutTotals(29, 12, 0), { tax: 2.9, total: 43.9 });
-  assert.deepEqual(checkoutTotals(18.9, 0, 30), { tax: 1.89, total: 50.79 });
-  assert.deepEqual(checkoutTotals(0.05, 0, 0), { tax: 0.01, total: 0.06 });
+  assert.deepEqual(checkoutTotals(29, 12, 0), { tax: 0, total: 41 });
+  assert.deepEqual(checkoutTotals(18.9, 0, 30), { tax: 0, total: 48.9 });
+  assert.deepEqual(checkoutTotals(0.05, 0, 0), { tax: 0, total: 0.05 });
   assert.equal(calculateCouponDiscount({ discountType: "FIXED", discountValue: 10, maxDiscount: 2 }, 30), 2);
   assert.equal(calculateCouponDiscount({ discountType: "PERCENTAGE", discountValue: 200, maxDiscount: null }, 30), 30);
 });

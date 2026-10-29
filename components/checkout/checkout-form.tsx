@@ -28,7 +28,14 @@ import {
   Zap,
   ChevronDown,
   ChevronUp,
+  ArrowLeft,
+  ArrowRight,
+  Mail,
+  User,
+  Phone,
+  Sparkles,
 } from "lucide-react";
+import { cleanAustralianSuburb } from "@/lib/data/australian-suburbs";
 import { Address } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { checkoutTotals } from "@/lib/checkout-totals";
@@ -163,7 +170,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     return emailRegex.test(email) && email.length <= 254;
   };
 
-  // Ship123 shipping rates
+  // Couriers Please shipping rates
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [selectedRateCode, setSelectedRateCode] = useState<string | null>(null);
   const [isFetchingRates, setIsFetchingRates] = useState(false);
@@ -176,7 +183,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     const controller = new AbortController();
     setShippingAvailable(null);
     setShippingAvailabilityError(null);
-    fetch("/api/shipping/ship123", { signal: controller.signal, cache: "no-store" })
+    fetch("/api/shipping/couriersplease", { signal: controller.signal, cache: "no-store" })
       .then(async response => {
         const data = await response.json();
         if (controller.signal.aborted) return;
@@ -185,9 +192,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         if (!available) {
           setShippingAvailabilityError(response.status === 429
             ? "Shipping checks are temporarily limited. Please wait a minute, then retry."
-            : response.ok && data.reason === "NO_SUPPORTED_COURIER"
-              ? "Shipping is unavailable until a supported courier is enabled. Please contact support."
-              : "We couldn't check shipping availability. Please retry in a moment. If this continues, contact support.");
+            : "Shipping is currently unavailable. Please contact support.");
         }
       })
       .catch(() => {
@@ -257,19 +262,21 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const discount = Math.min(currentCoupon?.discount ?? 0, displayedSubtotal);
   const discountedSubtotal = currentCoupon?.discountedSubtotal ?? displayedSubtotal - discount;
   const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode);
-  const freeShipping = effectiveMember || discountedSubtotal >= 1200;
+  const freeShipping = discountedSubtotal >= 1200;
   const shippingCost = freeShipping ? 0 : (selectedRate?.price ?? null);
   const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
   const { tax: gst, total } = checkoutTotals(discountedSubtotal, shippingCost ?? 0, membershipAdd);
   // Net benefit: savings on items minus membership fee
   const netBenefit = memberSavings - MEMBERSHIP_PRICE;
 
-  // Address dialog form
+  // Address dialog form & multi-step state
+  const [addressStep, setAddressStep] = useState<1 | 2>(1);
   const {
     register: registerAddress,
     handleSubmit: handleAddressSubmit,
     reset: resetAddress,
     setValue: setAddressValue,
+    trigger: triggerAddress,
     formState: { errors: addressErrors },
     watch: watchAddress,
   } = useForm<AddressInput>({
@@ -288,21 +295,51 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   const addressState = watchAddress("state");
 
-  // Ship123 needs the complete destination, and stale responses must not replace a newer quote.
-  const fetchShip123Rates = useCallback(
+  const handleProceedToStep2 = async () => {
+    if (!isAuthenticated) {
+      if (!guestEmail.trim()) {
+        setGuestEmailError("Email address is required");
+        return;
+      }
+      if (!isValidEmail(guestEmail)) {
+        setGuestEmailError("Please enter a valid email address");
+        return;
+      }
+      setGuestEmailError(null);
+    }
+    const isValid = await triggerAddress(["name", "phone"]);
+    if (isValid) {
+      setAddressStep(2);
+    }
+  };
+
+  // Couriers Please needs the complete destination, and stale responses must not replace a newer quote.
+  const fetchShippingRates = useCallback(
     async (address: AddressInput | Address) => {
       const requestId = ++shippingRequestRef.current;
-      if (!/^\d{4}$/.test(address.postcode) || !pricesReady || freeShipping) return;
+      const cleanPostcode = (address.postcode || "").replace(/\D/g, "").slice(0, 4);
+      if (!/^\d{4}$/.test(cleanPostcode) || !pricesReady || freeShipping) return;
       setIsFetchingRates(true);
       setRatesError(null);
       setShippingRates([]);
       setSelectedRateCode(null);
       try {
-        const res = await fetch("/api/shipping/ship123", {
+        const cleanAddress = {
+          name: address.name?.trim() || "Customer",
+          line1: address.line1?.trim() || "",
+          line2: address.line2?.trim() || null,
+          suburb: cleanAustralianSuburb(address.suburb || ""),
+          state: (address.state || "").trim().toUpperCase(),
+          postcode: cleanPostcode,
+          country: "AU" as const,
+          phone: address.phone?.trim() || null,
+        };
+
+        const res = await fetch("/api/shipping/couriersplease", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            address,
+            address: cleanAddress,
             items: items.map(item => ({
               productId: item.product.id,
               variantId: item.product.variantId ?? undefined,
@@ -310,15 +347,16 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             })),
           }),
         });
-        const data = await res.json();
+
+        const data = await res.json().catch(() => ({}));
         if (requestId !== shippingRequestRef.current) return;
         if (!res.ok) {
-          setRatesError(data.error ?? "Could not fetch shipping rates.");
+          setRatesError(data.error ?? "Could not fetch shipping rates from Couriers Please.");
         } else if (data.rates?.length) {
           setShippingRates(data.rates);
           setSelectedRateCode(data.rates[0].serviceCode);
         } else {
-          setRatesError("No shipping services available for this postcode.");
+          setRatesError("No Couriers Please delivery services available for this postcode.");
         }
       } catch {
         if (requestId === shippingRequestRef.current) setRatesError("Could not connect to shipping service.");
@@ -333,13 +371,13 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   useEffect(() => {
     if (!selectedAddressId) return;
     const addr = addresses.find((a) => a.id === selectedAddressId);
-    if (addr?.postcode) fetchShip123Rates(addr);
-  }, [selectedAddressId, addresses, fetchShip123Rates]);
+    if (addr?.postcode) fetchShippingRates(addr);
+  }, [selectedAddressId, addresses, fetchShippingRates]);
 
   // Fetch rates when guest address is set
   useEffect(() => {
-    if (guestAddress?.postcode) fetchShip123Rates(guestAddress);
-  }, [guestAddress, fetchShip123Rates]);
+    if (guestAddress?.postcode) fetchShippingRates(guestAddress);
+  }, [guestAddress, fetchShippingRates]);
 
   // Show cancelled toast
   useEffect(() => {
@@ -355,6 +393,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   // Address management functions
   const openAddDialog = () => {
     setEditingAddress(null);
+    setAddressStep(1);
     resetAddress({
       name: userProfile?.name || "",
       phone: userProfile?.phone || "",
@@ -370,6 +409,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   const openEditDialog = (address: Address) => {
     setEditingAddress(address);
+    setAddressStep(1);
     resetAddress({
       name: address.name || userProfile?.name || "",
       phone: address.phone || userProfile?.phone || "",
@@ -398,26 +438,39 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       }
     }
 
+    const cleanData: AddressInput = {
+      name: data.name.trim(),
+      line1: data.line1.trim(),
+      line2: data.line2?.trim() || undefined,
+      suburb: cleanAustralianSuburb(data.suburb),
+      state: data.state.trim().toUpperCase() as any,
+      postcode: data.postcode.replace(/\D/g, "").slice(0, 4),
+      country: "AU",
+      phone: data.phone.trim(),
+    };
+
     setIsLoading(true);
     try {
       if (!isAuthenticated) {
         // Guest: just store locally, don't hit the DB
-        setGuestAddress({ ...data, email: guestEmail.trim().toLowerCase() });
+        setGuestAddress({ ...cleanData, email: guestEmail.trim().toLowerCase() });
         setIsAddressDialogOpen(false);
+        setAddressStep(1);
         toast({ title: "Address saved", description: "Your delivery address has been set." });
         return;
       }
       if (editingAddress) {
-        const result = await updateAddress(editingAddress.id, data);
+        const result = await updateAddress(editingAddress.id, cleanData);
         if (result.error) {
           toast({ title: "Error", description: result.error, variant: "destructive" });
         } else if (result.address) {
           setAddresses(addresses.map((a) => (a.id === editingAddress.id ? result.address : a)));
           toast({ title: "Address updated", description: "Your address has been saved." });
           setIsAddressDialogOpen(false);
+          setAddressStep(1);
         }
       } else {
-        const result = await createAddress(data);
+        const result = await createAddress(cleanData);
         if (result.error) {
           toast({ title: "Error", description: result.error, variant: "destructive" });
         } else if (result.address) {
@@ -425,6 +478,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           setSelectedAddressId(result.address.id);
           toast({ title: "Address saved", description: "Your address has been added." });
           setIsAddressDialogOpen(false);
+          setAddressStep(1);
         }
       }
     } catch {
@@ -939,8 +993,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">GST (10%)</span>
-              <span className="font-medium">{currencyFormatter.format(gst)}</span>
+              <span className="text-muted-foreground">GST</span>
+              <span className="font-medium text-emerald-600">Included in price</span>
             </div>
             {membershipAdd > 0 && (
               <div className="flex justify-between text-sm">
@@ -965,11 +1019,11 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
           {freeShipping && (
             <p className="mt-3 text-xs text-green-600 font-medium flex items-center gap-1">
-              {effectiveMember ? "Free shipping included with your membership" : "Free shipping on orders of $1,200 or more"}
+              Free shipping on orders of $1,200 or more
             </p>
           )}
 
-          {/* Ship123 shipping options */}
+          {/* Couriers Please shipping options */}
           {!freeShipping && (
             <div className="mt-4">
               {isFetchingRates && (
@@ -1077,8 +1131,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   <p className="text-xs font-semibold text-foreground mt-2 mb-2">What you get:</p>
                   <div className="space-y-1.5">
                     {[
-                      { Icon: BadgePercent, text: "Up to 30% off every order" },
-                      { Icon: Truck,        text: "Free express delivery over $200" },
+                      { Icon: BadgePercent, text: "5% off (up to $30) on every item or exclusive member prices" },
                       { Icon: ShieldCheck,  text: "3-year extended warranty" },
                       { Icon: Zap,          text: "Early access to sales & new arrivals" },
                     ].map(({ Icon, text }) => (
@@ -1202,162 +1255,314 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         </div>
       </div>
 
-      {/* Add / Edit Address Dialog */}
+      {/* Add / Edit Address Dialog — Clean 2-Step Experience */}
       <Dialog open={isAddressDialogOpen} onOpenChange={(open) => {
-        // Block close for guests who haven't entered an address yet —
-        // they must fill the form first. The Cancel button below is
-        // always available for authenticated users.
-        if (!open && !isAuthenticated && !guestAddress) return;
         if (!open) {
           setEditingAddress(null);
           setIsLoading(false); // clear any stuck loading state
+          setAddressStep(1);
         }
         setIsAddressDialogOpen(open);
       }}>
-        <DialogContent className="sm:max-w-lg max-h-[calc(100%-2rem)] overflow-y-auto" hideCloseButton={!isAuthenticated && !guestAddress}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" />
-              {editingAddress ? "Edit Address" : "Add Delivery Address"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingAddress ? "Update your delivery address details" : "Enter your delivery address details"}
+        <DialogContent className="sm:max-w-lg max-h-[calc(100%-2rem)] overflow-y-auto">
+          <DialogHeader className="pb-1">
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                <MapPin className="h-5 w-5 text-primary" />
+                {editingAddress ? "Edit Delivery Details" : "Delivery Details"}
+              </DialogTitle>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                Step {addressStep} of 2
+              </span>
+            </div>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {addressStep === 1
+                ? "Step 1: Contact details for courier delivery SMS & receipts"
+                : "Step 2: Enter delivery street address, suburb, and postcode"}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleAddressSubmit(onAddressDialogSubmit)} className="space-y-4 pt-2">
-            {/* Email — guests only */}
-            {!isAuthenticated && (
-              <div className="space-y-2">
-                <Label htmlFor="dlg-email" className="text-sm font-medium">Email Address <span className="text-destructive">*</span></Label>
+          {/* Stepper Progress Bar */}
+          <div className="grid grid-cols-2 gap-2 my-2 p-1.5 bg-secondary/50 rounded-xl border border-border/50">
+            <button
+              type="button"
+              onClick={() => setAddressStep(1)}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left",
+                addressStep === 1
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors",
+                addressStep === 1
+                  ? "bg-primary text-white"
+                  : "bg-emerald-600 text-white"
+              )}>
+                {addressStep === 2 ? <Check className="h-3 w-3" /> : "1"}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate leading-none">1. Contact</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleProceedToStep2}
+              className={cn(
+                "flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all text-left",
+                addressStep === 2
+                  ? "bg-background text-foreground shadow-xs font-semibold"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <div className={cn(
+                "w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 transition-colors",
+                addressStep === 2
+                  ? "bg-primary text-white"
+                  : "bg-muted text-muted-foreground"
+              )}>
+                2
+              </div>
+              <div className="min-w-0">
+                <p className="truncate leading-none">2. Address</p>
+              </div>
+            </button>
+          </div>
+
+          <form onSubmit={handleAddressSubmit(onAddressDialogSubmit)} className="space-y-4 pt-1">
+            {/* STEP 1: Name & Mobile Number (and Email for guest) */}
+            <div className={cn("space-y-4", addressStep !== 1 && "hidden")}>
+              {/* Email — guests only */}
+              {!isAuthenticated && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="dlg-email" className="text-sm font-medium flex items-center gap-1.5">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    Email Address <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="dlg-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={guestEmail}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setGuestEmail(value);
+                      if (value && !isValidEmail(value)) {
+                        setGuestEmailError("Please enter a valid email address");
+                      } else {
+                        setGuestEmailError(null);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (guestEmail && !isValidEmail(guestEmail)) {
+                        setGuestEmailError("Please enter a valid email address");
+                      }
+                    }}
+                    required
+                    aria-invalid={!!guestEmailError}
+                    aria-describedby={guestEmailError ? "email-error" : undefined}
+                    className={guestEmailError ? "border-destructive" : ""}
+                  />
+                  {guestEmailError ? (
+                    <p id="email-error" className="text-xs text-destructive">{guestEmailError}</p>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">We'll send order confirmation and tracking updates to this email.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Full Name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="dlg-name" className="text-sm font-medium flex items-center gap-1.5">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  Full Name <span className="text-destructive">*</span>
+                </Label>
                 <Input
-                  id="dlg-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={guestEmail}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setGuestEmail(value);
-                    if (value && !isValidEmail(value)) {
-                      setGuestEmailError("Please enter a valid email address");
-                    } else {
-                      setGuestEmailError(null);
-                    }
-                  }}
-                  onBlur={() => {
-                    if (guestEmail && !isValidEmail(guestEmail)) {
-                      setGuestEmailError("Please enter a valid email address");
-                    }
-                  }}
-                  required
-                  aria-invalid={!!guestEmailError}
-                  aria-describedby={guestEmailError ? "email-error" : undefined}
-                  className={guestEmailError ? "border-destructive" : ""}
+                  aria-invalid={!!addressErrors.name}
+                  aria-describedby={addressErrors.name ? "dlg-name-error" : undefined}
+                  id="dlg-name"
+                  placeholder="e.g. John Smith"
+                  {...registerAddress("name")}
                 />
-                {guestEmailError && (
-                  <p id="email-error" className="text-sm text-destructive">{guestEmailError}</p>
+                {addressErrors.name && (
+                  <p id="dlg-name-error" role="alert" className="text-xs text-destructive">{addressErrors.name.message}</p>
                 )}
               </div>
-            )}
 
-            {/* Name & Phone */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="dlg-name" className="text-sm font-medium">Full Name</Label>
-                <Input aria-invalid={!!addressErrors.name} aria-describedby={addressErrors.name ? "dlg-name-error" : undefined} id="dlg-name" placeholder="John Smith" {...registerAddress("name")} />
-                {addressErrors.name && <p id="dlg-name-error" role="alert" className="text-sm text-destructive">{addressErrors.name.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dlg-phone" className="text-sm font-medium">Phone</Label>
-                <Input aria-invalid={!!addressErrors.phone} aria-describedby={addressErrors.phone ? "dlg-phone-error" : undefined} id="dlg-phone" type="tel" placeholder="0412 345 678" {...registerAddress("phone")} />
-                {addressErrors.phone && <p id="dlg-phone-error" role="alert" className="text-sm text-destructive">{addressErrors.phone.message}</p>}
-              </div>
-            </div>
-
-            {/* Street Address with Google Autocomplete */}
-            <AddressAutocomplete
-              value={watchAddress("line1")}
-              onChange={(val) => setAddressValue("line1", val)}
-              onAddressSelect={(addr) => {
-                setAddressValue("line1", addr.line1);
-                if (addr.line2) setAddressValue("line2", addr.line2);
-                setAddressValue("suburb", addr.suburb);
-                setAddressValue("state", addr.state);
-                setAddressValue("postcode", addr.postcode);
-                setAddressValue("country", addr.country);
-              }}
-              error={addressErrors.line1?.message}
-              disabled={isLoading}
-            />
-
-            {/* Apt / Unit */}
-            <div className="space-y-2">
-              <Label htmlFor="dlg-line2" className="text-sm font-medium flex flex-wrap items-center gap-2">
-                <Building className="h-4 w-4 text-muted-foreground" />
-                Apartment, Suite, Unit <span className="text-muted-foreground font-normal">(Optional)</span>
-              </Label>
-              <Input id="dlg-line2" placeholder="Apt 4B, Floor 2" {...registerAddress("line2")} />
-            </div>
-
-            {/* Suburb Selector */}
-            <SuburbSelector
-              value={watchAddress("suburb")}
-              onChange={(val) => setAddressValue("suburb", val)}
-              state={addressState}
-              error={addressErrors.suburb?.message}
-              disabled={isLoading}
-            />
-
-            {/* State & Postcode */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dlg-state" className="text-sm font-medium flex items-center gap-2">
-                  <Navigation className="h-4 w-4 text-muted-foreground" />
-                  State
+              {/* Phone / Mobile Number */}
+              <div className="space-y-1.5">
+                <Label htmlFor="dlg-phone" className="text-sm font-medium flex items-center gap-1.5">
+                  <Phone className="h-4 w-4 text-muted-foreground" />
+                  Mobile Number <span className="text-destructive">*</span>
                 </Label>
-                <Select value={addressState} onValueChange={(v) => setAddressValue("state", v)}>
-                  <SelectTrigger id="dlg-state" aria-invalid={!!addressErrors.state} aria-describedby={addressErrors.state ? "dlg-state-error" : undefined} className={cn(addressErrors.state && "border-destructive")}>
-                    <SelectValue placeholder="Select state" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {AU_STATES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {addressErrors.state && <p id="dlg-state-error" role="alert" className="text-sm text-destructive">{addressErrors.state.message}</p>}
+                <Input
+                  aria-invalid={!!addressErrors.phone}
+                  aria-describedby={addressErrors.phone ? "dlg-phone-error" : undefined}
+                  id="dlg-phone"
+                  type="tel"
+                  placeholder="e.g. 0412 345 678"
+                  {...registerAddress("phone")}
+                />
+                {addressErrors.phone ? (
+                  <p id="dlg-phone-error" role="alert" className="text-xs text-destructive">{addressErrors.phone.message}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">Couriers Please sends real-time delivery SMS updates to this mobile number.</p>
+                )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="dlg-postcode" className="text-sm font-medium">Postcode</Label>
-                <Input aria-invalid={!!addressErrors.postcode} aria-describedby={addressErrors.postcode ? "dlg-postcode-error" : undefined} id="dlg-postcode" placeholder="2000" maxLength={4} {...registerAddress("postcode")} />
-                {addressErrors.postcode && <p id="dlg-postcode-error" role="alert" className="text-sm text-destructive">{addressErrors.postcode.message}</p>}
-              </div>
-            </div>
 
-            {/* Country (read-only) */}
-            <div className="space-y-2">
-              <Label htmlFor="dlg-country" className="text-sm font-medium flex items-center gap-2">
-                <Globe className="h-4 w-4 text-muted-foreground" />
-                Country
-              </Label>
-              <Input id="dlg-country" value="Australia" disabled className="bg-muted/50" />
-            </div>
-
-            <DialogFooter className="gap-2 pt-2">
-              {(isAuthenticated || !!guestAddress) && (
-                <Button type="button" variant="outline" onClick={() => { setEditingAddress(null); setIsLoading(false); setIsAddressDialogOpen(false); }}>
-                  <X className="h-4 w-4 mr-2" />
+              <DialogFooter className="gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingAddress(null);
+                    setIsLoading(false);
+                    setAddressStep(1);
+                    setIsAddressDialogOpen(false);
+                  }}
+                >
+                  <X className="h-4 w-4 mr-1.5" />
                   Cancel
                 </Button>
-              )}
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
-                ) : (
-                  <><Check className="h-4 w-4 mr-2" />{editingAddress ? "Update Address" : "Save Address"}</>
+                <Button
+                  type="button"
+                  onClick={handleProceedToStep2}
+                  className="w-full sm:w-auto"
+                >
+                  Continue to Address
+                  <ArrowRight className="h-4 w-4 ml-1.5" />
+                </Button>
+              </DialogFooter>
+            </div>
+
+            {/* STEP 2: Delivery Address */}
+            <div className={cn("space-y-3.5", addressStep !== 2 && "hidden")}>
+              {/* 1. Street Address Line 1 */}
+              <div className="space-y-1.5">
+                <AddressAutocomplete
+                  value={watchAddress("line1")}
+                  onChange={(val) => setAddressValue("line1", val, { shouldValidate: true })}
+                  onAddressSelect={(addr) => {
+                    setAddressValue("line1", addr.line1, { shouldValidate: true });
+                    if (addr.line2) setAddressValue("line2", addr.line2);
+                    if (addr.suburb) setAddressValue("suburb", cleanAustralianSuburb(addr.suburb), { shouldValidate: true });
+                    if (addr.state) setAddressValue("state", addr.state, { shouldValidate: true });
+                    if (addr.postcode) setAddressValue("postcode", addr.postcode.replace(/\D/g, "").slice(0, 4), { shouldValidate: true });
+                    setAddressValue("country", addr.country || "AU");
+                  }}
+                  error={addressErrors.line1?.message}
+                  disabled={isLoading}
+                />
+              </div>
+
+              {/* 2. Apartment / Suite / Unit (Optional) */}
+              <div className="space-y-1.5">
+                <Label htmlFor="dlg-line2" className="text-sm font-medium flex items-center gap-1.5">
+                  <Building className="h-4 w-4 text-muted-foreground" />
+                  Apartment, Suite, Unit <span className="text-muted-foreground font-normal text-xs">(Optional)</span>
+                </Label>
+                <Input
+                  id="dlg-line2"
+                  placeholder="e.g. Apt 4B, Level 2"
+                  {...registerAddress("line2")}
+                />
+              </div>
+
+              {/* 3. Suburb */}
+              <div className="space-y-1.5">
+                <Label htmlFor="dlg-suburb" className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  Suburb / City <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="dlg-suburb"
+                  placeholder="e.g. Adelaide, Sydney, Melbourne, Golden Grove"
+                  {...registerAddress("suburb")}
+                />
+                {addressErrors.suburb && (
+                  <p id="dlg-suburb-error" role="alert" className="text-xs text-destructive">{addressErrors.suburb.message}</p>
                 )}
-              </Button>
-            </DialogFooter>
+              </div>
+
+              {/* 4. State & Postcode */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="dlg-state" className="text-sm font-medium flex items-center gap-1.5">
+                    <Globe className="h-4 w-4 text-muted-foreground" />
+                    State <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={addressState || ""}
+                    onValueChange={(v) => setAddressValue("state", v, { shouldValidate: true })}
+                  >
+                    <SelectTrigger
+                      id="dlg-state"
+                      aria-invalid={!!addressErrors.state}
+                      aria-describedby={addressErrors.state ? "dlg-state-error" : undefined}
+                      className={cn(addressErrors.state && "border-destructive")}
+                    >
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AU_STATES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {addressErrors.state && (
+                    <p id="dlg-state-error" role="alert" className="text-xs text-destructive">{addressErrors.state.message}</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="dlg-postcode" className="text-sm font-medium flex items-center gap-1.5">
+                    <Navigation className="h-4 w-4 text-muted-foreground" />
+                    Postcode <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    aria-invalid={!!addressErrors.postcode}
+                    aria-describedby={addressErrors.postcode ? "dlg-postcode-error" : undefined}
+                    id="dlg-postcode"
+                    placeholder="e.g. 5000, 2000, 5125"
+                    maxLength={4}
+                    {...registerAddress("postcode")}
+                  />
+                  {addressErrors.postcode && (
+                    <p id="dlg-postcode-error" role="alert" className="text-xs text-destructive">{addressErrors.postcode.message}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Country summary */}
+              <div className="flex items-center justify-between text-xs text-muted-foreground py-1.5 px-3 bg-secondary/30 rounded-lg">
+                <span className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                  Country: <strong>Australia (AU)</strong>
+                </span>
+                <span>Couriers Please delivery</span>
+              </div>
+
+              <DialogFooter className="gap-2 pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAddressStep(1)}
+                  disabled={isLoading}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1.5" />
+                  Back to Contact
+                </Button>
+                <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+                  {isLoading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <><Check className="h-4 w-4 mr-2" />{editingAddress ? "Update Address" : "Save & Deliver Here"}</>
+                  )}
+                </Button>
+              </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>

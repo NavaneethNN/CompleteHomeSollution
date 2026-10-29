@@ -15,6 +15,8 @@ import {
   Palette,
   Layers,
   Ruler,
+  List,
+  FileText,
   Save,
   Loader2,
 } from "lucide-react";
@@ -54,6 +56,9 @@ interface ProductVariant {
   isActive: boolean;
   valueIds: string[];
   images: string[];
+  description?: string;
+  bulletTitle?: string;
+  bulletPoints?: string[];
   weight?: number;
   length?: number;
   width?: number;
@@ -74,8 +79,17 @@ function VariantCard({
   primaryLabel?: string;      // e.g. "Black" — shown in the inherited badge
 }) {
   const [expanded, setExpanded] = useState(false);
-  const effectiveImages = primaryImages && primaryImages.length > 0 ? primaryImages : variant.images;
-  const hasImages = effectiveImages && effectiveImages.length > 0;
+  const [variantNewBullet, setVariantNewBullet] = useState("");
+  const hasCustomImages = !!(variant.images && variant.images.length > 0);
+  const hasCustomDetails = !!(
+    variant.description?.trim() ||
+    (variant.bulletPoints && variant.bulletPoints.length > 0) ||
+    variant.bulletTitle?.trim()
+  );
+  const effectiveImages = hasCustomImages
+    ? variant.images
+    : (primaryImages && primaryImages.length > 0 ? primaryImages : []);
+  const hasImages = effectiveImages.length > 0;
 
   return (
     <div className="rounded-lg border border-slate-200 overflow-hidden">
@@ -97,10 +111,17 @@ function VariantCard({
         <span className="flex-1 text-sm font-medium text-slate-700">{label}</span>
 
         {/* Quick stats */}
+        {hasCustomDetails && (
+          <span className="text-[11px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-200/60 rounded px-1.5 py-0.5 hidden sm:inline">
+            Custom info
+          </span>
+        )}
         <span className="text-xs text-slate-400 hidden sm:inline">
-          {primaryImages && primaryImages.length > 0
-            ? <span className="text-primary/70">↑ {primaryLabel}</span>
-            : hasImages ? `${variant.images.length} img` : "No images"}
+          {hasCustomImages
+            ? <span className="text-emerald-700 font-medium">{variant.images.length} custom img</span>
+            : primaryImages && primaryImages.length > 0
+              ? <span className="text-primary/70">↑ {primaryLabel} ({primaryImages.length} img)</span>
+              : "No images"}
         </span>
         <span className="text-xs text-slate-400 hidden sm:inline">Stock: {variant.stock}</span>
         <Switch
@@ -129,7 +150,7 @@ function VariantCard({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Price (₹)</Label>
+              <Label className="text-xs">Price ($)</Label>
               <Input
                 type="number"
                 min="0"
@@ -151,7 +172,7 @@ function VariantCard({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Compare Price (₹)</Label>
+              <Label className="text-xs">Compare Price ($)</Label>
               <Input
                 type="number"
                 min="0"
@@ -165,7 +186,7 @@ function VariantCard({
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Member Price (₹)</Label>
+              <Label className="text-xs">Member Price ($)</Label>
               <Input
                 type="number"
                 min="0"
@@ -182,21 +203,69 @@ function VariantCard({
 
           {/* Variant Images */}
           <div className="space-y-2">
-            {primaryImages && primaryImages.length > 0 ? (
-              <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary flex items-center gap-2">
-                <Check className="h-4 w-4 shrink-0" />
-                Images inherited from <strong>{primaryLabel}</strong> — set them on the primary attribute value above.
+            {hasCustomImages ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium text-slate-600">
+                    Variant Images {primaryLabel && <span className="text-emerald-600 font-normal">(overriding {primaryLabel})</span>}
+                  </Label>
+                  {primaryImages && primaryImages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => onUpdate({ images: [] })}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      Revert to {primaryLabel} images
+                    </button>
+                  )}
+                </div>
+                <ImageUploader
+                  images={variant.images ?? []}
+                  onChange={(imgs) => onUpdate({ images: imgs })}
+                  maxImages={5}
+                  folder="products/variants"
+                  compact
+                />
+              </div>
+            ) : primaryImages && primaryImages.length > 0 ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium text-slate-600">
+                    Variant Images <span className="text-slate-400 font-normal">— inherited from {primaryLabel}</span>
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => onUpdate({ images: [...primaryImages] })}
+                    className="text-xs text-primary hover:underline font-medium"
+                  >
+                    + Customize for this variant
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 p-2.5 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="flex gap-2 overflow-x-auto py-0.5">
+                    {primaryImages.map((img, i) => (
+                      <div key={i} className="h-11 w-11 rounded-md border border-slate-200 overflow-hidden bg-white shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img} alt="" className="h-full w-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
+                  <span className="text-xs text-primary ml-auto pr-1 whitespace-nowrap hidden sm:inline">
+                    Shared with {primaryLabel}
+                  </span>
+                </div>
               </div>
             ) : (
-              <>
+              <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-slate-600">Variant Images</Label>
                 <ImageUploader
                   images={variant.images ?? []}
                   onChange={(imgs) => onUpdate({ images: imgs })}
                   maxImages={5}
                   folder="products/variants"
+                  compact
                 />
-              </>
+              </div>
             )}
           </div>
 
@@ -245,6 +314,112 @@ function VariantCard({
               </div>
             </div>
           </div>
+
+          {/* Variant-specific Description & Highlights (Optional) */}
+          <div className="space-y-3 pt-3 border-t border-slate-200">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-slate-500" />
+                Variant Description &amp; Highlights (Optional)
+              </Label>
+              <span className="text-[11px] text-slate-400">
+                {hasCustomDetails ? (
+                  <button
+                    type="button"
+                    onClick={() => onUpdate({ description: undefined, bulletTitle: undefined, bulletPoints: [] })}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Reset to product defaults
+                  </button>
+                ) : (
+                  "Inherits product description & highlights if empty"
+                )}
+              </span>
+            </div>
+
+            {/* Variant Description */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500 font-normal">Variant Description</Label>
+              <Textarea
+                rows={3}
+                placeholder="Leave blank to use the common product description..."
+                value={variant.description ?? ""}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onUpdate({ description: e.target.value })}
+                className="text-xs"
+              />
+            </div>
+
+            {/* Variant Bullet Title */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500 font-normal">Variant Bullet Title</Label>
+              <Input
+                placeholder="Leave blank to use common title (e.g., Special Features)..."
+                value={variant.bulletTitle ?? ""}
+                onChange={(e) => onUpdate({ bulletTitle: e.target.value })}
+                className="h-8 text-xs"
+              />
+            </div>
+
+            {/* Variant Bullet Points */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500 font-normal">Variant Bullet Points</Label>
+              {variant.bulletPoints && variant.bulletPoints.length > 0 && (
+                <div className="space-y-1.5 mb-2">
+                  {variant.bulletPoints.map((pt, pIdx) => (
+                    <div key={pIdx} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded px-2.5 py-1 text-xs">
+                      <span className="text-primary font-bold">•</span>
+                      <span className="flex-1 text-slate-700">{pt}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = (variant.bulletPoints || []).filter((_, i) => i !== pIdx);
+                          onUpdate({ bulletPoints: updated });
+                        }}
+                        className="text-slate-400 hover:text-red-500"
+                        title="Remove point"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a variant bullet point..."
+                  value={variantNewBullet}
+                  onChange={(e) => setVariantNewBullet(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (variantNewBullet.trim()) {
+                        const current = variant.bulletPoints || [];
+                        onUpdate({ bulletPoints: [...current, variantNewBullet.trim()] });
+                        setVariantNewBullet("");
+                      }
+                    }
+                  }}
+                  className="h-8 text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    if (variantNewBullet.trim()) {
+                      const current = variant.bulletPoints || [];
+                      onUpdate({ bulletPoints: [...current, variantNewBullet.trim()] });
+                      setVariantNewBullet("");
+                    }
+                  }}
+                  className="h-8 text-xs px-2.5 shrink-0"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Add
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -264,6 +439,9 @@ export default function NewProductPage() {
   // Basic product info
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [bulletTitle, setBulletTitle] = useState("");
+  const [bulletPoints, setBulletPoints] = useState<string[]>([]);
+  const [newBulletPoint, setNewBulletPoint] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [sku, setSku] = useState("");
   const [skuManuallyEdited, setSkuManuallyEdited] = useState(false);
@@ -328,6 +506,8 @@ export default function NewProductPage() {
         const p = data.product;
         setName(p.name);
         setDescription(p.description);
+        setBulletTitle(p.bulletTitle || "");
+        setBulletPoints(p.bulletPoints || []);
         setCategoryId(p.categoryId);
         setSku(p.sku);
         setBasePrice(p.basePrice?.toString() || "");
@@ -379,6 +559,9 @@ export default function NewProductPage() {
               isActive: v.isActive,
               valueIds,
               images: v.images?.map((img: any) => img.url) || [],
+              description: v.description || "",
+              bulletTitle: v.bulletTitle || "",
+              bulletPoints: v.bulletPoints || [],
               weight: v.weight,
               length: v.length,
               width: v.width,
@@ -399,21 +582,18 @@ export default function NewProductPage() {
     };
   }, [isEditMode, productId]);
 
-  // When attributes change, clean up orphan variants
+  // When attributes change, clean up orphan variants that reference removed values
   useEffect(() => {
     if (!hasVariants || variantAttributes.length === 0) {
       setProductVariants([]);
       return;
     }
     const allValueIds = new Set(variantAttributes.flatMap((a) => a.values.map((v) => v.id)));
-    const expectedLength = variantAttributes.length;
     setProductVariants((prev) =>
       prev.filter(
         (variant) =>
-          // Must reference only known value IDs
-          variant.valueIds.every((id) => allValueIds.has(id)) &&
-          // Must have exactly one value per attribute
-          variant.valueIds.length === expectedLength
+          variant.valueIds.length > 0 &&
+          variant.valueIds.every((id) => allValueIds.has(id))
       )
     );
   }, [variantAttributes, hasVariants]);
@@ -427,10 +607,11 @@ export default function NewProductPage() {
 
   const toggleVariant = (valueIds: string[]) => {
     const id = makeVariantId(valueIds);
-    const exists = productVariants.find((v) => v.id === id);
-    if (exists) {
-      setProductVariants((prev) => prev.filter((v) => v.id !== id));
-    } else {
+    setProductVariants((prev) => {
+      const exists = prev.find((v) => v.id === id);
+      if (exists) {
+        return prev.filter((v) => v.id !== id);
+      }
       const suffix = valueIds
         .map((vid) => {
           for (const attr of variantAttributes) {
@@ -451,8 +632,8 @@ export default function NewProductPage() {
         valueIds,
         images: [],
       };
-      setProductVariants((prev) => [...prev, newVariant]);
-    }
+      return [...prev, newVariant];
+    });
   };
 
   const addAllCombinationsForValue = (primaryAttrId: string, primaryValueId: string) => {
@@ -489,32 +670,44 @@ export default function NewProductPage() {
   };
 
   const addVariantAttribute = () => {
-    if (!newAttributeName.trim()) return;
+    const trimmed = newAttributeName.trim();
+    if (!trimmed) return;
+    if (variantAttributes.some((a) => a.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      toast.error(`Option "${trimmed}" already exists`);
+      return;
+    }
     if (variantAttributes.length >= 3) {
       toast.error("Maximum 3 option types allowed");
       return;
     }
     const newAttr: VariantAttribute = {
       id: `attr-${Date.now()}`,
-      name: newAttributeName,
+      name: trimmed,
       displayOrder: variantAttributes.length,
       values: [],
     };
-    setVariantAttributes([...variantAttributes, newAttr]);
+    setVariantAttributes((prev) => [...prev, newAttr]);
     setNewAttributeName("");
     setSelectedAttributeId(newAttr.id);
   };
 
   const removeVariantAttribute = (id: string) => {
-    setVariantAttributes(variantAttributes.filter((a) => a.id !== id));
+    setVariantAttributes((prev) => prev.filter((a) => a.id !== id));
     if (selectedAttributeId === id) setSelectedAttributeId(null);
+    if (primaryAttributeId === id) setPrimaryAttributeId(null);
   };
 
   const addVariantValue = () => {
-    if (!selectedAttributeId || !newValueName.trim()) return;
+    const trimmed = newValueName.trim();
+    if (!selectedAttributeId || !trimmed) return;
+    const targetAttr = variantAttributes.find((a) => a.id === selectedAttributeId);
+    if (targetAttr?.values.some((v) => v.value.trim().toLowerCase() === trimmed.toLowerCase())) {
+      toast.error(`Value "${trimmed}" already exists in ${targetAttr.name}`);
+      return;
+    }
 
-    setVariantAttributes(
-      variantAttributes.map((attr) =>
+    setVariantAttributes((prev) =>
+      prev.map((attr) =>
         attr.id === selectedAttributeId
           ? {
               ...attr,
@@ -522,8 +715,9 @@ export default function NewProductPage() {
                 ...attr.values,
                 {
                   id: `val-${Date.now()}`,
-                  value: newValueName,
+                  value: trimmed,
                   hexCode: newValueHex || undefined,
+                  images: [],
                 },
               ],
             }
@@ -535,8 +729,8 @@ export default function NewProductPage() {
   };
 
   const removeVariantValue = (attrId: string, valueId: string) => {
-    setVariantAttributes(
-      variantAttributes.map((attr) =>
+    setVariantAttributes((prev) =>
+      prev.map((attr) =>
         attr.id === attrId
           ? { ...attr, values: attr.values.filter((v) => v.id !== valueId) }
           : attr
@@ -545,8 +739,8 @@ export default function NewProductPage() {
   };
 
   const updateVariant = (id: string, updates: Partial<ProductVariant>) => {
-    setProductVariants(
-      productVariants.map((v) => (v.id === id ? { ...v, ...updates } : v))
+    setProductVariants((prev) =>
+      prev.map((v) => (v.id === id ? { ...v, ...updates } : v))
     );
   };
 
@@ -605,8 +799,51 @@ export default function NewProductPage() {
     // Validate prices are not negative
     const basePriceNum = parseFloat(basePrice);
     if (basePriceNum < 0) {
-      toast.error("Base price cannot be negative");
+      toast.error("Selling price cannot be negative");
       return;
+    }
+
+    // Validate variants if enabled
+    if (hasVariants) {
+      if (productVariants.length === 0) {
+        toast.error("Please add and select at least one variant combination, or turn off variants");
+        setActiveTab("variants");
+        return;
+      }
+      for (const v of productVariants) {
+        if (!v.sku || !v.sku.trim()) {
+          toast.error("All variants must have a valid SKU");
+          setActiveTab("variants");
+          return;
+        }
+        if (!skuRegex.test(v.sku.trim())) {
+          toast.error(`Variant SKU "${v.sku}" can only contain letters, numbers, hyphens, and underscores`);
+          setActiveTab("variants");
+          return;
+        }
+        if (v.price < 0) {
+          toast.error(`Variant price for "${v.sku}" cannot be negative`);
+          setActiveTab("variants");
+          return;
+        }
+        if (v.stock < 0) {
+          toast.error(`Variant stock for "${v.sku}" cannot be negative`);
+          setActiveTab("variants");
+          return;
+        }
+      }
+      const variantSkus = productVariants.map((v) => v.sku.trim().toUpperCase());
+      const uniqueSkus = new Set(variantSkus);
+      if (uniqueSkus.size !== variantSkus.length) {
+        toast.error("All variant SKUs must be unique. Please resolve duplicate variant SKUs.");
+        setActiveTab("variants");
+        return;
+      }
+      if (variantSkus.includes(sku.trim().toUpperCase())) {
+        toast.error("Variant SKU cannot be identical to the base product SKU");
+        setActiveTab("variants");
+        return;
+      }
     }
     
     setLoading(true);
@@ -614,6 +851,8 @@ export default function NewProductPage() {
       const productData = {
         name: sanitizeInput(name),
         description: description ? sanitizeInput(description) : undefined,
+        bulletTitle: bulletTitle ? sanitizeInput(bulletTitle) : undefined,
+        bulletPoints: bulletPoints.map(p => sanitizeInput(p)).filter(Boolean),
         basePrice: parseFloat(basePrice) || 0,
         comparePrice: comparePrice ? parseFloat(comparePrice) : undefined,
         memberPrice: memberPrice ? parseFloat(memberPrice) : undefined,
@@ -647,18 +886,18 @@ export default function NewProductPage() {
           : undefined,
         productVariants: (hasVariants || isEditMode)
           ? productVariants.map((v) => {
-              // Propagate primary-value images into variant so the API stores them
+              // Custom images for this variant take precedence; otherwise inherit from primary value
               const primaryAttr = primaryAttributeId
                 ? variantAttributes.find((a) => a.id === primaryAttributeId)
                 : null;
               const primaryVal = primaryAttr
                 ? primaryAttr.values.find((pv) => v.valueIds.includes(pv.id))
                 : null;
-              const resolvedImages = primaryVal?.images?.length
-                ? primaryVal.images
-                : v.images;
+              const resolvedImages = (v.images && v.images.length > 0)
+                ? v.images
+                : (primaryVal?.images && primaryVal.images.length > 0 ? primaryVal.images : []);
               return {
-                sku: v.sku,
+                sku: v.sku.trim(),
                 price: v.price,
                 comparePrice: v.comparePrice,
                 memberPrice: v.memberPrice,
@@ -666,6 +905,9 @@ export default function NewProductPage() {
                 isActive: v.isActive,
                 valueIds: v.valueIds,
                 images: resolvedImages,
+                description: v.description ? sanitizeInput(v.description) : undefined,
+                bulletTitle: v.bulletTitle ? sanitizeInput(v.bulletTitle) : undefined,
+                bulletPoints: (v.bulletPoints || []).map((p) => sanitizeInput(p)).filter(Boolean),
                 weight: v.weight,
                 length: v.length,
                 width: v.width,
@@ -853,6 +1095,87 @@ export default function NewProductPage() {
                     rows={5}
                   />
                 </div>
+
+                {/* Key Features / Bullet Points Section */}
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                      <List className="h-4 w-4 text-slate-500" />
+                      Key Features / Bullet Points (Optional)
+                    </Label>
+                    <span className="text-xs text-slate-400">Shown as styled bullet points on the product page</span>
+                  </div>
+
+                  {/* Section Title Input */}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="bulletTitle" className="text-xs text-slate-500 font-normal">
+                      Section Title
+                    </Label>
+                    <Input
+                      id="bulletTitle"
+                      value={bulletTitle}
+                      onChange={(e) => setBulletTitle(e.target.value)}
+                      placeholder='e.g., Special Features, Key Highlights (defaults to "Key Features")'
+                      className="h-9 text-sm"
+                    />
+                  </div>
+
+                  {/* Bullet Points List & Adder */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-slate-500 font-normal">Bullet Points</Label>
+
+                    {bulletPoints.length > 0 && (
+                      <div className="space-y-1.5 mb-2">
+                        {bulletPoints.map((point, index) => (
+                          <div key={index} className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 text-sm">
+                            <span className="text-primary font-bold">•</span>
+                            <span className="flex-1 text-slate-700">{point}</span>
+                            <button
+                              type="button"
+                              onClick={() => setBulletPoints((prev) => prev.filter((_, i) => i !== index))}
+                              className="text-slate-400 hover:text-red-500 transition-colors"
+                              title="Remove point"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Add a bullet point (press Enter to add)..."
+                        value={newBulletPoint}
+                        onChange={(e) => setNewBulletPoint(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (newBulletPoint.trim()) {
+                              setBulletPoints((prev) => [...prev, newBulletPoint.trim()]);
+                              setNewBulletPoint("");
+                            }
+                          }
+                        }}
+                        className="h-9 text-sm"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          if (newBulletPoint.trim()) {
+                            setBulletPoints((prev) => [...prev, newBulletPoint.trim()]);
+                            setNewBulletPoint("");
+                          }
+                        }}
+                        className="h-9 shrink-0"
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Point
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -867,7 +1190,7 @@ export default function NewProductPage() {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="basePrice">Base Price ($)</Label>
+                    <Label htmlFor="basePrice">Selling Price ($)</Label>
                     <Input
                       id="basePrice"
                       type="number"
@@ -904,7 +1227,7 @@ export default function NewProductPage() {
                     placeholder="Special price for members"
                   />
                   <p className="text-xs text-slate-500">
-                    Leave empty to use base price for members
+                    Leave empty to use selling price for members
                   </p>
                 </div>
 
@@ -985,6 +1308,25 @@ export default function NewProductPage() {
       )}
 
       {/* Variants Tab */}
+      {activeTab === "variants" && !hasVariants && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Layers className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="font-semibold text-slate-800">Variants are not enabled for this product</h3>
+              <p className="text-sm text-slate-500 max-w-md">
+                Enable variants to offer multiple options such as sizes, colours, or materials with independent stock and prices.
+              </p>
+            </div>
+            <Button onClick={() => setHasVariants(true)} type="button" className="bg-primary">
+              Enable Variants
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {activeTab === "variants" && hasVariants && (
         <div className="space-y-6">
 
@@ -1004,7 +1346,7 @@ export default function NewProductPage() {
                     placeholder="e.g. Color, Size, Material"
                     value={newAttributeName}
                     onChange={(e) => setNewAttributeName(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && addVariantAttribute()}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addVariantAttribute(); } }}
                   />
                   <Button onClick={addVariantAttribute} type="button">
                     <Plus className="mr-2 h-4 w-4" />
@@ -1105,6 +1447,7 @@ export default function NewProductPage() {
                                 onChange={(imgs) => updateAttributeValueImages(attr.id, val.id, imgs)}
                                 maxImages={5}
                                 folder="products/variants"
+                                compact
                               />
                             </div>
                           ))}
@@ -1129,7 +1472,7 @@ export default function NewProductPage() {
                           value={selectedAttributeId === attr.id ? newValueName : ""}
                           onFocus={() => setSelectedAttributeId(attr.id)}
                           onChange={(e) => setNewValueName(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === "Enter") { setSelectedAttributeId(attr.id); addVariantValue(); } }}
+                          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setSelectedAttributeId(attr.id); addVariantValue(); } }}
                           className="h-8 text-sm"
                         />
                         {attr.name.toLowerCase().includes("color") && (
