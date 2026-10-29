@@ -67,6 +67,16 @@ export function VariantSelector({
     }, {} as Record<string, string>);
   });
 
+  // Keep selections in sync if defaultVariant changes (e.g. navigation or URL change)
+  useEffect(() => {
+    if (!defaultVariant) return;
+    const newSelections = defaultVariant.values.reduce((acc, v) => {
+      acc[v.variantValue.variantAttribute.id] = v.variantValue.id;
+      return acc;
+    }, {} as Record<string, string>);
+    setSelections(newSelections);
+  }, [defaultVariant?.id]);
+
   // Find selected variant based on all selections
   const selectedVariant = useMemo(() => {
     const key = attributes

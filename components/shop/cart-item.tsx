@@ -20,6 +20,7 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
 
 export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }: Readonly<CartItemProps>) {
   const { product, quantity } = item;
+  const productHref = `/products/${product.slug}${product.variantId ? `?variant=${encodeURIComponent(product.variantId)}` : ""}`;
   const image = product.images?.[0] ?? "/placeholder.jpg";
   const safePrice = Math.max(0, product.price ?? 0);
   const safeMemberPrice = product.memberPrice && product.memberPrice > 0 ? product.memberPrice : null;
@@ -33,7 +34,7 @@ export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }:
     <article className="flex gap-3 rounded-xl border border-border bg-white p-3 sm:gap-4 sm:p-4">
       {/* Thumbnail — fixed small size always */}
       <Link
-        href={`/products/${product.slug}`}
+        href={productHref}
         className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-20"
       >
         <Image
@@ -56,7 +57,7 @@ export function CartItem({ item, isMember = false, onUpdateQuantity, onRemove }:
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <Link
-              href={`/products/${product.slug}`}
+              href={productHref}
               className="block text-sm font-semibold leading-snug text-foreground hover:text-primary transition-colors line-clamp-2"
             >
               {product.name}

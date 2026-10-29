@@ -118,10 +118,15 @@ export async function generateMetadata({
 
 export default async function ProductDetailPage({
   params,
+  searchParams,
 }: Readonly<{
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ variant?: string }>;
 }>) {
   const { slug } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const requestedVariantId = resolvedSearchParams?.variant;
+
   const [product, session] = await Promise.all([
     getProduct(slug),
     auth(),
@@ -139,8 +144,17 @@ export default async function ProductDetailPage({
       }).then(hasActiveMembership)
     : false;
 
-  // Default to first variant if product has variants
-  const defaultVariant = product.hasVariants ? (product.productVariants.find(variant => variant.stock > 0) ?? product.productVariants[0]) : null;
+  // Match requested variant if query param is provided
+  const requestedVariant = requestedVariantId && product.hasVariants
+    ? (product.productVariants.find(
+        (variant) => variant.id === requestedVariantId || variant.sku === requestedVariantId
+      ) ?? null)
+    : null;
+
+  // Default to requested variant if valid, else first in-stock variant, else first variant
+  const defaultVariant = product.hasVariants
+    ? (requestedVariant ?? (product.productVariants.find(variant => variant.stock > 0) ?? product.productVariants[0]))
+    : null;
   // The recliner's first uploaded image is a generic room scene. Lead with the
   // actual product photo until the catalog has dedicated images per variant.
   const productImages = product.slug === "recliner-sofa" && product.images.length > 1

@@ -762,9 +762,10 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               const effectivePrice = effectiveMember && memberPrice && memberPrice > 0 ? memberPrice : basePrice;
               const hasMemberDiscount = effectiveMember && memberPrice && memberPrice > 0 && memberPrice < basePrice;
               const itemKey = `${item.product.id ?? 'unknown'}-${item.product.variantId ?? 'default'}-${index}`;
+              const productUrl = `/products/${item.product.slug}${item.product.variantId ? `?variant=${encodeURIComponent(item.product.variantId)}` : ""}`;
               return (
                 <div key={itemKey} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                  <Link href={`/products/${item.product.slug}`} className="relative h-14 w-14 rounded-lg overflow-hidden bg-muted shrink-0 block hover:opacity-80 transition-opacity sm:h-16 sm:w-16">
+                  <Link href={productUrl} className="relative h-14 w-14 rounded-lg overflow-hidden bg-muted shrink-0 block hover:opacity-80 transition-opacity sm:h-16 sm:w-16">
                     {item.product.images?.[0] && (
                       <Image
                         src={item.product.images[0]}
@@ -775,7 +776,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                     )}
                   </Link>
                   <div className="flex-1 min-w-0">
-                    <Link href={`/products/${item.product.slug}`} className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors block">{item.product.name}</Link>
+                    <Link href={productUrl} className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors block">{item.product.name}</Link>
                     {item.product.variantLabel && (
                       <p className="text-xs text-muted-foreground mt-0.5">{item.product.variantLabel}</p>
                     )}

@@ -77,13 +77,15 @@ export function WishlistItem({ product }: WishlistItemProps) {
     addToCartIcon = <Check className="h-3.5 w-3.5" />;
   }
 
+  const productUrl = `/products/${product.slug}${product.variantId ? `?variant=${encodeURIComponent(product.variantId)}` : ""}`;
+
   return (
     <>
       <div className="group block">
         <div className="bg-white rounded-xl sm:rounded-2xl border border-border hover:shadow-xl transition-shadow duration-300 overflow-hidden">
           {/* Image Container */}
           <div className="relative aspect-square bg-secondary overflow-hidden">
-            <Link href={`/products/${product.slug}`} className="absolute inset-0 block">
+            <Link href={productUrl} className="absolute inset-0 block">
               <Image
                 src={image}
                 alt={product.name}
@@ -122,7 +124,7 @@ export function WishlistItem({ product }: WishlistItemProps) {
               {product.category.name}
             </Link>
 
-            <Link href={`/products/${product.slug}`}>
+            <Link href={productUrl}>
               <h4 className="mt-0.5 text-xs sm:text-sm font-semibold text-foreground leading-snug line-clamp-2 hover:text-primary transition-colors">
                 {product.name}
               </h4>

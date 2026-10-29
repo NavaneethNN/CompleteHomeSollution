@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Star, Check, PhoneCall, Sparkles } from "lucide-react";
 import { STORE_PHONE, STORE_PHONE_DISPLAY } from "@/lib/store-info";
 import Link from "next/link";
@@ -148,8 +148,25 @@ export function ProductDetailsClient({
 
   const galleryRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (defaultVariant) {
+      setSelectedVariant(defaultVariant);
+    }
+  }, [defaultVariant?.id]);
+
   const handleVariantChange = useCallback((variant: ProductVariant | null) => {
     setSelectedVariant(variant);
+
+    // Keep URL query in sync with selected variant
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (variant?.id) {
+        url.searchParams.set("variant", variant.id);
+      } else {
+        url.searchParams.delete("variant");
+      }
+      window.history.replaceState(null, "", url.toString());
+    }
 
     // If gallery is scrolled out of view on mobile/tablet, smoothly scroll back to it
     // so the customer immediately sees the updated product photo
