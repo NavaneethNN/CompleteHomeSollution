@@ -104,9 +104,9 @@ export function MembershipSavingsCalculator({
         />
 
         <div className="flex justify-between text-[11px] text-muted-foreground mt-2">
-          <span>$100 spend</span>
-          <span className="text-primary font-medium">$600 (Max $30 discount cap)</span>
-          <span>$2,500 spend</span>
+          <span>$100</span>
+          <span className="text-primary font-semibold">$600 (Max $30 cap)</span>
+          <span>$2,500</span>
         </div>
       </div>
 
@@ -187,9 +187,10 @@ export function MembershipSavingsCalculator({
 
           <Link
             href={checkoutUrl}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90 shadow-sm text-center"
+            className="w-full sm:w-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-bold text-white transition-colors hover:bg-primary/90 shadow-sm text-center whitespace-nowrap"
           >
-            Join VIP (${planPrice}/{planDuration}) <ArrowRight className="h-4 w-4" />
+            <span>Join VIP — ${planPrice}/{planDuration}</span>
+            <ArrowRight className="h-4 w-4 shrink-0" />
           </Link>
         </div>
       )}

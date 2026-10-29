@@ -400,69 +400,64 @@ export default async function MembershipPage() {
             <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
               <div className="max-w-2xl">
                 {/* Crown VIP pill */}
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3.5 py-1 text-xs font-bold uppercase tracking-wider mb-4 border border-primary/20">
-                  <Crown className="h-3.5 w-3.5" />
-                  <span>COMPLETE HOME SOLUTION VIP</span>
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-3.5 border border-primary/20 whitespace-nowrap">
+                  <Crown className="h-3.5 w-3.5 shrink-0" />
+                  <span>CHS VIP MEMBERSHIP</span>
                 </div>
 
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-[1.12] mb-4">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.18] mb-3">
                   {expiredAt ? (
                     <>Your VIP access has expired. Renew to continue saving.</>
                   ) : (
                     <>
                       Furnish your home for less. <br />
-                      <span className="text-primary font-normal italic font-script text-4xl sm:text-5xl md:text-6xl lg:text-7xl">
-                        Save 5% on every piece.
-                      </span>
+                      <span className="text-primary font-bold">Save 5% on every piece.</span>
                     </>
                   )}
                 </h1>
 
-                <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed mb-6">
+                <p className="text-xs sm:text-base text-muted-foreground leading-relaxed mb-5">
                   {expiredAt
                     ? `Your benefits ended on ${new Date(expiredAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. Renew today to restore your 5% discount, 3-year warranty, and priority dispatch.`
                     : "Join Complete Home Solution VIP. Enjoy instant 5% savings (up to $30 per order), exclusive member prices, a 3-Year Extended Warranty, and priority dispatch."}
                 </p>
 
                 {/* Quick benefit pills on mobile */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 py-4 border-y border-border/80 text-xs text-foreground font-medium mb-6">
-                  <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-primary shrink-0" />
-                    <span>5% off every order</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-2 py-3 border-y border-border/80 text-[11px] sm:text-xs text-foreground font-medium mb-5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Tag className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="whitespace-nowrap">5% off all orders</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                    <span>3-Year warranty</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="whitespace-nowrap">3-Year warranty</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-primary shrink-0" />
-                    <span>Priority dispatch</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Truck className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="whitespace-nowrap">Priority dispatch</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-primary shrink-0" />
-                    <span>Cancel anytime</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Lock className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="whitespace-nowrap">Cancel anytime</span>
                   </div>
                 </div>
 
                 {/* Main Hero CTA */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
                   {checkoutUrl ? (
                     <Link
                       href={checkoutUrl}
-                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center"
+                      className="w-full sm:w-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center whitespace-nowrap"
                     >
-                      <Crown className="h-4 w-4" />
-                      {expiredAt
-                        ? "Renew VIP Membership"
-                        : `Become a Member — ${currencyFmt.format(planPrice)}/${planDuration}`}
-                      <ArrowRight className="h-4 w-4" />
+                      <Crown className="h-4 w-4 shrink-0" />
+                      <span>{expiredAt ? "Renew VIP Membership" : `Join VIP — ${currencyFmt.format(planPrice)}/yr`}</span>
                     </Link>
                   ) : (
                     <p className="text-muted-foreground text-sm">Plans temporarily unavailable.</p>
                   )}
 
-                  <span className="text-xs text-muted-foreground text-center sm:text-left">
-                    Just ~${(planPrice / 365).toFixed(2)}/day • Instant activation at checkout
+                  <span className="text-[11px] sm:text-xs text-muted-foreground text-center sm:text-left whitespace-nowrap">
+                    ~${(planPrice / 365).toFixed(2)}/day • Instant activation
                   </span>
                 </div>
               </div>
@@ -538,8 +533,8 @@ export default async function MembershipPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-emerald-800 bg-emerald-50/80 p-2.5 rounded-xl text-center border border-emerald-200/60">
-                    ✓ $30 saved: 100% pays for membership!
+                  <p className="text-xs font-semibold text-emerald-800 bg-emerald-50/80 p-2.5 rounded-xl text-center border border-emerald-200/60 whitespace-nowrap">
+                    ✓ $30 saved: Pays for your VIP pass!
                   </p>
                 </div>
 
@@ -577,8 +572,8 @@ export default async function MembershipPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-primary bg-primary/10 p-2.5 rounded-xl text-center">
-                    💎 $129+ total value gained on day one
+                  <p className="text-xs font-semibold text-primary bg-primary/10 p-2.5 rounded-xl text-center whitespace-nowrap">
+                    💎 $129+ total value on day one
                   </p>
                 </div>
 
@@ -612,8 +607,8 @@ export default async function MembershipPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-foreground bg-white p-2.5 rounded-xl text-center border border-border">
-                    ⭐ Uncapped savings on every checkout
+                  <p className="text-xs font-semibold text-foreground bg-white p-2.5 rounded-xl text-center border border-border whitespace-nowrap">
+                    ⭐ Uncapped savings all year round
                   </p>
                 </div>
               </div>
@@ -785,24 +780,23 @@ export default async function MembershipPage() {
                 {checkoutUrl ? (
                   <Link
                     href={checkoutUrl}
-                    className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center"
+                    className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm sm:text-base font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center whitespace-nowrap"
                   >
-                    <Crown className="h-4 w-4" />
-                    Become a Member Today
-                    <ArrowRight className="h-4 w-4" />
+                    <Crown className="h-4 w-4 shrink-0" />
+                    <span>{expiredAt ? "Renew VIP Membership" : `Join VIP Today — ${currencyFmt.format(planPrice)}/yr`}</span>
                   </Link>
                 ) : (
                   <p className="text-muted-foreground text-sm">Plans temporarily unavailable.</p>
                 )}
 
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Lock className="h-3 w-3" /> 256-Bit SSL Encrypted
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <Lock className="h-3 w-3 text-muted-foreground" /> SSL Encrypted
                   </span>
                   <span>•</span>
-                  <span>Westpac OnlinePay Protected</span>
+                  <span className="whitespace-nowrap">OnlinePay Protected</span>
                   <span>•</span>
-                  <span>Cancel Anytime</span>
+                  <span className="whitespace-nowrap">Cancel Anytime</span>
                 </div>
               </div>
             </div>
