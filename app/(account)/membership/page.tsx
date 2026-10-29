@@ -46,12 +46,12 @@ const VIP_PERKS = [
     Icon: Tag,
     title: "Instant 5% Off Every Order",
     desc: "Save up to $30 automatically on every single checkout. No promo codes needed — automatically applied.",
-    badge: "Most Popular",
+    badge: "Every Order",
   },
   {
     Icon: Sparkles,
     title: "Member-Only Catalog Pricing",
-    desc: "Unlock steep promotional discounts on selected timber bed frames, luxury sofas, and dining suites.",
+    desc: "Unlock promotional pricing on selected timber bed frames, luxury sofas, and dining suites.",
     badge: "Exclusive",
   },
   {
@@ -64,13 +64,13 @@ const VIP_PERKS = [
     Icon: Truck,
     title: "Priority Warehouse Dispatch",
     desc: "VIP orders jump to the front of the queue for express packing and courier pickup across Australia.",
-    badge: "Speed",
+    badge: "Priority Queue",
   },
   {
     Icon: Zap,
     title: "48-Hour Early Sale Access",
     desc: "Shop major seasonal events (EOFY, Black Friday, Boxing Day) 2 days before the general public.",
-    badge: "VIP First",
+    badge: "First Dibs",
   },
   {
     Icon: PhoneCall,
@@ -81,12 +81,12 @@ const VIP_PERKS = [
 ];
 
 const COMPARISON_ROWS = [
-  { feature: "Everyday Furniture Discount", guest: "Retail Price (0%)", vip: "5% Off (up to $30 / order)" },
-  { feature: "Exclusive Member Pricing", guest: "Standard Prices Only", vip: "Unlocked on Curated Items" },
-  { feature: "Structural Warranty", guest: "1 Year Standard", vip: "3-Year Extended Warranty" },
-  { feature: "Warehouse Handling", guest: "Standard Queue (5–7 Days)", vip: "Priority Express Dispatch" },
-  { feature: "Sale Event Access", guest: "Public Release", vip: "48 Hours Early Access" },
-  { feature: "Customer Support", guest: "Standard Email Support", vip: "Priority Concierge & Phone" },
+  { feature: "Everyday Furniture Discount", guest: "Retail price (0%)", vip: "5% Off (up to $30 / order)" },
+  { feature: "Exclusive Member Pricing", guest: "Standard prices only", vip: "Unlocked on curated items" },
+  { feature: "Structural Warranty", guest: "1-Year standard", vip: "3-Year Extended Warranty" },
+  { feature: "Warehouse Handling", guest: "Standard dispatch (5–7 days)", vip: "Priority express queue" },
+  { feature: "Sale Event Access", guest: "Public launch", vip: "48 Hours early access" },
+  { feature: "Customer Support", guest: "Standard email", vip: "Priority phone & direct line" },
 ];
 
 const TESTIMONIALS = [
@@ -118,7 +118,7 @@ export default async function MembershipPage() {
     await enforceExpiry(user.id);
   }
 
-  // Always read from DB when user is logged in — JWT may be stale after checkout activation
+  // Always read from DB when user is logged in
   const [dbUser, activePlan] = await Promise.all([
     user?.id
       ? db.user.findUnique({
@@ -156,15 +156,15 @@ export default async function MembershipPage() {
   const isPaymentFailed = dbUser?.membershipStatus === "REVOKED_PAYMENT_FAILURE";
 
   return (
-    <div className="min-h-screen bg-slate-50/70 pb-20">
+    <div className="min-h-screen bg-white">
       {/* ── Sub-header / Breadcrumbs ── */}
-      <div className="bg-white border-b border-slate-200/80">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between text-xs sm:text-sm">
-          <div className="flex items-center gap-2 text-slate-500">
+      <div className="border-b border-border bg-[#fdfbf9]">
+        <div className="container mx-auto px-4 sm:px-6 py-3 flex items-center justify-between text-xs sm:text-sm">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <Link href="/" className="hover:text-primary transition-colors">
               Home
             </Link>
-            <ChevronRight className="h-3 w-3 text-slate-400" />
+            <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
             {user ? (
               <Link href="/account/dashboard" className="hover:text-primary transition-colors">
                 Account
@@ -172,327 +172,308 @@ export default async function MembershipPage() {
             ) : (
               <span>Shop</span>
             )}
-            <ChevronRight className="h-3 w-3 text-slate-400" />
-            <span className="text-slate-900 font-semibold">VIP Membership</span>
+            <ChevronRight className="h-3 w-3 text-muted-foreground/60" />
+            <span className="text-foreground font-semibold">VIP Membership</span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-4 text-xs font-medium text-slate-600">
-            <span className="flex items-center gap-1.5 text-amber-700">
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+          <div className="hidden sm:flex items-center gap-3 text-xs font-medium text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-foreground">
+              <ShieldCheck className="h-3.5 w-3.5 text-primary" />
               Australian Owned
             </span>
-            <span className="text-slate-300">•</span>
+            <span>•</span>
             <span className="flex items-center gap-1.5 text-emerald-700">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              100% Satisfaction Guarantee
+              Satisfaction Guarantee
             </span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 space-y-10">
-        {/* ── Past status alerts ── */}
-        {!isMember && isPaymentFailed && (
-          <div className="rounded-2xl border border-red-300 bg-red-50 p-5 text-sm text-red-900 flex items-start gap-3 shadow-sm">
-            <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold text-red-950">
-                Membership Revoked: Payment Method Failure
-              </p>
-              <p className="text-red-800 text-xs">
-                Your CHS Premium membership was revoked because automatic renewal payments failed after 2 retry attempts. Autopay was cancelled and benefits have ended.
-              </p>
-              <p className="text-red-700 text-xs font-semibold pt-1">
-                You can re-subscribe anytime with an updated payment card below.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {!isMember && isCancelled && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-800 flex items-start gap-3 shadow-sm">
-            <XCircle className="h-5 w-5 text-slate-500 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold text-slate-900">Membership Cancelled</p>
-              <p className="text-slate-600 text-xs">
-                Your CHS VIP membership was cancelled manually. Recurring autopay was cancelled and member benefits were stopped.
-              </p>
-              <p className="text-slate-500 text-xs pt-0.5">
-                Ready to return? You can reactivate your membership below anytime.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* ════════════════════════════════════════════════════════════════════════
-            ACTIVE MEMBER VIEW
-        ════════════════════════════════════════════════════════════════════════ */}
-        {isMember ? (
-          <div className="space-y-8">
-            {/* VIP Member Pass Banner */}
-            <div
-              className="rounded-3xl p-6 sm:p-10 text-white relative overflow-hidden shadow-2xl border border-amber-500/30"
-              style={{
-                background: "linear-gradient(135deg, #090e17 0%, #111e33 45%, #1a2a44 75%, #2a1f10 100%)",
-              }}
-            >
-              <div
-                className="absolute inset-0 opacity-20 pointer-events-none"
-                style={{
-                  backgroundImage: "radial-gradient(circle at 85% 20%, #f59e0b 0%, transparent 50%), radial-gradient(circle at 10% 80%, #ef4444 0%, transparent 40%)",
-                }}
-              />
-
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-start gap-4 sm:gap-5">
-                  <div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/30 text-slate-950 font-black">
-                    <Crown className="h-8 w-8 sm:h-10 sm:w-10 text-slate-950" />
-                  </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                      <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 text-[11px] font-black px-3 py-0.5 rounded-full border border-emerald-500/40">
-                        <CheckCircle2 className="h-3 w-3" /> ACTIVE VIP MEMBER
-                      </span>
-                      {dbUser?.membershipAutoRenew && (
-                        <span className="inline-flex items-center gap-1 bg-amber-500/20 text-amber-300 text-[11px] font-bold px-3 py-0.5 rounded-full border border-amber-500/30">
-                          AUTOPAY ON
-                        </span>
-                      )}
-                    </div>
-
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2">
-                      {dbUser?.name ? `${dbUser.name}'s VIP Pass` : "CHS VIP Member"}
-                      <Sparkles className="h-5 w-5 text-amber-400" />
-                    </h1>
-
-                    <p className="text-slate-300 text-xs sm:text-sm mt-1 max-w-md">
-                      {memberSince
-                        ? `Member since ${new Date(memberSince).toLocaleDateString("en-AU", { month: "long", year: "numeric" })}`
-                        : "Your VIP membership is active and enjoying full privileges"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Quick actions for members */}
-                <div className="flex flex-col sm:flex-row md:flex-col gap-2.5 shrink-0">
-                  <Link
-                    href="/products"
-                    className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-all"
-                  >
-                    <ShoppingBag className="h-4 w-4" /> Shop with Member Prices
-                  </Link>
-                  <Link
-                    href="/account/orders"
-                    className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/15 text-white font-semibold text-xs sm:text-sm px-6 py-3 rounded-xl border border-white/15 transition-all"
-                  >
-                    <Package className="h-4 w-4" /> View My Orders
-                  </Link>
-                </div>
-              </div>
-
-              {/* Status details bar */}
-              <div className="mt-8 pt-6 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                <div>
-                  <span className="text-slate-400 block">Everyday Savings</span>
-                  <span className="font-bold text-emerald-400 text-sm">5% Off (up to $30)</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Warranty Status</span>
-                  <span className="font-bold text-amber-300 text-sm">3-Year Extended</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Dispatch Status</span>
-                  <span className="font-bold text-white text-sm">Priority Queue</span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block">Current Plan</span>
-                  <span className="font-bold text-white text-sm">
-                    {currencyFmt.format(planPrice)} / {planDuration}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Member Since & Expiry Details */}
-            {memberSince && (
-              <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-600 border border-amber-200/60">
-                    <CalendarDays className="h-6 w-6" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Membership Valid Until</p>
-                    <p className="text-base font-bold text-slate-900">
-                      {dbUser?.membershipExpiry
-                        ? new Date(dbUser.membershipExpiry).toLocaleDateString("en-AU", {
-                            day: "numeric",
-                            month: "long",
-                            year: "numeric",
-                          })
-                        : "Active"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-full">
-                    ✓ All Benefits Activated
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Autopay & Subscription Controls */}
-            <MembershipAutopayControls
-              isMember={isMember}
-              initialAutoRenew={dbUser?.membershipAutoRenew ?? true}
-              membershipExpiry={dbUser?.membershipExpiry ? dbUser.membershipExpiry.toISOString() : null}
-              membershipStatus={dbUser?.membershipStatus ?? null}
-              membershipCancelReason={dbUser?.membershipCancelReason ?? null}
-              retryCount={dbUser?.membershipRetryCount ?? 0}
-              nextRetryAt={dbUser?.membershipNextRetryAt ? dbUser.membershipNextRetryAt.toISOString() : null}
-              isAdmin={user?.role === "ADMIN"}
-            />
-
-            {/* Active Benefits Grid */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-8">
-              <div className="mb-6">
-                <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                  Your VIP Privileges
-                  <Sparkles className="h-5 w-5 text-amber-500" />
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  These perks are automatically active on your account across completehomesollution.com.au
+      {/* ── Status alerts for past cancellations / revocations ── */}
+      {(isPaymentFailed || isCancelled) && !isMember && (
+        <div className="container mx-auto px-4 sm:px-6 pt-6">
+          {isPaymentFailed && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-5 text-sm text-red-900 flex items-start gap-3 shadow-xs">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold text-red-950">
+                  Membership Revoked: Payment Renewal Failed
+                </p>
+                <p className="text-red-800 text-xs">
+                  Your CHS membership was revoked because automatic renewal payments failed after 2 retry attempts. Autopay was cancelled.
+                </p>
+                <p className="text-red-700 text-xs font-semibold pt-1">
+                  You can re-subscribe anytime with an updated payment card below.
                 </p>
               </div>
+            </div>
+          )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {VIP_PERKS.map(({ Icon, title, desc, badge }) => (
-                  <div
-                    key={title}
-                    className="p-5 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex flex-col justify-between hover:border-amber-400/50 hover:bg-amber-50/20 transition-all"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
-                          <Icon className="h-5 w-5" />
-                        </div>
-                        <span className="text-[11px] font-bold text-amber-700 bg-amber-100/70 px-2.5 py-0.5 rounded-full">
-                          {badge}
-                        </span>
-                      </div>
-                      <h3 className="font-bold text-slate-900 text-sm mb-1">{title}</h3>
-                      <p className="text-xs text-slate-600 leading-relaxed">{desc}</p>
-                    </div>
+          {isCancelled && (
+            <div className="rounded-2xl border border-border bg-secondary/50 p-4 sm:p-5 text-sm text-foreground flex items-start gap-3 shadow-xs">
+              <XCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="font-bold text-foreground">Membership Cancelled</p>
+                <p className="text-muted-foreground text-xs">
+                  Your VIP membership was cancelled manually. Recurring autopay was cancelled and member benefits were stopped.
+                </p>
+                <p className="text-foreground text-xs font-medium pt-0.5">
+                  Ready to return? You can activate a new membership below anytime.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-                    <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center gap-1.5 text-[11px] font-bold text-emerald-600">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Active on your account
-                    </div>
+      {/* ════════════════════════════════════════════════════════════════════════
+          ACTIVE MEMBER VIEW
+      ════════════════════════════════════════════════════════════════════════ */}
+      {isMember ? (
+        <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 max-w-5xl">
+          {/* VIP Member Pass Banner (Site Theme) */}
+          <div className="rounded-2xl sm:rounded-3xl p-6 sm:p-8 bg-gradient-to-br from-[#1a2233] to-[#0f1422] text-white shadow-md relative overflow-hidden">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-start gap-4 sm:gap-5">
+                <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-white shadow-md font-bold">
+                  <Crown className="h-7 w-7 sm:h-8 sm:w-8" />
+                </div>
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="inline-flex items-center gap-1 bg-emerald-500/20 text-emerald-300 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                      <CheckCircle2 className="h-3 w-3" /> ACTIVE VIP MEMBER
+                    </span>
+                    {dbUser?.membershipAutoRenew && (
+                      <span className="inline-flex items-center gap-1 bg-white/10 text-white/90 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                        AUTOPAY ON
+                      </span>
+                    )}
                   </div>
-                ))}
+
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold tracking-tight text-white flex items-center gap-2">
+                    {dbUser?.name ? `${dbUser.name}'s VIP Membership` : "Complete Home VIP Member"}
+                    <Sparkles className="h-4 w-4 text-amber-300" />
+                  </h1>
+
+                  <p className="text-white/70 text-xs sm:text-sm mt-1">
+                    {memberSince
+                      ? `Member since ${new Date(memberSince).toLocaleDateString("en-AU", { month: "long", year: "numeric" })}`
+                      : "Your membership is active and enjoying full privileges"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-col sm:flex-row md:flex-col gap-2 shrink-0">
+                <Link
+                  href="/products"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90 text-center shadow-xs"
+                >
+                  <ShoppingBag className="h-4 w-4" /> Shop Member Prices
+                </Link>
+                <Link
+                  href="/account/orders"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-white/10 hover:bg-white/15 px-6 text-sm font-semibold text-white border border-white/20 transition-colors text-center"
+                >
+                  <Package className="h-4 w-4" /> View My Orders
+                </Link>
               </div>
             </div>
 
-            {/* Interactive Calculator for Existing Members */}
-            <MembershipSavingsCalculator
-              planPrice={planPrice}
-              planDuration={planDuration}
-              isMember={true}
-            />
+            {/* Quick stats footer */}
+            <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div>
+                <span className="text-white/60 block">Everyday Savings</span>
+                <span className="font-bold text-emerald-400 text-sm">5% Off (up to $30)</span>
+              </div>
+              <div>
+                <span className="text-white/60 block">Warranty Status</span>
+                <span className="font-bold text-amber-300 text-sm">3-Year Extended</span>
+              </div>
+              <div>
+                <span className="text-white/60 block">Dispatch Status</span>
+                <span className="font-bold text-white text-sm">Priority Queue</span>
+              </div>
+              <div>
+                <span className="text-white/60 block">Current Plan</span>
+                <span className="font-bold text-white text-sm">
+                  {currencyFmt.format(planPrice)} / {planDuration}
+                </span>
+              </div>
+            </div>
           </div>
-        ) : (
-          /* ════════════════════════════════════════════════════════════════════════
-              NON-MEMBER / CONVERSION VIEW
-          ════════════════════════════════════════════════════════════════════════ */
-          <div className="space-y-12 sm:space-y-16">
-            {/* ── Section 1: Hero Banner ── */}
-            <div
-              className="rounded-3xl p-7 sm:p-12 lg:p-16 text-white relative overflow-hidden shadow-2xl border border-amber-500/30"
-              style={{
-                background: "radial-gradient(ellipse at 80% 20%, #1e293b 0%, #0a0f1d 55%, #05070e 100%)",
-              }}
-            >
-              {/* Background luminous ambient rings */}
-              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-br from-amber-500/15 via-red-500/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-amber-600/10 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="relative z-10 max-w-3xl">
+          {/* Valid until indicator */}
+          {memberSince && (
+            <div className="bg-secondary/40 rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-border text-primary">
+                  <CalendarDays className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Membership Valid Until</p>
+                  <p className="text-sm sm:text-base font-bold text-foreground">
+                    {dbUser?.membershipExpiry
+                      ? new Date(dbUser.membershipExpiry).toLocaleDateString("en-AU", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })
+                      : "Active"}
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full self-start sm:self-center">
+                ✓ All Perks Active
+              </span>
+            </div>
+          )}
+
+          {/* Autopay Controls */}
+          <MembershipAutopayControls
+            isMember={isMember}
+            initialAutoRenew={dbUser?.membershipAutoRenew ?? true}
+            membershipExpiry={dbUser?.membershipExpiry ? dbUser.membershipExpiry.toISOString() : null}
+            membershipStatus={dbUser?.membershipStatus ?? null}
+            membershipCancelReason={dbUser?.membershipCancelReason ?? null}
+            retryCount={dbUser?.membershipRetryCount ?? 0}
+            nextRetryAt={dbUser?.membershipNextRetryAt ? dbUser.membershipNextRetryAt.toISOString() : null}
+            isAdmin={user?.role === "ADMIN"}
+          />
+
+          {/* Member perks grid */}
+          <div className="bg-white rounded-2xl sm:rounded-3xl border border-border p-6 sm:p-8 shadow-xs">
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                Your Member Privileges
+                <Sparkles className="h-4 w-4 text-primary" />
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                Automatically applied to your account across completehomesollution.com.au
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {VIP_PERKS.map(({ Icon, title, desc, badge }) => (
+                <div
+                  key={title}
+                  className="p-4 sm:p-5 rounded-xl bg-secondary/30 border border-border flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+                        <Icon className="h-4.5 w-4.5" />
+                      </div>
+                      <span className="text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
+                        {badge}
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-foreground text-sm mb-1">{title}</h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    Active on your account
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Calculator */}
+          <MembershipSavingsCalculator
+            planPrice={planPrice}
+            planDuration={planDuration}
+            isMember={true}
+          />
+        </div>
+      ) : (
+        /* ════════════════════════════════════════════════════════════════════════
+            NON-MEMBER / CONVERSION VIEW (MOBILE-FIRST SITE THEME)
+        ════════════════════════════════════════════════════════════════════════ */
+        <div>
+          {/* ── 1. Hero Section (Light, Warm, Full-Bleed) ── */}
+          <section className="bg-[#f7f3ed] py-8 sm:py-14 md:py-20 border-b border-border">
+            <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
+              <div className="max-w-2xl">
                 {/* Crown VIP pill */}
-                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-amber-400/10 border border-amber-400/30 text-amber-300 text-xs font-bold px-3.5 py-1.5 rounded-full mb-5 shadow-sm">
-                  <Crown className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-                  <span>COMPLETE HOME SOLUTION VIP CLUB</span>
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3.5 py-1 text-xs font-bold uppercase tracking-wider mb-4 border border-primary/20">
+                  <Crown className="h-3.5 w-3.5" />
+                  <span>COMPLETE HOME SOLUTION VIP</span>
                 </div>
 
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-[1.1] mb-5">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-[1.12] mb-4">
                   {expiredAt ? (
-                    <>Your VIP Access Has Expired. Renew to Save.</>
+                    <>Your VIP access has expired. Renew to continue saving.</>
                   ) : (
                     <>
-                      Furnish Your Home for Less. <br />
-                      <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-200 to-amber-500">
-                        Save 5% on Every Piece.
+                      Furnish your home for less. <br />
+                      <span className="text-primary font-normal italic font-script text-4xl sm:text-5xl md:text-6xl lg:text-7xl">
+                        Save 5% on every piece.
                       </span>
                     </>
                   )}
                 </h1>
 
-                <p className="text-slate-300 text-sm sm:text-base lg:text-lg leading-relaxed max-w-2xl mb-8">
+                <p className="text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed mb-6">
                   {expiredAt
                     ? `Your benefits ended on ${new Date(expiredAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. Renew today to restore your 5% discount, 3-year warranty, and priority dispatch.`
-                    : "Join Australia's fastest-growing home lovers club. Enjoy instant 5% savings (up to $30 per order), unlock VIP-only catalog pricing, a 3-Year Extended Warranty, and priority dispatch."}
+                    : "Join Complete Home Solution VIP. Enjoy instant 5% savings (up to $30 per order), exclusive member prices, a 3-Year Extended Warranty, and priority dispatch."}
                 </p>
 
-                {/* Trust Points */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-2 pb-8 border-y border-white/10 text-xs text-slate-300">
+                {/* Quick benefit pills on mobile */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 py-4 border-y border-border/80 text-xs text-foreground font-medium mb-6">
                   <div className="flex items-center gap-2">
-                    <Tag className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span>5% Off Every Order</span>
+                    <Tag className="h-4 w-4 text-primary shrink-0" />
+                    <span>5% off every order</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span>3-Year Warranty</span>
+                    <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                    <span>3-Year warranty</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span>Priority Dispatch</span>
+                    <Truck className="h-4 w-4 text-primary shrink-0" />
+                    <span>Priority dispatch</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span>Cancel Anytime</span>
+                    <Lock className="h-4 w-4 text-primary shrink-0" />
+                    <span>Cancel anytime</span>
                   </div>
                 </div>
 
-                {/* Hero CTA & Pricing */}
-                <div className="mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                {/* Main Hero CTA */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                   {checkoutUrl ? (
                     <Link
                       href={checkoutUrl}
-                      className="inline-flex items-center justify-center gap-2.5 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black text-base px-8 py-4 rounded-2xl shadow-xl shadow-amber-500/25 transition-all transform hover:-translate-y-0.5"
+                      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center"
                     >
-                      <Crown className="h-5 w-5" />
-                      {expiredAt ? "Renew VIP Membership" : `Become a VIP Member — ${currencyFmt.format(planPrice)}/${planDuration}`}
+                      <Crown className="h-4 w-4" />
+                      {expiredAt
+                        ? "Renew VIP Membership"
+                        : `Become a Member — ${currencyFmt.format(planPrice)}/${planDuration}`}
                       <ArrowRight className="h-4 w-4" />
                     </Link>
                   ) : (
-                    <p className="text-slate-400 text-sm">Plans temporarily unavailable.</p>
+                    <p className="text-muted-foreground text-sm">Plans temporarily unavailable.</p>
                   )}
 
-                  <div className="text-xs text-slate-400 text-center sm:text-left flex flex-col justify-center">
-                    <span className="font-semibold text-slate-300">
-                      Just ~${(planPrice / 365).toFixed(2)}/day
-                    </span>
-                    <span>Pays for itself on order #1 • Instant activation</span>
-                  </div>
+                  <span className="text-xs text-muted-foreground text-center sm:text-left">
+                    Just ~${(planPrice / 365).toFixed(2)}/day • Instant activation at checkout
+                  </span>
                 </div>
               </div>
             </div>
+          </section>
 
-            {/* Admin simulation tools even in non-member view so admins can test renewal */}
-            {user?.role === "ADMIN" && (
-              <div className="bg-white rounded-2xl border border-amber-300 p-6 shadow-sm">
-                <div className="flex items-center gap-2 text-amber-800 font-bold text-sm mb-4">
+          {/* Admin diagnostic simulator */}
+          {user?.role === "ADMIN" && (
+            <div className="container mx-auto px-4 sm:px-6 pt-6">
+              <div className="bg-white rounded-2xl border border-amber-300 p-5 shadow-xs">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-sm mb-3">
                   <ShieldCheck className="h-4 w-4 text-amber-600" />
                   Admin Autopay Diagnostics & Simulator
                 </div>
@@ -507,284 +488,296 @@ export default async function MembershipPage() {
                   isAdmin={true}
                 />
               </div>
-            )}
+            </div>
+          )}
 
-            {/* ── Section 2: Real-Life Math: "Pays For Itself on Order #1" ── */}
-            <div className="space-y-6">
-              <div className="text-center max-w-2xl mx-auto">
-                <span className="text-xs font-bold uppercase tracking-wider text-primary">
+          {/* ── 2. The Simple Math: "Pays For Itself on Order #1" ── */}
+          <section className="py-10 sm:py-16 md:py-20 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
+              <div className="max-w-xl mb-8 sm:mb-12">
+                <span className="inline-block text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-2">
                   The Simple Math
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                  Pays For Itself on Your Very First Purchase
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+                  Pays for itself on your very first purchase.
                 </h2>
-                <p className="text-slate-600 text-sm mt-2">
-                  You don&apos;t have to be a regular decorator to come out ahead. Here&apos;s how our members save on real Complete Home Solution furniture:
+                <p className="text-sm sm:text-base text-muted-foreground mt-2 leading-relaxed">
+                  You don&apos;t have to redecorate your whole home to benefit. Here is how our members save on real furniture pieces:
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* 3 Real-Life Examples (Mobile-first clean cards) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 {/* Example 1 */}
-                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
-                  <div className="absolute top-0 right-0 bg-emerald-500 text-white font-black text-[10px] px-3 py-1 rounded-bl-xl tracking-wider">
-                    100% COVERED
-                  </div>
+                <div className="bg-secondary/30 rounded-2xl p-5 sm:p-6 border border-border flex flex-col justify-between">
                   <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                      Bedroom
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-base mt-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                      <span className="font-semibold uppercase tracking-wider text-[10px]">Bedroom</span>
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        100% Covered
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-foreground text-base mb-1">
                       Queen Timber Bed Frame
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Average retail spend: $600</p>
+                    <p className="text-xs text-muted-foreground">Standard spend: $600.00</p>
 
-                    <div className="my-5 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Standard Price:</span>
-                        <span className="line-through text-slate-400 font-medium">$600.00</span>
+                    <div className="my-4 py-3 border-y border-border/80 space-y-1.5 text-xs">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Standard price:</span>
+                        <span className="line-through">$600.00</span>
                       </div>
-                      <div className="flex justify-between text-emerald-600 font-bold">
-                        <span>5% VIP Member Discount:</span>
+                      <div className="flex justify-between text-primary font-bold">
+                        <span>5% VIP discount:</span>
                         <span>-$30.00</span>
                       </div>
-                      <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-slate-900 text-sm">
-                        <span>VIP Price:</span>
+                      <div className="flex justify-between font-bold text-foreground text-sm pt-1">
+                        <span>VIP price:</span>
                         <span>$570.00</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 p-3 rounded-xl text-center">
-                    🎉 $30 Saved: Membership 100% paid for!
-                  </div>
+                  <p className="text-xs font-semibold text-emerald-800 bg-emerald-50/80 p-2.5 rounded-xl text-center border border-emerald-200/60">
+                    ✓ $30 saved: 100% pays for membership!
+                  </p>
                 </div>
 
                 {/* Example 2 (Featured) */}
-                <div className="bg-white rounded-3xl p-6 sm:p-7 border-2 border-amber-400/80 shadow-md relative overflow-hidden flex flex-col justify-between">
-                  <div className="absolute top-0 right-0 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-[10px] px-3 py-1 rounded-bl-xl tracking-wider">
-                    BIGGEST VALUE
-                  </div>
+                <div className="bg-gradient-to-br from-primary/5 via-white to-secondary/40 rounded-2xl p-5 sm:p-6 border-2 border-primary/30 flex flex-col justify-between shadow-xs">
                   <div>
-                    <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">
-                      Living Room
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-base mt-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                      <span className="font-semibold uppercase tracking-wider text-[10px] text-primary">Living Room</span>
+                      <span className="text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full">
+                        Best Value
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-foreground text-base mb-1">
                       Sectional Corner Lounge
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Average retail spend: $1,400</p>
+                    <p className="text-xs text-muted-foreground">Standard spend: $1,400.00</p>
 
-                    <div className="my-5 p-4 rounded-2xl bg-amber-50/50 border border-amber-100 space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Standard Price:</span>
-                        <span className="line-through text-slate-400 font-medium">$1,400.00</span>
+                    <div className="my-4 py-3 border-y border-primary/15 space-y-1.5 text-xs">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Standard price:</span>
+                        <span className="line-through">$1,400.00</span>
                       </div>
-                      <div className="flex justify-between text-emerald-600 font-bold">
-                        <span>5% VIP Discount (Max Cap):</span>
+                      <div className="flex justify-between text-primary font-bold">
+                        <span>5% VIP discount (max cap):</span>
                         <span>-$30.00</span>
                       </div>
-                      <div className="flex justify-between text-amber-700 font-semibold">
+                      <div className="flex justify-between text-amber-700 font-medium">
                         <span>3-Year Extended Warranty:</span>
-                        <span>FREE ($99 value)</span>
+                        <span>FREE ($99 val)</span>
                       </div>
-                      <div className="pt-2 border-t border-amber-200/60 flex justify-between font-bold text-slate-900 text-sm">
-                        <span>VIP Price:</span>
+                      <div className="flex justify-between font-bold text-foreground text-sm pt-1">
+                        <span>VIP price:</span>
                         <span>$1,370.00</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-xs font-bold text-amber-900 bg-amber-100/70 border border-amber-300/80 p-3 rounded-xl text-center">
-                    💎 $129+ Value Pocketed on Day 1
-                  </div>
+                  <p className="text-xs font-semibold text-primary bg-primary/10 p-2.5 rounded-xl text-center">
+                    💎 $129+ total value gained on day one
+                  </p>
                 </div>
 
                 {/* Example 3 */}
-                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden flex flex-col justify-between">
-                  <div className="absolute top-0 right-0 bg-primary text-white font-black text-[10px] px-3 py-1 rounded-bl-xl tracking-wider">
-                    CONTINUOUS
-                  </div>
+                <div className="bg-secondary/30 rounded-2xl p-5 sm:p-6 border border-border flex flex-col justify-between">
                   <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                      Dining & Decor
-                    </span>
-                    <h3 className="font-bold text-slate-900 text-base mt-1">
-                      Dining Suite & Homewares
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                      <span className="font-semibold uppercase tracking-wider text-[10px]">Dining & Decor</span>
+                      <span className="text-foreground font-bold bg-secondary px-2 py-0.5 rounded-full border border-border">
+                        Continuous
+                      </span>
+                    </div>
+                    <h3 className="font-semibold text-foreground text-base mb-1">
+                      Dining Set & Homewares
                     </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">3 small orders across 12 months: $850</p>
+                    <p className="text-xs text-muted-foreground">3 smaller orders over the year ($850)</p>
 
-                    <div className="my-5 p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Combined Standard:</span>
-                        <span className="line-through text-slate-400 font-medium">$850.00</span>
+                    <div className="my-4 py-3 border-y border-border/80 space-y-1.5 text-xs">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Combined standard:</span>
+                        <span className="line-through">$850.00</span>
                       </div>
-                      <div className="flex justify-between text-emerald-600 font-bold">
-                        <span>Cumulative VIP Savings:</span>
+                      <div className="flex justify-between text-primary font-bold">
+                        <span>Cumulative VIP savings:</span>
                         <span>-$42.50</span>
                       </div>
-                      <div className="pt-2 border-t border-slate-200 flex justify-between font-bold text-slate-900 text-sm">
-                        <span>Total Paid:</span>
+                      <div className="flex justify-between font-bold text-foreground text-sm pt-1">
+                        <span>Total paid:</span>
                         <span>$807.50</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 p-3 rounded-xl text-center">
-                    ⭐ Uncapped Savings on Every Order
-                  </div>
+                  <p className="text-xs font-semibold text-foreground bg-white p-2.5 rounded-xl text-center border border-border">
+                    ⭐ Uncapped savings on every checkout
+                  </p>
                 </div>
               </div>
             </div>
+          </section>
 
-            {/* ── Section 3: Interactive Savings Calculator Widget ── */}
-            <MembershipSavingsCalculator
-              planPrice={planPrice}
-              planDuration={planDuration}
-              checkoutUrl={checkoutUrl}
-              isMember={false}
-            />
+          {/* ── 3. Interactive Savings Calculator (Light Theme) ── */}
+          <section className="py-10 sm:py-16 bg-[#f7f3ed] border-y border-border">
+            <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
+              <MembershipSavingsCalculator
+                planPrice={planPrice}
+                planDuration={planDuration}
+                checkoutUrl={checkoutUrl}
+                isMember={false}
+              />
+            </div>
+          </section>
 
-            {/* ── Section 4: 6 Core VIP Benefits ── */}
-            <div className="space-y-6">
-              <div className="text-center max-w-2xl mx-auto">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-600">
-                  Exclusive Privileges
+          {/* ── 4. The 6 VIP Privileges ── */}
+          <section className="py-12 sm:py-18 md:py-24 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
+              <div className="max-w-xl mb-8 sm:mb-12">
+                <span className="inline-block text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-2">
+                  Membership Benefits
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                  Everything Included in Your VIP Membership
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+                  Everything included in your annual pass.
                 </h2>
-                <p className="text-slate-600 text-sm mt-2">
-                  Designed specifically for Australian homeowners who value quality, durability, and great prices.
+                <p className="text-sm sm:text-base text-muted-foreground mt-2 leading-relaxed">
+                  Tailored for Australian homeowners who value durability, design, and clear savings.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {VIP_PERKS.map(({ Icon, title, desc, badge }) => (
                   <div
                     key={title}
-                    className="bg-white rounded-3xl p-7 border border-slate-200/90 shadow-sm hover:shadow-lg hover:border-amber-400/60 transition-all flex flex-col justify-between group"
+                    className="p-5 sm:p-6 rounded-2xl bg-secondary/30 border border-border hover:border-primary/40 hover:bg-secondary/50 transition-colors flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-4">
-                        <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold group-hover:scale-110 group-hover:bg-amber-100 transition-all">
-                          <Icon className="h-6 w-6" />
+                        <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                          <Icon className="h-5 w-5" />
                         </div>
-                        <span className="text-xs font-bold text-amber-800 bg-amber-100/70 border border-amber-200 px-3 py-1 rounded-full">
+                        <span className="text-[11px] font-semibold text-primary bg-white border border-primary/20 px-2.5 py-0.5 rounded-full">
                           {badge}
                         </span>
                       </div>
 
-                      <h3 className="font-bold text-slate-900 text-base mb-2 group-hover:text-amber-700 transition-colors">
-                        {title}
-                      </h3>
-                      <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                      <h3 className="font-semibold text-foreground text-base mb-1.5">{title}</h3>
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                         {desc}
                       </p>
                     </div>
 
-                    <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-1.5 text-xs font-bold text-emerald-600">
+                    <div className="mt-5 pt-3 border-t border-border/60 flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
                       <Check className="h-3.5 w-3.5" />
-                      Included in Annual Pass
+                      Included in VIP pass
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+          </section>
 
-            {/* ── Section 5: Side-by-Side Comparison ── */}
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 sm:p-10">
-              <div className="max-w-2xl mx-auto text-center mb-8">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Feature Breakdown
+          {/* ── 5. Comparison: Guest vs VIP Member ── */}
+          <section className="py-10 sm:py-16 bg-[#f7f3ed] border-y border-border">
+            <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
+              <div className="max-w-xl mb-8">
+                <span className="inline-block text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-2">
+                  At A Glance
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                  Guest Customer vs CHS VIP Member
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-tight">
+                  Guest shopper vs VIP member.
                 </h2>
-                <p className="text-slate-600 text-xs sm:text-sm mt-1">
-                  See exactly what changes the moment you activate your VIP membership pass.
+                <p className="text-sm text-muted-foreground mt-1">
+                  See what unlocks the moment you activate your membership pass.
                 </p>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-xs sm:text-sm text-slate-500 font-semibold">
-                      <th className="py-4 px-3 sm:px-6">Feature & Perk</th>
-                      <th className="py-4 px-3 sm:px-6 text-slate-500">Guest Shopper</th>
-                      <th className="py-4 px-3 sm:px-6 bg-amber-50/70 text-amber-900 font-black rounded-t-xl">
-                        👑 CHS VIP Member
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-xs sm:text-sm">
-                    {COMPARISON_ROWS.map((row, i) => (
-                      <tr key={row.feature} className={i % 2 === 0 ? "bg-slate-50/30" : ""}>
-                        <td className="py-4 px-3 sm:px-6 font-semibold text-slate-900">
-                          {row.feature}
-                        </td>
-                        <td className="py-4 px-3 sm:px-6 text-slate-500">
-                          {row.guest}
-                        </td>
-                        <td className="py-4 px-3 sm:px-6 bg-amber-50/40 text-slate-950 font-bold">
-                          <span className="inline-flex items-center gap-1.5 text-emerald-700">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                            {row.vip}
-                          </span>
-                        </td>
+              {/* Mobile-friendly table / comparison */}
+              <div className="bg-white rounded-2xl border border-border shadow-xs overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs sm:text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b border-border bg-secondary/40 text-foreground font-semibold">
+                        <th className="py-3.5 px-4 sm:px-6">Feature & Perk</th>
+                        <th className="py-3.5 px-4 sm:px-6 text-muted-foreground font-normal">Guest</th>
+                        <th className="py-3.5 px-4 sm:px-6 text-primary font-semibold bg-primary/5">
+                          👑 VIP Member
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {COMPARISON_ROWS.map((row, i) => (
+                        <tr key={row.feature} className={i % 2 === 0 ? "bg-secondary/10" : ""}>
+                          <td className="py-3.5 px-4 sm:px-6 font-medium text-foreground">
+                            {row.feature}
+                          </td>
+                          <td className="py-3.5 px-4 sm:px-6 text-muted-foreground">
+                            {row.guest}
+                          </td>
+                          <td className="py-3.5 px-4 sm:px-6 text-foreground font-semibold bg-primary/5">
+                            <span className="inline-flex items-center gap-1.5 text-primary">
+                              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                              {row.vip}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
+          </section>
 
-            {/* ── Section 6: Pricing Card (Conversion Anchor) ── */}
-            <div className="relative max-w-xl mx-auto">
-              <div className="absolute -inset-1 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 rounded-3xl blur-md opacity-30" />
-
-              <div className="relative bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white rounded-3xl p-8 sm:p-10 border border-amber-500/30 shadow-2xl text-center">
-                <div className="inline-flex items-center gap-1.5 bg-amber-400/20 text-amber-300 border border-amber-400/40 text-xs font-black px-4 py-1.5 rounded-full mb-6">
-                  <Crown className="h-3.5 w-3.5 text-amber-400" />
+          {/* ── 6. Pricing & Sign-Up Card (Site Theme) ── */}
+          <section className="py-12 sm:py-18 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 max-w-2xl">
+              <div className="bg-gradient-to-br from-secondary/60 via-white to-secondary/40 rounded-3xl p-6 sm:p-10 border border-primary/20 text-center shadow-xs">
+                <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-4 border border-primary/20">
+                  <Crown className="h-3.5 w-3.5" />
                   ANNUAL VIP PASS
                 </div>
 
-                <h3 className="text-2xl sm:text-3xl font-black text-white">
+                <h3 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
                   Join Complete Home Solution VIP
                 </h3>
-                <p className="text-slate-400 text-xs sm:text-sm mt-1 max-w-md mx-auto">
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-md mx-auto">
                   Instant activation. Valid across our entire furniture and homewares catalogue for 365 days.
                 </p>
 
-                <div className="my-8 py-6 border-y border-white/10">
+                <div className="my-6 py-4 border-y border-border">
                   <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-4xl sm:text-5xl font-black text-amber-400">
+                    <span className="text-4xl sm:text-5xl font-bold text-foreground">
                       {currencyFmt.format(planPrice)}
                     </span>
-                    <span className="text-slate-400 text-sm">/ {planDuration}</span>
+                    <span className="text-muted-foreground text-sm">/ {planDuration}</span>
                   </div>
-                  <span className="text-xs text-slate-400 font-mono mt-1 block">
+                  <span className="text-xs text-muted-foreground mt-1 block">
                     Equivalent to just ~${(planPrice / 365).toFixed(2)} per day
                   </span>
                 </div>
 
-                <div className="space-y-3 text-left max-w-md mx-auto mb-8 text-xs sm:text-sm text-slate-300">
+                <div className="space-y-2.5 text-left max-w-md mx-auto mb-6 text-xs sm:text-sm text-foreground">
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>5% discount applied automatically on every order (up to $30)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>3-Year Extended Warranty on timber, springs and frames</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>Priority dispatch queue from our Adelaide warehouse</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                    <span>48-Hour Early VIP access to major sale clearances</span>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>48-Hour early VIP access to major sale clearances</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>Cancel auto-renewal online anytime with 1 click</span>
                   </div>
                 </div>
@@ -792,65 +785,64 @@ export default async function MembershipPage() {
                 {checkoutUrl ? (
                   <Link
                     href={checkoutUrl}
-                    className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-slate-950 font-black text-base py-4 px-8 rounded-2xl shadow-xl shadow-amber-500/25 transition-all transform hover:-translate-y-0.5"
+                    className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-semibold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center"
                   >
-                    <Crown className="h-5 w-5" />
+                    <Crown className="h-4 w-4" />
                     Become a Member Today
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 ) : (
-                  <p className="text-slate-400 text-sm">Plans temporarily unavailable.</p>
+                  <p className="text-muted-foreground text-sm">Plans temporarily unavailable.</p>
                 )}
 
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-[11px] text-slate-400">
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-3 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Lock className="h-3 w-3 text-slate-400" /> 256-Bit SSL Encrypted
+                    <Lock className="h-3 w-3" /> 256-Bit SSL Encrypted
                   </span>
                   <span>•</span>
                   <span>Westpac OnlinePay Protected</span>
                   <span>•</span>
-                  <span>30-Day Money-Back Guarantee</span>
+                  <span>Cancel Anytime</span>
                 </div>
               </div>
             </div>
+          </section>
 
-            {/* ── Section 7: Social Proof & Member Reviews ── */}
-            <div className="space-y-6">
-              <div className="text-center max-w-2xl mx-auto">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-600">
-                  Real Feedback
+          {/* ── 7. Social Proof: Reviews ── */}
+          <section className="py-10 sm:py-16 bg-[#f7f3ed] border-y border-border">
+            <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
+              <div className="max-w-xl mb-8">
+                <span className="inline-block text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-2">
+                  Customer Stories
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                  Trusted by Australian Homeowners
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-tight">
+                  Trusted by Australian homes.
                 </h2>
-                <p className="text-slate-600 text-sm mt-1">
-                  See what our VIP members have to say about their experience and savings.
-                </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 {TESTIMONIALS.map((t) => (
                   <div
                     key={t.name}
-                    className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-sm flex flex-col justify-between"
+                    className="bg-white rounded-2xl p-5 sm:p-6 border border-border shadow-xs flex flex-col justify-between"
                   >
                     <div>
-                      <div className="flex items-center gap-1 text-amber-400 mb-3">
+                      <div className="flex items-center gap-1 text-amber-500 mb-2.5">
                         {[...Array(5)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-amber-400" />
+                          <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                         ))}
                       </div>
-                      <p className="text-xs sm:text-sm text-slate-700 leading-relaxed italic">
+                      <p className="text-xs sm:text-sm text-foreground leading-relaxed italic">
                         &ldquo;{t.quote}&rdquo;
                       </p>
                     </div>
 
-                    <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div className="mt-5 pt-3 border-t border-border/60 flex items-center justify-between text-xs">
                       <div>
-                        <p className="font-bold text-slate-900">{t.name}</p>
-                        <p className="text-slate-500 text-[11px]">{t.location}</p>
+                        <p className="font-semibold text-foreground">{t.name}</p>
+                        <p className="text-muted-foreground text-[11px]">{t.location}</p>
                       </div>
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md border border-emerald-100">
+                      <span className="text-[11px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                         {t.saving}
                       </span>
                     </div>
@@ -858,26 +850,25 @@ export default async function MembershipPage() {
                 ))}
               </div>
             </div>
+          </section>
 
-            {/* ── Section 8: Frequently Asked Questions ── */}
-            <div className="max-w-3xl mx-auto space-y-6">
-              <div className="text-center">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Got Questions?
+          {/* ── 8. Frequently Asked Questions ── */}
+          <section className="py-12 sm:py-20 bg-white">
+            <div className="container mx-auto px-4 sm:px-6 max-w-3xl">
+              <div className="text-center mb-8">
+                <span className="inline-block text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-2">
+                  Questions & Answers
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mt-1">
-                  Frequently Asked Questions
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground leading-tight">
+                  Frequently asked questions.
                 </h2>
-                <p className="text-slate-600 text-xs sm:text-sm mt-1">
-                  Have questions about your membership? We have answers.
-                </p>
               </div>
 
               <MembershipFaq />
             </div>
-          </div>
-        )}
-      </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

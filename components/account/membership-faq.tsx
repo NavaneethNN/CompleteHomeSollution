@@ -44,39 +44,43 @@ export function MembershipFaq() {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {FAQS.map((faq, idx) => {
         const isOpen = openIndex === idx;
         return (
           <div
             key={faq.question}
-            className={`border rounded-2xl transition-all overflow-hidden ${
+            className={`rounded-xl border transition-colors ${
               isOpen
-                ? "bg-white border-amber-500/40 shadow-sm"
-                : "bg-white/80 border-slate-200 hover:border-slate-300"
+                ? "bg-white border-primary/30 shadow-xs"
+                : "bg-white border-border hover:border-border/80"
             }`}
           >
             <button
               type="button"
               onClick={() => toggle(idx)}
-              className="w-full flex items-center justify-between text-left p-5 sm:p-6 gap-4 focus:outline-none"
+              className="w-full flex items-center justify-between text-left p-4 sm:p-5 gap-3 focus:outline-none"
               aria-expanded={isOpen}
             >
-              <span className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-3">
-                <HelpCircle className={`h-4 w-4 shrink-0 transition-colors ${isOpen ? "text-amber-500" : "text-slate-400"}`} />
+              <span className="font-semibold text-foreground text-sm sm:text-base flex items-center gap-2.5">
+                <HelpCircle
+                  className={`h-4 w-4 shrink-0 transition-colors ${
+                    isOpen ? "text-primary" : "text-muted-foreground"
+                  }`}
+                />
                 {faq.question}
               </span>
               <div
-                className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 transition-transform duration-200 ${
-                  isOpen ? "bg-amber-100 text-amber-700 rotate-180" : "bg-slate-100 text-slate-500"
+                className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 transition-transform duration-200 ${
+                  isOpen ? "bg-primary/10 text-primary rotate-180" : "bg-secondary text-muted-foreground"
                 }`}
               >
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-3.5 w-3.5" />
               </div>
             </button>
 
             {isOpen && (
-              <div className="px-5 pb-5 sm:px-6 sm:pb-6 pt-0 text-slate-600 text-xs sm:text-sm leading-relaxed border-t border-slate-100">
+              <div className="px-4 pb-4 sm:px-5 sm:pb-5 pt-0 text-muted-foreground text-xs sm:text-sm leading-relaxed border-t border-border/50">
                 <p className="pt-3">{faq.answer}</p>
               </div>
             )}
