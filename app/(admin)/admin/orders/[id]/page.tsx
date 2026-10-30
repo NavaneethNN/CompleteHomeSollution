@@ -18,6 +18,8 @@ import {
   ShoppingBag,
   RefreshCw,
   Phone,
+  AlertTriangle,
+  ShieldCheck,
 } from "lucide-react";
 import { AdminRefundPanel } from "@/components/admin/refund-panel";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
@@ -120,6 +122,27 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
   const StatusConfig = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.PAID;
   const StatusIcon = StatusConfig.icon;
 
+  // ── Payment Verification & Integrity Checks ─────────────────────────────
+  const hasGatewayTxn = Boolean(order.paywayTransactionId || order.stripePaymentId);
+  const isZeroDollarOrder = order.total === 0;
+  const isPaymentVerified = isZeroDollarOrder || hasGatewayTxn;
+
+  // Determine gateway provider label and transaction reference
+  let paymentMethodLabel = "Awaiting payment";
+  let transactionReference: string | null = null;
+  if (order.paywayTransactionId?.startsWith("ONLINEPAY:")) {
+    paymentMethodLabel = "Westpac OnlinePay (Hosted Payment)";
+    transactionReference = order.paywayTransactionId.replace("ONLINEPAY:", "");
+  } else if (order.paywayTransactionId) {
+    paymentMethodLabel = "Westpac PayWay";
+    transactionReference = order.paywayTransactionId;
+  } else if (order.stripePaymentId) {
+    paymentMethodLabel = "Stripe";
+    transactionReference = order.stripePaymentId;
+  } else if (isZeroDollarOrder) {
+    paymentMethodLabel = "Complimentary ($0.00 Order)";
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -144,10 +167,24 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             </p>
           </div>
         </div>
-        <Badge variant={StatusConfig.variant} className="w-fit text-sm px-3 py-1">
-          <StatusIcon className="mr-1 h-4 w-4" />
-          {StatusConfig.label}
-        </Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          {!isPaymentVerified && order.status !== "CANCELLED" && (
+            <Badge variant="destructive" className="bg-red-600 text-white font-bold text-xs px-3 py-1 shadow-xs animate-pulse">
+              <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+              PAYMENT UNVERIFIED
+            </Badge>
+          )}
+          {isPaymentVerified && hasGatewayTxn && (
+            <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 border-emerald-300 font-semibold text-xs px-3 py-1">
+              <ShieldCheck className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+              Gateway Confirmed
+            </Badge>
+          )}
+          <Badge variant={StatusConfig.variant} className="w-fit text-sm px-3 py-1">
+            <StatusIcon className="mr-1 h-4 w-4" />
+            {StatusConfig.label}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -255,39 +292,87 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </Card>
 
           {/* Payment Information */}
-          <Card>
+          <Card className={!isPaymentVerified && order.status !== "CANCELLED" ? "border-red-300 ring-2 ring-red-100" : ""}>
             <CardHeader className="pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Payment Information
+              <CardTitle className="text-base flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Payment Verification &amp; Details
+                </span>
+                {isPaymentVerified ? (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                    <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                    Gateway Verified
+                  </span>
+                ) : order.status !== "CANCELLED" ? (
+                  <span className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-300 animate-pulse">
+                    <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+                    Verification Failed
+                  </span>
+                ) : null}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Critical Security Alert if order has a balance but no payment transaction exists */}
+              {!isPaymentVerified && order.status !== "CANCELLED" && (
+                <div className="rounded-xl border border-red-300 bg-red-50 p-4 text-red-900 shadow-xs">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-red-900 text-sm">
+                        CRITICAL SECURITY WARNING: No Payment Provider Record
+                      </p>
+                      <p className="text-xs text-red-800 leading-relaxed">
+                        This order has an amount of <strong>{currencyFormatter.format(order.total)}</strong>, but <strong>NO payment transaction reference or signature</strong> was returned from Westpac PayWay, OnlinePay, or Stripe.
+                      </p>
+                      <p className="text-xs font-bold text-red-950 pt-1">
+                        🛑 DO NOT DISPATCH OR FULFILL: Confirm funds in merchant bank account before shipping goods to this customer.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-slate-500">Payment Method</p>
-                  <p className="font-medium text-slate-900">
-                    {order.paywayTransactionId?.startsWith("ONLINEPAY:") ? "Westpac OnlinePay" : order.paywayTransactionId ? "PayWay" : order.stripePaymentId ? "Stripe" : "Awaiting payment"}
+                  <p className="text-sm text-slate-500">Payment Gateway</p>
+                  <p className="font-medium text-slate-900 mt-0.5 flex items-center gap-1.5">
+                    {paymentMethodLabel}
                   </p>
+                  {transactionReference ? (
+                    <p className="text-xs text-slate-600 font-mono mt-1 bg-slate-50 px-2 py-1 rounded border border-slate-200 inline-block">
+                      Ref: <strong className="text-slate-900">{transactionReference}</strong>
+                    </p>
+                  ) : order.total > 0 && order.status !== "CANCELLED" ? (
+                    <p className="text-xs text-red-600 font-semibold mt-1">
+                      ⚠️ No transaction ID recorded
+                    </p>
+                  ) : null}
                 </div>
                 <div>
-                  <p className="text-sm text-slate-500">Payment Status</p>
-                  <Badge
-                    variant={
-                      order.status === "REFUNDED" ? "destructive"
-                      : ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status)
-                        ? "secondary"
-                        : "outline"
-                    }
-                  >
-                    {order.status === "REFUNDED"
-                      ? "Refunded"
-                      : order.status === "CANCELLED"
-                        ? "Not Paid"
-                        : order.status === "PENDING"
-                          ? "Awaiting Payment"
-                          : "Paid"}
-                  </Badge>
+                  <p className="text-sm text-slate-500">Payment Verification Status</p>
+                  <div className="mt-1">
+                    {order.status === "REFUNDED" ? (
+                      <Badge variant="destructive">Refunded</Badge>
+                    ) : order.status === "CANCELLED" ? (
+                      <Badge variant="outline">Cancelled / Voided</Badge>
+                    ) : order.status === "PENDING" ? (
+                      <Badge variant="outline" className="border-amber-300 text-amber-800 bg-amber-50">
+                        <Clock className="mr-1 h-3 w-3" />
+                        Awaiting Payment
+                      </Badge>
+                    ) : !isPaymentVerified ? (
+                      <Badge variant="destructive" className="bg-red-600 text-white font-bold text-xs py-1">
+                        <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+                        UNVERIFIED — NO PAYMENT RECORD
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold">
+                        <ShieldCheck className="mr-1 h-3.5 w-3.5 text-emerald-600" />
+                        {isZeroDollarOrder ? "Paid ($0.00 Order)" : "Verified & Paid"}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>

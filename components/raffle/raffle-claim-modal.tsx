@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { claimFreePrize } from "@/lib/actions/raffle";
+import { prepareRafflePrizeForCheckout } from "@/lib/actions/raffle";
+import { useCartStore } from "@/store/cart";
 import {
   Dialog,
   DialogContent,
@@ -69,36 +70,14 @@ export function RaffleClaimModal({
     setLoading(true);
 
     try {
-      let payload;
-      if (selectedAddressId !== "new") {
-        const addr = savedAddresses.find((a) => a.id === selectedAddressId);
-        if (!addr) throw new Error("Selected address not found");
-        payload = {
-          winnerId: winner.id,
-          name: addr.name,
-          phone: addr.phone,
-          line1: addr.line1,
-          line2: addr.line2 || undefined,
-          suburb: addr.suburb,
-          state: addr.state,
-          postcode: addr.postcode,
-          country: addr.country || "AU",
-          saveToProfile: false,
-        };
-      } else {
-        payload = {
-          winnerId: winner.id,
-          ...formData,
-        };
-      }
-
-      const res = await claimFreePrize(payload);
-      if (res.success) {
-        toast.success(res.message || "Prize claimed successfully!");
+      const res = await prepareRafflePrizeForCheckout(winner.id);
+      if (res.success && res.cartItem) {
+        useCartStore.getState().setRafflePrizeItem(res.cartItem);
+        toast.success("Proceeding to checkout to complete delivery...");
         onClose();
-        router.refresh();
+        router.push(`/checkout?raffleWinnerId=${winner.id}`);
       } else {
-        toast.error(res.error || "Failed to claim prize.");
+        toast.error(res.error || "Failed to prepare prize checkout.");
       }
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred.");

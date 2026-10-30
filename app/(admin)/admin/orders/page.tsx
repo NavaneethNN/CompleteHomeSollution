@@ -20,6 +20,7 @@ import {
   CreditCard,
   RefreshCw,
   AlertTriangle,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +99,8 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
         createdAt: true,
         refundRequested: true,
         guestEmail: true,
+        paywayTransactionId: true,
+        stripePaymentId: true,
         _count: { select: { items: true } },
         user: { select: { id: true, name: true, email: true } },
         address: { select: { name: true } },
@@ -376,11 +379,23 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           {currencyFormatter.format(order.total)}
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 relative z-10">
-                          <div className="flex flex-col gap-1">
+                          <div className="flex flex-col gap-1 items-start">
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold w-fit whitespace-nowrap ${StatusConfig.className}`}>
                               <StatusIcon className="h-3 w-3" />
                               {StatusConfig.label}
                             </span>
+                            {order.total > 0 && !order.paywayTransactionId && !order.stripePaymentId && order.status !== "CANCELLED" && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.5 rounded-full w-fit">
+                                <AlertTriangle className="h-2.5 w-2.5 text-red-600" />
+                                Unverified
+                              </span>
+                            )}
+                            {Boolean(order.paywayTransactionId || order.stripePaymentId) && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-emerald-700 w-fit hidden lg:inline-flex">
+                                <ShieldCheck className="h-2.5 w-2.5 text-emerald-600" />
+                                Verified
+                              </span>
+                            )}
                             {hasRefundRequest && (
                               <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
                                 <AlertTriangle className="h-2.5 w-2.5" />

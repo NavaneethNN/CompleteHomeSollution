@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { purchasePaidPrize } from "@/lib/actions/raffle";
+import { prepareRafflePrizeForCheckout } from "@/lib/actions/raffle";
+import { useCartStore } from "@/store/cart";
 import {
   Dialog,
   DialogContent,
@@ -59,20 +60,16 @@ export function RafflePurchaseModal({
   const discountPct = originalValue > 0 ? Math.round((discountAmount / originalValue) * 100) : 0;
 
   const handlePurchase = async () => {
-    if (!selectedAddressId) {
-      toast.error("Please select a delivery address.");
-      return;
-    }
-
     setLoading(true);
     try {
-      const res = await purchasePaidPrize(winner.id, selectedAddressId);
-      if (res.success) {
-        toast.success(res.message || "Winning prize purchase confirmed!");
+      const res = await prepareRafflePrizeForCheckout(winner.id);
+      if (res.success && res.cartItem) {
+        useCartStore.getState().setRafflePrizeItem(res.cartItem);
+        toast.success("Proceeding to checkout to complete purchase...");
         onClose();
-        router.refresh();
+        router.push(`/checkout?raffleWinnerId=${winner.id}`);
       } else {
-        toast.error(res.error || "Failed to purchase prize.");
+        toast.error(res.error || "Failed to prepare prize checkout.");
       }
     } catch (err: any) {
       toast.error(err.message || "An unexpected error occurred.");

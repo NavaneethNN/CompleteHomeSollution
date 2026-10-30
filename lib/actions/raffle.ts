@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { claimPrizeAddressSchema, ClaimPrizeAddressInput } from "@/lib/validations/raffle";
+import { ClaimPrizeAddressInput } from "@/lib/validations/raffle";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
@@ -641,272 +641,27 @@ export async function prepareRafflePrizeForCheckout(winnerId: string) {
 }
 
 /**
- * Claim Free Prize with Shipping Address
+ * Deprecated direct prize claim.
+ * Direct database order creation without checkout has been completely removed.
+ * All raffle prize claims must proceed through the secure checkout flow.
  */
-export async function claimFreePrize(input: ClaimPrizeAddressInput) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized. Please log in." };
-  }
-
-  const userId = session.user.id;
-
-  const rl = await consumeRateLimit("raffle-claim", userId, 10, 60);
-  if (!rl.allowed) {
-    return { success: false, error: "Too many requests. Please wait a moment." };
-  }
-
-  const validated = claimPrizeAddressSchema.safeParse(input);
-  if (!validated.success) {
-    return { success: false, error: validated.error.issues[0].message };
-  }
-
-  const data = validated.data;
-
-  try {
-    const winner = await db.raffleWinner.findUnique({
-      where: { id: data.winnerId },
-      include: {
-        prize: true,
-        raffle: true,
-      },
-    });
-
-    if (!winner) {
-      return { success: false, error: "Winning record not found." };
-    }
-
-    if (winner.userId !== userId) {
-      return { success: false, error: "Unauthorized: this winning record does not belong to your account." };
-    }
-
-    if (winner.prizeType !== "FREE_PRODUCT") {
-      return { success: false, error: "This prize requires checkout purchase." };
-    }
-
-    const addressSnapshot = {
-      name: data.name.trim(),
-      phone: data.phone.trim(),
-      line1: data.line1.trim(),
-      line2: data.line2?.trim() || null,
-      suburb: data.suburb.trim(),
-      state: data.state.trim().toUpperCase(),
-      postcode: data.postcode.trim(),
-      country: data.country || "AU",
-    };
-
-    // Atomic claim update to prevent race conditions
-    const updateResult = await db.$transaction(async (tx) => {
-      const claimTx = await tx.raffleWinner.updateMany({
-        where: {
-          id: winner.id,
-          userId,
-          status: "PENDING_CLAIM",
-        },
-        data: {
-          status: "CLAIMED",
-          claimedAt: new Date(),
-          shippingAddress: addressSnapshot,
-          deliveryStatus: "PROCESSING",
-        },
-      });
-
-      if (claimTx.count === 0) {
-        throw new Error("This prize has already been claimed or is currently being processed.");
-      }
-
-      // Optionally save to profile
-      if (data.saveToProfile) {
-        await tx.address.create({
-          data: {
-            userId,
-            name: addressSnapshot.name,
-            phone: addressSnapshot.phone,
-            line1: addressSnapshot.line1,
-            line2: addressSnapshot.line2,
-            suburb: addressSnapshot.suburb,
-            state: addressSnapshot.state,
-            postcode: addressSnapshot.postcode,
-            country: addressSnapshot.country,
-          },
-        });
-      }
-
-      // Add audit log
-      await tx.raffleAuditLog.create({
-        data: {
-          raffleId: winner.raffleId,
-          adminId: userId,
-          action: "PRIZE_CLAIMED_BY_WINNER",
-          details: {
-            winnerId: winner.id,
-            prizeName: winner.prize.name,
-            shippingAddress: addressSnapshot,
-          },
-        },
-      });
-
-      return true;
-    });
-
-    revalidatePath("/account/raffles");
-    revalidatePath(`/raffles/${winner.raffle.slug}`);
-
-    return {
-      success: true,
-      message: "Prize claimed successfully! We will prepare and dispatch your gift to the provided address.",
-    };
-  } catch (error: any) {
-    console.error("Failed to claim free prize:", error);
-    return { success: false, error: error.message || "Failed to submit prize claim." };
-  }
+export async function claimFreePrize(_input: ClaimPrizeAddressInput) {
+  return {
+    success: false,
+    error: "Direct prize claim is disabled. Please claim your prize via the secure checkout flow.",
+  };
 }
 
 /**
- * Purchase a Paid/Discounted Winning Prize at the special price
+ * Deprecated direct prize purchase.
+ * Direct database order creation without checkout has been completely removed.
+ * All raffle prize purchases must proceed through the secure checkout flow.
  */
-export async function purchasePaidPrize(winnerId: string, addressId: string) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized. Please log in." };
-  }
-
-  const userId = session.user.id;
-
-  const rl = await consumeRateLimit("raffle-purchase", userId, 10, 60);
-  if (!rl.allowed) {
-    return { success: false, error: "Too many purchase requests. Please wait a moment." };
-  }
-
-  try {
-    const winner = await db.raffleWinner.findUnique({
-      where: { id: winnerId },
-      include: {
-        prize: {
-          include: { product: true },
-        },
-        raffle: true,
-      },
-    });
-
-    if (!winner) {
-      return { success: false, error: "Winner record not found." };
-    }
-
-    if (winner.userId !== userId) {
-      return { success: false, error: "Unauthorized: this winning record does not belong to your account." };
-    }
-
-    if (winner.prizeType !== "PAID_PRODUCT") {
-      return { success: false, error: "This is a free product prize. Please use the free claim workflow." };
-    }
-
-    const address = await db.address.findFirst({
-      where: { id: addressId, userId },
-    });
-
-    if (!address) {
-      return { success: false, error: "Selected shipping address not found." };
-    }
-
-    const winningPrice = winner.winningPrice || winner.prize.price || 0;
-
-    // Create order and update winner atomically inside interactive transaction
-    const order = await db.$transaction(async (tx) => {
-      // Find or link product
-      let productId = winner.prize.productId;
-      if (!productId) {
-        const existingProd = await tx.product.findFirst({
-          select: { id: true },
-        });
-        productId = existingProd?.id || "";
-      }
-
-      const newOrder = await tx.order.create({
-        data: {
-          userId,
-          status: "CONFIRMED",
-          addressId: address.id,
-          subtotal: winningPrice,
-          shippingCost: 0,
-          tax: 0,
-          discount: 0,
-          total: winningPrice,
-          ...(productId
-            ? {
-                items: {
-                  create: {
-                    productId,
-                    productVariantId: winner.prize.productVariantId || null,
-                    quantity: 1,
-                    unitPrice: winningPrice,
-                    variantSummary: `Raffle Winner Prize (${winner.raffle.title})`,
-                  },
-                },
-              }
-            : {}),
-        },
-      });
-
-      // Atomically update winner status - guarantees no double purchases
-      const claimUpdate = await tx.raffleWinner.updateMany({
-        where: {
-          id: winner.id,
-          userId,
-          status: "PENDING_CLAIM",
-        },
-        data: {
-          status: "CLAIMED",
-          claimedAt: new Date(),
-          orderId: newOrder.id,
-          shippingAddressId: address.id,
-          shippingAddress: {
-            name: address.name,
-            phone: address.phone,
-            line1: address.line1,
-            line2: address.line2,
-            suburb: address.suburb,
-            state: address.state,
-            postcode: address.postcode,
-            country: address.country,
-          },
-          deliveryStatus: "PROCESSING",
-        },
-      });
-
-      if (claimUpdate.count === 0) {
-        throw new Error("This winning prize has already been purchased or claimed.");
-      }
-
-      await tx.raffleAuditLog.create({
-        data: {
-          raffleId: winner.raffleId,
-          adminId: userId,
-          action: "PRIZE_PURCHASED_BY_WINNER",
-          details: {
-            winnerId: winner.id,
-            orderId: newOrder.id,
-            amount: winningPrice,
-          },
-        },
-      });
-
-      return newOrder;
-    });
-
-    revalidatePath("/account/raffles");
-    revalidatePath("/account/orders");
-    revalidatePath(`/raffles/${winner.raffle.slug}`);
-
-    return {
-      success: true,
-      orderId: order.id,
-      message: `Congratulations! Your winning prize order (#${order.id.slice(-6)}) has been placed successfully!`,
-    };
-  } catch (error: any) {
-    console.error("Failed to purchase prize:", error);
-    return { success: false, error: error.message || "Failed to process prize purchase." };
-  }
+export async function purchasePaidPrize(_winnerId: string, _addressId: string) {
+  return {
+    success: false,
+    error: "Direct prize purchase is disabled. Please purchase your winning prize via the secure checkout flow.",
+  };
 }
 
 /**
