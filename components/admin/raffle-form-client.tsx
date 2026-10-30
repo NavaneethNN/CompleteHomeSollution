@@ -246,7 +246,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
       </div>
 
       {/* ── 1. Basic Campaign Information ── */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-border shadow-xs space-y-4">
         <h2 className="text-lg font-black text-foreground flex items-center gap-2 pb-3 border-b border-border">
           <Ticket className="h-5 w-5 text-primary" />
           1. Campaign Details
@@ -342,7 +342,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
       </div>
 
       {/* ── 2. Multi-Tier Prizes Configuration ── */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border shadow-xs space-y-6">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-border shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
           <div>
             <h2 className="text-lg font-black text-foreground flex items-center gap-2">
@@ -518,7 +518,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
       </div>
 
       {/* ── 3. Participation & Eligibility Settings ── */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-border shadow-xs space-y-4">
         <h2 className="text-lg font-black text-foreground flex items-center gap-2 pb-3 border-b border-border">
           <Crown className="h-5 w-5 text-amber-500" />
           3. Participation & Visibility Settings
@@ -610,7 +610,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
       </div>
 
       {/* ── 4. Schedule & Draw Dates ── */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-border shadow-xs space-y-4">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-border shadow-xs space-y-4">
         <h2 className="text-lg font-black text-foreground flex items-center gap-2 pb-3 border-b border-border">
           <Calendar className="h-5 w-5 text-primary" />
           4. Campaign Schedule & Draw Date

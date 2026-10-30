@@ -61,162 +61,168 @@ export function RaffleCard({ raffle }: RaffleCardProps) {
     : null;
 
   return (
-    <div className="group relative flex flex-col bg-white rounded-3xl border border-border/80 overflow-hidden shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <div className="group h-full overflow-hidden rounded-2xl border border-border/80 bg-white transition-shadow hover:shadow-md flex flex-col">
       {/* ── Top Image Container ── */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-slate-100">
-        <Image
-          src={mainImage}
-          alt={raffle.title}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-secondary">
+        <Link href={`/raffles/${raffle.slug}`} className="absolute inset-0 block">
+          <Image
+            src={mainImage}
+            alt={raffle.title}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        </Link>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
         {/* Top Badges */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 items-center z-10">
           {isFree ? (
-            <span className="inline-flex items-center gap-1 bg-emerald-600 text-white text-[11px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
               <Gift className="h-3 w-3" />
               100% Free Entry
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 bg-slate-900 text-white text-[11px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1 bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
               <Ticket className="h-3 w-3" />
               ${raffle.entryPrice}
             </span>
           )}
 
           {isMembersOnly && (
-            <span className="inline-flex items-center gap-1 bg-amber-500 text-slate-950 text-[11px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
-              <Crown className="h-3 w-3 fill-slate-950" />
-              VIP Only
+            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
+              <Crown className="h-3 w-3 fill-amber-900" />
+              VIP Exclusive
             </span>
           )}
 
           {raffle.isFeatured && (
-            <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-[11px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider">
+            <span className="inline-flex items-center gap-1 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
               <Sparkles className="h-3 w-3" />
               Featured
             </span>
           )}
         </div>
 
-        {/* Status / Value Tag */}
-        <div className="absolute top-3 right-3 z-10">
-          {totalPrizeValue > 0 && (
-            <div className="bg-white/95 backdrop-blur-xs text-slate-900 px-3 py-1 rounded-full text-xs font-black shadow-md border border-white/40">
-              Total Value: <span className="text-primary">${totalPrizeValue.toLocaleString()}</span>
-            </div>
-          )}
-        </div>
+        {/* Top Right Value Badge */}
+        {totalPrizeValue > 0 && (
+          <div className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-xs text-foreground px-2.5 py-1 rounded-full text-xs font-semibold shadow-xs border border-border/60">
+            Valued at <span className="text-primary font-bold">${totalPrizeValue.toLocaleString()}</span>
+          </div>
+        )}
 
-        {/* Bottom overlay with countdown or winner badge */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white z-10">
+        {/* Bottom Overlay Info */}
+        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-foreground z-10">
           {isActive ? (
             <RaffleCountdown targetDate={raffle.endDate} size="sm" />
           ) : isUpcoming ? (
-            <div className="inline-flex items-center gap-1 text-xs font-bold text-sky-200 bg-sky-950/80 px-2.5 py-1 rounded-full backdrop-blur-xs">
-              Starts on {new Date(raffle.startDate).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
+            <div className="inline-flex items-center gap-1 text-xs font-medium text-foreground bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-full shadow-xs border border-border/60">
+              Opens {new Date(raffle.startDate).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
             </div>
           ) : (
-            <div className="inline-flex items-center gap-1 text-xs font-bold text-emerald-200 bg-emerald-950/80 px-2.5 py-1 rounded-full backdrop-blur-xs">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+            <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
               Draw Completed
             </div>
           )}
 
-          <div className="inline-flex items-center gap-1 text-xs font-bold bg-black/60 px-2.5 py-1 rounded-full backdrop-blur-xs">
-            <Trophy className="h-3 w-3 text-amber-400" />
+          <div className="inline-flex items-center gap-1 text-xs font-medium text-foreground bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-full shadow-xs border border-border/60">
+            <Trophy className="h-3 w-3 text-amber-600" />
             <span>{totalWinnersCount} Winner{totalWinnersCount > 1 ? "s" : ""}</span>
           </div>
         </div>
       </div>
 
       {/* ── Content Container ── */}
-      <div className="flex flex-col flex-1 p-5">
-        <Link href={`/raffles/${raffle.slug}`}>
-          <h3 className="font-extrabold text-lg sm:text-xl text-foreground group-hover:text-primary transition-colors line-clamp-1">
-            {raffle.title}
-          </h3>
-        </Link>
+      <div className="p-4 sm:p-5 flex flex-col flex-1">
+        <div className="flex-1 flex flex-col">
+          <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+            {isMembersOnly ? "VIP Member Draw" : "Community Promotional Draw"}
+          </span>
 
-        {raffle.shortDescription && (
-          <p className="text-muted-foreground text-xs sm:text-sm mt-1.5 line-clamp-2">
-            {raffle.shortDescription}
-          </p>
-        )}
+          <Link href={`/raffles/${raffle.slug}`}>
+            <h3 className="mt-1 text-base sm:text-lg font-semibold text-foreground leading-snug line-clamp-2 hover:text-primary transition-colors">
+              {raffle.title}
+            </h3>
+          </Link>
 
-        {/* Prize Tiers Preview */}
-        <div className="mt-4 space-y-1.5 bg-slate-50/80 rounded-2xl p-3 border border-slate-100">
-          <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">
-            Multi-Tier Prize Pool
-          </p>
-          <div className="space-y-1">
-            {raffle.prizes.slice(0, 3).map((prize) => (
-              <div key={prize.id} className="flex items-center justify-between text-xs">
-                <span className="font-medium truncate max-w-[70%] text-foreground flex items-center gap-1.5">
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black shrink-0">
-                    {prize.rank}
-                  </span>
-                  <span className="truncate">{prize.name}</span>
-                </span>
-                <span className="shrink-0 font-bold text-[11px] text-primary">
-                  {prize.prizeType === "FREE_PRODUCT" ? (
-                    <span className="text-emerald-600 font-extrabold">FREE</span>
-                  ) : (
-                    <span>${prize.price}</span>
-                  )}
-                </span>
-              </div>
-            ))}
-            {raffle.prizes.length > 3 && (
-              <p className="text-[10px] text-muted-foreground text-right italic">
-                + {raffle.prizes.length - 3} more prize tier(s)
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Progress Bar & Ticket Stats */}
-        <div className="mt-4 pt-3 border-t border-border/60">
-          <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground mb-1.5">
-            <span>{raffle.totalTickets} ticket{raffle.totalTickets !== 1 ? "s" : ""} claimed</span>
-            {raffle.totalMaxEntries && (
-              <span>{Math.max(0, raffle.totalMaxEntries - raffle.totalTickets)} remaining</span>
-            )}
-          </div>
-
-          {progressPercent !== null && (
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-amber-500 to-primary rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
+          {raffle.shortDescription && (
+            <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+              {raffle.shortDescription}
+            </p>
           )}
+
+          {/* Prize Tiers Preview Box */}
+          <div className="mt-3.5 rounded-xl bg-[#fcfbf9] border border-border/70 p-3 space-y-1.5">
+            <p className="text-[10px] uppercase font-bold tracking-[0.15em] text-muted-foreground">
+              Prize Pool Breakdown
+            </p>
+            <div className="space-y-1">
+              {raffle.prizes.slice(0, 3).map((prize) => (
+                <div key={prize.id} className="flex items-center justify-between text-xs">
+                  <span className="truncate max-w-[72%] text-foreground flex items-center gap-1.5">
+                    <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-secondary text-foreground text-[10px] font-bold shrink-0 border border-border">
+                      {prize.rank}
+                    </span>
+                    <span className="truncate font-medium">{prize.name}</span>
+                  </span>
+                  <span className="shrink-0 font-bold text-[11px]">
+                    {prize.prizeType === "FREE_PRODUCT" ? (
+                      <span className="text-emerald-700">100% FREE</span>
+                    ) : (
+                      <span className="text-primary">${prize.price}</span>
+                    )}
+                  </span>
+                </div>
+              ))}
+              {raffle.prizes.length > 3 && (
+                <p className="text-[10px] text-muted-foreground text-right italic pt-0.5">
+                  + {raffle.prizes.length - 3} more prize tier(s)
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Progress / Tickets Indicator */}
+          <div className="mt-4 pt-3 border-t border-border/60">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5 font-medium">
+              <span>{raffle.totalTickets} ticket{raffle.totalTickets !== 1 ? "s" : ""} claimed</span>
+              {raffle.totalMaxEntries && (
+                <span>{Math.max(0, raffle.totalMaxEntries - raffle.totalTickets)} remaining</span>
+              )}
+            </div>
+
+            {progressPercent !== null && (
+              <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-500"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Action Button */}
-        <div className="mt-5 pt-3">
+        <div className="mt-4">
           <Link
             href={`/raffles/${raffle.slug}`}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm bg-primary text-white hover:bg-primary/95 shadow-md hover:shadow-lg transition-all group-hover:scale-[1.01]"
+            className="w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary/90 shadow-xs"
           >
             {isActive ? (
               <>
                 <span>Enter Giveaway</span>
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="h-4 w-4" />
               </>
             ) : isCompleted ? (
               <>
-                <span>View Winners</span>
-                <Trophy className="h-4 w-4 text-amber-300" />
+                <span>View Results</span>
+                <Trophy className="h-4 w-4" />
               </>
             ) : (
               <>
                 <span>View Campaign</span>
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                <ArrowRight className="h-4 w-4" />
               </>
             )}
           </Link>
@@ -225,4 +231,3 @@ export function RaffleCard({ raffle }: RaffleCardProps) {
     </div>
   );
 }
-

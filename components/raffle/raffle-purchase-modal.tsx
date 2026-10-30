@@ -83,31 +83,31 @@ export function RafflePurchaseModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg rounded-3xl p-6 sm:p-8">
+      <DialogContent className="max-w-lg rounded-2xl p-6 sm:p-7 bg-white border border-border shadow-xl">
         <DialogHeader>
-          <div className="flex items-center gap-2 text-primary mb-1">
-            <Sparkles className="h-5 w-5" />
-            <span className="text-xs font-black uppercase tracking-wider">
+          <div className="flex items-center gap-1.5 text-primary mb-1">
+            <Sparkles className="h-4 w-4" />
+            <span className="text-[11px] font-bold uppercase tracking-wider">
               Exclusive Winner Privilege
             </span>
           </div>
-          <DialogTitle className="text-xl sm:text-2xl font-black text-foreground">
+          <DialogTitle className="text-xl sm:text-2xl font-semibold tracking-tight text-foreground">
             Purchase Your Winning Prize
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-xs text-muted-foreground mt-1">
             You won the exclusive pass to purchase <strong className="text-foreground">{winner.prize.name}</strong> at a special winner price!
           </DialogDescription>
         </DialogHeader>
 
         {/* Pricing Card */}
-        <div className="mt-3 p-4 rounded-2xl bg-slate-50 border border-slate-200">
+        <div className="mt-3 p-4 rounded-xl bg-secondary/50 border border-border">
           <div className="flex items-center justify-between">
             <div>
-              <span className="text-[11px] text-muted-foreground uppercase font-bold tracking-wider block">
+              <span className="text-[11px] text-muted-foreground uppercase font-semibold tracking-wider block">
                 Exclusive Winner Price
               </span>
               <div className="flex items-baseline gap-2 mt-0.5">
-                <span className="text-2xl font-black text-primary">${price}</span>
+                <span className="text-2xl font-bold text-primary">${price}</span>
                 {originalValue > 0 && (
                   <span className="text-xs text-muted-foreground line-through">
                     RRP ${originalValue}
@@ -117,7 +117,7 @@ export function RafflePurchaseModal({
             </div>
 
             {discountPct > 0 && (
-              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-xs font-black px-2.5 py-1 rounded-full border border-emerald-200">
+              <span className="inline-flex items-center gap-1 bg-primary/10 text-primary text-xs font-bold px-2.5 py-1 rounded-full border border-primary/20">
                 <Tag className="h-3.5 w-3.5" />
                 Save {discountPct}% (${discountAmount})
               </span>
@@ -135,10 +135,10 @@ export function RafflePurchaseModal({
               {savedAddresses.map((addr) => (
                 <label
                   key={addr.id}
-                  className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${
+                  className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
                     selectedAddressId === addr.id
                       ? "border-primary bg-primary/5 text-foreground shadow-xs"
-                      : "border-border hover:bg-slate-50 text-muted-foreground"
+                      : "border-border hover:bg-secondary/40 text-muted-foreground"
                   }`}
                 >
                   <input
@@ -150,7 +150,7 @@ export function RafflePurchaseModal({
                     className="mt-1 accent-primary"
                   />
                   <div className="text-xs leading-relaxed">
-                    <p className="font-bold text-foreground">
+                    <p className="font-semibold text-foreground">
                       {addr.name} ({addr.phone})
                     </p>
                     <p>
@@ -168,12 +168,12 @@ export function RafflePurchaseModal({
           )}
         </div>
 
-        <div className="mt-6 flex items-center justify-end gap-2 pt-2 border-t border-border">
+        <div className="mt-6 flex items-center justify-end gap-2.5 pt-4 border-t border-border">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:bg-slate-100 transition-colors"
+            className="px-5 py-2.5 rounded-full text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
           >
             Cancel
           </button>
@@ -181,7 +181,7 @@ export function RafflePurchaseModal({
             type="button"
             onClick={handlePurchase}
             disabled={loading || !selectedAddressId}
-            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary/95 shadow-md disabled:opacity-50 transition-all hover:scale-[1.01]"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-semibold bg-primary text-white hover:bg-primary/90 shadow-sm disabled:opacity-50 transition-colors"
           >
             {loading ? (
               <>

@@ -17,6 +17,7 @@ import {
   LogIn,
   Copy,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -103,71 +104,71 @@ export function RaffleEntryWidget({
     }
   };
 
-  // 1. Not Logged In State
+  // 1. Not Logged In State (Clean CHS Style)
   if (!isLoggedIn) {
     return (
-      <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-700">
+      <div className="rounded-2xl border border-border bg-[#faf8f5] p-5 sm:p-6 shadow-xs">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary/20 flex items-center justify-center text-primary">
-            <Ticket className="h-6 w-6" />
+          <div className="w-10 h-10 rounded-xl bg-white border border-border shadow-xs flex items-center justify-center text-primary font-bold">
+            <Ticket className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-xl font-black">Participate in Giveaway</h3>
-            <p className="text-xs text-slate-300">Log in or create a free account to enter</p>
+            <h3 className="text-base font-semibold text-foreground">Participate in Giveaway</h3>
+            <p className="text-xs text-muted-foreground">Log in or create a free account to enter</p>
           </div>
         </div>
 
-        <div className="space-y-3 bg-white/5 rounded-2xl p-4 border border-white/10 text-xs text-slate-300">
+        <div className="space-y-2.5 bg-white rounded-xl p-4 border border-border/80 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>100% Free Entry – No purchase required</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>Unique verifiable ticket numbers for each entry</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span>Automatic notification if your ticket is selected</span>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>Instant notification if your ticket is selected</span>
           </div>
         </div>
 
         <Link
           href={`/login?callbackUrl=/raffles/${raffle.slug}`}
-          className="mt-6 w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-black text-sm bg-primary text-white hover:bg-primary/90 shadow-lg hover:shadow-primary/20 transition-all hover:scale-[1.01]"
+          className="mt-5 w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90 shadow-xs"
         >
           <LogIn className="h-4 w-4" />
-          Log In / Sign Up to Enter
+          Log In to Claim Ticket
         </Link>
       </div>
     );
   }
 
-  // 2. Members Only Check
+  // 2. Members Only Check (Site VIP Style)
   if (isMemberOnly && !isMemberEligible) {
     return (
-      <div className="bg-gradient-to-br from-amber-950 via-slate-900 to-slate-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-amber-500/30">
+      <div className="rounded-2xl border border-amber-300/80 bg-gradient-to-br from-[#1a2233] to-[#0f1422] text-white p-5 sm:p-6 shadow-md">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-400">
-            <Crown className="h-6 w-6" />
+          <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold shadow-xs">
+            <Crown className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-              Exclusive VIP Reward
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+              VIP REWARD
             </span>
-            <h3 className="text-xl font-black mt-1">VIP Members Only</h3>
+            <h3 className="text-lg font-semibold text-white mt-1">VIP Members Only</h3>
           </div>
         </div>
 
-        <p className="text-xs text-amber-100/80 leading-relaxed mt-2">
-          This exclusive draw is reserved for active Complete Home Sollution VIP Members. Upgrade your account to participate and unlock 5% everyday store discounts, free shipping vouchers, and member-only giveaways!
+        <p className="text-xs text-white/80 leading-relaxed mt-2">
+          This exclusive draw is reserved for active Complete Home Solution VIP Members. Upgrade your account to participate and unlock 5% everyday store discounts, extended 3-year warranty, and member giveaways!
         </p>
 
         <Link
           href="/account/membership"
-          className="mt-6 w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-2xl font-black text-sm bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 hover:from-amber-400 hover:to-amber-500 shadow-lg shadow-amber-500/20 transition-all hover:scale-[1.01]"
+          className="mt-5 w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90 shadow-xs"
         >
-          <Crown className="h-4 w-4 fill-slate-950" />
+          <Crown className="h-4 w-4" />
           Become a VIP Member
         </Link>
       </div>
@@ -176,34 +177,34 @@ export function RaffleEntryWidget({
 
   // 3. User is eligible & logged in
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-border">
-      <div className="flex items-center justify-between pb-4 border-b border-border">
+    <div className="rounded-2xl border border-border bg-white p-5 sm:p-6 shadow-xs space-y-4">
+      <div className="flex items-center justify-between pb-3.5 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
             <Ticket className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="text-lg font-black text-foreground">Get Your Tickets</h3>
+            <h3 className="text-base font-semibold text-foreground">Get Your Tickets</h3>
             <p className="text-xs text-muted-foreground">
-              {isFree ? "Free Entry" : `Price: $${raffle.entryPrice} per ticket`}
+              {isFree ? "100% Free Entry" : `Price: $${raffle.entryPrice} per ticket`}
             </p>
           </div>
         </div>
 
         <div className="text-right">
           <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
-            Your Tickets
+            Your Entries
           </span>
-          <span className="text-lg font-black text-primary">
+          <span className="text-base font-bold text-foreground">
             {userParticipation?.totalTickets ?? 0} / {raffle.maxEntriesPerUser}
           </span>
         </div>
       </div>
 
-      {/* Just Obtained Tickets Celebration */}
+      {/* Just Obtained Tickets Notification */}
       {successTickets && successTickets.length > 0 && (
-        <div className="mt-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900">
-          <div className="flex items-center gap-2 font-bold text-sm mb-2">
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950">
+          <div className="flex items-center gap-2 font-semibold text-xs mb-2">
             <Sparkles className="h-4 w-4 text-emerald-600" />
             <span>Success! You received {successTickets.length} new ticket(s):</span>
           </div>
@@ -211,15 +212,19 @@ export function RaffleEntryWidget({
             {successTickets.map((ticketNum, idx) => (
               <div
                 key={ticketNum}
-                className="flex items-center justify-between bg-white px-3 py-1.5 rounded-xl border border-emerald-100 font-mono text-xs font-bold text-slate-800"
+                className="flex items-center justify-between bg-white px-3 py-1.5 rounded-lg border border-emerald-100 font-mono text-xs font-semibold text-foreground"
               >
                 <span>{ticketNum}</span>
                 <button
                   type="button"
                   onClick={() => handleCopyTicket(ticketNum, idx)}
-                  className="text-slate-400 hover:text-emerald-700 transition-colors"
+                  className="text-muted-foreground hover:text-emerald-700 transition-colors p-1"
                 >
-                  {copiedIndex === idx ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedIndex === idx ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
                 </button>
               </div>
             ))}
@@ -229,9 +234,9 @@ export function RaffleEntryWidget({
 
       {/* Existing Tickets List */}
       {userParticipation && userParticipation.tickets.length > 0 && !successTickets && (
-        <div className="mt-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-2">
-            <span className="flex items-center gap-1.5">
+        <div className="p-3.5 rounded-xl bg-[#faf8f5] border border-border">
+          <div className="flex items-center justify-between text-xs font-semibold text-foreground mb-2">
+            <span className="flex items-center gap-1.5 text-emerald-700">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
               You are entered in this draw
             </span>
@@ -243,10 +248,10 @@ export function RaffleEntryWidget({
             </Link>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {userParticipation.tickets.map((t, idx) => (
+            {userParticipation.tickets.map((t) => (
               <span
                 key={t.id}
-                className="font-mono text-[11px] font-bold bg-white text-slate-800 px-2 py-0.5 rounded-md border border-slate-200"
+                className="font-mono text-[11px] font-semibold bg-white text-foreground px-2 py-0.5 rounded border border-border"
               >
                 {t.ticketNumber}
               </span>
@@ -257,35 +262,35 @@ export function RaffleEntryWidget({
 
       {/* Ticket Selection & CTA */}
       {remaining > 0 ? (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4 pt-1">
           {raffle.allowMultipleEntries && remaining > 1 && (
             <div>
-              <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-2">
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
                 Number of Entries (Up to {remaining} remaining)
               </label>
               <div className="flex items-center gap-3">
-                <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
+                <div className="flex items-center bg-[#f7f3ed] rounded-full p-1 border border-border">
                   <button
                     type="button"
                     onClick={() => setTicketCount((c) => Math.max(1, c - 1))}
                     disabled={ticketCount <= 1}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-slate-800 disabled:opacity-40 shadow-xs"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-foreground disabled:opacity-40 shadow-xs border border-border hover:bg-secondary"
                   >
-                    <Minus className="h-4 w-4" />
+                    <Minus className="h-3.5 w-3.5" />
                   </button>
-                  <span className="w-12 text-center font-black text-base text-slate-900">
+                  <span className="w-10 text-center font-bold text-sm text-foreground">
                     {ticketCount}
                   </span>
                   <button
                     type="button"
                     onClick={() => setTicketCount((c) => Math.min(remaining, c + 1))}
                     disabled={ticketCount >= remaining}
-                    className="w-9 h-9 flex items-center justify-center rounded-lg bg-white text-slate-800 disabled:opacity-40 shadow-xs"
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-foreground disabled:opacity-40 shadow-xs border border-border hover:bg-secondary"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <span className="text-xs text-muted-foreground font-medium">
+                <span className="text-xs text-muted-foreground">
                   {ticketCount} ticket{ticketCount > 1 ? "s" : ""} = {ticketCount} chance{ticketCount > 1 ? "s" : ""} to win
                 </span>
               </div>
@@ -296,37 +301,36 @@ export function RaffleEntryWidget({
             type="button"
             onClick={handleEnter}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-4 px-6 rounded-2xl font-black text-base bg-primary text-white hover:bg-primary/95 shadow-lg hover:shadow-primary/25 disabled:opacity-60 transition-all hover:scale-[1.01]"
+            className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:opacity-60 shadow-xs"
           >
             {loading ? (
               <>
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 <span>Generating your ticket...</span>
               </>
             ) : isFree ? (
               <>
-                <Gift className="h-5 w-5 text-amber-300" />
+                <Gift className="h-4 w-4" />
                 <span>Claim {ticketCount > 1 ? `${ticketCount} Free Tickets` : "Free Entry Ticket"}</span>
               </>
             ) : (
               <>
-                <Ticket className="h-5 w-5" />
+                <Ticket className="h-4 w-4" />
                 <span>Enter for ${raffle.entryPrice * ticketCount}</span>
               </>
             )}
           </button>
         </div>
       ) : (
-        <div className="mt-5 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-center text-xs font-semibold">
+        <div className="p-3.5 rounded-xl bg-[#faf8f5] border border-border text-center text-xs text-muted-foreground font-medium">
           You have claimed all {raffle.maxEntriesPerUser} allowed ticket entries for this raffle! Stay tuned for the winner announcement.
         </div>
       )}
 
       {/* Rules Notice */}
-      <p className="mt-4 text-[11px] text-muted-foreground text-center leading-relaxed">
-        Free promotional draw. Winners chosen by transparent cryptographic random selection. No purchase necessary.
+      <p className="text-[11px] text-muted-foreground text-center leading-relaxed pt-1">
+        Free promotional draw. Transparent cryptographic random selection. No purchase necessary.
       </p>
     </div>
   );
 }
-

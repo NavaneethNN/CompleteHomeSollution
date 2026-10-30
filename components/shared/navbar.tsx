@@ -333,14 +333,7 @@ export function Navbar() {
 
               <NavItem href="/blog" active={pathname.startsWith("/blog")}>BLOG</NavItem>
               
-              <NavItem href="/raffles" active={pathname.startsWith("/raffles")}>
-                <span className="flex items-center gap-1.5">
-                  RAFFLES
-                  <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-amber-500 text-white tracking-wider animate-pulse shadow-xs">
-                    WIN
-                  </span>
-                </span>
-              </NavItem>
+              <NavItem href="/raffles" active={pathname.startsWith("/raffles")}>RAFFLES</NavItem>
               
               <NavItem
                 href="/account/membership"
@@ -685,12 +678,10 @@ export function Navbar() {
               ${pathname.startsWith("/raffles") ? "bg-primary/8 text-primary" : "text-foreground hover:bg-secondary"}`}
           >
             <span className="flex items-center gap-2">
-              <Ticket className="h-4 w-4 text-amber-500" />
+              <Ticket className="h-4 w-4 text-primary" />
               Raffles & Giveaways
             </span>
-            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500 text-white">
-              WIN
-            </span>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </Link>
 
           {/* Categories accordion */}

@@ -130,8 +130,8 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
             <Ticket className="h-4 w-4" />
             <span>Campaign Management</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-foreground">
-            Raffles & Giveaways
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Raffles &amp; Giveaways
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Create multi-tier promotional campaigns, conduct cryptographic draws, and fulfill winner orders.
@@ -140,7 +140,7 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
 
         <Link
           href="/admin/raffles/new"
-          className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-primary text-white font-bold text-xs sm:text-sm shadow-md hover:bg-primary/95 transition-all self-start sm:self-auto hover:scale-[1.01]"
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-xs sm:text-sm shadow-sm hover:bg-primary/90 transition-colors self-start sm:self-auto"
         >
           <Plus className="h-4 w-4" />
           <span>Create New Raffle</span>
@@ -149,53 +149,53 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
 
       {/* ── Metrics Cards ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-3xl border border-border shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Active Draws</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <span className="text-xs font-semibold uppercase tracking-wider">Active Draws</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
               <Gift className="h-4 w-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-foreground">{totalActiveRaffles}</span>
+          <span className="text-2xl font-bold text-foreground">{totalActiveRaffles}</span>
           <span className="block text-[11px] text-muted-foreground mt-0.5">Live now on store</span>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-border shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Tickets Issued</span>
-            <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <span className="text-xs font-semibold uppercase tracking-wider">Tickets Issued</span>
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
               <Ticket className="h-4 w-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-foreground">{totalTicketsIssued}</span>
+          <span className="text-2xl font-bold text-foreground">{totalTicketsIssued}</span>
           <span className="block text-[11px] text-muted-foreground mt-0.5">Across all campaigns</span>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-border shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Pending Draws</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <span className="text-xs font-semibold uppercase tracking-wider">Pending Draws</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
               <Dices className="h-4 w-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-amber-700">{totalPendingDraws}</span>
+          <span className="text-2xl font-bold text-amber-700">{totalPendingDraws}</span>
           <span className="block text-[11px] text-muted-foreground mt-0.5">Ready for winner draw</span>
         </div>
 
-        <div className="bg-white p-5 rounded-3xl border border-border shadow-xs">
+        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
           <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-bold uppercase tracking-wider">Total Prize Pool</span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+            <span className="text-xs font-semibold uppercase tracking-wider">Total Prize Pool</span>
+            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
               <Trophy className="h-4 w-4" />
             </div>
           </div>
-          <span className="text-2xl font-black text-foreground">${totalPrizeValue.toLocaleString()}</span>
+          <span className="text-2xl font-bold text-foreground">${totalPrizeValue.toLocaleString()}</span>
           <span className="block text-[11px] text-muted-foreground mt-0.5">Free + discounted prizes</span>
         </div>
       </div>
 
       {/* ── Filter & Search Bar ── */}
-      <div className="bg-white p-4 rounded-3xl border border-border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white p-4 rounded-2xl border border-border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
           <Search className="h-4 w-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
@@ -213,10 +213,10 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
               key={st}
               type="button"
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                 statusFilter === st
-                  ? "bg-primary text-white shadow-xs"
-                  : "bg-slate-100 text-muted-foreground hover:text-foreground"
+                  ? "bg-primary text-white shadow-2xs"
+                  : "bg-slate-100 text-muted-foreground hover:bg-slate-200 hover:text-foreground"
               }`}
             >
               {st.replace("_", " ")}
@@ -226,7 +226,7 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
       </div>
 
       {/* ── Raffles Table ── */}
-      <div className="bg-white rounded-3xl border border-border overflow-hidden shadow-xs">
+      <div className="bg-white rounded-2xl border border-border overflow-hidden shadow-xs">
         {filteredRaffles.length === 0 ? (
           <div className="text-center py-16 px-4">
             <Ticket className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />

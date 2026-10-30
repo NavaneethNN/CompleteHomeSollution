@@ -109,37 +109,37 @@ export function RaffleClaimModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg rounded-3xl p-6 sm:p-8">
+      <DialogContent className="max-w-lg rounded-2xl p-6 sm:p-7 border border-border bg-white shadow-lg">
         <DialogHeader>
-          <div className="flex items-center gap-2.5 text-emerald-600 mb-1">
-            <Gift className="h-6 w-6" />
-            <span className="text-xs font-black uppercase tracking-wider">
+          <div className="flex items-center gap-2 text-emerald-700 mb-1">
+            <Gift className="h-5 w-5" />
+            <span className="text-xs font-bold uppercase tracking-wider">
               100% Free Prize Claim
             </span>
           </div>
-          <DialogTitle className="text-xl sm:text-2xl font-black text-foreground">
+          <DialogTitle className="text-xl font-bold text-foreground">
             Claim Your Free Gift
           </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
+          <DialogDescription className="text-xs text-muted-foreground leading-relaxed">
             Congratulations on winning <strong className="text-foreground">{winner.prize.name}</strong> from{" "}
-            <em>{winner.raffle.title}</em>! Enter your delivery address below so we can ship it to you.
+            <em>{winner.raffle.title}</em>! Enter your delivery address below so we can dispatch it to you.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           {savedAddresses.length > 0 && (
             <div>
-              <label className="text-xs font-bold text-foreground block mb-2">
+              <label className="text-xs font-semibold text-foreground block mb-2">
                 Select Delivery Address:
               </label>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {savedAddresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`flex items-start gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       selectedAddressId === addr.id
                         ? "border-primary bg-primary/5 text-foreground shadow-xs"
-                        : "border-border hover:bg-slate-50 text-muted-foreground"
+                        : "border-border hover:bg-secondary text-muted-foreground"
                     }`}
                   >
                     <input
@@ -151,10 +151,10 @@ export function RaffleClaimModal({
                       className="mt-1 accent-primary"
                     />
                     <div className="text-xs leading-relaxed">
-                      <p className="font-bold text-foreground">
+                      <p className="font-semibold text-foreground">
                         {addr.name} ({addr.phone})
                       </p>
-                      <p>
+                      <p className="text-muted-foreground">
                         {addr.line1}
                         {addr.line2 ? `, ${addr.line2}` : ""}, {addr.suburb} {addr.state} {addr.postcode}
                       </p>
@@ -163,10 +163,10 @@ export function RaffleClaimModal({
                 ))}
 
                 <label
-                  className={`flex items-center gap-3 p-3 rounded-2xl border cursor-pointer transition-all ${
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                     selectedAddressId === "new"
                       ? "border-primary bg-primary/5 text-foreground shadow-xs"
-                      : "border-border hover:bg-slate-50 text-muted-foreground"
+                      : "border-border hover:bg-secondary text-muted-foreground"
                   }`}
                 >
                   <input
@@ -177,7 +177,7 @@ export function RaffleClaimModal({
                     onChange={() => setSelectedAddressId("new")}
                     className="accent-primary"
                   />
-                  <span className="text-xs font-bold">Use a different shipping address</span>
+                  <span className="text-xs font-medium">Use a different delivery address</span>
                 </label>
               </div>
             </div>
@@ -188,7 +188,7 @@ export function RaffleClaimModal({
             <div className="space-y-3 pt-2">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Full Name *
                   </label>
                   <input
@@ -197,11 +197,11 @@ export function RaffleClaimModal({
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Recipient Name"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-white focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Phone *
                   </label>
                   <input
@@ -210,13 +210,13 @@ export function RaffleClaimModal({
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="Mobile number"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-white focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                   Street Address *
                 </label>
                 <input
@@ -225,13 +225,13 @@ export function RaffleClaimModal({
                   value={formData.line1}
                   onChange={(e) => setFormData({ ...formData, line1: e.target.value })}
                   placeholder="House / Unit # and Street name"
-                  className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                  className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-white focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary"
                 />
               </div>
 
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Suburb *
                   </label>
                   <input
@@ -240,17 +240,17 @@ export function RaffleClaimModal({
                     value={formData.suburb}
                     onChange={(e) => setFormData({ ...formData, suburb: e.target.value })}
                     placeholder="Suburb"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-white focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     State *
                   </label>
                   <select
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-white focus:outline-hidden focus:border-primary font-medium"
                   >
                     <option value="NSW">NSW</option>
                     <option value="VIC">VIC</option>
@@ -263,7 +263,7 @@ export function RaffleClaimModal({
                   </select>
                 </div>
                 <div>
-                  <label className="text-[11px] font-bold text-muted-foreground uppercase block mb-1">
+                  <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1">
                     Postcode *
                   </label>
                   <input
@@ -272,31 +272,31 @@ export function RaffleClaimModal({
                     value={formData.postcode}
                     onChange={(e) => setFormData({ ...formData, postcode: e.target.value })}
                     placeholder="Postcode"
-                    className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                    className="w-full text-xs px-3 py-2 rounded-lg border border-border bg-white focus:outline-hidden focus:border-primary focus:ring-1 focus:ring-primary"
                   />
                 </div>
               </div>
             </div>
           )}
 
-          <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-2.5 text-xs text-emerald-800">
-            <Truck className="h-4 w-4 shrink-0 text-emerald-600" />
-            <span>Complimentary standard shipping is included. No charges will apply.</span>
+          <div className="p-3 bg-[#faf8f5] rounded-xl border border-border flex items-center gap-2.5 text-xs text-foreground">
+            <Truck className="h-4 w-4 shrink-0 text-primary" />
+            <span>Complimentary standard shipping across Australia is included. No charges will apply.</span>
           </div>
 
-          <div className="pt-2 flex items-center justify-end gap-2">
+          <div className="pt-2 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:bg-slate-100 transition-colors"
+              className="px-5 py-2 rounded-full text-xs font-semibold text-foreground border border-border bg-white hover:bg-secondary transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary/95 shadow-md disabled:opacity-50 transition-all"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-primary px-6 text-xs font-semibold text-white transition-colors hover:bg-primary/90 shadow-xs disabled:opacity-50"
             >
               {loading ? (
                 <>
@@ -316,4 +316,3 @@ export function RaffleClaimModal({
     </Dialog>
   );
 }
-

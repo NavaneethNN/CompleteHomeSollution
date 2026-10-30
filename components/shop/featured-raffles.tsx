@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getHomepageRaffles } from "@/lib/actions/raffle";
 import { RaffleCard } from "@/components/raffle/raffle-card";
-import { Sparkles, Trophy, ArrowRight, Gift } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 export async function FeaturedRaffles() {
   const { raffles } = await getHomepageRaffles();
@@ -11,29 +11,29 @@ export async function FeaturedRaffles() {
   }
 
   return (
-    <section className="py-14 sm:py-20 bg-gradient-to-b from-white via-slate-50/60 to-white border-y border-border/60">
-      <div className="max-w-screen-xl mx-auto px-4 sm:px-6 xl:px-10">
+    <section className="bg-white py-14 sm:py-20 border-b border-border/60">
+      <div className="container mx-auto px-5 md:px-6 xl:px-8">
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10 md:mb-12">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 text-xs font-black uppercase tracking-wider mb-2 border border-amber-500/20">
+            <p className="text-[11px] font-bold tracking-[0.2em] text-primary uppercase mb-2 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />
-              Free Community Giveaways
-            </div>
-            <h2 className="text-2xl sm:text-4xl font-black text-foreground tracking-tight">
-              Lucky Raffles & Mega Wins
+              CHS Community Giveaways
+            </p>
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+              Lucky Raffles &amp; Wins
             </h2>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xl">
+            <p className="text-sm text-muted-foreground mt-2 max-w-xl leading-relaxed">
               Enter for free to win handcrafted platform beds, luxury recliners, and designer decor. Multiple lucky winners selected each draw!
             </p>
           </div>
 
           <Link
             href="/raffles"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-primary text-white hover:bg-primary/95 shadow-md hover:shadow-primary/20 transition-all self-start sm:self-auto group"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full border border-border bg-white px-6 text-sm font-semibold text-foreground shadow-xs transition-colors hover:bg-secondary hover:text-primary self-start sm:self-auto shrink-0"
           >
-            <span>Explore All Raffles</span>
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <span>Explore all raffles</span>
+            <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
 
@@ -47,4 +47,5 @@ export async function FeaturedRaffles() {
     </section>
   );
 }
+
 
