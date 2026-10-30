@@ -59,6 +59,7 @@ const checkoutSchema = z
     shippingQuoteToken: z.string().max(1024).optional(),
     couponCode: z.string().max(20).optional(),
     addMembership: z.boolean().optional(),
+    raffleWinnerId: z.string().cuid().optional(),
     /** REL-5: Client-generated UUID for idempotency. Same key on retries returns
      *  the existing order instead of creating a duplicate. A new key must be
      *  generated for each distinct Place Order attempt. */
@@ -150,6 +151,27 @@ export async function POST(req: NextRequest) {
       deliveryAddress = parsedAddress.data;
     } else {
       deliveryAddress = input.address!;
+    }
+
+    // ── Raffle Winner Verification ───────────────────────────────────────────
+    let raffleWinner: any = null;
+    if (input.raffleWinnerId) {
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "You must be logged in to claim a raffle prize." }, { status: 401 });
+      }
+      raffleWinner = await db.raffleWinner.findUnique({
+        where: { id: input.raffleWinnerId },
+        include: { prize: true, raffle: true },
+      });
+      if (!raffleWinner) {
+        return NextResponse.json({ error: "Raffle winning record not found." }, { status: 404 });
+      }
+      if (raffleWinner.userId !== session.user.id) {
+        return NextResponse.json({ error: "Unauthorized: This raffle prize does not belong to your account." }, { status: 403 });
+      }
+      if (raffleWinner.status !== "PENDING_CLAIM") {
+        return NextResponse.json({ error: "This raffle prize has already been claimed or is being processed." }, { status: 400 });
+      }
     }
 
     // ── Fetch products and customer state ────────────────────────────────────
@@ -260,6 +282,11 @@ export async function POST(req: NextRequest) {
           : products.map((p) => p.id)
     );
     const getUnitPrice = (item: typeof input.items[number]) => {
+      if (raffleWinner && (raffleWinner.prize.productId === item.productId || !raffleWinner.prize.productId)) {
+        return raffleWinner.prizeType === "FREE_PRODUCT"
+          ? 0
+          : (raffleWinner.winningPrice || raffleWinner.prize.price || 0);
+      }
       const product = products.find((p) => p.id === item.productId)!;
       const variant = item.variantId ? product.productVariants.find((v) => v.id === item.variantId) : null;
       const regularPrice = variant?.price ?? product.basePrice;
@@ -454,7 +481,11 @@ export async function POST(req: NextRequest) {
               : null;
             
             let variantSummary: string | null = null;
-            if (variant && variant.values && variant.values.length > 0) {
+            if (raffleWinner && (raffleWinner.prize.productId === item.productId || !raffleWinner.prize.productId)) {
+              variantSummary = raffleWinner.prizeType === "FREE_PRODUCT"
+                ? `Raffle Winner Free Gift (${raffleWinner.raffle.title})`
+                : `Raffle Winner Special $${raffleWinner.winningPrice || raffleWinner.prize.price} (${raffleWinner.raffle.title})`;
+            } else if (variant && variant.values && variant.values.length > 0) {
               // Build summary like "Color: Red, Size: Large"
               variantSummary = variant.values
                 .map((v) => `${v.variantValue.variantAttribute.name}: ${v.variantValue.value}`)
@@ -477,6 +508,44 @@ export async function POST(req: NextRequest) {
           user: { select: { email: true, name: true, phone: true } },
         },
       });
+
+        if (input.raffleWinnerId && raffleWinner) {
+          const claimTx = await tx.raffleWinner.updateMany({
+            where: {
+              id: raffleWinner.id,
+              userId: session!.user!.id!,
+              status: "PENDING_CLAIM",
+            },
+            data: {
+              status: "CLAIMED",
+              orderId: createdOrder.id,
+              shippingAddressId: createdOrder.addressId,
+              shippingAddress: deliveryAddress,
+              deliveryStatus: "PROCESSING",
+              claimedAt: new Date(),
+            },
+          });
+
+          if (claimTx.count === 0) {
+            throw new Error("RAFFLE_ALREADY_CLAIMED");
+          }
+
+          await tx.raffleAuditLog.create({
+            data: {
+              raffleId: raffleWinner.raffleId,
+              adminId: session!.user!.id!,
+              action: "PRIZE_CLAIMED_VIA_CHECKOUT",
+              details: {
+                winnerId: raffleWinner.id,
+                orderId: createdOrder.id,
+                prizeType: raffleWinner.prizeType,
+                winningPrice: raffleWinner.winningPrice,
+                shippingCost,
+                total,
+              },
+            },
+          });
+        }
         if (coupon) {
           await tx.coupon.update({ where: { id: coupon.id }, data: { usageCount: { increment: 1 } } });
           if (session?.user?.id) {
@@ -497,6 +566,9 @@ export async function POST(req: NextRequest) {
       ) {
         const response = await replay();
         if (response) return response;
+      }
+      if (error instanceof Error && error.message === "RAFFLE_ALREADY_CLAIMED") {
+        return NextResponse.json({ error: "This raffle prize has already been claimed or is being processed." }, { status: 409 });
       }
       if (error instanceof Error && ["COUPON_LIMIT", "COUPON_USER_LIMIT"].includes(error.message)) {
         return NextResponse.json({ error: "Coupon usage limit reached" }, { status: 409 });
@@ -551,6 +623,12 @@ export async function POST(req: NextRequest) {
         if (error instanceof OnlinePayCheckoutError && error.definitelyRejected) {
           await db.order.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "CANCELLED" } });
           await releaseCouponReservation(order.id);
+          if (input.raffleWinnerId) {
+            await db.raffleWinner.updateMany({
+              where: { id: input.raffleWinnerId, orderId: order.id },
+              data: { status: "PENDING_CLAIM", orderId: null },
+            });
+          }
           return NextResponse.json({ error: error.message, retryWithNewKey: true }, { status: 422 });
         }
         if (hostedCheckout) {
@@ -591,6 +669,12 @@ export async function POST(req: NextRequest) {
       if (err instanceof PayWayApiError && err.httpStatus >= 400 && err.httpStatus < 500 && ![408, 409, 429].includes(err.httpStatus)) {
         await db.order.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "CANCELLED" } });
         await releaseCouponReservation(order.id);
+        if (input.raffleWinnerId) {
+          await db.raffleWinner.updateMany({
+            where: { id: input.raffleWinnerId, orderId: order.id },
+            data: { status: "PENDING_CLAIM", orderId: null },
+          });
+        }
         return NextResponse.json({ error: "Payment details were rejected. Please check them and try again.", retryWithNewKey: true }, { status: 422 });
       }
       // A timeout is ambiguous: never cancel or encourage another charge.
@@ -609,6 +693,12 @@ export async function POST(req: NextRequest) {
     if (txn.status === "declined" || txn.status === "suspended" || txn.status === "voided") {
       await db.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
       await releaseCouponReservation(order.id);
+      if (input.raffleWinnerId) {
+        await db.raffleWinner.updateMany({
+          where: { id: input.raffleWinnerId, orderId: order.id },
+          data: { status: "PENDING_CLAIM", orderId: null },
+        });
+      }
       return NextResponse.json(
         {
           error: txn.responseText || "Payment declined. Please check your card details.",
@@ -748,6 +838,15 @@ export async function POST(req: NextRequest) {
         console.error("[checkout/session] Immediate email job processing failed", err);
       });
     });
+
+    if (input.raffleWinnerId) {
+      try {
+        revalidatePath("/account/raffles");
+        if (raffleWinner?.raffle?.slug) {
+          revalidatePath(`/raffles/${raffleWinner.raffle.slug}`);
+        }
+      } catch {}
+    }
 
     return NextResponse.json({
       orderId: order.id,

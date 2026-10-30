@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Trophy,
   Gift,
@@ -16,9 +17,10 @@ import {
   ExternalLink,
   Copy,
   Check,
+  Loader2,
 } from "lucide-react";
-import { RaffleClaimModal } from "@/components/raffle/raffle-claim-modal";
-import { RafflePurchaseModal } from "@/components/raffle/raffle-purchase-modal";
+import { prepareRafflePrizeForCheckout } from "@/lib/actions/raffle";
+import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
 
 interface DashboardClientProps {
@@ -33,13 +35,32 @@ interface DashboardClientProps {
 }
 
 export function CustomerRafflesClient({ data }: DashboardClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"WINS" | "ACTIVE" | "TICKETS" | "PAST">("WINS");
-  const [claimWinner, setClaimWinner] = useState<any | null>(null);
-  const [purchaseWinner, setPurchaseWinner] = useState<any | null>(null);
+  const [claimingWinnerId, setClaimingWinnerId] = useState<string | null>(null);
   const [copiedTicketId, setCopiedTicketId] = useState<string | null>(null);
 
-  const { wins, allTickets, activeParticipations, pendingDrawParticipations, completedParticipations, savedAddresses } =
+  const { wins, allTickets, activeParticipations, pendingDrawParticipations, completedParticipations } =
     data;
+
+  const handleClaimPrize = async (winnerId: string) => {
+    setClaimingWinnerId(winnerId);
+    try {
+      const res = await prepareRafflePrizeForCheckout(winnerId);
+      if (!res.success || !res.cartItem) {
+        toast.error(res.error || "Could not prepare prize for checkout.");
+        setClaimingWinnerId(null);
+        return;
+      }
+
+      useCartStore.getState().setRafflePrizeItem(res.cartItem);
+      toast.success("Proceeding to checkout to select delivery address...");
+      router.push(`/checkout?raffleWinnerId=${winnerId}`);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to initiate checkout.");
+      setClaimingWinnerId(null);
+    }
+  };
 
   const handleCopyTicket = (ticketNumber: string, id: string) => {
     navigator.clipboard.writeText(ticketNumber);
@@ -256,27 +277,33 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
                       <div className="flex flex-col sm:items-end justify-center gap-2 pt-4 md:pt-0 border-t md:border-t-0 border-border">
                         {!isClaimed ? (
                           <>
-                            {isFree ? (
-                              <button
-                                type="button"
-                                onClick={() => setClaimWinner(win)}
-                                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-semibold text-xs sm:text-sm bg-primary text-white hover:bg-primary/90 shadow-sm transition-colors"
-                              >
-                                <Gift className="h-4 w-4" />
-                                <span>Claim Free Gift &amp; Add Address</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => setPurchaseWinner(win)}
-                                className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-semibold text-xs sm:text-sm bg-primary text-white hover:bg-primary/90 shadow-sm transition-colors"
-                              >
-                                <ShoppingBag className="h-4 w-4" />
-                                <span>Purchase Prize for ${winPrice}</span>
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              disabled={claimingWinnerId === win.id}
+                              onClick={() => handleClaimPrize(win.id)}
+                              className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full font-semibold text-xs sm:text-sm bg-primary text-white hover:bg-primary/90 shadow-sm transition-colors disabled:opacity-70"
+                            >
+                              {claimingWinnerId === win.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <span>Redirecting to Checkout...</span>
+                                </>
+                              ) : isFree ? (
+                                <>
+                                  <Gift className="h-4 w-4" />
+                                  <span>Claim Free Gift &amp; Checkout</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ShoppingBag className="h-4 w-4" />
+                                  <span>Purchase Prize for ${winPrice}</span>
+                                </>
+                              )}
+                            </button>
                             <span className="text-[11px] text-amber-800 font-semibold">
-                              Action required to dispatch your prize
+                              {isFree
+                                ? "Free gift ($0) · Live delivery rate calculated at checkout"
+                                : `Special $${winPrice} price unlocked · Complete at checkout`}
                             </span>
                           </>
                         ) : (
@@ -497,26 +524,6 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
             </div>
           )}
         </div>
-      )}
-
-      {/* ── Claim Free Prize Modal ── */}
-      {claimWinner && (
-        <RaffleClaimModal
-          winner={claimWinner}
-          savedAddresses={savedAddresses}
-          isOpen={!!claimWinner}
-          onClose={() => setClaimWinner(null)}
-        />
-      )}
-
-      {/* ── Purchase Paid Prize Modal ── */}
-      {purchaseWinner && (
-        <RafflePurchaseModal
-          winner={purchaseWinner}
-          savedAddresses={savedAddresses}
-          isOpen={!!purchaseWinner}
-          onClose={() => setPurchaseWinner(null)}
-        />
       )}
     </div>
   );

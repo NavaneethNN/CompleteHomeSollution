@@ -497,6 +497,150 @@ export async function getCustomerRaffleDashboard() {
 }
 
 /**
+ * Prepare a raffle prize for standard storefront checkout.
+ * Both free and paid product winners must go through checkout to confirm delivery address,
+ * calculate standard Couriers Please shipping, and process required charges.
+ */
+export async function prepareRafflePrizeForCheckout(winnerId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { success: false, error: "Please log in to claim your prize." };
+  }
+
+  const userId = session.user.id;
+
+  try {
+    const winner = await db.raffleWinner.findUnique({
+      where: { id: winnerId },
+      include: {
+        prize: {
+          include: {
+            product: {
+              include: {
+                productVariants: true,
+              },
+            },
+          },
+        },
+        raffle: true,
+      },
+    });
+
+    if (!winner) {
+      return { success: false, error: "Winner record not found." };
+    }
+
+    if (winner.userId !== userId) {
+      return { success: false, error: "Unauthorized: this winning record does not belong to your account." };
+    }
+
+    if (winner.status !== "PENDING_CLAIM") {
+      return { success: false, error: "This winning prize has already been claimed or processed." };
+    }
+
+    let product = winner.prize.product;
+
+    // If no product is directly linked to the prize, find an active product or create a designated promotional product
+    if (!product) {
+      if (winner.prize.productId) {
+        product = await db.product.findUnique({
+          where: { id: winner.prize.productId },
+          include: { productVariants: true },
+        });
+      }
+
+      if (!product) {
+        const existingProduct = await db.product.findFirst({
+          where: { isActive: true },
+          include: { productVariants: true },
+        });
+
+        if (existingProduct) {
+          await db.rafflePrize.update({
+            where: { id: winner.prize.id },
+            data: { productId: existingProduct.id },
+          });
+          product = existingProduct;
+        } else {
+          const firstCategory = await db.category.findFirst({ select: { id: true } });
+          const newProduct = await db.product.create({
+            data: {
+              name: winner.prize.name,
+              slug: `raffle-prize-${winner.prize.id.toLowerCase()}-${Date.now()}`,
+              sku: `RP-${winner.prize.id.slice(-6).toUpperCase()}-${Date.now().toString().slice(-4)}`,
+              description: winner.prize.description || `Official prize for ${winner.raffle.title}`,
+              basePrice: winner.prize.value,
+              stock: 100,
+              weight: 2,
+              length: 20,
+              width: 20,
+              height: 20,
+              images: winner.prize.images.length > 0 ? winner.prize.images : ["https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80"],
+              isActive: true,
+              categoryId: firstCategory?.id || "",
+            },
+            include: { productVariants: true },
+          });
+          await db.rafflePrize.update({
+            where: { id: winner.prize.id },
+            data: { productId: newProduct.id },
+          });
+          product = newProduct;
+        }
+      }
+    }
+
+    if (!product) {
+      return { success: false, error: "Prize catalog item could not be resolved." };
+    }
+
+    // Ensure product has at least 1 in stock for the winner to claim
+    if (product.stock < 1) {
+      await db.product.update({
+        where: { id: product.id },
+        data: { stock: { increment: 5 } },
+      });
+      product.stock += 5;
+    }
+
+    const isFree = winner.prizeType === "FREE_PRODUCT";
+    const winningPrice = isFree ? 0 : (winner.winningPrice || winner.prize.price || 0);
+
+    const cartItem = {
+      id: product.id,
+      name: winner.prize.name,
+      slug: product.slug,
+      price: winningPrice,
+      memberPrice: null,
+      images: winner.prize.images.length > 0 ? winner.prize.images : product.images,
+      stock: Math.max(product.stock, 1),
+      description: winner.prize.description || product.description,
+      variantId: winner.prize.productVariantId || null,
+      variantLabel: isFree
+        ? `🎉 Raffle Winner Free Gift (${winner.raffle.title})`
+        : `🎉 Raffle Winner Exclusive Price $${winningPrice} (${winner.raffle.title})`,
+      raffleWinnerId: winner.id,
+      isRafflePrize: true,
+    };
+
+    return {
+      success: true,
+      winner: {
+        id: winner.id,
+        prizeType: winner.prizeType,
+        winningPrice,
+        prizeName: winner.prize.name,
+        raffleTitle: winner.raffle.title,
+      },
+      cartItem,
+    };
+  } catch (err: any) {
+    console.error("Failed to prepare raffle prize for checkout:", err);
+    return { success: false, error: err.message || "Failed to prepare prize checkout." };
+  }
+}
+
+/**
  * Claim Free Prize with Shipping Address
  */
 export async function claimFreePrize(input: ClaimPrizeAddressInput) {

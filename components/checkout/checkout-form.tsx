@@ -220,8 +220,36 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       .catch((error) => { if (!controller.signal.aborted) setPricesError(error.message); });
     return () => controller.abort();
   }, [productIds]);
-  const items = useMemo(() => storedItems.map((item) => ({ ...item, product: { ...item.product, ...freshPrices[item.product.variantId ?? item.product.id] } })), [storedItems, freshPrices]);
-  const unavailable = pricesReady && items.some((item) => !freshPrices[item.product.variantId ?? item.product.id] || item.quantity > item.product.stock);
+  const items = useMemo(
+    () =>
+      storedItems.map((item) => {
+        const fresh = freshPrices[item.product.variantId ?? item.product.id];
+        if (item.product.raffleWinnerId) {
+          return {
+            ...item,
+            product: {
+              ...item.product,
+              weight: fresh?.weight ?? (item.product as any).weight ?? 2,
+              stock: Math.max(fresh?.stock ?? 1, 1),
+            },
+          };
+        }
+        return {
+          ...item,
+          product: {
+            ...item.product,
+            ...fresh,
+          },
+        };
+      }),
+    [storedItems, freshPrices]
+  );
+  const unavailable =
+    pricesReady &&
+    items.some((item) => {
+      if (item.product.raffleWinnerId) return false;
+      return !freshPrices[item.product.variantId ?? item.product.id] || item.quantity > item.product.stock;
+    });
 
   const clearCart = useCartStore((state) => state.clearCart);
 
@@ -230,6 +258,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   // Resolve memberPrice: prefer fresh DB value from memberPriceMap over stale localStorage value
   const getMemberPrice = (item: typeof items[number]): number | null | undefined => {
+    if (item.product.raffleWinnerId) return item.product.price;
     if (!memberPriceMap) return item.product.memberPrice;
     const key = item.product.variantId ?? item.product.id;
     const fresh = memberPriceMap[key];
@@ -237,6 +266,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   };
 
   const subtotal = items.reduce((total, item) => {
+    if (item.product.raffleWinnerId) {
+      return total + (item.product.price ?? 0) * item.quantity;
+    }
     const memberPrice = getMemberPrice(item);
     const basePrice = Math.max(0, item.product.price ?? 0);
     const effectivePrice = effectiveMember && memberPrice && memberPrice > 0 ? memberPrice : basePrice;
@@ -602,6 +634,27 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     setAppliedCouponCode("");
     setCouponCode("");
   };
+  const raffleWinnerId =
+    searchParams.get("raffleWinnerId") ||
+    items.find((i) => i.product.raffleWinnerId)?.product.raffleWinnerId ||
+    null;
+  const rafflePrizeItem = items.find((i) => i.product.raffleWinnerId);
+
+  useEffect(() => {
+    const queryWinnerId = searchParams.get("raffleWinnerId");
+    if (!queryWinnerId) return;
+    const exists = storedItems.some((i) => i.product.raffleWinnerId === queryWinnerId);
+    if (!exists) {
+      import("@/lib/actions/raffle").then(({ prepareRafflePrizeForCheckout }) => {
+        prepareRafflePrizeForCheckout(queryWinnerId).then((res) => {
+          if (res.success && res.cartItem) {
+            useCartStore.getState().setRafflePrizeItem(res.cartItem);
+          }
+        });
+      });
+    }
+  }, [searchParams, storedItems]);
+
   // Place order — validate then request a PayWay single-use token
   const submitOrderWithToken = async (tokenId: string) => {
     if (couponNeedsRefresh || isApplyingCoupon) { setAwaitingToken(false); return; }
@@ -629,6 +682,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           addMembership: !isMember && addMembership,
           // REL-5: send the same key on every retry for this attempt
           idempotencyKey: idempotencyKeyRef.current ?? undefined,
+          raffleWinnerId: raffleWinnerId || undefined,
         }),
       });
       const data = await response.json();
@@ -749,6 +803,41 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start w-full min-w-0 max-w-full">
       {/* Main Content — form sections: order-2 on mobile, natural on lg */}
       <div className="order-2 space-y-4 lg:order-1 lg:space-y-6 min-w-0 max-w-full">
+        {/* Raffle Winner Banner */}
+        {rafflePrizeItem && (
+          <div className="rounded-2xl border border-primary/40 bg-primary/5 p-4 sm:p-5 shadow-xs">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                    🎉 Raffle Prize Claim
+                  </span>
+                  {rafflePrizeItem.product.price === 0 ? (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      100% Free Gift
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                      Winner Price: ${rafflePrizeItem.product.price}
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-sm sm:text-base font-bold text-foreground mt-1">
+                  {rafflePrizeItem.product.name}
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {rafflePrizeItem.product.price === 0
+                    ? "Congratulations! Your prize product is free ($0.00). Please select your delivery address below so shipping charges can be calculated and your prize dispatched."
+                    : `Congratulations! Your special winner price ($${rafflePrizeItem.product.price}) is unlocked. Please select your delivery address below to complete your order.`}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Order Items */}
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
           <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
@@ -777,9 +866,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   </Link>
                   <div className="flex-1 min-w-0">
                     <Link href={productUrl} className="text-sm font-medium text-foreground truncate hover:text-primary transition-colors block">{item.product.name}</Link>
-                    {item.product.variantLabel && (
+                    {item.product.raffleWinnerId ? (
+                      <p className="text-xs font-semibold text-primary mt-0.5 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" />
+                        {item.product.price === 0 ? "100% Free Winner Gift" : `Special Winner Price: $${item.product.price}`}
+                      </p>
+                    ) : item.product.variantLabel ? (
                       <p className="text-xs text-muted-foreground mt-0.5">{item.product.variantLabel}</p>
-                    )}
+                    ) : null}
                     <p className="text-xs text-muted-foreground mt-0.5">Qty: {item.quantity}</p>
                     {hasMemberDiscount && (
                       <p className="text-xs text-primary font-semibold mt-0.5 flex items-center gap-1">

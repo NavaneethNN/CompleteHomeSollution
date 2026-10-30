@@ -421,7 +421,7 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
                   })}.
                 </p>
                 <p>
-                  • <strong>Free Prize Delivery:</strong> Winners of free prizes will receive doorstep shipping across Australia with no courier charges.
+                  • <strong>Prize Claim &amp; Checkout:</strong> Winners claim their prizes via our secure store checkout. Free product prizes are priced at $0.00 with standard delivery calculated at checkout based on your destination. Paid product winners unlock their exclusive winning discount.
                 </p>
                 <p>
                   • <strong>Paid Product Winners:</strong> Winners of discounted products have 14 days to complete their order at the winning rate.

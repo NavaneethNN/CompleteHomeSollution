@@ -14,6 +14,8 @@ export interface CartProduct {
   isPreOrder?: boolean;
   variantId?: string | null;
   variantLabel?: string;
+  raffleWinnerId?: string | null;
+  isRafflePrize?: boolean;
 }
 
 export interface CartItem {
@@ -24,6 +26,7 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   addItem: (product: CartProduct, quantity?: number) => void;
+  setRafflePrizeItem: (product: CartProduct) => void;
   removeItem: (productId: string, variantId?: string | null) => void;
   updateQuantity: (productId: string, quantity: number, variantId?: string | null) => void;
   clearCart: () => void;
@@ -41,8 +44,27 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
 
+      setRafflePrizeItem: (product) => {
+        set({
+          items: [
+            {
+              product: {
+                ...product,
+                variantId: product.variantId ?? null,
+                isRafflePrize: true,
+              },
+              quantity: 1,
+            },
+          ],
+        });
+      },
+
       addItem: (product, quantity = 1) => {
         if (!Number.isInteger(quantity) || quantity <= 0 || product.stock <= 0 || (product as any).isPreOrder) return;
+        if (product.raffleWinnerId) {
+          get().setRafflePrizeItem(product);
+          return;
+        }
         set((state) => {
           const key = getCartItemKey(product.id, product.variantId ?? null);
           const existing = state.items.find(
@@ -94,6 +116,15 @@ export const useCartStore = create<CartState>()(
         if (!Number.isInteger(quantity)) return;
         if (quantity <= 0) {
           get().removeItem(productId, variantId);
+          return;
+        }
+
+        const targetKey = getCartItemKey(productId, variantId);
+        const existing = get().items.find(
+          (item) => getCartItemKey(item.product.id, item.product.variantId ?? null) === targetKey
+        );
+        if (existing?.product.raffleWinnerId) {
+          // Raffle prize is strictly limited to 1 item
           return;
         }
 
