@@ -422,3 +422,4 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
     </div>
   );
 }
+
