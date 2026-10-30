@@ -42,10 +42,6 @@ export default async function EditRafflePage({ params }: EditPageProps) {
     notFound();
   }
 
-  return (
-    <div className="container mx-auto px-4 sm:px-6 py-6 md:py-8 max-w-5xl">
-      <RaffleFormClient initialData={raffle} availableProducts={products} />
-    </div>
-  );
+  return <RaffleFormClient initialData={raffle} availableProducts={products} />;
 }
 

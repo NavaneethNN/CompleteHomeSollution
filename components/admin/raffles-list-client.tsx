@@ -8,7 +8,6 @@ import {
   Ticket,
   Plus,
   Trophy,
-  Users,
   Search,
   ExternalLink,
   Edit,
@@ -19,9 +18,12 @@ import {
   Clock,
   Sparkles,
   Gift,
-  MoreVertical,
   Dices,
+  X,
+  Crown,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { updateRaffleStatus, deleteRaffle } from "@/lib/actions/admin-raffle";
 import { toast } from "sonner";
 import {
@@ -38,6 +40,52 @@ import {
 interface RafflesListProps {
   initialRaffles: any[];
 }
+
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; icon: React.ElementType; className: string }
+> = {
+  ACTIVE: {
+    label: "Active",
+    icon: CheckCircle2,
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  },
+  UPCOMING: {
+    label: "Upcoming",
+    icon: Clock,
+    className: "bg-blue-50 text-blue-700 border-blue-200",
+  },
+  DRAW_PENDING: {
+    label: "Draw Pending",
+    icon: Dices,
+    className: "bg-amber-50 text-amber-800 border-amber-300",
+  },
+  CLOSED: {
+    label: "Closed",
+    icon: Clock,
+    className: "bg-amber-50 text-amber-800 border-amber-300",
+  },
+  WINNER_VERIFICATION: {
+    label: "Verifying",
+    icon: Sparkles,
+    className: "bg-purple-50 text-purple-700 border-purple-200",
+  },
+  COMPLETED: {
+    label: "Completed",
+    icon: Trophy,
+    className: "bg-slate-100 text-slate-700 border-slate-200",
+  },
+  PAUSED: {
+    label: "Paused",
+    icon: Pause,
+    className: "bg-rose-50 text-rose-700 border-rose-200",
+  },
+  DRAFT: {
+    label: "Draft",
+    icon: Clock,
+    className: "bg-slate-50 text-slate-500 border-slate-200",
+  },
+};
 
 export function RafflesListClient({ initialRaffles }: RafflesListProps) {
   const router = useRouter();
@@ -101,156 +149,171 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "ACTIVE":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800">ACTIVE</span>;
-      case "UPCOMING":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-black bg-sky-100 text-sky-800">UPCOMING</span>;
-      case "DRAW_PENDING":
-      case "CLOSED":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-900 animate-pulse">DRAW PENDING</span>;
-      case "WINNER_VERIFICATION":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-black bg-purple-100 text-purple-900">VERIFYING WINNERS</span>;
-      case "COMPLETED":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-800">COMPLETED</span>;
-      case "PAUSED":
-        return <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-100 text-rose-800">PAUSED</span>;
-      default:
-        return <span className="px-2.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-700">{status}</span>;
-    }
+  const renderStatusBadge = (status: string) => {
+    const config = STATUS_CONFIG[status] || {
+      label: status,
+      icon: Clock,
+      className: "bg-slate-50 text-slate-600 border-slate-200",
+    };
+    const Icon = config.icon;
+
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold w-fit whitespace-nowrap ${config.className}`}
+      >
+        <Icon className="h-3 w-3 shrink-0" />
+        <span>{config.label}</span>
+      </span>
+    );
   };
 
   return (
     <div className="space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-wider mb-1">
-            <Ticket className="h-4 w-4" />
-            <span>Campaign Management</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Raffles &amp; Giveaways
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Create multi-tier promotional campaigns, conduct cryptographic draws, and fulfill winner orders.
+          <p className="text-sm text-slate-500 mt-0.5">
+            Create promotional campaigns, conduct cryptographic draws, and fulfill winner orders
           </p>
         </div>
 
-        <Link
-          href="/admin/raffles/new"
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-xs sm:text-sm shadow-sm hover:bg-primary/90 transition-colors self-start sm:self-auto"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Create New Raffle</span>
-        </Link>
+        <Button asChild className="shrink-0 bg-primary hover:bg-primary/90 text-white shadow-xs">
+          <Link href="/admin/raffles/new">
+            <Plus className="mr-2 h-4 w-4" />
+            <span>Create New Raffle</span>
+          </Link>
+        </Button>
       </div>
 
-      {/* ── Metrics Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Active Draws</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-              <Gift className="h-4 w-4" />
+      {/* ── Stat Cards ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          {
+            label: "Active Draws",
+            value: totalActiveRaffles,
+            icon: Gift,
+            color: "text-emerald-600",
+            bg: "bg-emerald-50",
+            sublabel: "Live on storefront",
+          },
+          {
+            label: "Tickets Issued",
+            value: totalTicketsIssued.toLocaleString(),
+            icon: Ticket,
+            color: "text-blue-600",
+            bg: "bg-blue-50",
+            sublabel: "All participants",
+          },
+          {
+            label: "Pending Draws",
+            value: totalPendingDraws,
+            icon: Dices,
+            color: "text-amber-600",
+            bg: "bg-amber-50",
+            sublabel: "Ready for draw",
+          },
+          {
+            label: "Total Prize Pool",
+            value: `$${totalPrizeValue.toLocaleString()}`,
+            icon: Trophy,
+            color: "text-purple-600",
+            bg: "bg-purple-50",
+            sublabel: "Free & paid items",
+          },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${stat.bg}`}>
+                <stat.icon className={`h-5 w-5 ${stat.color}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-slate-500 truncate font-medium">{stat.label}</p>
+                <p className="text-xl font-bold text-slate-900 truncate">{stat.value}</p>
+                <p className="text-[11px] text-slate-400 truncate">{stat.sublabel}</p>
+              </div>
             </div>
           </div>
-          <span className="text-2xl font-bold text-foreground">{totalActiveRaffles}</span>
-          <span className="block text-[11px] text-muted-foreground mt-0.5">Live now on store</span>
-        </div>
+        ))}
+      </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Tickets Issued</span>
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-              <Ticket className="h-4 w-4" />
-            </div>
+      {/* ── Search & Filter Bar ── */}
+      <div className="rounded-xl border border-slate-200 bg-white p-3 sm:p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              placeholder="Search by title or slug..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-9 h-9 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <span className="text-2xl font-bold text-foreground">{totalTicketsIssued}</span>
-          <span className="block text-[11px] text-muted-foreground mt-0.5">Across all campaigns</span>
-        </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Pending Draws</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Dices className="h-4 w-4" />
-            </div>
+          <div className="flex flex-wrap items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
+            {[
+              { id: "ALL", label: "All" },
+              { id: "ACTIVE", label: "Active" },
+              { id: "UPCOMING", label: "Upcoming" },
+              { id: "DRAW_PENDING", label: "Draw Pending" },
+              { id: "COMPLETED", label: "Completed" },
+              { id: "PAUSED", label: "Paused" },
+              { id: "DRAFT", label: "Draft" },
+            ].map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                onClick={() => setStatusFilter(st.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
+                  statusFilter === st.id
+                    ? "bg-primary text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
           </div>
-          <span className="text-2xl font-bold text-amber-700">{totalPendingDraws}</span>
-          <span className="block text-[11px] text-muted-foreground mt-0.5">Ready for winner draw</span>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-border shadow-xs">
-          <div className="flex items-center justify-between text-muted-foreground mb-2">
-            <span className="text-xs font-semibold uppercase tracking-wider">Total Prize Pool</span>
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Trophy className="h-4 w-4" />
-            </div>
-          </div>
-          <span className="text-2xl font-bold text-foreground">${totalPrizeValue.toLocaleString()}</span>
-          <span className="block text-[11px] text-muted-foreground mt-0.5">Free + discounted prizes</span>
         </div>
       </div>
 
-      {/* ── Filter & Search Bar ── */}
-      <div className="bg-white p-4 rounded-2xl border border-border shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative w-full sm:w-80">
-          <Search className="h-4 w-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by title or slug..."
-            className="w-full text-xs pl-10 pr-4 py-2.5 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
-          {["ALL", "ACTIVE", "UPCOMING", "DRAW_PENDING", "COMPLETED", "PAUSED", "DRAFT"].map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                statusFilter === st
-                  ? "bg-primary text-white shadow-2xs"
-                  : "bg-slate-100 text-muted-foreground hover:bg-slate-200 hover:text-foreground"
-              }`}
-            >
-              {st.replace("_", " ")}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Raffles Table ── */}
-      <div className="bg-white rounded-2xl border border-border overflow-hidden shadow-xs">
+      {/* ── Table Container ── */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {filteredRaffles.length === 0 ? (
           <div className="text-center py-16 px-4">
-            <Ticket className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
-            <h3 className="font-bold text-sm text-foreground">No raffles found</h3>
-            <p className="text-xs text-muted-foreground mt-1">
+            <Ticket className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+            <h3 className="font-semibold text-sm text-slate-800">No raffles found</h3>
+            <p className="text-xs text-slate-500 mt-1">
               {search || statusFilter !== "ALL"
-                ? "Try clearing your filters or search query."
+                ? "Try adjusting your search query or status filter."
                 : "Create your first raffle campaign to get started!"}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-border text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                  <th className="py-3.5 px-4">Campaign</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4">Prize Tiers</th>
-                  <th className="py-3.5 px-4">Entries / Tickets</th>
-                  <th className="py-3.5 px-4">Draw Date</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+            <table className="w-full text-left text-sm border-collapse">
+              <thead className="bg-slate-50/75 border-b border-slate-200 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th className="py-3 px-4">Campaign</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Prize Pool</th>
+                  <th className="py-3 px-4">Tickets &amp; Entries</th>
+                  <th className="py-3 px-4">Draw Date</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-slate-100 text-xs">
                 {filteredRaffles.map((raffle) => {
                   const mainImg =
                     raffle.bannerImage ||
@@ -263,24 +326,26 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
                   const ticketCount = raffle._count?.tickets || raffle.totalTickets || 0;
 
                   return (
-                    <tr key={raffle.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-4 px-4">
+                    <tr key={raffle.id} className="hover:bg-slate-50/60 transition-colors">
+                      {/* Campaign Column */}
+                      <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
+                          <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
                             <Image src={mainImg} alt={raffle.title} fill className="object-cover" />
                           </div>
                           <div className="min-w-0 max-w-xs">
                             <Link
                               href={`/admin/raffles/${raffle.id}`}
-                              className="font-bold text-sm text-foreground hover:text-primary transition-colors truncate block"
+                              className="font-semibold text-sm text-slate-900 hover:text-primary transition-colors truncate block"
                             >
                               {raffle.title}
                             </Link>
-                            <span className="text-[11px] text-muted-foreground block font-mono">
+                            <span className="text-[11px] text-slate-400 block font-mono">
                               /{raffle.slug}
                             </span>
                             {raffle.visibility === "MEMBERS_ONLY" && (
-                              <span className="inline-block mt-0.5 text-[9px] font-black uppercase text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded">
+                              <span className="inline-flex items-center gap-1 mt-0.5 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                                <Crown className="h-2.5 w-2.5" />
                                 VIP Only
                               </span>
                             )}
@@ -288,39 +353,43 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
                         </div>
                       </td>
 
-                      <td className="py-4 px-4">{getStatusBadge(raffle.status)}</td>
+                      {/* Status Column */}
+                      <td className="py-3 px-4">{renderStatusBadge(raffle.status)}</td>
 
-                      <td className="py-4 px-4">
+                      {/* Prize Tiers */}
+                      <td className="py-3 px-4">
                         <div>
-                          <span className="font-bold text-slate-800 block">
+                          <span className="font-semibold text-slate-800 block">
                             {prizeCount} Tier{prizeCount > 1 ? "s" : ""} ({winnerCount} Winner{winnerCount > 1 ? "s" : ""})
                           </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            1st: {raffle.prizes?.[0]?.name?.slice(0, 24)}...
+                          <span className="text-[11px] text-slate-500">
+                            1st: {raffle.prizes?.[0]?.name?.slice(0, 26)}...
                           </span>
                         </div>
                       </td>
 
-                      <td className="py-4 px-4">
+                      {/* Entries & Tickets */}
+                      <td className="py-3 px-4">
                         <div>
-                          <span className="font-bold text-foreground block">
-                            {ticketCount} Ticket{ticketCount !== 1 ? "s" : ""}
+                          <span className="font-semibold text-slate-900 block">
+                            {ticketCount.toLocaleString()} Ticket{ticketCount !== 1 ? "s" : ""}
                           </span>
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-[11px] text-slate-500">
                             {raffle._count?.entries || 0} Participant{raffle._count?.entries !== 1 ? "s" : ""}
                           </span>
                         </div>
                       </td>
 
-                      <td className="py-4 px-4">
-                        <span className="font-medium text-slate-700 block">
+                      {/* Draw Date */}
+                      <td className="py-3 px-4">
+                        <span className="font-medium text-slate-800 block">
                           {new Date(raffle.drawDate).toLocaleDateString("en-AU", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
                           })}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-[11px] text-slate-400">
                           {new Date(raffle.drawDate).toLocaleTimeString("en-AU", {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -328,64 +397,80 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
                         </span>
                       </td>
 
-                      <td className="py-4 px-4 text-right">
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/admin/raffles/${raffle.id}`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl font-bold text-xs bg-primary text-white hover:bg-primary/95 transition-all shadow-xs"
-                            title="Draw Console & Winners"
+                          <Button
+                            asChild
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white shadow-2xs"
                           >
-                            <Dices className="h-3.5 w-3.5" />
-                            <span>Console</span>
-                          </Link>
+                            <Link href={`/admin/raffles/${raffle.id}`}>
+                              <Dices className="h-3.5 w-3.5" />
+                              <span>Console</span>
+                            </Link>
+                          </Button>
 
-                          <Link
-                            href={`/admin/raffles/${raffle.id}/edit`}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-slate-100 transition-colors"
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0 text-slate-600 hover:text-slate-900"
                             title="Edit Campaign"
                           >
-                            <Edit className="h-4 w-4" />
-                          </Link>
+                            <Link href={`/admin/raffles/${raffle.id}/edit`}>
+                              <Edit className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
 
-                          <Link
-                            href={`/raffles/${raffle.slug}`}
-                            target="_blank"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-foreground hover:bg-slate-100 transition-colors"
-                            title="View Public Page"
+                          <Button
+                            asChild
+                            size="sm"
+                            variant="outline"
+                            className="h-8 w-8 p-0 text-slate-600 hover:text-slate-900"
+                            title="View Public Storefront"
                           >
-                            <ExternalLink className="h-4 w-4" />
-                          </Link>
+                            <Link href={`/raffles/${raffle.slug}`} target="_blank">
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
 
                           {raffle.status === "ACTIVE" ? (
-                            <button
+                            <Button
                               type="button"
+                              size="sm"
+                              variant="outline"
                               onClick={() => handleStatusChange(raffle.id, "PAUSED")}
                               disabled={loadingActionId === raffle.id}
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition-colors"
-                              title="Pause Campaign"
+                              className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50 hover:text-amber-700 border-amber-200"
+                              title="Pause Raffle"
                             >
-                              <Pause className="h-4 w-4" />
-                            </button>
+                              <Pause className="h-3.5 w-3.5" />
+                            </Button>
                           ) : raffle.status === "PAUSED" ? (
-                            <button
+                            <Button
                               type="button"
+                              size="sm"
+                              variant="outline"
                               onClick={() => handleStatusChange(raffle.id, "ACTIVE")}
                               disabled={loadingActionId === raffle.id}
-                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
-                              title="Resume Campaign"
+                              className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 border-emerald-200"
+                              title="Resume Raffle"
                             >
-                              <Play className="h-4 w-4" />
-                            </button>
+                              <Play className="h-3.5 w-3.5" />
+                            </Button>
                           ) : null}
 
-                          <button
+                          <Button
                             type="button"
+                            size="sm"
+                            variant="outline"
                             onClick={() => setDeleteTargetId(raffle.id)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors"
-                            title="Delete"
+                            className="h-8 w-8 p-0 text-rose-600 hover:bg-rose-50 hover:text-rose-700 border-rose-200"
+                            title="Delete Campaign"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -399,20 +484,20 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
 
       {/* Delete Confirmation Alert */}
       <AlertDialog open={!!deleteTargetId} onOpenChange={() => setDeleteTargetId(null)}>
-        <AlertDialogContent className="rounded-3xl p-6">
+        <AlertDialogContent className="rounded-2xl p-6 bg-white border border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-lg font-black">
+            <AlertDialogTitle className="text-base font-bold text-slate-900">
               Delete Raffle Campaign?
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to delete this raffle? This action cannot be undone. Raffles with active participants should be cancelled or closed instead.
+            <AlertDialogDescription className="text-xs text-slate-500">
+              Are you sure you want to delete this raffle? This action cannot be undone. Raffles with active participants should be closed or paused instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl text-xs font-bold">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl text-xs font-semibold">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="rounded-xl text-xs font-bold bg-rose-600 text-white hover:bg-rose-700"
+              className="rounded-xl text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700"
             >
               Confirm Delete
             </AlertDialogAction>
@@ -422,4 +507,3 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
     </div>
   );
 }
-

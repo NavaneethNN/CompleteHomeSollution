@@ -29,10 +29,6 @@ export default async function AdminRaffleDetailPage({ params }: ConsolePageProps
     notFound();
   }
 
-  return (
-    <div className="container mx-auto px-4 sm:px-6 py-6 md:py-8 max-w-7xl">
-      <RaffleDrawConsole raffle={raffle} />
-    </div>
-  );
+  return <RaffleDrawConsole raffle={raffle} />;
 }
 

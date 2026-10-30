@@ -26,7 +26,9 @@ import {
   Calendar,
   Clock,
   Send,
+  ArrowLeft,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   conductRaffleDraw,
   approveAndAnnounceWinners,
@@ -176,119 +178,120 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
 
   return (
     <div className="space-y-6 pb-20">
-      {/* ── Top Overview Banner ── */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-border shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold uppercase px-2.5 py-1 rounded-full bg-slate-900 text-white">
-                Status: {raffle.status}
-              </span>
-              {raffle.winnersAnnounced ? (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Winners Publicly Announced
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-                  <Clock className="h-3.5 w-3.5" />
-                  Not Yet Announced
-                </span>
-              )}
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+      {/* ── Top Header & Actions ── */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <Link
+            href="/admin/raffles"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-primary transition-colors mb-2"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Back to Raffles</span>
+          </Link>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
               {raffle.title}
             </h1>
-
-            <p className="text-xs text-muted-foreground flex items-center gap-3">
-              <span>Slug: <strong className="font-mono text-slate-800">{raffle.slug}</strong></span>
-              <span>•</span>
-              <span>Draw Date: <strong>{new Date(raffle.drawDate).toLocaleString("en-AU")}</strong></span>
-            </p>
-          </div>
-
-          {/* Quick Actions Buttons */}
-          <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
-            <Link
-              href={`/raffles/${raffle.slug}`}
-              target="_blank"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-semibold ${
+                raffle.status === "ACTIVE"
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : raffle.status === "DRAW_PENDING"
+                  ? "bg-amber-50 text-amber-800 border-amber-300"
+                  : "bg-slate-100 text-slate-700 border-slate-200"
+              }`}
             >
+              {raffle.status}
+            </span>
+            {raffle.winnersAnnounced && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                Winners Publicly Announced
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 font-mono mt-1">
+            /{raffle.slug} • Draw Date: {new Date(raffle.drawDate).toLocaleString("en-AU")}
+          </p>
+        </div>
+
+        {/* Quick Actions Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+            <Link href={`/raffles/${raffle.slug}`} target="_blank">
               <ExternalLink className="h-3.5 w-3.5" />
               <span>Customer View</span>
             </Link>
+          </Button>
 
-            <Link
-              href={`/admin/raffles/${raffle.id}/edit`}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-            >
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+            <Link href={`/admin/raffles/${raffle.id}/edit`}>
               <Edit className="h-3.5 w-3.5" />
               <span>Edit Details</span>
             </Link>
+          </Button>
 
-            {raffle.status === "ACTIVE" && (
-              <button
-                type="button"
-                onClick={() => handleQuickStatus("DRAW_PENDING")}
-                disabled={actionLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-semibold text-xs shadow-xs hover:bg-amber-400 transition-colors"
-              >
-                <span>Close Entries for Draw</span>
-              </button>
-            )}
+          {raffle.status === "ACTIVE" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickStatus("DRAW_PENDING")}
+              disabled={actionLoading}
+              className="h-8 text-xs font-semibold text-amber-800 bg-amber-50 border-amber-200 hover:bg-amber-100"
+            >
+              <span>Close Entries for Draw</span>
+            </Button>
+          )}
 
-            {raffle.status === "PAUSED" && (
-              <button
-                type="button"
-                onClick={() => handleQuickStatus("ACTIVE")}
-                disabled={actionLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 text-white font-semibold text-xs shadow-xs hover:bg-emerald-500 transition-colors"
-              >
-                <Play className="h-3.5 w-3.5" />
-                <span>Resume</span>
-              </button>
-            )}
-          </div>
+          {raffle.status === "PAUSED" && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickStatus("ACTIVE")}
+              disabled={actionLoading}
+              className="h-8 text-xs font-semibold text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100"
+            >
+              <Play className="h-3.5 w-3.5 mr-1" />
+              <span>Resume</span>
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Stat Cards ── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-500 font-medium">Total Tickets</p>
+          <p className="text-xl font-bold text-slate-900 mt-0.5">
+            {(raffle._count?.tickets || raffle.totalTickets).toLocaleString()}
+          </p>
+          <p className="text-[11px] text-slate-400">Claimed across campaign</p>
         </div>
 
-        {/* Campaign Metrics Bar */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border">
-          <div className="p-3.5 rounded-xl bg-secondary/40 border border-border">
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-              Total Tickets Issued
-            </span>
-            <span className="text-xl font-bold text-foreground">
-              {raffle._count?.tickets || raffle.totalTickets}
-            </span>
-          </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-500 font-medium">Participants</p>
+          <p className="text-xl font-bold text-slate-900 mt-0.5">
+            {(raffle._count?.entries || 0).toLocaleString()}
+          </p>
+          <p className="text-[11px] text-slate-400">Distinct accounts</p>
+        </div>
 
-          <div className="p-3.5 rounded-xl bg-secondary/40 border border-border">
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-              Distinct Participants
-            </span>
-            <span className="text-xl font-bold text-foreground">
-              {raffle._count?.entries || 0} Customers
-            </span>
-          </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-500 font-medium">Prize Tiers / Slots</p>
+          <p className="text-xl font-bold text-primary mt-0.5">
+            {raffle.prizes.length} Tiers / {totalPrizeSlots} Slots
+          </p>
+          <p className="text-[11px] text-slate-400">Total winning opportunities</p>
+        </div>
 
-          <div className="p-3.5 rounded-xl bg-secondary/40 border border-border">
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-              Prize Tiers / Winner Slots
-            </span>
-            <span className="text-xl font-bold text-primary">
-              {raffle.prizes.length} Tiers / {totalPrizeSlots} Slots
-            </span>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-secondary/40 border border-border">
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground block">
-              Winners Selected
-            </span>
-            <span className="text-xl font-bold text-emerald-700">
-              {raffle.winners.length} / {totalPrizeSlots}
-            </span>
-          </div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs text-slate-500 font-medium">Winners Selected</p>
+          <p className="text-xl font-bold text-emerald-700 mt-0.5">
+            {raffle.winners.length} / {totalPrizeSlots}
+          </p>
+          <p className="text-[11px] text-slate-400">Status: {raffle.winnersAnnounced ? "Announced" : "Draft"}</p>
         </div>
       </div>
 
