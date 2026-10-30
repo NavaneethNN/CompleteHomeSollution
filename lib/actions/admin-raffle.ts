@@ -357,6 +357,13 @@ export async function conductRaffleDraw(
       return { success: false, error: "Cannot conduct draw: No prizes configured for this raffle." };
     }
 
+    if (raffle.winnersAnnounced || raffle.winners.some((w) => w.status === "CLAIMED")) {
+      return {
+        success: false,
+        error: "Cannot re-conduct draw: Winners have already been publicly announced or prizes claimed.",
+      };
+    }
+
     // Cryptographic audit seed
     const drawSeed = crypto.randomBytes(32).toString("hex");
 
@@ -555,6 +562,13 @@ export async function redrawSingleWinner(winnerId: string, reason: string) {
 
     if (!winner) {
       return { success: false, error: "Winner not found." };
+    }
+
+    if (winner.status === "CLAIMED") {
+      return {
+        success: false,
+        error: "Cannot replace a winner who has already claimed their prize. Please update fulfilment tracking instead.",
+      };
     }
 
     const currentWinnerTicketIds = new Set(winner.raffle.winners.map((w) => w.ticketId));

@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { claimPrizeAddressSchema, ClaimPrizeAddressInput } from "@/lib/validations/raffle";
+import { consumeRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 
@@ -16,7 +17,6 @@ export interface RaffleFilters {
  */
 export async function getPublicRaffles(filters?: RaffleFilters) {
   try {
-    const now = new Date();
     // Auto-update statuses based on dates if necessary
     await autoUpdateRaffleStatuses();
 
@@ -217,14 +217,20 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
 
   const userId = session.user.id;
 
+  // Validate ticket count parameter
+  if (!Number.isInteger(ticketCount) || ticketCount < 1 || ticketCount > 100) {
+    return { success: false, error: "Invalid ticket count specified." };
+  }
+
+  // Rate limit: max 15 requests per 60s per user
+  const rl = await consumeRateLimit("raffle-enter", userId, 15, 60);
+  if (!rl.allowed) {
+    return { success: false, error: "Too many participation requests. Please wait a moment." };
+  }
+
   try {
     const raffle = await db.raffle.findUnique({
       where: { id: raffleId },
-      include: {
-        tickets: {
-          where: { userId },
-        },
-      },
     });
 
     if (!raffle) {
@@ -260,23 +266,10 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
       }
     }
 
-    // Check per-user ticket limit
-    const existingTicketCount = raffle.tickets.length;
-    if (existingTicketCount + ticketCount > raffle.maxEntriesPerUser) {
+    if (ticketCount > 1 && !raffle.allowMultipleEntries) {
       return {
         success: false,
-        error: `Limit reached. You can have at most ${raffle.maxEntriesPerUser} ticket${
-          raffle.maxEntriesPerUser > 1 ? "s" : ""
-        } for this raffle. (You currently have ${existingTicketCount}).`,
-      };
-    }
-
-    // Check total campaign max entries
-    if (raffle.totalMaxEntries && raffle.totalTickets + ticketCount > raffle.totalMaxEntries) {
-      const remaining = Math.max(0, raffle.totalMaxEntries - raffle.totalTickets);
-      return {
-        success: false,
-        error: `Only ${remaining} ticket${remaining === 1 ? "" : "s"} remain in this raffle.`,
+        error: "Multiple entries are not allowed for this raffle.",
       };
     }
 
@@ -288,8 +281,48 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
       };
     }
 
-    // Execute atomic participation transaction
+    // Execute atomic participation transaction with concurrency checks
     const result = await db.$transaction(async (tx) => {
+      // Transactional advisory locks ensure strict serializability across parallel requests
+      await tx.$executeRawUnsafe(
+        "SELECT pg_advisory_xact_lock(hashtext($1))",
+        `raffle:${raffle.id}:user:${userId}`
+      );
+      if (raffle.totalMaxEntries) {
+        await tx.$executeRawUnsafe(
+          "SELECT pg_advisory_xact_lock(hashtext($1))",
+          `raffle:${raffle.id}:campaign`
+        );
+      }
+
+      // Re-fetch inside transaction for strict serializability
+      const freshRaffle = await tx.raffle.findUnique({
+        where: { id: raffle.id },
+      });
+
+      if (!freshRaffle || freshRaffle.status !== "ACTIVE") {
+        throw new Error("This raffle is no longer accepting entries.");
+      }
+
+      // Check user ticket count inside transaction
+      const currentUserTickets = await tx.raffleTicket.count({
+        where: { raffleId: raffle.id, userId },
+      });
+
+      if (currentUserTickets + ticketCount > freshRaffle.maxEntriesPerUser) {
+        throw new Error(
+          `Entry limit reached. You can hold at most ${freshRaffle.maxEntriesPerUser} ticket${
+            freshRaffle.maxEntriesPerUser > 1 ? "s" : ""
+          } for this raffle (you currently have ${currentUserTickets}).`
+        );
+      }
+
+      // Check total campaign cap inside transaction
+      if (freshRaffle.totalMaxEntries && freshRaffle.totalTickets + ticketCount > freshRaffle.totalMaxEntries) {
+        const remaining = Math.max(0, freshRaffle.totalMaxEntries - freshRaffle.totalTickets);
+        throw new Error(`Only ${remaining} ticket${remaining === 1 ? "" : "s"} remain in this raffle.`);
+      }
+
       // 1. Create RaffleEntry
       const entry = await tx.raffleEntry.create({
         data: {
@@ -303,17 +336,17 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
 
       // 2. Generate unique ticket numbers
       const generatedTickets: string[] = [];
-      const prefix = raffle.slug.slice(0, 4).toUpperCase();
+      const prefix = (freshRaffle.slug.slice(0, 4) || "RAF").toUpperCase();
       const timestamp = Date.now().toString(36).toUpperCase();
 
       for (let i = 0; i < ticketCount; i++) {
-        const randomHex = crypto.randomBytes(3).toString("hex").toUpperCase();
+        const randomHex = crypto.randomBytes(4).toString("hex").toUpperCase();
         const ticketNumber = `CHS-${prefix}-${timestamp}-${randomHex}`;
         generatedTickets.push(ticketNumber);
 
         await tx.raffleTicket.create({
           data: {
-            raffleId: raffle.id,
+            raffleId: freshRaffle.id,
             entryId: entry.id,
             userId,
             ticketNumber,
@@ -324,26 +357,26 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
       // 3. Count distinct participants
       const distinctUsers = await tx.raffleTicket.groupBy({
         by: ["userId"],
-        where: { raffleId: raffle.id },
+        where: { raffleId: freshRaffle.id },
       });
 
+      const newTotalTickets = freshRaffle.totalTickets + ticketCount;
+      const reachedCap = freshRaffle.totalMaxEntries && newTotalTickets >= freshRaffle.totalMaxEntries;
+
       // 4. Update raffle statistics
-      const updatedRaffle = await tx.raffle.update({
-        where: { id: raffle.id },
+      await tx.raffle.update({
+        where: { id: freshRaffle.id },
         data: {
           totalTickets: { increment: ticketCount },
           totalParticipants: distinctUsers.length,
-          // If totalMaxEntries reached, update status to CLOSED
-          ...(raffle.totalMaxEntries && raffle.totalTickets + ticketCount >= raffle.totalMaxEntries
-            ? { status: "CLOSED" }
-            : {}),
+          ...(reachedCap ? { status: "CLOSED" } : {}),
         },
       });
 
       return {
         entry,
         ticketNumbers: generatedTickets,
-        totalUserTickets: existingTicketCount + ticketCount,
+        totalUserTickets: currentUserTickets + ticketCount,
       };
     });
 
@@ -469,10 +502,15 @@ export async function getCustomerRaffleDashboard() {
 export async function claimFreePrize(input: ClaimPrizeAddressInput) {
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: "Unauthorized. Please log in." };
   }
 
   const userId = session.user.id;
+
+  const rl = await consumeRateLimit("raffle-claim", userId, 10, 60);
+  if (!rl.allowed) {
+    return { success: false, error: "Too many requests. Please wait a moment." };
+  }
 
   const validated = claimPrizeAddressSchema.safeParse(input);
   if (!validated.success) {
@@ -495,11 +533,7 @@ export async function claimFreePrize(input: ClaimPrizeAddressInput) {
     }
 
     if (winner.userId !== userId) {
-      return { success: false, error: "Unauthorized claim attempt." };
-    }
-
-    if (winner.status === "CLAIMED") {
-      return { success: false, error: "This prize has already been claimed!" };
+      return { success: false, error: "Unauthorized: this winning record does not belong to your account." };
     }
 
     if (winner.prizeType !== "FREE_PRODUCT") {
@@ -507,56 +541,68 @@ export async function claimFreePrize(input: ClaimPrizeAddressInput) {
     }
 
     const addressSnapshot = {
-      name: data.name,
-      phone: data.phone,
-      line1: data.line1,
-      line2: data.line2 || null,
-      suburb: data.suburb,
-      state: data.state,
-      postcode: data.postcode,
+      name: data.name.trim(),
+      phone: data.phone.trim(),
+      line1: data.line1.trim(),
+      line2: data.line2?.trim() || null,
+      suburb: data.suburb.trim(),
+      state: data.state.trim().toUpperCase(),
+      postcode: data.postcode.trim(),
       country: data.country || "AU",
     };
 
-    // Optionally save to profile
-    if (data.saveToProfile) {
-      await db.address.create({
-        data: {
+    // Atomic claim update to prevent race conditions
+    const updateResult = await db.$transaction(async (tx) => {
+      const claimTx = await tx.raffleWinner.updateMany({
+        where: {
+          id: winner.id,
           userId,
-          name: data.name,
-          phone: data.phone,
-          line1: data.line1,
-          line2: data.line2 || null,
-          suburb: data.suburb,
-          state: data.state,
-          postcode: data.postcode,
-          country: data.country || "AU",
+          status: "PENDING_CLAIM",
+        },
+        data: {
+          status: "CLAIMED",
+          claimedAt: new Date(),
+          shippingAddress: addressSnapshot,
+          deliveryStatus: "PROCESSING",
         },
       });
-    }
 
-    // Update winner record
-    const updated = await db.raffleWinner.update({
-      where: { id: winner.id },
-      data: {
-        status: "CLAIMED",
-        claimedAt: new Date(),
-        shippingAddress: addressSnapshot,
-        deliveryStatus: "PROCESSING",
-      },
-    });
+      if (claimTx.count === 0) {
+        throw new Error("This prize has already been claimed or is currently being processed.");
+      }
 
-    // Add audit log
-    await db.raffleAuditLog.create({
-      data: {
-        raffleId: winner.raffleId,
-        adminId: userId,
-        action: "PRIZE_CLAIMED_BY_WINNER",
-        details: {
-          winnerId: winner.id,
-          prizeName: winner.prize.name,
-          shippingAddress: addressSnapshot,
+      // Optionally save to profile
+      if (data.saveToProfile) {
+        await tx.address.create({
+          data: {
+            userId,
+            name: addressSnapshot.name,
+            phone: addressSnapshot.phone,
+            line1: addressSnapshot.line1,
+            line2: addressSnapshot.line2,
+            suburb: addressSnapshot.suburb,
+            state: addressSnapshot.state,
+            postcode: addressSnapshot.postcode,
+            country: addressSnapshot.country,
+          },
+        });
+      }
+
+      // Add audit log
+      await tx.raffleAuditLog.create({
+        data: {
+          raffleId: winner.raffleId,
+          adminId: userId,
+          action: "PRIZE_CLAIMED_BY_WINNER",
+          details: {
+            winnerId: winner.id,
+            prizeName: winner.prize.name,
+            shippingAddress: addressSnapshot,
+          },
         },
-      },
+      });
+
+      return true;
     });
 
     revalidatePath("/account/raffles");
@@ -578,10 +624,15 @@ export async function claimFreePrize(input: ClaimPrizeAddressInput) {
 export async function purchasePaidPrize(winnerId: string, addressId: string) {
   const session = await auth();
   if (!session?.user?.id) {
-    return { success: false, error: "Unauthorized" };
+    return { success: false, error: "Unauthorized. Please log in." };
   }
 
   const userId = session.user.id;
+
+  const rl = await consumeRateLimit("raffle-purchase", userId, 10, 60);
+  if (!rl.allowed) {
+    return { success: false, error: "Too many purchase requests. Please wait a moment." };
+  }
 
   try {
     const winner = await db.raffleWinner.findUnique({
@@ -599,11 +650,11 @@ export async function purchasePaidPrize(winnerId: string, addressId: string) {
     }
 
     if (winner.userId !== userId) {
-      return { success: false, error: "Unauthorized purchase attempt." };
+      return { success: false, error: "Unauthorized: this winning record does not belong to your account." };
     }
 
-    if (winner.status === "CLAIMED") {
-      return { success: false, error: "This winning prize has already been purchased!" };
+    if (winner.prizeType !== "PAID_PRODUCT") {
+      return { success: false, error: "This is a free product prize. Please use the free claim workflow." };
     }
 
     const address = await db.address.findFirst({
@@ -611,17 +662,16 @@ export async function purchasePaidPrize(winnerId: string, addressId: string) {
     });
 
     if (!address) {
-      return { success: false, error: "Shipping address not found." };
+      return { success: false, error: "Selected shipping address not found." };
     }
 
     const winningPrice = winner.winningPrice || winner.prize.price || 0;
 
-    // Create an order in CONFIRMED / PROCESSING status for this prize
+    // Create order and update winner atomically inside interactive transaction
     const order = await db.$transaction(async (tx) => {
-      // Find or create a product placeholder if no productId is linked
+      // Find or link product
       let productId = winner.prize.productId;
       if (!productId) {
-        // Find existing product or create default
         const existingProd = await tx.product.findFirst({
           select: { id: true },
         });
@@ -654,9 +704,13 @@ export async function purchasePaidPrize(winnerId: string, addressId: string) {
         },
       });
 
-      // Update winner
-      await tx.raffleWinner.update({
-        where: { id: winner.id },
+      // Atomically update winner status - guarantees no double purchases
+      const claimUpdate = await tx.raffleWinner.updateMany({
+        where: {
+          id: winner.id,
+          userId,
+          status: "PENDING_CLAIM",
+        },
         data: {
           status: "CLAIMED",
           claimedAt: new Date(),
@@ -673,6 +727,23 @@ export async function purchasePaidPrize(winnerId: string, addressId: string) {
             country: address.country,
           },
           deliveryStatus: "PROCESSING",
+        },
+      });
+
+      if (claimUpdate.count === 0) {
+        throw new Error("This winning prize has already been purchased or claimed.");
+      }
+
+      await tx.raffleAuditLog.create({
+        data: {
+          raffleId: winner.raffleId,
+          adminId: userId,
+          action: "PRIZE_PURCHASED_BY_WINNER",
+          details: {
+            winnerId: winner.id,
+            orderId: newOrder.id,
+            amount: winningPrice,
+          },
         },
       });
 
@@ -725,3 +796,4 @@ export async function autoUpdateRaffleStatuses() {
     console.warn("Auto-update raffle statuses error:", err);
   }
 }
+

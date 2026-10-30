@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getCustomerRaffleDashboard } from "@/lib/actions/raffle";
 import { AccountSidebar } from "@/components/account/account-sidebar";
 import { CustomerRafflesClient } from "@/components/account/raffles-dashboard-client";
-import { ChevronRight, ChevronLeft, Home, Ticket } from "lucide-react";
+import { ChevronRight, ChevronLeft, Home } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "My Raffles & Wins — Complete Home Sollution",
@@ -72,3 +72,4 @@ export default async function CustomerRafflesPage() {
     </div>
   );
 }
+
