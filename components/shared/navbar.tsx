@@ -10,7 +10,7 @@ import {
   Search, ShoppingBag, Heart, User, ChevronDown, ChevronRight,
   Menu, X, Armchair, BedDouble, UtensilsCrossed, Monitor, Flower2,
   LayoutDashboard, Package, Crown, UserCircle, MapPin,
-  LogOut, LogIn, UserPlus, ShieldCheck, LayoutGrid, Loader2,
+  LogOut, LogIn, UserPlus, ShieldCheck, LayoutGrid, Loader2, Ticket, Sparkles,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────── */
@@ -53,6 +53,7 @@ function getCatIcon(slug: string): React.ElementType {
 const BASE_ACCOUNT_LINKS = [
   { label: "My Dashboard",  href: "/account/dashboard",  Icon: LayoutDashboard },
   { label: "My Orders",     href: "/account/orders",     Icon: Package },
+  { label: "My Raffles",    href: "/account/raffles",    Icon: Ticket },
   { label: "Membership",    href: "/account/membership", Icon: Crown },
   { label: "Profile",       href: "/account/profile",    Icon: UserCircle },
   { label: "Addresses",     href: "/account/addresses",  Icon: MapPin },
@@ -331,6 +332,15 @@ export function Navbar() {
               </div>
 
               <NavItem href="/blog" active={pathname.startsWith("/blog")}>BLOG</NavItem>
+              
+              <NavItem href="/raffles" active={pathname.startsWith("/raffles")}>
+                <span className="flex items-center gap-1.5">
+                  RAFFLES
+                  <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-amber-500 text-white tracking-wider animate-pulse shadow-xs">
+                    WIN
+                  </span>
+                </span>
+              </NavItem>
               
               <NavItem
                 href="/account/membership"
@@ -666,6 +676,21 @@ export function Navbar() {
               ${pathname.startsWith("/blog") ? "bg-primary/8 text-primary" : "text-foreground hover:bg-secondary"}`}
           >
             Blog <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Link>
+
+          {/* Raffles */}
+          <Link
+            href="/raffles"
+            className={`flex items-center justify-between px-3.5 py-3.5 rounded-xl text-sm font-semibold mb-0.5 transition-colors
+              ${pathname.startsWith("/raffles") ? "bg-primary/8 text-primary" : "text-foreground hover:bg-secondary"}`}
+          >
+            <span className="flex items-center gap-2">
+              <Ticket className="h-4 w-4 text-amber-500" />
+              Raffles & Giveaways
+            </span>
+            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500 text-white">
+              WIN
+            </span>
           </Link>
 
           {/* Categories accordion */}

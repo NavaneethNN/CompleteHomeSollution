@@ -9,12 +9,14 @@ import {
   UserCircle,
   MapPin,
   ChevronRight,
+  Ticket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "Dashboard", href: "/account/dashboard", Icon: LayoutDashboard },
   { label: "My Orders", href: "/account/orders", Icon: Package },
+  { label: "My Raffles & Wins", href: "/account/raffles", Icon: Ticket },
   { label: "Membership", href: "/account/membership", Icon: Crown },
   { label: "Profile", href: "/account/profile", Icon: UserCircle },
   { label: "Addresses", href: "/account/addresses", Icon: MapPin },

@@ -68,6 +68,9 @@ model User {
   blogLikes          BlogLike[]
   membershipPayments MembershipPayment[]
   userCoupons        UserCoupon[] // Track coupon usage
+  raffleEntries      RaffleEntry[]
+  raffleTickets      RaffleTicket[]
+  raffleWins         RaffleWinner[]
 
   // NextAuth required fields
   accounts Account[]
@@ -143,6 +146,7 @@ model Product {
   variantAttributes VariantAttribute[] // Custom variant categories (Color, Size, etc.)
   productVariants   ProductVariant[]   // Actual sellable variants with prices
   couponProducts    CouponProduct[]    // Coupons applicable to this product
+  rafflePrizes      RafflePrize[]
 
   embedding Unsupported("vector(1536)")?
 
@@ -208,6 +212,7 @@ model ProductVariant {
   values  ProductVariantValue[] // Links to the variant values (Color: Red, Size: Large)
   orderItems OrderItem[]
   cartItems  CartItem[]
+  rafflePrizes RafflePrize[]
 
   @@index([productId])
 }
@@ -302,6 +307,7 @@ model Order {
   items   OrderItem[]
   coupon  Coupon?     @relation(fields: [couponId], references: [id])
   userCoupon UserCoupon? // Link to user-coupon usage record
+  raffleWins RaffleWinner[]
 
   @@index([userId])
   @@index([status])
@@ -649,3 +655,191 @@ model PromotionBanner {
 
   @@index([isActive, displayOrder])
 }
+
+// ─── Raffle Enums ─────────────────────────────────────────────────────────────
+
+enum RaffleStatus {
+  DRAFT
+  UPCOMING
+  ACTIVE
+  CLOSED
+  DRAW_PENDING
+  DRAW_COMPLETED
+  WINNER_VERIFICATION
+  COMPLETED
+  PAUSED
+  CANCELLED
+}
+
+enum RafflePrizeType {
+  FREE_PRODUCT
+  PAID_PRODUCT
+}
+
+enum RaffleWinnerStatus {
+  PENDING_CLAIM
+  CLAIMED
+  EXPIRED
+  REJECTED
+}
+
+// ─── Raffle Models ────────────────────────────────────────────────────────────
+
+model Raffle {
+  id                    String        @id @default(cuid())
+  title                 String
+  slug                  String        @unique
+  shortDescription      String?
+  description           String        @db.Text
+  bannerImage           String?
+  images                String[]      @default([])
+  status                RaffleStatus  @default(DRAFT)
+  entryPrice            Float         @default(0)
+  isPaid                Boolean       @default(false)
+  visibility            String        @default("ALL") // "ALL" | "MEMBERS_ONLY"
+  eligiblePlanIds       String[]      @default([])
+  maxEntriesPerUser     Int           @default(1)
+  minEntriesPerUser     Int           @default(1)
+  totalMaxEntries       Int?
+  allowMultipleEntries  Boolean       @default(false)
+  startDate             DateTime
+  endDate               DateTime
+  drawDate              DateTime
+  automaticClosure      Boolean       @default(true)
+  terms                 String?       @db.Text
+  ageRestriction        Int?
+  geographicRestriction String?
+  isFeatured            Boolean       @default(false)
+  displayOnHomepage     Boolean       @default(false)
+  totalParticipants     Int           @default(0)
+  totalTickets          Int           @default(0)
+  winnersAnnounced      Boolean       @default(false)
+  drawSeed              String?
+  drawNotes             String?       @db.Text
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  prizes    RafflePrize[]
+  entries   RaffleEntry[]
+  tickets   RaffleTicket[]
+  winners   RaffleWinner[]
+  auditLogs RaffleAuditLog[]
+
+  @@index([status])
+  @@index([isFeatured])
+  @@index([displayOnHomepage])
+  @@index([startDate, endDate])
+}
+
+model RafflePrize {
+  id               String          @id @default(cuid())
+  raffleId         String
+  rank             Int             @default(1) // 1 = 1st prize, 2 = 2nd prize, etc.
+  name             String
+  description      String?         @db.Text
+  images           String[]        @default([])
+  value            Float           @default(0) // Market / estimated value
+  prizeType        RafflePrizeType @default(FREE_PRODUCT) // FREE_PRODUCT or PAID_PRODUCT
+  price            Float           @default(0) // Purchase price if PAID_PRODUCT, 0 if FREE_PRODUCT
+  quantity         Int             @default(1) // Number of winners for this prize tier
+  productId        String?
+  productVariantId String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  raffle         Raffle          @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  product        Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productVariant ProductVariant? @relation(fields: [productVariantId], references: [id], onDelete: SetNull)
+  winners        RaffleWinner[]
+
+  @@index([raffleId])
+  @@index([productId])
+  @@index([productVariantId])
+}
+
+model RaffleEntry {
+  id            String   @id @default(cuid())
+  raffleId      String
+  userId        String
+  ticketCount   Int      @default(1)
+  amountPaid    Float    @default(0)
+  paymentStatus String   @default("FREE") // FREE, PAID, PENDING
+  paymentId     String?
+  createdAt     DateTime @default(now())
+
+  raffle  Raffle         @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tickets RaffleTicket[]
+
+  @@index([raffleId, userId])
+  @@index([userId])
+}
+
+model RaffleTicket {
+  id           String   @id @default(cuid())
+  raffleId     String
+  entryId      String
+  userId       String
+  ticketNumber String   @unique
+  createdAt    DateTime @default(now())
+
+  raffle Raffle        @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  entry  RaffleEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  winner RaffleWinner?
+
+  @@index([raffleId])
+  @@index([userId])
+  @@index([ticketNumber])
+}
+
+model RaffleWinner {
+  id                String             @id @default(cuid())
+  raffleId          String
+  prizeId           String
+  ticketId          String             @unique
+  userId            String
+  rank              Int                @default(1)
+  status            RaffleWinnerStatus @default(PENDING_CLAIM)
+  prizeType         RafflePrizeType    @default(FREE_PRODUCT)
+  winningPrice      Float              @default(0)
+  orderId           String?
+  shippingAddressId String?
+  shippingAddress   Json?
+  carrier           String?
+  trackingNumber    String?
+  deliveryStatus    String             @default("PENDING") // PENDING, PROCESSING, SHIPPED, DELIVERED
+  claimedAt         DateTime?
+  shippedAt         DateTime?
+  deliveredAt       DateTime?
+  claimDeadline     DateTime?
+  notes             String?            @db.Text
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  raffle  Raffle       @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  prize   RafflePrize  @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  ticket  RaffleTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order   Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([raffleId])
+  @@index([userId])
+  @@index([status])
+  @@index([prizeId])
+}
+
+model RaffleAuditLog {
+  id        String   @id @default(cuid())
+  raffleId  String
+  adminId   String
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+
+  raffle Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+
+  @@index([raffleId])
+  @@index([createdAt])
+}
+

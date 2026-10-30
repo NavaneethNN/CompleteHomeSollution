@@ -11,6 +11,7 @@ import { AnimateIn } from "@/components/shared/animate-in";
 import { PromoPopup } from "@/components/shop/promo-popup";
 import { PromoBannerCarousel } from "@/components/shop/promo-banner-carousel";
 import { getActivePromotions } from "@/lib/actions/promotions";
+import { FeaturedRaffles } from "@/components/shop/featured-raffles";
 import {
   ArrowRight,
   Award,
@@ -317,6 +318,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── Lucky Raffles & Giveaways ─────────────────────────────── */}
+      <FeaturedRaffles />
 
       {/* ── About Us ─────────────────────────────────────────────── */}
       <section className="overflow-hidden bg-[#f7f3ed] py-14 md:py-20">
