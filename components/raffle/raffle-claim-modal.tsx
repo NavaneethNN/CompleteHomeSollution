@@ -109,7 +109,7 @@ export function RaffleClaimModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg rounded-2xl p-6 sm:p-7 border border-border bg-white shadow-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-6 sm:p-7 border border-border bg-white shadow-lg">
         <DialogHeader>
           <div className="flex items-center gap-2 text-emerald-700 mb-1">
             <Gift className="h-5 w-5" />

@@ -68,8 +68,8 @@ export function RaffleCountdown({
 
   if (size === "sm") {
     return (
-      <div className={`inline-flex items-center gap-1.5 text-xs font-semibold text-foreground bg-white/95 backdrop-blur-xs border border-border/80 px-2.5 py-1 rounded-full shadow-xs ${className}`}>
-        <Clock className="h-3.5 w-3.5 text-primary" />
+      <div className={`inline-flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-semibold text-foreground bg-white/95 backdrop-blur-xs border border-border/80 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs whitespace-nowrap ${className}`}>
+        <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-primary shrink-0" />
         <span>
           {timeLeft.days > 0 ? `${timeLeft.days}d ` : ""}
           {String(timeLeft.hours).padStart(2, "0")}h {String(timeLeft.minutes).padStart(2, "0")}m {String(timeLeft.seconds).padStart(2, "0")}s

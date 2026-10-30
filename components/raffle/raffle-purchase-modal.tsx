@@ -83,7 +83,7 @@ export function RafflePurchaseModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg rounded-2xl p-6 sm:p-7 bg-white border border-border shadow-xl">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl p-6 sm:p-7 bg-white border border-border shadow-xl">
         <DialogHeader>
           <div className="flex items-center gap-1.5 text-primary mb-1">
             <Sparkles className="h-4 w-4" />

@@ -8,7 +8,7 @@ import { getAddresses } from "@/lib/actions/address";
 import { AccountSidebar } from "@/components/account/account-sidebar";
 import {
   Package, Crown, ShoppingBag, Heart, ChevronRight, ArrowRight,
-  Star, Truck, ShieldCheck, Tag, Calendar, MapPin, ChevronLeft, Home,
+  Star, Truck, ShieldCheck, Tag, Calendar, MapPin, ChevronLeft, Home, Ticket,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "My Dashboard — Complete Home Sollution" };
@@ -20,6 +20,13 @@ const QUICK_ACTIONS = [
     desc: "Explore our full range of premium furniture",
     href: "/products",
     color: "bg-primary/10 text-primary",
+  },
+  {
+    Icon: Ticket,
+    title: "My Raffles & Wins",
+    desc: "View giveaway entries & claim your winning gifts",
+    href: "/account/raffles",
+    color: "bg-rose-50 text-primary",
   },
   {
     Icon: Package,

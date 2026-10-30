@@ -229,6 +229,16 @@ export function RaffleEntryWidget({
               </div>
             ))}
           </div>
+
+          <div className="mt-3 pt-2.5 border-t border-emerald-200/80 flex items-center justify-between text-xs">
+            <span className="text-emerald-800 text-[11px]">Good luck in the draw!</span>
+            <Link
+              href="/account/raffles"
+              className="font-bold text-emerald-900 hover:text-primary transition-colors inline-flex items-center gap-1"
+            >
+              <span>View in My Raffles</span> &rarr;
+            </Link>
+          </div>
         </div>
       )}
 

@@ -75,59 +75,64 @@ export function RaffleCard({ raffle }: RaffleCardProps) {
         </Link>
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
 
-        {/* Top Badges */}
-        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 items-center z-10">
-          {isFree ? (
-            <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
-              <Gift className="h-3 w-3" />
-              100% Free Entry
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
-              <Ticket className="h-3 w-3" />
-              ${raffle.entryPrice}
-            </span>
-          )}
+        {/* Top Badges Bar (Fully Responsive, Multi-Row Wrap Safe) */}
+        <div className="absolute top-2.5 sm:top-3 inset-x-2.5 sm:inset-x-3 flex items-start justify-between gap-1.5 z-10 pointer-events-none">
+          {/* Left Badges */}
+          <div className="flex flex-wrap gap-1 sm:gap-1.5 items-center pointer-events-auto max-w-[calc(100%-115px)] sm:max-w-[calc(100%-135px)]">
+            {isFree ? (
+              <span className="inline-flex items-center gap-1 bg-emerald-700 text-white text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs whitespace-nowrap">
+                <Gift className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                <span>100% Free Entry</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 bg-slate-900 text-white text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs whitespace-nowrap">
+                <Ticket className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                <span>${raffle.entryPrice}</span>
+              </span>
+            )}
 
-          {isMembersOnly && (
-            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
-              <Crown className="h-3 w-3 fill-amber-900" />
-              VIP Exclusive
-            </span>
-          )}
+            {isMembersOnly && (
+              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-900 border border-amber-300 text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs whitespace-nowrap">
+                <Crown className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0 fill-amber-900" />
+                <span>VIP Exclusive</span>
+              </span>
+            )}
 
-          {raffle.isFeatured && (
-            <span className="inline-flex items-center gap-1 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
-              <Sparkles className="h-3 w-3" />
-              Featured
-            </span>
+            {raffle.isFeatured && (
+              <span className="inline-flex items-center gap-1 bg-primary text-white text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs whitespace-nowrap">
+                <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 shrink-0" />
+                <span>Featured</span>
+              </span>
+            )}
+          </div>
+
+          {/* Top Right Value Badge */}
+          {totalPrizeValue > 0 && (
+            <div className="shrink-0 pointer-events-auto bg-white/95 backdrop-blur-xs text-foreground px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold shadow-xs border border-border/60 whitespace-nowrap">
+              Valued at <span className="text-primary font-bold">${totalPrizeValue.toLocaleString()}</span>
+            </div>
           )}
         </div>
 
-        {/* Top Right Value Badge */}
-        {totalPrizeValue > 0 && (
-          <div className="absolute top-3 right-3 z-10 bg-white/95 backdrop-blur-xs text-foreground px-2.5 py-1 rounded-full text-xs font-semibold shadow-xs border border-border/60">
-            Valued at <span className="text-primary font-bold">${totalPrizeValue.toLocaleString()}</span>
+        {/* Bottom Overlay Info (Responsive Wrap) */}
+        <div className="absolute bottom-2.5 sm:bottom-3 inset-x-2.5 sm:inset-x-3 flex flex-wrap items-center justify-between gap-1.5 text-foreground z-10 pointer-events-none">
+          <div className="pointer-events-auto shrink-0">
+            {isActive ? (
+              <RaffleCountdown targetDate={raffle.endDate} size="sm" />
+            ) : isUpcoming ? (
+              <div className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-foreground bg-white/95 backdrop-blur-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs border border-border/60 whitespace-nowrap">
+                Opens {new Date(raffle.startDate).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-emerald-800 bg-emerald-50 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border border-emerald-200 whitespace-nowrap">
+                <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-600 shrink-0" />
+                <span>Draw Completed</span>
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Bottom Overlay Info */}
-        <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-foreground z-10">
-          {isActive ? (
-            <RaffleCountdown targetDate={raffle.endDate} size="sm" />
-          ) : isUpcoming ? (
-            <div className="inline-flex items-center gap-1 text-xs font-medium text-foreground bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-full shadow-xs border border-border/60">
-              Opens {new Date(raffle.startDate).toLocaleDateString("en-AU", { month: "short", day: "numeric" })}
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-1 text-xs font-medium text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-              Draw Completed
-            </div>
-          )}
-
-          <div className="inline-flex items-center gap-1 text-xs font-medium text-foreground bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-full shadow-xs border border-border/60">
-            <Trophy className="h-3 w-3 text-amber-600" />
+          <div className="pointer-events-auto shrink-0 inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium text-foreground bg-white/95 backdrop-blur-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-xs border border-border/60 whitespace-nowrap">
+            <Trophy className="h-3 w-3 text-amber-600 shrink-0" />
             <span>{totalWinnersCount} Winner{totalWinnersCount > 1 ? "s" : ""}</span>
           </div>
         </div>

@@ -103,11 +103,11 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
       </div>
 
       {/* ── Navigation Tabs ── */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
+      <div className="flex items-center gap-2 border-b border-border pb-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
           type="button"
           onClick={() => setActiveTab("WINS")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
             activeTab === "WINS"
               ? "bg-primary text-white shadow-xs"
               : "border border-border bg-white text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -125,7 +125,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
         <button
           type="button"
           onClick={() => setActiveTab("ACTIVE")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
             activeTab === "ACTIVE"
               ? "bg-primary text-white shadow-xs"
               : "border border-border bg-white text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -138,7 +138,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
         <button
           type="button"
           onClick={() => setActiveTab("TICKETS")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
             activeTab === "TICKETS"
               ? "bg-primary text-white shadow-xs"
               : "border border-border bg-white text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -150,7 +150,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
         <button
           type="button"
           onClick={() => setActiveTab("PAST")}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold transition-all shrink-0 whitespace-nowrap ${
             activeTab === "PAST"
               ? "bg-primary text-white shadow-xs"
               : "border border-border bg-white text-muted-foreground hover:bg-secondary hover:text-foreground"

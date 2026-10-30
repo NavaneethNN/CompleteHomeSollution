@@ -123,8 +123,8 @@ export default async function RafflesPage({ searchParams }: RafflesPageProps) {
       {/* ── Main Content & Navigation ── */}
       <main className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 max-w-6xl">
         {/* Navigation Tabs Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pb-6 border-b border-border">
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-6 border-b border-border">
+          <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden pb-1 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
             {[
               { id: "ALL", label: "All Raffles" },
               { id: "ACTIVE", label: "Live & Active" },
@@ -136,7 +136,7 @@ export default async function RafflesPage({ searchParams }: RafflesPageProps) {
                 <Link
                   key={t.id}
                   href={`/raffles?tab=${t.id}`}
-                  className={`px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors ${
+                  className={`px-4 sm:px-5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors shrink-0 whitespace-nowrap ${
                     isSelected
                       ? "bg-primary text-white shadow-xs"
                       : "bg-white border border-border text-foreground hover:bg-secondary"
@@ -150,10 +150,10 @@ export default async function RafflesPage({ searchParams }: RafflesPageProps) {
 
           <Link
             href="/account/raffles"
-            className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-5 py-2 text-xs sm:text-sm font-semibold text-foreground hover:border-primary hover:text-primary transition-colors shadow-xs ml-auto"
+            className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-white px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold text-foreground hover:border-primary hover:text-primary transition-colors shadow-xs shrink-0 self-start sm:self-auto"
           >
             <Ticket className="h-4 w-4 text-primary" />
-            <span>My Tickets & Wins</span>
+            <span>My Tickets &amp; Wins</span>
           </Link>
         </div>
 

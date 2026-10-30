@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   Sparkles,
   Users,
   Truck,
@@ -82,7 +83,26 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
         </div>
       </div>
 
-      <div className="container mx-auto px-4 sm:px-6 max-w-6xl mt-6 sm:mt-8">
+      <div className="container mx-auto px-4 sm:px-6 max-w-6xl mt-4 sm:mt-6">
+        {/* Navigation back pill on mobile/desktop */}
+        <div className="mb-3.5 flex items-center justify-between">
+          <Link
+            href="/raffles"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors py-1.5 px-3.5 rounded-full bg-secondary/70 hover:bg-secondary border border-border/70"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+            <span>Back to All Raffles</span>
+          </Link>
+
+          <Link
+            href="/account/raffles"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+          >
+            <Ticket className="h-3.5 w-3.5" />
+            <span>My Tickets &amp; Wins</span>
+          </Link>
+        </div>
+
         {/* ── Top Hero Card (Light Warm Site Theme) ── */}
         <div className="rounded-2xl overflow-hidden border border-border/80 bg-white shadow-xs">
           {/* Banner Image Container */}
@@ -96,31 +116,31 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
 
-            {/* Badges Overlay */}
-            <div className="absolute top-4 left-4 sm:top-5 sm:left-5 flex flex-wrap gap-2 items-center z-10">
+            {/* Badges Overlay (Fully Responsive Wrap) */}
+            <div className="absolute top-3 left-3 sm:top-5 sm:left-5 right-3 sm:right-5 flex flex-wrap gap-1.5 sm:gap-2 items-center z-10 pointer-events-none">
               {isFree ? (
-                <span className="inline-flex items-center gap-1.5 bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-xs">
-                  <Gift className="h-3.5 w-3.5" />
-                  100% Free Giveaway
+                <span className="inline-flex items-center gap-1.5 bg-emerald-700 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-xs whitespace-nowrap pointer-events-auto">
+                  <Gift className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span>100% Free Giveaway</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-xs">
+                <span className="inline-flex items-center gap-1.5 bg-slate-900 text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-xs whitespace-nowrap pointer-events-auto">
                   <Ticket className="h-3.5 w-3.5" />
-                  ${raffle.entryPrice} Entry
+                  <span>${raffle.entryPrice} Entry</span>
                 </span>
               )}
 
               {isMembersOnly && (
-                <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold px-3 py-1.5 rounded-full shadow-xs">
-                  <Crown className="h-3.5 w-3.5 fill-amber-900" />
-                  VIP Members Only
+                <span className="inline-flex items-center gap-1.5 bg-amber-100 text-amber-900 border border-amber-300 text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-xs whitespace-nowrap pointer-events-auto">
+                  <Crown className="h-3 w-3 sm:h-3.5 sm:w-3.5 fill-amber-900" />
+                  <span>VIP Members Only</span>
                 </span>
               )}
 
               {raffle.isFeatured && (
-                <span className="inline-flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-xs">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Featured Draw
+                <span className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-xs whitespace-nowrap pointer-events-auto">
+                  <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span>Featured Draw</span>
                 </span>
               )}
             </div>
