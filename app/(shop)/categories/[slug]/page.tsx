@@ -7,7 +7,7 @@ import { hasActiveMembership } from "@/lib/membership";
 import { CategoryProductsClient } from "@/components/shop/category-products-client";
 import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 interface CategoryPageProps {
   readonly params: Promise<{ slug: string }>;

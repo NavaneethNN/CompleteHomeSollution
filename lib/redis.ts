@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import { Redis } from "@upstash/redis";
 
 function isTestEnvironment(): boolean {
@@ -109,6 +110,43 @@ export const redis = new Proxy({} as Redis, {
 
 /* ─── Cache Keys & TTLs ────────────────────────────────────────────── */
 
+/**
+ * Returns a unique prefix for this deployment and database so that
+ * different environments (production, staging, test, local development)
+ * or different Neon database branches NEVER collide or cross-contaminate.
+ */
+export function getCachePrefix(): string {
+  if (process.env.REDIS_CACHE_PREFIX) {
+    const custom = process.env.REDIS_CACHE_PREFIX.trim().replace(/:+$/, "");
+    return `${custom}:`;
+  }
+
+  const env = process.env.NODE_ENV === "production" ? "prod" : "dev";
+  const disk = readEnvFromDisk();
+  const dbUrl = process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED || disk.DATABASE_URL || disk.DATABASE_URL_UNPOOLED || "";
+  let dbSlug = "default";
+
+  if (dbUrl) {
+    try {
+      const parsed = new URL(dbUrl);
+      const hostAndDb = `${parsed.hostname}${parsed.pathname}`;
+      dbSlug = crypto.createHash("md5").update(hostAndDb).digest("hex").slice(0, 8);
+    } catch {
+      dbSlug = crypto.createHash("md5").update(dbUrl).digest("hex").slice(0, 8);
+    }
+  }
+
+  return `chs:${env}:${dbSlug}:`;
+}
+
+/**
+ * Prepend the environment and database-specific namespace to a cache key.
+ */
+export function qualifyCacheKey(key: string): string {
+  const prefix = getCachePrefix();
+  return key.startsWith(prefix) ? key : `${prefix}${key}`;
+}
+
 export const CACHE_KEYS = {
   cart: (userId: string) => `cart:${userId}`,
   session: (sessionId: string) => `session:${sessionId}`,
@@ -164,8 +202,10 @@ function cleanL1Cache() {
 export async function cacheGet<T>(key: string): Promise<T | null> {
   if (isTestEnvironment()) return null;
 
+  const qualifiedKey = qualifyCacheKey(key);
+
   // 1. Check L1 memory cache (0ms lookup)
-  const l1 = l1Cache.get(key);
+  const l1 = l1Cache.get(qualifiedKey);
   if (l1 && l1.expiresAt > Date.now()) {
     return l1.data as T;
   }
@@ -176,7 +216,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 
   try {
     const raw = await Promise.race([
-      client.get<T>(key),
+      client.get<T>(qualifiedKey),
       new Promise<null>((_, reject) =>
         setTimeout(() => reject(new Error("Redis get timeout")), 1500)
       ),
@@ -184,11 +224,11 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 
     if (raw !== null && raw !== undefined) {
       // Store in L1 for 30 seconds
-      l1Cache.set(key, { data: raw, expiresAt: Date.now() + 30_000 });
+      l1Cache.set(qualifiedKey, { data: raw, expiresAt: Date.now() + 30_000 });
       return raw;
     }
   } catch (err) {
-    console.warn(`[Redis] cacheGet error for key "${key}":`, (err as any)?.message || err);
+    console.warn(`[Redis] cacheGet error for key "${qualifiedKey}":`, (err as any)?.message || err);
   }
 
   return null;
@@ -200,9 +240,11 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
 export async function cacheSet<T>(key: string, data: T, ttlSeconds: number): Promise<void> {
   if (isTestEnvironment()) return;
 
+  const qualifiedKey = qualifyCacheKey(key);
+
   // Store in L1 memory (up to 60s or ttlSeconds)
   const l1Ttl = Math.min(ttlSeconds, 60);
-  l1Cache.set(key, { data, expiresAt: Date.now() + l1Ttl * 1000 });
+  l1Cache.set(qualifiedKey, { data, expiresAt: Date.now() + l1Ttl * 1000 });
   if (l1Cache.size > MAX_L1_ENTRIES) cleanL1Cache();
 
   // Store in Upstash Redis
@@ -211,13 +253,13 @@ export async function cacheSet<T>(key: string, data: T, ttlSeconds: number): Pro
 
   try {
     await Promise.race([
-      client.set(key, data, { ex: ttlSeconds }),
+      client.set(qualifiedKey, data, { ex: ttlSeconds }),
       new Promise<void>((_, reject) =>
         setTimeout(() => reject(new Error("Redis set timeout")), 1500)
       ),
     ]);
   } catch (err) {
-    console.warn(`[Redis] cacheSet error for key "${key}":`, (err as any)?.message || err);
+    console.warn(`[Redis] cacheSet error for key "${qualifiedKey}":`, (err as any)?.message || err);
   }
 }
 
@@ -225,7 +267,9 @@ export async function cacheSet<T>(key: string, data: T, ttlSeconds: number): Pro
  * Invalidate a key or list of keys across L1 and L2 caches.
  */
 export async function cacheDel(keys: string | string[]): Promise<void> {
-  const keyList = Array.isArray(keys) ? keys : [keys];
+  const rawList = Array.isArray(keys) ? keys : [keys];
+  const keyList = rawList.map(qualifyCacheKey);
+
   for (const k of keyList) {
     l1Cache.delete(k);
   }

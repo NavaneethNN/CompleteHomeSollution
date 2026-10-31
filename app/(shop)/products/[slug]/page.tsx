@@ -16,7 +16,7 @@ import { ProductAssurance } from "@/components/shop/product-assurance";
 import { Star, Check, PhoneCall, Sparkles } from "lucide-react";
 import { STORE_PHONE, STORE_PHONE_DISPLAY } from "@/lib/store-info";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 async function getProduct(slug: string) {
   // Security: validate slug format to prevent injection

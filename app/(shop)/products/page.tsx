@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "Browse our premium furniture collection. Sofas, beds, dining sets, office furniture and more.",
 };
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 async function getProducts() {
   try {

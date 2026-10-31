@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Home — Complete Home Sollution" };
+export const dynamic = "force-dynamic";
 
 const FEATURES = [
   { icon: Award,       title: "Considered design", sub: "Pieces for real homes" },
