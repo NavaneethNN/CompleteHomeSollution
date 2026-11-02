@@ -224,9 +224,9 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column - Order Items */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Left Column - Order Items, Packaging & Destination */}
+        <div className="space-y-6">
           {/* Order Items */}
           <Card>
             <CardHeader className="pb-4">
@@ -340,6 +340,157 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             </CardContent>
           </Card>
 
+          {/* Packaging Box Configuration & Allocation — only relevant for standard courier delivery of active orders */}
+          {order.fulfillmentType !== "STORE_PICKUP" &&
+            order.fulfillmentType !== "MANUAL_DELIVERY" &&
+            order.items.length > 0 &&
+            order.status !== "CANCELLED" &&
+            order.status !== "REFUNDED" && (
+            <OrderPackagingPanel
+              orderId={order.id}
+              initialPackagePresetId={order.packagePresetId}
+              initialPackageName={order.packageName}
+              initialPackedLength={order.packedLength}
+              initialPackedWidth={order.packedWidth}
+              initialPackedHeight={order.packedHeight}
+              initialPackedWeight={order.packedWeight}
+              initialPackageOverride={order.packageOverride}
+              calculatedProductWeight={netProductWeight}
+              availablePresets={packagingPresets}
+            />
+          )}
+
+          {/* Customer Info */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Customer
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
+                  <User className="h-6 w-6 text-slate-500" />
+                </div>
+                <div>
+                  <p className="font-medium text-slate-900">{order.user?.name || order.address?.name || "Guest Customer"}</p>
+                  <p className="text-sm text-slate-500">{order.user?.email || order.guestEmail || "No email provided"}</p>
+                  {!order.user && (
+                    <span className="inline-block mt-1 text-[10px] font-semibold uppercase bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                      Guest Checkout
+                    </span>
+                  )}
+                </div>
+              </div>
+              
+              {(order.user?.phone || order.guestPhone || order.address?.phone) && (
+                <div>
+                  <p className="text-sm text-slate-500">Phone</p>
+                  <p className="text-slate-900">{order.user?.phone || order.guestPhone || order.address?.phone}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Shipping / Pickup Location */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base flex items-center gap-2">
+                {order.fulfillmentType === "STORE_PICKUP" ? (
+                  <>
+                    <Store className="h-4 w-4 text-amber-600" />
+                    Pickup Location
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="h-4 w-4" />
+                    Shipping Address
+                  </>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {order.fulfillmentType === "STORE_PICKUP" ? (
+                <div className="space-y-3 text-sm">
+                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <p className="font-semibold text-amber-950">Complete Home Sollution Showroom</p>
+                    <p className="text-amber-800 text-xs mt-0.5">18 Edison Drive, Golden Grove SA 5125</p>
+                    <p className="text-amber-700 text-xs mt-1">Phone: +61 401 682 910</p>
+                  </div>
+                  {order.address && (
+                    <div className="pt-2 text-xs text-slate-500 border-t border-slate-100">
+                      <p className="font-medium text-slate-700">Customer Address:</p>
+                      <p>{order.address.name}, {order.address.line1}, {order.address.suburb} {order.address.state} {order.address.postcode}</p>
+                    </div>
+                  )}
+                </div>
+              ) : order.address ? (
+                <div className="space-y-1 text-sm">
+                  <p className="font-medium text-slate-900">{order.address.name}</p>
+                  <p className="text-slate-600">{order.address.line1}</p>
+                  {order.address.line2 && <p className="text-slate-600">{order.address.line2}</p>}
+                  <p className="text-slate-600">
+                    {order.address.suburb}, {order.address.state} {order.address.postcode}
+                  </p>
+                  <p className="text-slate-600">{order.address.country}</p>
+                  {order.address.phone && (
+                    <p className="text-slate-600 mt-2 flex items-center gap-1.5">
+                      <Phone className="h-3.5 w-3.5 shrink-0" />
+                      {order.address.phone}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-slate-500 text-sm">No address information available</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Store Pickup Appointment Panel */}
+          {order.fulfillmentType === "STORE_PICKUP" && (
+            <OrderPickupAppointmentPanel
+              orderId={order.id}
+              customerName={order.user?.name || order.address?.name || "Customer"}
+              customerPhone={order.user?.phone || order.guestPhone || order.address?.phone || null}
+              customerEmail={order.user?.email || order.guestEmail || null}
+              initialAppointmentDate={order.pickupAppointmentDate}
+              initialAppointmentTime={order.pickupAppointmentTime}
+              initialPickupStatus={order.pickupStatus}
+              initialPickupNotes={order.pickupNotes}
+            />
+          )}
+
+          {/* Manual Delivery Information Panel */}
+          {order.fulfillmentType === "MANUAL_DELIVERY" && (
+            <Card className="border-blue-200 bg-blue-50/40">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-blue-900">
+                  <Truck className="h-5 w-5 text-blue-600" />
+                  Store Manual Delivery (Large Items)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-slate-700">
+                <p>
+                  This order contains large/bulky items not serviced by standard parcel couriers. Delivery is dispatched directly by Complete Home Sollution to postcode <strong>{order.address?.postcode}</strong> ({order.address?.suburb}).
+                </p>
+                <div className="bg-white p-3 rounded-lg border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs text-slate-500 block">Delivery Charge Collected</span>
+                    <span className="font-semibold text-slate-900">{currencyFormatter.format(order.shippingCost)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 block">Customer Contact</span>
+                    <span className="font-medium text-slate-900">{order.user?.phone || order.guestPhone || order.address?.phone || "No phone provided"}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Right Column - Payment, Order Actions & Timeline */}
+        <div className="space-y-6">
           {/* Payment Information */}
           <Card className={!isPaymentVerified && order.status !== "CANCELLED" ? "border-red-300 ring-2 ring-red-100" : ""}>
             <CardHeader className="pb-4">
@@ -428,157 +579,6 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               </div>
             </CardContent>
           </Card>
-
-          {/* Store Pickup Appointment Panel */}
-          {order.fulfillmentType === "STORE_PICKUP" && (
-            <OrderPickupAppointmentPanel
-              orderId={order.id}
-              customerName={order.user?.name || order.address?.name || "Customer"}
-              customerPhone={order.user?.phone || order.guestPhone || order.address?.phone || null}
-              customerEmail={order.user?.email || order.guestEmail || null}
-              initialAppointmentDate={order.pickupAppointmentDate}
-              initialAppointmentTime={order.pickupAppointmentTime}
-              initialPickupStatus={order.pickupStatus}
-              initialPickupNotes={order.pickupNotes}
-            />
-          )}
-
-          {/* Manual Delivery Information Panel */}
-          {order.fulfillmentType === "MANUAL_DELIVERY" && (
-            <Card className="border-blue-200 bg-blue-50/40">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2 text-blue-900">
-                  <Truck className="h-5 w-5 text-blue-600" />
-                  Store Manual Delivery (Large Items)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-slate-700">
-                <p>
-                  This order contains large/bulky items not serviced by standard parcel couriers. Delivery is dispatched directly by Complete Home Sollution to postcode <strong>{order.address?.postcode}</strong> ({order.address?.suburb}).
-                </p>
-                <div className="bg-white p-3 rounded-lg border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <span className="text-xs text-slate-500 block">Delivery Charge Collected</span>
-                    <span className="font-semibold text-slate-900">{currencyFormatter.format(order.shippingCost)}</span>
-                  </div>
-                  <div>
-                    <span className="text-xs text-slate-500 block">Customer Contact</span>
-                    <span className="font-medium text-slate-900">{order.user?.phone || order.guestPhone || order.address?.phone || "No phone provided"}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-
-        {/* Right Column - Customer & Shipping */}
-        <div className="space-y-6">
-          {/* Customer Info */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Customer
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center">
-                  <User className="h-6 w-6 text-slate-500" />
-                </div>
-                <div>
-                  <p className="font-medium text-slate-900">{order.user?.name || order.address?.name || "Guest Customer"}</p>
-                  <p className="text-sm text-slate-500">{order.user?.email || order.guestEmail || "No email provided"}</p>
-                  {!order.user && (
-                    <span className="inline-block mt-1 text-[10px] font-semibold uppercase bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-                      Guest Checkout
-                    </span>
-                  )}
-                </div>
-              </div>
-              
-              {(order.user?.phone || order.guestPhone || order.address?.phone) && (
-                <div>
-                  <p className="text-sm text-slate-500">Phone</p>
-                  <p className="text-slate-900">{order.user?.phone || order.guestPhone || order.address?.phone}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Shipping / Pickup Location */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                {order.fulfillmentType === "STORE_PICKUP" ? (
-                  <>
-                    <Store className="h-4 w-4 text-amber-600" />
-                    Pickup Location
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="h-4 w-4" />
-                    Shipping Address
-                  </>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {order.fulfillmentType === "STORE_PICKUP" ? (
-                <div className="space-y-3 text-sm">
-                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                    <p className="font-semibold text-amber-950">Complete Home Sollution Showroom</p>
-                    <p className="text-amber-800 text-xs mt-0.5">18 Edison Drive, Golden Grove SA 5125</p>
-                    <p className="text-amber-700 text-xs mt-1">Phone: +61 401 682 910</p>
-                  </div>
-                  {order.address && (
-                    <div className="pt-2 text-xs text-slate-500 border-t border-slate-100">
-                      <p className="font-medium text-slate-700">Customer Address:</p>
-                      <p>{order.address.name}, {order.address.line1}, {order.address.suburb} {order.address.state} {order.address.postcode}</p>
-                    </div>
-                  )}
-                </div>
-              ) : order.address ? (
-                <div className="space-y-1 text-sm">
-                  <p className="font-medium text-slate-900">{order.address.name}</p>
-                  <p className="text-slate-600">{order.address.line1}</p>
-                  {order.address.line2 && <p className="text-slate-600">{order.address.line2}</p>}
-                  <p className="text-slate-600">
-                    {order.address.suburb}, {order.address.state} {order.address.postcode}
-                  </p>
-                  <p className="text-slate-600">{order.address.country}</p>
-                  {order.address.phone && (
-                    <p className="text-slate-600 mt-2 flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 shrink-0" />
-                      {order.address.phone}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-slate-500 text-sm">No address information available</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Packaging Box Configuration & Allocation — only relevant for standard courier delivery of active orders */}
-          {order.fulfillmentType !== "STORE_PICKUP" &&
-            order.fulfillmentType !== "MANUAL_DELIVERY" &&
-            order.items.length > 0 &&
-            order.status !== "CANCELLED" &&
-            order.status !== "REFUNDED" && (
-            <OrderPackagingPanel
-              orderId={order.id}
-              initialPackagePresetId={order.packagePresetId}
-              initialPackageName={order.packageName}
-              initialPackedLength={order.packedLength}
-              initialPackedWidth={order.packedWidth}
-              initialPackedHeight={order.packedHeight}
-              initialPackedWeight={order.packedWeight}
-              initialPackageOverride={order.packageOverride}
-              calculatedProductWeight={netProductWeight}
-              availablePresets={packagingPresets}
-            />
-          )}
 
           {/* Order Status Update */}
           <OrderStatusUpdate
