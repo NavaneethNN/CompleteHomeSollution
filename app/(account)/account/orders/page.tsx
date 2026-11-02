@@ -3,10 +3,10 @@ import { orderContentsLabel, getEffectiveOrderStatus } from "@/lib/order-display
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 import { getOrders } from "@/lib/actions/orders";
 import { AccountSidebar } from "@/components/account/account-sidebar";
 import { BuyAgainButton } from "@/components/shop/buy-again-button";
+import { GuestOrdersView } from "@/components/account/guest-orders-view";
 import {
   Package,
   ChevronRight,
@@ -25,8 +25,33 @@ export const metadata: Metadata = { title: "My Orders — Complete Home Sollutio
 
 export default async function OrdersPage() {
   const session = await auth();
+
+  // If unauthenticated, display session guest orders and order retrieval tools
   if (!session?.user) {
-    redirect("/login");
+    return (
+      <div className="min-h-screen bg-secondary/30">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 lg:py-12">
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 mb-6">
+            <Link href="/" className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 text-sm">
+              <Home className="h-3.5 w-3.5" />
+              <span>Home</span>
+            </Link>
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-foreground font-semibold text-sm">Order History</span>
+          </div>
+
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-foreground">Order History</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Track orders placed in this browser session, or sign in with your email or Google account to view your permanent history.
+            </p>
+          </div>
+
+          <GuestOrdersView />
+        </div>
+      </div>
+    );
   }
 
   const { orders, error } = await getOrders();

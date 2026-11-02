@@ -569,6 +569,15 @@ export function Navbar() {
                       <p className="text-center text-[11px] text-muted-foreground pt-0.5">
                         Members save 5% (up to $30) on every order
                       </p>
+                      <div className="pt-2 border-t border-border">
+                        <Link
+                          href="/account/orders"
+                          onClick={() => setUserOpen(false)}
+                          className="flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors py-1"
+                        >
+                          <Package className="h-3.5 w-3.5" /> Track Guest Orders
+                        </Link>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -773,6 +782,13 @@ export function Navbar() {
                 className="flex items-center justify-center gap-2 w-full border-2 border-foreground text-foreground hover:bg-foreground hover:text-white text-sm font-bold py-3 rounded-xl transition-colors"
               >
                 <UserPlus className="h-4 w-4" /> Create Account
+              </Link>
+              <Link
+                href="/account/orders"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-center gap-2 w-full py-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Package className="h-4 w-4" /> Track Guest Orders
               </Link>
             </div>
           )}

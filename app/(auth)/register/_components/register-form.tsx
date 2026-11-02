@@ -22,6 +22,7 @@ import {
   Crown,
   Loader2,
   AlertCircle,
+  Sparkles,
 } from "lucide-react";
 import { registerUser } from "../actions";
 import { cn } from "@/lib/utils";
@@ -126,6 +127,7 @@ export default function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
+  const emailParam = searchParams.get("email") || "";
   
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -138,11 +140,18 @@ export default function RegisterForm() {
     handleSubmit,
     watch,
     setError,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { terms: false },
+    defaultValues: { email: emailParam, terms: false },
   });
+
+  useEffect(() => {
+    if (emailParam) {
+      setValue("email", emailParam);
+    }
+  }, [emailParam, setValue]);
 
   const password = watch("password", "");
   const strength = getPasswordStrength(password);
@@ -356,6 +365,16 @@ export default function RegisterForm() {
               </Link>
             </p>
           </div>
+
+          {/* ── Guest Orders Link Notice ────────────────────────── */}
+          {emailParam && (
+            <div className="mb-5 flex items-start gap-2.5 px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-foreground">
+              <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <span>
+                Registering with <strong className="font-semibold text-primary">{emailParam}</strong> or Google will automatically link recent orders placed with this email to your account.
+              </span>
+            </div>
+          )}
 
           {/* ── Google OAuth button ──────────────────────────────── */}
           <button

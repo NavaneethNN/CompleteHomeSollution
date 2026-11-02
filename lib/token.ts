@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { claimGuestOrdersForUser } from "@/lib/guest-orders";
 
 const TOKEN_EXPIRY_HOURS = 24;
 const VERIFY_PREFIX = "verify:";
@@ -38,6 +39,7 @@ export async function consumeVerificationToken(
     const user = await tx.user.findUnique({ where: { email } });
     if (!user) return { error: "This verification link is no longer valid." };
     if (!user.emailVerified) await tx.user.update({ where: { id: user.id }, data: { emailVerified: new Date() } });
+    await claimGuestOrdersForUser(user.id, email).catch(() => null);
     return { email };
   });
 }

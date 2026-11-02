@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { saveGuestOrderToSession } from "@/lib/guest-session";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import {
@@ -744,11 +745,25 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         if (data.status === "success") {
           clearCart();
         }
+        if (!isAuthenticated && data.guestToken) {
+          saveGuestOrderToSession({
+            orderId: data.orderId,
+            guestToken: data.guestToken,
+            email: guestEmail.trim().toLowerCase(),
+          });
+        }
         const confirmUrl = isAuthenticated
           ? `/order-confirmation/${data.orderId}`
           : `/order-confirmation/${data.orderId}?token=${encodeURIComponent(data.guestToken ?? "")}`;
         router.push(confirmUrl);
       } else if (data.status === "redirect" && data.checkoutUrl) {
+        if (!isAuthenticated && data.guestToken) {
+          saveGuestOrderToSession({
+            orderId: data.orderId,
+            guestToken: data.guestToken,
+            email: guestEmail.trim().toLowerCase(),
+          });
+        }
         window.location.assign(data.checkoutUrl);
       } else {
         toast({ title: "Error", description: "Unexpected response. Please contact support.", variant: "destructive" });

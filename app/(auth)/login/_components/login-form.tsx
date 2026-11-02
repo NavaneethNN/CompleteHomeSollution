@@ -92,6 +92,7 @@ function LoginFormInner() {
   const searchParams = useSearchParams();
 
   const errorParam = searchParams.get("error");
+  const emailParam = searchParams.get("email") || "";
   const registered = searchParams.get("registered") === "true";
   const verified = searchParams.get("verified") === "true";
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
@@ -132,8 +133,18 @@ function LoginFormInner() {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<LoginFormData>({ resolver: zodResolver(loginSchema) });
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: emailParam },
+  });
+
+  useEffect(() => {
+    if (emailParam) {
+      setValue("email", emailParam);
+    }
+  }, [emailParam, setValue]);
 
   /* ── Google OAuth ─────────────────────────────────────────────────── */
   const handleGoogle = useCallback(async () => {
@@ -327,6 +338,16 @@ function LoginFormInner() {
               <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
               <span>
                 Email verified! Your account is active — sign in below.
+              </span>
+            </div>
+          )}
+
+          {/* ── Guest Orders Link Notice ────────────────────────── */}
+          {emailParam && (
+            <div className="mb-5 flex items-start gap-2.5 px-4 py-3 bg-primary/5 border border-primary/20 rounded-xl text-xs text-foreground">
+              <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <span>
+                Signing in with <strong className="font-semibold text-primary">{emailParam}</strong> or Google will automatically link recent orders placed with this email to your account.
               </span>
             </div>
           )}

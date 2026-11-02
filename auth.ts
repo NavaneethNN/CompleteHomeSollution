@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword, passwordNeedsRehash, verifyPassword } from "@/lib/password";
 import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
+import { claimGuestOrdersForUser } from "@/lib/guest-orders";
 
 class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
@@ -139,6 +140,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Silently ignore email verification update failures
         }
       }
+
+      // Automatically claim and link previous guest orders for both Google and Credentials sign-in
+      if (user?.email) {
+        try {
+          let targetUserId = user.id;
+          if (!targetUserId) {
+            const dbUser = await db.user.findUnique({
+              where: { email: user.email.toLowerCase().trim() },
+              select: { id: true },
+            });
+            targetUserId = dbUser?.id;
+          }
+          if (targetUserId) {
+            await claimGuestOrdersForUser(targetUserId, user.email);
+          }
+        } catch (err) {
+          console.error("[signIn] Error auto-claiming guest orders:", err);
+        }
+      }
+
       return true;
     },
     async jwt({ token, user, account, trigger }) {
@@ -159,6 +180,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token["role"] = (dbUser.role as UserRole) ?? "CUSTOMER";
             token["isMember"] = !!dbUser.isMember &&
               (!dbUser.membershipExpiry || dbUser.membershipExpiry > new Date());
+            claimGuestOrdersForUser(dbUser.id, token.email as string).catch(() => null);
           }
         } catch (err) {
           console.error("[jwt callback] db lookup failed:", err);

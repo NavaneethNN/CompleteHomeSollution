@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { verifyGuestOrderToken, verifyOrderReturnToken } from "@/lib/order-access";
 import { ClearCartOnSuccess } from "@/components/shop/clear-cart-on-success";
+import { SaveGuestSessionOrder } from "@/components/shop/save-guest-session-order";
 import { PollPendingPayment } from "@/components/shop/poll-pending-payment";
 import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
 
@@ -99,6 +100,15 @@ export default async function OrderConfirmationPage({
       {/* REL-3 fix: Only clear the cart when the order is confirmed paid.
           For pending orders the cart must stay intact until payment settles. */}
       {paid && <ClearCartOnSuccess orderId={orderId} purchasedItems={order.items.map(({ productId, productVariantId, quantity }) => ({ productId, productVariantId, quantity }))} />}
+
+      {/* Save guest order to browser session for instant retrieval in this tab */}
+      {!order.userId && token && (
+        <SaveGuestSessionOrder
+          orderId={orderId}
+          guestToken={token}
+          email={order.guestEmail}
+        />
+      )}
 
       {/* REL-4: Poll for payment confirmation if order is still PENDING */}
       {order.status === "PENDING" && (
@@ -353,6 +363,34 @@ export default async function OrderConfirmationPage({
               </p>
             </div>
           </div>
+
+          {/* Guest Account Linking Guide */}
+          {!order.userId && order.guestEmail && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Save this order to your account</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Sign in or register with <strong className="text-foreground">{order.guestEmail}</strong> to link this order permanently.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link
+                    href={`/login?email=${encodeURIComponent(order.guestEmail)}&callbackUrl=/account/orders`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-primary/90 transition-colors"
+                  >
+                    Sign In to Link
+                  </Link>
+                  <Link
+                    href={`/register?email=${encodeURIComponent(order.guestEmail)}&callbackUrl=/account/orders`}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
+                  >
+                    Create Account
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -364,7 +402,7 @@ export default async function OrderConfirmationPage({
             Continue Shopping <ArrowRight className="h-4 w-4" />
           </Link>
           <Link
-            href="/account/orders"
+            href={!order.userId && token ? `/account/orders/${order.id}?token=${encodeURIComponent(token)}` : "/account/orders"}
             className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
           >
             View My Orders

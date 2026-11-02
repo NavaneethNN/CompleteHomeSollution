@@ -5,6 +5,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
 import { getOrderById } from "@/lib/actions/orders";
+import type { OrderWithItems } from "@/lib/actions/orders";
+import { getGuestSessionOrders } from "@/lib/guest-orders";
 import { getTrackingUrl } from "@/lib/tracking-url";
 import {
   Package,
@@ -26,6 +28,7 @@ import {
   Navigation,
   FileText,
   AlertCircle,
+  LogIn,
 } from "lucide-react";
 import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
 import { CancelOrderButton } from "@/components/shop/cancel-order-button";
@@ -37,15 +40,35 @@ export const dynamic = "force-dynamic";
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ token?: string }>;
 }
 
-export default async function OrderDetailPage({ params }: OrderDetailPageProps) {
+export default async function OrderDetailPage({ params, searchParams }: OrderDetailPageProps) {
   const session = await auth();
-  if (!session?.user) redirect("/login");
-
   const { id } = await params;
-  const { order, error } = await getOrderById(id);
-  if (error || !order) notFound();
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const token = resolvedSearchParams.token;
+
+  let order: OrderWithItems | null = null;
+  let isGuest = false;
+
+  if (session?.user) {
+    const res = await getOrderById(id);
+    order = res.order;
+  } else if (token) {
+    const res = await getGuestSessionOrders([{ orderId: id, guestToken: token }]);
+    if (res.orders.length > 0) {
+      order = res.orders[0];
+      isGuest = true;
+    }
+  }
+
+  if (!order) {
+    if (!session?.user) {
+      redirect(`/login?callbackUrl=${encodeURIComponent(`/account/orders/${id}`)}`);
+    }
+    notFound();
+  }
 
   const membershipOnly = order.membershipAmount > 0 && order.items.length === 0;
   const orderDate = new Date(order.createdAt);
@@ -79,12 +102,51 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
           <Link href="/" className="hover:text-primary transition-colors">Home</Link>
           <ChevronRight className="h-3.5 w-3.5" />
-          <Link href="/account/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
-          <ChevronRight className="h-3.5 w-3.5" />
+          {!isGuest && (
+            <>
+              <Link href="/account/dashboard" className="hover:text-primary transition-colors">Dashboard</Link>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </>
+          )}
           <Link href="/account/orders" className="hover:text-primary transition-colors">My Orders</Link>
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="text-foreground font-medium">{order.membershipAmount > 0 && order.items.length === 0 ? "Membership" : "Order"} #{order.id.slice(-8).toUpperCase()}</span>
         </div>
+
+        {/* Guest Order Banner */}
+        {isGuest && order.guestEmail && (
+          <div className="bg-white rounded-2xl border border-primary/20 p-5 mb-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
+                    Guest Order
+                  </span>
+                  <p className="text-sm font-semibold text-foreground">
+                    Placed with {order.guestEmail}
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sign in or create an account with this email to permanently link this order to your account.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Link
+                  href={`/login?email=${encodeURIComponent(order.guestEmail)}&callbackUrl=${encodeURIComponent(`/account/orders/${order.id}`)}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+                >
+                  <LogIn className="h-3.5 w-3.5" /> Sign In &amp; Link
+                </Link>
+                <Link
+                  href={`/register?email=${encodeURIComponent(order.guestEmail)}&callbackUrl=${encodeURIComponent(`/account/orders/${order.id}`)}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-white text-xs font-semibold hover:bg-secondary transition-colors"
+                >
+                  Create Account
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">

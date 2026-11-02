@@ -3,6 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { OrderStatus } from "@prisma/client";
+import { claimGuestOrdersForUser } from "@/lib/guest-orders";
 
 export interface OrderWithItems {
   id: string;
@@ -115,6 +116,11 @@ export async function getOrders(
     return { orders: [], total: 0, error: "Unauthorized" };
   }
 
+  // Auto-claim any guest orders matching customer's email
+  if (session.user.email) {
+    await claimGuestOrdersForUser(session.user.id, session.user.email).catch(() => null);
+  }
+
   try {
     const where = { userId: session.user.id };
     const skip = (Math.max(1, page) - 1) * pageSize;
@@ -145,6 +151,11 @@ export async function getOrderById(
     return { order: null, error: "Unauthorized" };
   }
 
+  // Auto-claim any guest orders matching customer's email
+  if (session.user.email) {
+    await claimGuestOrdersForUser(session.user.id, session.user.email).catch(() => null);
+  }
+
   try {
     const isAdmin = session.user.role === "ADMIN";
     const where = isAdmin
@@ -173,6 +184,11 @@ export async function getOrderStats(): Promise<{
   const session = await auth();
   if (!session?.user?.id) {
     return { totalOrders: 0, pendingOrders: 0, recentOrders: [], error: "Unauthorized" };
+  }
+
+  // Auto-claim any guest orders matching customer's email
+  if (session.user.email) {
+    await claimGuestOrdersForUser(session.user.id, session.user.email).catch(() => null);
   }
 
   try {
