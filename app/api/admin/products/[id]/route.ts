@@ -63,6 +63,7 @@ const productVariantSchema = z.object({
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  requiresPackaging: z.boolean().optional().default(true),
 });
 
 const updateProductSchema = z.object({
@@ -80,6 +81,7 @@ const updateProductSchema = z.object({
   roomType: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
   isPreOrder: z.boolean().optional(),
+  isLargeItem: z.boolean().optional(),
   hasVariants: z.boolean().optional(),
   images: z.array(z.string())
     .max(MAX_IMAGES_COUNT, `Maximum ${MAX_IMAGES_COUNT} images allowed`)
@@ -92,6 +94,7 @@ const updateProductSchema = z.object({
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  requiresPackaging: z.boolean().optional(),
   // For products with variants
   variantAttributes: z.array(variantAttributeSchema).optional(),
   productVariants: z.array(productVariantSchema).optional(),
@@ -215,12 +218,14 @@ export async function PUT(
       if (data.roomType !== undefined) updateData.roomType = data.roomType;
       if (data.isActive !== undefined) updateData.isActive = data.isActive;
       if (data.isPreOrder !== undefined) updateData.isPreOrder = data.isPreOrder;
+      if (data.isLargeItem !== undefined) updateData.isLargeItem = data.isLargeItem;
       if (data.hasVariants !== undefined) updateData.hasVariants = data.hasVariants;
       if (data.images !== undefined) updateData.images = data.images;
       if (data.weight !== undefined) updateData.weight = data.weight;
       if (data.length !== undefined) updateData.length = data.length;
       if (data.width !== undefined) updateData.width = data.width;
       if (data.height !== undefined) updateData.height = data.height;
+      if (data.requiresPackaging !== undefined) updateData.requiresPackaging = data.requiresPackaging;
       if (slug !== undefined) updateData.slug = slug;
 
       const updatedProduct = await tx.product.update({
@@ -364,6 +369,7 @@ export async function PUT(
                     length: variant.length,
                     width: variant.width,
                     height: variant.height,
+                    requiresPackaging: variant.requiresPackaging ?? true,
                   },
                 });
 
@@ -411,6 +417,7 @@ export async function PUT(
                     length: variant.length,
                     width: variant.width,
                     height: variant.height,
+                    requiresPackaging: variant.requiresPackaging ?? true,
                   },
                 });
                 currentVariantId = newVariant.id;

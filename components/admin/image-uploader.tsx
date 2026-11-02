@@ -239,8 +239,10 @@ export function ImageUploader({
                 alt="" 
                 className="h-full w-full object-cover"
                 onError={(e) => {
-                  console.error(`[ImageUploader] Failed to load image: ${url}`);
-                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" text-anchor="middle" fill="%23999" font-size="12">Error</text></svg>';
+                  const target = e.target as HTMLImageElement;
+                  target.onerror = null;
+                  console.warn(`[ImageUploader] Failed to load image: ${url}`);
+                  target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23f0f0f0"/><text x="50" y="50" text-anchor="middle" fill="%23999" font-size="12">Unavailable</text></svg>';
                 }}
               />
 

@@ -308,7 +308,7 @@ export default async function ProductDetailPage({
                 <span className="text-xs text-muted-foreground">SKU: {product.sku}</span>
               </div>
 
-              {/* Add to Cart or Call & Customize */}
+              {/* Add to Cart or Call & Customize / Call to Order */}
               {product.isPreOrder ? (
                 <div className="space-y-2">
                   <a
@@ -320,6 +320,19 @@ export default async function ProductDetailPage({
                   </a>
                   <p className="text-center text-[11px] sm:text-xs text-muted-foreground">
                     This product is built to order. Call us directly ({STORE_PHONE_DISPLAY}) to discuss custom sizes, materials, and delivery.
+                  </p>
+                </div>
+              ) : (product.stock ?? 0) <= 0 ? (
+                <div className="space-y-2">
+                  <a
+                    href={`tel:${STORE_PHONE}`}
+                    className="inline-flex w-full items-center justify-center gap-2.5 rounded-xl px-5 py-3.5 text-sm font-bold bg-primary text-white hover:bg-primary/90 shadow-md transition-all duration-200 hover:scale-[1.01]"
+                  >
+                    <PhoneCall className="h-4 w-4" />
+                    Call to Order
+                  </a>
+                  <p className="text-center text-[11px] sm:text-xs text-muted-foreground">
+                    This item is currently out of stock. Call us directly ({STORE_PHONE_DISPLAY}) to check incoming stock, reserve, or place an order over the phone.
                   </p>
                 </div>
               ) : (

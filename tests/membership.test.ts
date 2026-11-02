@@ -2,7 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { db } from "../lib/db";
 import type { Prisma } from "@prisma/client";
-import { activateMembershipInTransaction, hasActiveMembership, refundOrderMembership, enforceExpiry } from "../lib/membership";
+import {
+  activateMembershipInTransaction,
+  hasActiveMembership,
+  refundOrderMembership,
+  enforceExpiry,
+} from "../lib/membership";
 
 test("active membership uses one exact expiry boundary", () => {
   const now = new Date("2026-09-24T00:00:00.000Z");
@@ -14,7 +19,13 @@ test("active membership uses one exact expiry boundary", () => {
 });
 
 function transaction() {
-  const state = { isMember: false, memberSince: null as Date | null, membershipExpiry: null as Date | null };
+  const state = {
+    isMember: false,
+    memberSince: null as Date | null,
+    membershipExpiry: null as Date | null,
+    membershipAutoRenew: false,
+    membershipStatus: null as string | null,
+  };
   const payments: Record<string, unknown>[] = [];
   const operations: string[] = [];
   const tx = {
@@ -22,9 +33,9 @@ function transaction() {
     membershipPlan: { findUnique: async () => ({ id: "plan", durationDays: 999 }), findFirst: async () => null },
     user: {
       findUnique: async () => ({ ...state }),
-      update: async ({ data }: { data: typeof state }) => { operations.push("activate"); Object.assign(state, data); },
-      updateMany: async ({ where, data }: { where: { membershipExpiry: Date }; data: Partial<typeof state> }) => {
-        if (state.membershipExpiry?.getTime() !== where.membershipExpiry.getTime()) return { count: 0 };
+      update: async ({ data }: { data: Partial<typeof state> }) => { operations.push("activate"); Object.assign(state, data); },
+      updateMany: async ({ where, data }: { where: { membershipExpiry?: Date; id?: string }; data: Partial<typeof state> }) => {
+        if (where.membershipExpiry && state.membershipExpiry?.getTime() !== where.membershipExpiry.getTime()) return { count: 0 };
         Object.assign(state, data); return { count: 1 };
       },
     },
@@ -50,6 +61,16 @@ test("activation uses purchased duration and records one entitlement on duplicat
   assert.equal(payments.length, 1);
   assert.equal(state.membershipExpiry!.getTime(), expiry);
   assert.deepEqual(operations, ["lock", "activate", "record", "lock"]);
+});
+
+test("activateMembershipInTransaction enables autopay by default and sets status ACTIVE", async () => {
+  const { tx, state } = transaction();
+  assert.equal(state.membershipAutoRenew, false);
+  const result = await activateMembershipInTransaction(tx, purchase);
+  assert.equal(result.activated, true);
+  assert.equal(state.membershipAutoRenew, true);
+  assert.equal(state.membershipStatus, "ACTIVE");
+  assert.equal(state.isMember, true);
 });
 
 test("renewal extends existing expiry and a full refund restores the previous entitlement", async () => {
@@ -87,7 +108,6 @@ test("zero-cost recorded activations remain idempotent", async () => {
   assert.equal(payments.length, 1);
 });
 
-
 test("refunding an earlier membership removes its time while preserving a subsequent paid renewal", async () => {
   const { tx, state, payments } = transaction();
   await activateMembershipInTransaction(tx, purchase);
@@ -101,6 +121,17 @@ test("refunding an earlier membership removes its time while preserving a subseq
   assert.equal(state.isMember, false);
 });
 
+test("refundOrderMembership disables autopay and marks status REFUNDED when no active membership remains", async () => {
+  const { tx, state } = transaction();
+  await activateMembershipInTransaction(tx, purchase);
+  assert.equal(state.membershipAutoRenew, true);
+  assert.equal(state.isMember, true);
+
+  await refundOrderMembership(tx, "order1");
+  assert.equal(state.isMember, false);
+  assert.equal(state.membershipAutoRenew, false);
+  assert.equal(state.membershipStatus, "REFUNDED");
+});
 
 test("expiry enforcement uses an atomic inclusive boundary and preserves the expiry date", async t => {
   const now = new Date("2026-10-14T00:00:00Z");

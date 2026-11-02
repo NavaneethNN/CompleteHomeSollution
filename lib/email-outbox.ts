@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { sendEmail, sendOrderConfirmationEmail, sendOrderCancellationEmail, sendShippingUpdateEmail, sendRefundRequestEmail } from "@/lib/brevo";
+import { renderStandardEmail, renderCard, escapeHtml } from "@/lib/email-template";
 import { z } from "zod";
 import { sendOrderStatusNotification } from "@/lib/order-status-notifications";
 import { sendShippingUpdateSms } from "@/lib/twilio";
@@ -58,6 +59,11 @@ export async function processDueEmailJobs(options?: { deadlineMs?: number; batch
             orderId: order.id, orderNumber: order.id, customerName: order.user?.name ?? order.address.name ?? "Customer",
             customerEmail: email, newStatus: payload.status, previousStatus: payload.previousStatus,
             trackingNumber: order.trackingNumber ?? undefined, carrier: order.carrier ?? undefined,
+            fulfillmentType: order.fulfillmentType ?? undefined,
+            pickupStatus: order.pickupStatus ?? undefined,
+            pickupAppointmentDate: order.pickupAppointmentDate ?? undefined,
+            pickupAppointmentTime: order.pickupAppointmentTime ?? undefined,
+            pickupNotes: order.pickupNotes ?? undefined,
             items: order.items.map(item => ({ productName: item.product.name, quantity: item.quantity, price: item.unitPrice })),
             total: order.total, shippingAddress: { ...order.address, line2: order.address.line2 ?? undefined }, idempotencyKey: job.id,
           });
@@ -98,10 +104,27 @@ export async function processDueEmailJobs(options?: { deadlineMs?: number; batch
       } else if (["REFUND_ACTION", "PAYMENT_REVIEW", "FULFILLMENT_REVIEW"].includes(job.kind)) {
         if (actionNeeded) {
           const subject = job.kind === "REFUND_ACTION" ? "Refund action required" : job.kind === "PAYMENT_REVIEW" ? "Payment review required" : "Fulfillment review required";
+          const adminUrl = `${siteOrigin()}/admin/orders/${encodeURIComponent(order.id)}`;
+          const bodyHtml = `
+            ${renderCard(`
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;">
+                <tr><td style="padding:4px 0;color:#64748b;width:30%;">Order ID:</td><td style="padding:4px 0;font-weight:700;">#${escapeHtml(order.id.slice(-8).toUpperCase())}</td></tr>
+                <tr><td style="padding:4px 0;color:#64748b;">Status:</td><td style="padding:4px 0;font-weight:600;">${escapeHtml(order.status)}</td></tr>
+                <tr><td style="padding:4px 0;color:#64748b;">Total:</td><td style="padding:4px 0;font-weight:700;">A$${order.total.toFixed(2)}</td></tr>
+              </table>
+            `, { title: "Review Details" })}
+          `;
+          const htmlContent = renderStandardEmail({
+            title: `[Admin] ${subject}`,
+            badge: { text: subject, type: "warning" },
+            bodyHtml,
+            cta: { text: "Review Order in Admin", url: adminUrl },
+            isAdmin: true,
+          });
           await sendEmail({
             to: [{ email: "info@completehomesollution.com.au" }],
             subject: `${subject} for order ${order.id}`,
-            htmlContent: `<p>${subject}.</p><p>Order: ${order.id}</p><p><a href="${siteOrigin()}/admin/orders/${order.id}">Review order</a></p>`,
+            htmlContent,
             headers: { idempotencyKey: job.id },
           });
         }

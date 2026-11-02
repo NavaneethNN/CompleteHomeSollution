@@ -31,6 +31,7 @@ import {
   XCircle,
   RefreshCw,
   Loader2,
+  Store,
 } from "lucide-react";
 
 const ORDER_STATUS_CONFIG: Record<
@@ -48,11 +49,25 @@ const ORDER_STATUS_CONFIG: Record<
   REFUNDED:         { label: "Refunded",         icon: AlertCircle,    variant: "outline" },
 };
 
+const STORE_PICKUP_STATUS_CONFIG: Record<
+  string,
+  { label: string; icon: React.ElementType; variant: "default" | "secondary" | "destructive" | "outline" }
+> = {
+  PENDING:          { label: "Payment Pending",   icon: Clock,          variant: "outline" },
+  PAID:             { label: "Paid & Confirmed",  icon: CheckCircle2,   variant: "secondary" },
+  CONFIRMED:        { label: "Order Confirmed",   icon: CheckCircle2,   variant: "secondary" },
+  PROCESSING:       { label: "Preparing in Store",icon: Package,        variant: "default" },
+  DELIVERED:        { label: "Picked Up & Completed", icon: Store,      variant: "secondary" },
+  CANCELLED:        { label: "Cancelled",         icon: XCircle,        variant: "destructive" },
+  REFUNDED:         { label: "Refunded",          icon: AlertCircle,    variant: "outline" },
+};
+
 interface OrderStatusUpdateProps {
   orderId: string;
   currentStatus: string;
   currentTrackingNumber?: string | null;
   currentCarrier?: string | null;
+  fulfillmentType?: string | null;
 }
 
 export function OrderStatusUpdate({
@@ -60,6 +75,7 @@ export function OrderStatusUpdate({
   currentStatus,
   currentTrackingNumber,
   currentCarrier,
+  fulfillmentType,
 }: OrderStatusUpdateProps) {
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
@@ -67,11 +83,12 @@ export function OrderStatusUpdate({
   const [trackingNumber, setTrackingNumber] = useState(currentTrackingNumber ?? "");
   const [carrier, setCarrier] = useState(currentCarrier ?? "");
 
-  const showTrackingFields = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(selectedStatus);
+  const isStorePickup = fulfillmentType === "STORE_PICKUP";
+  const activeConfig = isStorePickup ? STORE_PICKUP_STATUS_CONFIG : ORDER_STATUS_CONFIG;
+  const showTrackingFields = !isStorePickup && ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(selectedStatus);
   const hasChanged = selectedStatus !== currentStatus
-    || trackingNumber !== (currentTrackingNumber ?? "")
-    || carrier !== (currentCarrier ?? "");
-  const currentConfig = ORDER_STATUS_CONFIG[currentStatus] ?? ORDER_STATUS_CONFIG.PAID;
+    || (!isStorePickup && (trackingNumber !== (currentTrackingNumber ?? "") || carrier !== (currentCarrier ?? "")));
+  const currentConfig = activeConfig[currentStatus] ?? activeConfig.PAID;
 
   const handleUpdate = async () => {
     if (!hasChanged) {
@@ -133,9 +150,10 @@ export function OrderStatusUpdate({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {Object.entries(ORDER_STATUS_CONFIG).filter(([status]) =>
-                  status === currentStatus ||
-                  (ADMIN_FULFILMENT_STATUSES as readonly string[]).includes(status) && ORDER_TRANSITIONS[currentStatus]?.includes(status)
+                {Object.entries(activeConfig).filter(([status]) =>
+                  (status === currentStatus ||
+                  ((ADMIN_FULFILMENT_STATUSES as readonly string[]).includes(status) && ORDER_TRANSITIONS[currentStatus]?.includes(status))) &&
+                  (!isStorePickup || !["SHIPPED", "OUT_FOR_DELIVERY"].includes(status))
                 ).map(([status, config]) => (
                   <SelectItem key={status} value={status}>
                     <div className="flex items-center gap-2">
@@ -147,6 +165,18 @@ export function OrderStatusUpdate({
               </SelectContent>
             </Select>
           </div>
+
+          {isStorePickup && (
+            <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+              <Store className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-950">Store Pickup Order</p>
+                <p className="text-amber-800 mt-0.5">
+                  Items are collected directly by the customer from Golden Grove showroom. Courier consignments and tracking IDs are bypassed. Use the Appointment Management panel to set the appointment date &amp; time.
+                </p>
+              </div>
+            </div>
+          )}
 
           {showTrackingFields && (
             <>

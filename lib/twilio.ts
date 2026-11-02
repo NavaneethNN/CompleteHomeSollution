@@ -63,6 +63,6 @@ export async function sendOrderWhatsApp(
 ): Promise<void> {
   await sendWhatsApp(
     phone,
-    `🛋️ *Complete Home Sollution* — Order Confirmed!\n\nOrder #${orderId}\nTotal: A$${total.toFixed(2)}\n\nThank you for shopping with us! We'll notify you when your order ships.`
+    `*Complete Home Sollution* — Order Confirmed!\n\nOrder #${orderId}\nTotal: A$${total.toFixed(2)}\n\nThank you for shopping with us! We'll notify you when your order ships.`
   );
 }

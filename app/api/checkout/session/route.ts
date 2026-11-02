@@ -12,13 +12,15 @@ import { checkCouriersPleaseAvailability, getCouriersPleaseRates } from "@/lib/c
 import { createOnlinePayCheckout, getOnlinePayCheckout, OnlinePayCheckoutError, validateOnlinePayConfiguration } from "@/lib/onlinepay";
 import { shippingDestinationKey, verifyShippingQuoteToken } from "@/lib/shipping-quote";
 import { calculateCartPricing, moneyToCents, splitLineForGateway } from "@/lib/cart-pricing";
-import { releaseCouponReservation } from "@/lib/coupon-reservation";
-import { buildParcelGroups, FreightRequiredError, shipmentKey } from "@/lib/shipping-packages";
+import { releaseCouponReservation, cleanupStalePendingCouponReservations } from "@/lib/coupon-reservation";
+import { buildParcelGroups, buildPackagedParcelGroups, FreightRequiredError, shipmentKey } from "@/lib/shipping-packages";
+import { selectPackagingPreset, type PackagingCalculationResult } from "@/lib/packaging";
 import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { assertInventoryAvailableForPendingOrder, InventoryUnavailableError } from "@/lib/inventory-reservation";
 import { resolveMemberPrice } from "@/lib/member-price";
 import { checkoutTotals } from "@/lib/checkout-totals";
 import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
+import { isLargeProduct, getManualDeliveryPostcodeRate } from "@/lib/manual-delivery";
 
 const addressSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -60,6 +62,7 @@ const checkoutSchema = z
     couponCode: z.string().max(20).optional(),
     addMembership: z.boolean().optional(),
     raffleWinnerId: z.string().cuid().optional(),
+    fulfillmentType: z.enum(["DELIVERY", "STORE_PICKUP", "MANUAL_DELIVERY"]).default("DELIVERY"),
     /** REL-5: Client-generated UUID for idempotency. Same key on retries returns
      *  the existing order instead of creating a duplicate. A new key must be
      *  generated for each distinct Place Order attempt. */
@@ -87,9 +90,6 @@ export async function POST(req: NextRequest) {
     try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     const input = checkoutSchema.parse(body);
     const useOnlinePay = gateway === "onlinepay";
-    if (!useOnlinePay && !input.singleUseTokenId) {
-      return NextResponse.json({ error: "Payment details are required." }, { status: 400 });
-    }
 
     if (useOnlinePay) {
       validateOnlinePayConfiguration();
@@ -170,7 +170,44 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized: This raffle prize does not belong to your account." }, { status: 403 });
       }
       if (raffleWinner.status !== "PENDING_CLAIM") {
-        return NextResponse.json({ error: "This raffle prize has already been claimed or is being processed." }, { status: 400 });
+        // Auto-recover if previously claimed by a CANCELLED order or an abandoned PENDING order older than 15 minutes
+        if (raffleWinner.status === "CLAIMED" && raffleWinner.orderId) {
+          const prevOrder = await db.order.findUnique({
+            where: { id: raffleWinner.orderId },
+            select: { id: true, status: true, createdAt: true },
+          });
+          const isCancelled = prevOrder && prevOrder.status === "CANCELLED";
+          const isAbandonedPending =
+            prevOrder &&
+            prevOrder.status === "PENDING" &&
+            Date.now() - prevOrder.createdAt.getTime() > 15 * 60 * 1000;
+
+          if (isCancelled || isAbandonedPending) {
+            await db.$transaction(async (tx) => {
+              if (isAbandonedPending) {
+                await tx.order.update({
+                  where: { id: prevOrder.id },
+                  data: { status: "CANCELLED" },
+                });
+              }
+              await tx.raffleWinner.update({
+                where: { id: raffleWinner.id },
+                data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+              });
+            });
+            raffleWinner.status = "PENDING_CLAIM";
+          }
+        }
+        if (raffleWinner.status !== "PENDING_CLAIM") {
+          return NextResponse.json({ error: "This raffle prize has already been claimed or is being processed." }, { status: 400 });
+        }
+      }
+
+      if (!raffleWinner.prize?.productId) {
+        return NextResponse.json(
+          { error: "Raffle prize item must be prepared through your Account Raffles dashboard before checkout." },
+          { status: 400 }
+        );
       }
     }
 
@@ -249,6 +286,15 @@ export async function POST(req: NextRequest) {
       if (coupon.endDate && now > new Date(coupon.endDate)) {
         return NextResponse.json({ error: "Coupon expired" }, { status: 400 });
       }
+      if (coupon.usageLimit || coupon.perUserLimit) {
+        // Clean up any abandoned PENDING orders (> 30 mins) holding this coupon
+        await cleanupStalePendingCouponReservations(coupon.id, session?.user?.id);
+        const refreshed = await db.coupon.findUnique({
+          where: { id: coupon.id },
+          select: { usageCount: true },
+        });
+        if (refreshed) coupon.usageCount = refreshed.usageCount;
+      }
       if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
         return NextResponse.json({ error: "Coupon usage limit reached" }, { status: 400 });
       }
@@ -281,18 +327,6 @@ export async function POST(req: NextRequest) {
           ? products.filter((p) => coupon.categories.some((c) => c.categoryId === p.categoryId)).map((p) => p.id)
           : products.map((p) => p.id)
     );
-    const getUnitPrice = (item: typeof input.items[number]) => {
-      if (raffleWinner && (raffleWinner.prize.productId === item.productId || !raffleWinner.prize.productId)) {
-        return raffleWinner.prizeType === "FREE_PRODUCT"
-          ? 0
-          : (raffleWinner.winningPrice || raffleWinner.prize.price || 0);
-      }
-      const product = products.find((p) => p.id === item.productId)!;
-      const variant = item.variantId ? product.productVariants.find((v) => v.id === item.variantId) : null;
-      const regularPrice = variant?.price ?? product.basePrice;
-      const memberPrice = resolveMemberPrice(regularPrice, variant?.memberPrice, product.memberPrice);
-      return effectiveMember && memberPrice !== null ? memberPrice : regularPrice;
-    };
     for (const item of input.items) {
       const product = products.find((p) => p.id === item.productId)!;
       const stock = item.variantId
@@ -303,12 +337,64 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Insufficient stock for ${product.name}` }, { status: 400 });
       }
     }
-    const priceLines = input.items.map((item) => ({
-      key: `${item.productId}:${item.variantId ?? "base"}`,
-      unitPriceCents: moneyToCents(getUnitPrice(item)),
-      quantity: item.quantity,
-      eligible: applicableProductIds.has(item.productId),
-    }));
+
+    let rafflePrizeApplied = false;
+    const priceLines: Array<{ key: string; unitPriceCents: number; quantity: number; eligible: boolean }> = [];
+
+    for (const item of input.items) {
+      const product = products.find((p) => p.id === item.productId)!;
+      const variant = item.variantId ? product.productVariants.find((v) => v.id === item.variantId) : null;
+      const regularPrice = variant?.price ?? product.basePrice;
+      const memberPrice = resolveMemberPrice(regularPrice, variant?.memberPrice, product.memberPrice);
+      const standardPrice = effectiveMember && memberPrice !== null ? memberPrice : regularPrice;
+
+      const isRafflePrizeItem =
+        raffleWinner &&
+        !rafflePrizeApplied &&
+        raffleWinner.prize?.productId === item.productId &&
+        (!raffleWinner.prize?.productVariantId || raffleWinner.prize.productVariantId === item.variantId);
+
+      if (isRafflePrizeItem) {
+        rafflePrizeApplied = true;
+        const winningPrice =
+          raffleWinner.prizeType === "FREE_PRODUCT"
+            ? 0
+            : (raffleWinner.winningPrice || raffleWinner.prize.price || 0);
+
+        // Exactly 1 unit is discounted to winning price; cannot be discounted further by coupons
+        priceLines.push({
+          key: `${item.productId}:${item.variantId ?? "base"}:raffle`,
+          unitPriceCents: moneyToCents(winningPrice),
+          quantity: 1,
+          eligible: false,
+        });
+
+        // Any excess units over 1 are charged at regular/member price
+        if (item.quantity > 1) {
+          priceLines.push({
+            key: `${item.productId}:${item.variantId ?? "base"}`,
+            unitPriceCents: moneyToCents(standardPrice),
+            quantity: item.quantity - 1,
+            eligible: applicableProductIds.has(item.productId),
+          });
+        }
+      } else {
+        priceLines.push({
+          key: `${item.productId}:${item.variantId ?? "base"}`,
+          unitPriceCents: moneyToCents(standardPrice),
+          quantity: item.quantity,
+          eligible: applicableProductIds.has(item.productId),
+        });
+      }
+    }
+
+    if (input.raffleWinnerId && !rafflePrizeApplied) {
+      return NextResponse.json(
+        { error: "Your cart does not contain the eligible raffle prize product." },
+        { status: 400 }
+      );
+    }
+
     const undiscounted = calculateCartPricing(priceLines);
     const applicableSubtotal = undiscounted.applicableSubtotalCents / 100;
     if (coupon) {
@@ -328,108 +414,149 @@ export async function POST(req: NextRequest) {
     const subtotal = pricing.subtotalCents / 100;
 
     const membershipCharge = wantsMembership && !alreadyMember ? defaultPlan!.price : 0;
-    const freeShipping = subtotal >= 1200;
-    let parcelGroups;
-    try {
-      parcelGroups = buildParcelGroups(input.items.map(item => {
-        const product = products.find(value => value.id === item.productId)!;
-        const variant = item.variantId ? product.productVariants.find(value => value.id === item.variantId) : null;
-        return {
-          key: `${item.productId}:${item.variantId ?? "base"}`,
-          quantity: item.quantity,
-          weight: variant?.weight ?? product.weight,
-          length: variant?.length ?? product.length,
-          width: variant?.width ?? product.width,
-          height: variant?.height ?? product.height,
-        };
-      }));
-    } catch (error) {
-      if (error instanceof FreightRequiredError) {
-        return NextResponse.json({ error: error.message, freightRequired: true }, { status: 422 });
-      }
-      throw error;
-    }
-    const parcelShipmentKey = shipmentKey(parcelGroups);
-    if (!freeShipping && (!input.shippingCost || input.shippingCost <= 0)) {
-      return NextResponse.json(
-        { error: "A shipping rate is required for this order" },
-        { status: 400 }
-      );
+    const netSubtotal = Math.round(pricing.subtotalCents) / 100;
+    const freeShipping = netSubtotal >= 1200;
+    let fulfillmentType = input.fulfillmentType || "DELIVERY";
+    if (fulfillmentType === "DELIVERY" && input.shippingRateCode === "MANUAL_DELIVERY") {
+      fulfillmentType = "MANUAL_DELIVERY";
     }
 
-    // ── SEC-4: Server-side shipping cost verification ─────────────────────────
-    // A signed Couriers Please quote is bound to the full destination and parcel set.
-    // Without a valid token, fetch a fresh quote and require exact cents.
     let shippingCost: number;
     let shippingServiceCode: string | null = null;
-    if (freeShipping) {
-      if (checkCouriersPleaseAvailability().available) {
-        try {
-          const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
-          if (rates.length > 0) {
-            shippingServiceCode = rates[0].serviceCode;
-          } else {
+    let resolvedCarrier: string = "Couriers Please";
+    let orderPackaging: PackagingCalculationResult | null = null;
+
+    if (fulfillmentType === "STORE_PICKUP") {
+      shippingCost = 0;
+      shippingServiceCode = "STORE_PICKUP";
+      resolvedCarrier = "Store Pickup";
+    } else if (fulfillmentType === "MANUAL_DELIVERY") {
+      const manualRate = await getManualDeliveryPostcodeRate(deliveryAddress.postcode);
+      if (!manualRate || !manualRate.available) {
+        return NextResponse.json(
+          { error: `Manual delivery is not available for postcode ${deliveryAddress.postcode}. Please choose Store Pickup.` },
+          { status: 400 }
+        );
+      }
+      shippingCost = manualRate.charge;
+      shippingServiceCode = "MANUAL_DELIVERY";
+      resolvedCarrier = "Complete Home Sollution (Manual Delivery)";
+    } else {
+      // Standard Courier Delivery
+      const hasLargeItems = products.some((p) => isLargeProduct(p));
+      if (hasLargeItems) {
+        return NextResponse.json(
+          { error: "Cart contains large items (e.g. sofas) that cannot be delivered via standard courier. Please select Store Pickup or Manual Delivery." },
+          { status: 400 }
+        );
+      }
+
+      let parcelGroups;
+      try {
+        const packagedResult = await buildPackagedParcelGroups(input.items.map(item => {
+          const product = products.find(value => value.id === item.productId)!;
+          const variant = item.variantId ? product.productVariants.find(value => value.id === item.variantId) : null;
+          return {
+            key: `${item.productId}:${item.variantId ?? "base"}`,
+            quantity: item.quantity,
+            weight: variant?.weight ?? product.weight,
+            length: variant?.length ?? product.length,
+            width: variant?.width ?? product.width,
+            height: variant?.height ?? product.height,
+            requiresPackaging: variant?.requiresPackaging ?? product.requiresPackaging ?? true,
+          };
+        }));
+        parcelGroups = packagedResult.groups;
+        orderPackaging = packagedResult.packaging;
+      } catch (error) {
+        if (error instanceof FreightRequiredError) {
+          return NextResponse.json({ error: error.message, freightRequired: true }, { status: 422 });
+        }
+        throw error;
+      }
+      const parcelShipmentKey = shipmentKey(parcelGroups);
+      if (!freeShipping && (!input.shippingCost || input.shippingCost <= 0)) {
+        return NextResponse.json(
+          { error: "A shipping rate is required for this order" },
+          { status: 400 }
+        );
+      }
+
+      // ── SEC-4: Server-side shipping cost verification ─────────────────────────
+      // A signed Couriers Please quote is bound to the full destination and parcel set.
+      // Without a valid token, fetch a fresh quote and require exact cents.
+      if (freeShipping) {
+        if (checkCouriersPleaseAvailability().available) {
+          try {
+            const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
+            if (rates.length > 0) {
+              shippingServiceCode = rates[0].serviceCode;
+            } else {
+              shippingServiceCode = "CP_STANDARD";
+            }
+          } catch (error) {
+            console.warn("[checkout] Couriers Please rate check exception for free shipping:", error);
             shippingServiceCode = "CP_STANDARD";
           }
-        } catch (error) {
-          console.warn("[checkout] Couriers Please rate check exception for free shipping:", error);
+        } else {
           shippingServiceCode = "CP_STANDARD";
         }
+        shippingCost = 0;
       } else {
-        shippingServiceCode = "CP_STANDARD";
-      }
-      shippingCost = 0;
-    } else {
-      const toPostcode = deliveryAddress.postcode;
+        const toPostcode = deliveryAddress.postcode;
 
-      let serverShippingCost: number | null = null;
+        let serverShippingCost: number | null = null;
 
-      const clientCost = Math.round((input.shippingCost ?? 0) * 100) / 100;
-      if (verifyShippingQuoteToken({
-        token: input.shippingQuoteToken,
-        postcode: toPostcode,
-        destinationKey: shippingDestinationKey(deliveryAddress),
-        shipmentKey: parcelShipmentKey,
-        serviceCode: input.shippingRateCode,
-        price: clientCost,
-      })) {
-        serverShippingCost = clientCost;
-      } else if (toPostcode && /^\d{4}$/.test(toPostcode) && input.shippingRateCode) {
-        try {
-          if (checkCouriersPleaseAvailability().available) {
-            try {
-              const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
-              const matchedRate = rates.find((r) => r.serviceCode === input.shippingRateCode);
-              if (matchedRate) {
-                serverShippingCost = matchedRate.price;
+        const clientCost = Math.round((input.shippingCost ?? 0) * 100) / 100;
+        if (verifyShippingQuoteToken({
+          token: input.shippingQuoteToken,
+          postcode: toPostcode,
+          destinationKey: shippingDestinationKey(deliveryAddress),
+          shipmentKey: parcelShipmentKey,
+          serviceCode: input.shippingRateCode,
+          price: clientCost,
+        })) {
+          serverShippingCost = clientCost;
+        } else if (toPostcode && /^\d{4}$/.test(toPostcode) && input.shippingRateCode) {
+          try {
+            if (checkCouriersPleaseAvailability().available) {
+              try {
+                const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
+                const matchedRate = rates.find((r) => r.serviceCode === input.shippingRateCode);
+                if (matchedRate) {
+                  serverShippingCost = matchedRate.price;
+                }
+              } catch (cpErr) {
+                console.warn("[checkout] Couriers Please rate check exception:", cpErr);
               }
-            } catch (cpErr) {
-              console.warn("[checkout] Couriers Please rate check exception:", cpErr);
             }
+          } catch (shippingError) {
+            console.error("[checkout] Shipping rate fetch failed", shippingError);
           }
-        } catch (shippingError) {
-          console.error("[checkout] Shipping rate fetch failed", shippingError);
         }
-      }
 
-      if (serverShippingCost !== null) {
-        const serverCost = Math.round(serverShippingCost * 100) / 100;
-        if (Math.round(clientCost * 100) !== Math.round(serverCost * 100)) {
-          return NextResponse.json(
-            {
-              error: `Shipping cost mismatch. Expected $${serverCost.toFixed(2)}, received $${clientCost.toFixed(2)}. Please refresh and try again.`,
-            },
-            { status: 400 }
-          );
+        if (serverShippingCost !== null) {
+          const serverCost = Math.round(serverShippingCost * 100) / 100;
+          if (Math.round(clientCost * 100) !== Math.round(serverCost * 100)) {
+            return NextResponse.json(
+              {
+                error: `Shipping cost mismatch. Expected $${serverCost.toFixed(2)}, received $${clientCost.toFixed(2)}. Please refresh and try again.`,
+              },
+              { status: 400 }
+            );
+          }
+          shippingCost = serverCost;
+          shippingServiceCode = input.shippingRateCode ?? null;
+        } else {
+          // Do not charge an unverified client-supplied shipping amount.
+          return NextResponse.json({ error: "Shipping could not be verified. Refresh shipping options and try again." }, { status: 503 });
         }
-        shippingCost = serverCost;
-        shippingServiceCode = input.shippingRateCode ?? null;
-      } else {
-        // Do not charge an unverified client-supplied shipping amount.
-        return NextResponse.json({ error: "Shipping could not be verified. Refresh shipping options and try again." }, { status: 503 });
       }
     }
     const { tax, total } = checkoutTotals(subtotal, shippingCost, membershipCharge);
+    if (total > 0 && !useOnlinePay && !input.singleUseTokenId) {
+      return NextResponse.json({ error: "Payment details are required." }, { status: 400 });
+    }
 
     // ── Create order in DB (PENDING until payment confirmed) ─────────────────
     let order;
@@ -460,7 +587,16 @@ export async function POST(req: NextRequest) {
         subtotal,
         shippingCost,
         shippingServiceCode,
-        carrier: "Couriers Please",
+        carrier: resolvedCarrier,
+        fulfillmentType,
+        pickupStatus: fulfillmentType === "STORE_PICKUP" ? "PENDING_SCHEDULE" : null,
+        packagePresetId: orderPackaging?.presetId || null,
+        packageName: orderPackaging?.packageName || null,
+        packedWeight: orderPackaging?.packedWeight || null,
+        packedLength: orderPackaging?.length || null,
+        packedWidth: orderPackaging?.width || null,
+        packedHeight: orderPackaging?.height || null,
+        packageOverride: false,
         tax,
         discount: couponDiscount,
         total,
@@ -473,30 +609,33 @@ export async function POST(req: NextRequest) {
         couponReserved: !!coupon,
         ...(coupon ? { coupon: { connect: { id: coupon.id } }, couponCode: coupon.code } : {}),
         items: {
-          create: input.items.map((item, index) => {
-            // CODE-10: Populate variantSummary from variant values
-            const product = products.find((p) => p.id === item.productId)!;
-            const variant = item.variantId
-              ? product.productVariants.find((v) => v.id === item.variantId)
+          create: pricing.lines.map((line) => {
+            const [productId, rawVariantId] = line.key.split(":");
+            const variantId = rawVariantId === "base" ? null : rawVariantId;
+            const isRaffleLine = line.key.endsWith(":raffle");
+
+            const product = products.find((p) => p.id === productId)!;
+            const variant = variantId
+              ? product.productVariants.find((v) => v.id === variantId)
               : null;
-            
+
             let variantSummary: string | null = null;
-            if (raffleWinner && (raffleWinner.prize.productId === item.productId || !raffleWinner.prize.productId)) {
-              variantSummary = raffleWinner.prizeType === "FREE_PRODUCT"
-                ? `Raffle Winner Free Gift (${raffleWinner.raffle.title})`
-                : `Raffle Winner Special $${raffleWinner.winningPrice || raffleWinner.prize.price} (${raffleWinner.raffle.title})`;
-            } else if (variant && variant.values && variant.values.length > 0) {
-              // Build summary like "Color: Red, Size: Large"
-              variantSummary = variant.values
-                .map((v) => `${v.variantValue.variantAttribute.name}: ${v.variantValue.value}`)
+            if (isRaffleLine && raffleWinner) {
+              variantSummary =
+                raffleWinner.prizeType === "FREE_PRODUCT"
+                  ? `Raffle Winner Free Gift (${raffleWinner.raffle.title})`
+                  : `Raffle Winner Exclusive Price $${raffleWinner.winningPrice || raffleWinner.prize.price || 0} (${raffleWinner.raffle.title})`;
+            } else if (variant && (variant as any).variantValues && (variant as any).variantValues.length > 0) {
+              variantSummary = (variant as any).variantValues
+                .map((vv: any) => `${vv.attribute?.name || "Option"}: ${vv.value}`)
                 .join(", ");
             }
 
             return {
-              productId: item.productId,
-              productVariantId: item.variantId || null,
-              quantity: item.quantity,
-              unitPrice: pricing.lines[index].netCents / item.quantity / 100,
+              productId,
+              productVariantId: variantId,
+              quantity: line.quantity,
+              unitPrice: Math.round(line.netCents / line.quantity) / 100,
               variantSummary,
             };
           }),
@@ -580,6 +719,87 @@ export async function POST(req: NextRequest) {
       throw error;
     }
 
+    // ── Free Order Handling (e.g. 100% Free Raffle Gift or zero-cost order) ──
+    if (order.total === 0) {
+      const settled = await db.$transaction(async (tx) => {
+        const claimed = await tx.order.updateMany({
+          where: { id: order.id, status: "PENDING" },
+          data: {
+            status: "PAID",
+            paywayTransactionId: "FREE_ORDER",
+            couponReserved: false,
+          },
+        });
+        if (!claimed.count) return false;
+
+        for (const item of order.items) {
+          if (item.productVariantId) {
+            const updated = await tx.productVariant.updateMany({
+              where: {
+                id: item.productVariantId,
+                stock: { gte: item.quantity },
+              },
+              data: { stock: { decrement: item.quantity } },
+            });
+            if (updated.count === 0) {
+              const variant = await tx.productVariant.findUnique({
+                where: { id: item.productVariantId },
+                select: { product: { select: { name: true } } },
+              });
+              throw new Error(`OUT_OF_STOCK:${variant?.product.name ?? "A product"}`);
+            }
+          } else {
+            const updated = await tx.product.updateMany({
+              where: {
+                id: item.productId,
+                stock: { gte: item.quantity },
+              },
+              data: { stock: { decrement: item.quantity } },
+            });
+            if (updated.count === 0) {
+              const product = await tx.product.findUnique({
+                where: { id: item.productId },
+                select: { name: true },
+              });
+              throw new Error(`OUT_OF_STOCK:${product?.name ?? "A product"}`);
+            }
+          }
+        }
+        await queueOrderConfirmation(tx, order.id);
+        return true;
+      });
+
+      if (!settled) {
+        return NextResponse.json({ error: "Order was already processed or cancelled." }, { status: 409 });
+      }
+
+      after(async () => {
+        const phone = order.user?.phone ?? order.guestPhone ?? order.address?.phone;
+        if (phone) {
+          await sendOrderConfirmationSms(phone, order.id, 0).catch(() => {});
+          await sendOrderWhatsApp(phone, order.id, 0).catch(() => {});
+        }
+        await processDueEmailJobs().catch((err) => {
+          console.error("[checkout/session] Immediate email job processing failed", err);
+        });
+      });
+
+      if (input.raffleWinnerId) {
+        try {
+          revalidatePath("/account/raffles");
+          if (raffleWinner?.raffle?.slug) {
+            revalidatePath(`/raffles/${raffleWinner.raffle.slug}`);
+          }
+        } catch {}
+      }
+
+      return NextResponse.json({
+        orderId: order.id,
+        guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
+        status: "success",
+      });
+    }
+
     // OnlinePay HPP keeps card data entirely on Westpac's hosted page. Orders
     // remain PENDING until a webhook or the signed return page verifies the
     // transaction server-to-server; the redirect itself is never payment proof.
@@ -607,11 +827,15 @@ export async function POST(req: NextRequest) {
             city: order.address.suburb, state: order.address.state, postcode: order.address.postcode,
           },
           lineItems: [
-            ...pricing.lines.flatMap((line, index) => splitLineForGateway(line).map((part) => ({
-              name: products.find((product) => product.id === input.items[index].productId)!.name,
-              quantity: part.quantity,
-              unitPriceCents: part.unitPriceCents,
-            }))),
+            ...pricing.lines.flatMap((line) => splitLineForGateway(line).map((part) => {
+              const productId = line.key.split(":")[0];
+              const product = products.find((p) => p.id === productId)!;
+              return {
+                name: line.key.endsWith(":raffle") ? `${product.name} (Raffle Prize)` : product.name,
+                quantity: part.quantity,
+                unitPriceCents: part.unitPriceCents,
+              };
+            })),
             ...[{ name: "Shipping", amount: order.shippingCost }, { name: "GST", amount: order.tax }, { name: "Membership", amount: membershipCharge }]
               .filter((item) => item.amount > 0).map((item) => ({ name: item.name, quantity: 1, unitPriceCents: Math.round(item.amount * 100) })),
           ],
@@ -736,7 +960,14 @@ export async function POST(req: NextRequest) {
     // oversell.
     try {
       const settled = await db.$transaction(async (tx) => {
-        const claimed = await tx.order.updateMany({ where: { id: order.id, status: "PENDING" }, data: { status: "PAID" } });
+        const claimed = await tx.order.updateMany({
+          where: { id: order.id, status: "PENDING" },
+          data: {
+            status: "PAID",
+            paywayTransactionId: String(txn.transactionId),
+            couponReserved: false,
+          },
+        });
         if (!claimed.count) return false;
         // ── REL-1: Atomic stock decrement with oversell guard ─────────────────
         for (const item of order.items) {
@@ -774,15 +1005,6 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // ── Mark order as PAID with PayWay transaction ID ─────────────────────
-        await tx.order.update({
-          where: { id: order.id },
-          data: {
-            status: "PAID",
-            paywayTransactionId: String(txn.transactionId),
-            couponReserved: false,
-          },
-        });
         await queueOrderConfirmation(tx, order.id);
         if (order.membershipAmount > 0 && order.userId) {
           await activateMembershipInTransaction(tx, { userId: order.userId, planId: order.membershipPlanId, durationDays: order.membershipDurationDays ?? undefined, amountPaid: order.membershipAmount, paywaySessionId: `order:${order.id}:membership` });
@@ -827,7 +1049,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Send confirmation notifications ───────────────────────────────────────
-    const phone = order.user?.phone ?? order.guestPhone;
+    const phone = order.user?.phone ?? order.guestPhone ?? order.address?.phone;
 
     after(async () => {
       if (phone) {

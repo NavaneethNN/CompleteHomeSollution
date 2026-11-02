@@ -15,7 +15,7 @@ const furnitureImages = {
   ],
   dining: [
     "https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1604578762246-41134e2295f7?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=800&q=80",
   ],
   chair: [
     "https://images.unsplash.com/photo-1592078615290-033ee584e267?auto=format&fit=crop&w=800&q=80",
@@ -23,7 +23,7 @@ const furnitureImages = {
   ],
   table: [
     "https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=800&q=80",
-    "https://images.unsplash.com/photo-1601066522407-029b298f3a3b?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?auto=format&fit=crop&w=800&q=80",
   ],
   storage: [
     "https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=800&q=80",
@@ -514,6 +514,20 @@ async function main() {
   });
 
   console.log("✅ Created 3 membership plans");
+
+  // Seed default packaging presets if none exist
+  const existingPresets = await db.packagingPreset.count();
+  if (existingPresets === 0) {
+    await db.packagingPreset.createMany({
+      data: [
+        { name: "Small", length: 20, width: 15, height: 10, maxWeight: 1.0, emptyWeight: 0.1, priority: 1, isActive: true },
+        { name: "Medium", length: 30, width: 25, height: 20, maxWeight: 3.0, emptyWeight: 0.2, priority: 2, isActive: true },
+        { name: "Large", length: 45, width: 35, height: 30, maxWeight: 10.0, emptyWeight: 0.5, priority: 3, isActive: true },
+        { name: "Extra Large", length: 60, width: 45, height: 40, maxWeight: 20.0, emptyWeight: 0.8, priority: 4, isActive: true },
+      ],
+    });
+    console.log("✅ Created 4 default packaging presets (Small, Medium, Large, Extra Large)");
+  }
 
   console.log("\n🎉 Database seeded successfully!");
   console.log(`📊 Summary:`);

@@ -12,6 +12,8 @@ import {
 } from "@/lib/validations/raffle";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
+import { sendEmail } from "@/lib/brevo";
+import { renderStandardEmail, renderCard, escapeHtml } from "@/lib/email-template";
 
 async function requireAdmin() {
   const isAdmin = await hasFreshAdminSession();
@@ -364,15 +366,21 @@ export async function conductRaffleDraw(
       };
     }
 
+    // Ensure the raffle is closed to new entries before conducting the draw
+    if (raffle.status === "ACTIVE") {
+      await db.raffle.update({
+        where: { id: raffle.id },
+        data: { status: "DRAW_PENDING" },
+      });
+    }
+
     // Cryptographic audit seed
     const drawSeed = crypto.randomBytes(32).toString("hex");
 
-    // Shuffle tickets securely
+    // Shuffle tickets securely using uniform cryptographic random integers
     const ticketsPool = [...raffle.tickets];
     for (let i = ticketsPool.length - 1; i > 0; i--) {
-      const randomBuffer = crypto.randomBytes(4);
-      const randomFloat = randomBuffer.readUInt32BE(0) / 0xffffffff;
-      const j = Math.floor(randomFloat * (i + 1));
+      const j = crypto.randomInt(0, i + 1);
       [ticketsPool[i], ticketsPool[j]] = [ticketsPool[j], ticketsPool[i]];
     }
 
@@ -530,6 +538,77 @@ export async function approveAndAnnounceWinners(raffleId: string) {
     revalidatePath(`/raffles/${raffle.slug}`);
     revalidatePath("/account/raffles");
 
+    // Fetch winners with user, ticket and prize information to send celebratory winner notifications
+    try {
+      const winnersWithDetails = await db.raffleWinner.findMany({
+        where: { raffleId },
+        include: {
+          user: { select: { email: true, name: true } },
+          prize: true,
+          ticket: { select: { ticketNumber: true } },
+        },
+      });
+
+      const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://completehomesollution.com.au").replace(/\/$/, "");
+      const safeRaffleTitle = escapeHtml(raffle.title);
+
+      for (const winner of winnersWithDetails) {
+        if (!winner.user?.email) continue;
+
+        const safeWinnerName = escapeHtml(winner.user.name || "Winner");
+        const safePrizeName = escapeHtml(winner.prize?.name || "Raffle Prize");
+        const safeTicketNumber = winner.ticket?.ticketNumber ? escapeHtml(winner.ticket.ticketNumber) : null;
+        const prizeValue = winner.prize?.value ? `A$${winner.prize.value.toFixed(2)}` : null;
+
+        const bodyHtml = `
+          <p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.6;">
+            We are thrilled to let you know that your ticket has been drawn as a winning ticket in <strong>${safeRaffleTitle}</strong>!
+          </p>
+
+          ${renderCard(`
+            <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;">
+              <tr>
+                <td style="padding:6px 0;color:#64748b;width:35%;">Prize Won:</td>
+                <td style="padding:6px 0;font-weight:700;color:#166534;">${safePrizeName}</td>
+              </tr>
+              ${prizeValue ? `
+              <tr>
+                <td style="padding:6px 0;color:#64748b;">Retail Value:</td>
+                <td style="padding:6px 0;font-weight:600;">${prizeValue}</td>
+              </tr>
+              ` : ""}
+              ${safeTicketNumber ? `
+              <tr>
+                <td style="padding:6px 0;color:#64748b;">Winning Ticket:</td>
+                <td style="padding:6px 0;font-family:monospace;font-weight:700;color:#1a2e5a;">${safeTicketNumber}</td>
+              </tr>
+              ` : ""}
+            </table>
+          `, { title: "Prize Details", bg: "#f0fdf4", border: "#bbf7d0" })}
+
+          <p style="margin:16px 0 0;font-size:14px;color:#475569;line-height:1.6;">
+            To claim your prize and confirm your delivery details, please visit your account dashboard by clicking below.
+          </p>
+        `;
+
+        const emailHtml = renderStandardEmail({
+          title: `Congratulations! You Won in ${raffle.title}`,
+          badge: { text: "Winner Announcement", type: "success" },
+          greeting: `Hi ${safeWinnerName},`,
+          bodyHtml,
+          cta: { text: "Claim Your Prize", url: `${appUrl}/account/raffles` },
+        });
+
+        await sendEmail({
+          to: [{ email: winner.user.email, name: winner.user.name || undefined }],
+          subject: `You Won in the Complete Home Sollution Raffle! (${raffle.title})`,
+          htmlContent: emailHtml,
+        }).catch((err) => console.warn(`[raffle] Winner email failed for ${winner.user?.email}:`, err));
+      }
+    } catch (notifyErr) {
+      console.warn("[raffle] Non-blocking winner email notification error:", notifyErr);
+    }
+
     return {
       success: true,
       message: "Winners announced successfully! Customer claims and prize purchases are now live.",
@@ -571,15 +650,26 @@ export async function redrawSingleWinner(winnerId: string, reason: string) {
       };
     }
 
+    const otherWinners = winner.raffle.winners.filter((w) => w.id !== winner.id);
     const currentWinnerTicketIds = new Set(winner.raffle.winners.map((w) => w.ticketId));
-    const eligibleTickets = winner.raffle.tickets.filter((t) => !currentWinnerTicketIds.has(t.id));
+    const otherWinnerUserIds = new Set(otherWinners.map((w) => w.userId));
+
+    // Prefer tickets from users who haven't already won another prize
+    let eligibleTickets = winner.raffle.tickets.filter(
+      (t) => !currentWinnerTicketIds.has(t.id) && !otherWinnerUserIds.has(t.userId)
+    );
+
+    // If no distinct non-winning users remain, allow any ticket not currently assigned to a winner
+    if (eligibleTickets.length === 0) {
+      eligibleTickets = winner.raffle.tickets.filter((t) => !currentWinnerTicketIds.has(t.id));
+    }
 
     if (eligibleTickets.length === 0) {
       return { success: false, error: "No remaining eligible tickets available for redraw." };
     }
 
-    // Pick random ticket
-    const randomIndex = Math.floor(Math.random() * eligibleTickets.length);
+    // Pick random ticket using cryptographically secure uniform random integer
+    const randomIndex = crypto.randomInt(0, eligibleTickets.length);
     const newWinningTicket = eligibleTickets[randomIndex];
 
     await db.$transaction(async (tx) => {

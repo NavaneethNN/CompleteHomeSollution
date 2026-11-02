@@ -20,10 +20,13 @@ import {
   Phone,
   AlertTriangle,
   ShieldCheck,
+  Store,
 } from "lucide-react";
 import { AdminRefundPanel } from "@/components/admin/refund-panel";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { ReadyToShipPanel } from "@/components/admin/ready-to-ship-panel";
+import { OrderPickupAppointmentPanel } from "@/components/admin/order-pickup-appointment-panel";
+import { OrderPackagingPanel } from "@/components/admin/order-packaging-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -77,13 +80,26 @@ async function getOrder(id: string) {
       refundedAt: true,
       paywayRefundId: true,
       stripePaymentId: true,
+      fulfillmentType: true,
+      pickupAppointmentDate: true,
+      pickupAppointmentTime: true,
+      pickupStatus: true,
+      pickupNotes: true,
+      manualDeliveryNotes: true,
+      packagePresetId: true,
+      packageName: true,
+      packedWeight: true,
+      packedLength: true,
+      packedWidth: true,
+      packedHeight: true,
+      packageOverride: true,
       createdAt: true,
       updatedAt: true,
       user: { select: { id: true, name: true, email: true, phone: true } },
       address: true,
       items: {
         include: {
-          product: { select: { id: true, name: true, slug: true, images: true, sku: true } },
+          product: { select: { id: true, name: true, slug: true, images: true, sku: true, weight: true, length: true, width: true, height: true } },
           productVariant: {
             include: {
               images: { orderBy: { displayOrder: "asc" } },
@@ -118,6 +134,15 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
   if (!order) {
     notFound();
   }
+
+  const packagingPresets = await db.packagingPreset.findMany({
+    orderBy: [{ priority: "desc" }, { maxWeight: "asc" }, { name: "asc" }],
+  });
+
+  const netProductWeight = order.items.reduce((sum, item) => {
+    const w = (item as any).productVariant?.weight ?? (item as any).product?.weight ?? 0.5;
+    return sum + w * item.quantity;
+  }, 0);
 
   const StatusConfig = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.PAID;
   const StatusIcon = StatusConfig.icon;
@@ -168,6 +193,18 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {order.fulfillmentType === "STORE_PICKUP" && (
+            <Badge variant="outline" className="bg-amber-50 text-amber-900 border-amber-300 font-semibold text-xs px-3 py-1 flex items-center gap-1.5">
+              <Store className="h-3.5 w-3.5 text-amber-600" />
+              Store Pickup
+            </Badge>
+          )}
+          {order.fulfillmentType === "MANUAL_DELIVERY" && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-900 border-blue-300 font-semibold text-xs px-3 py-1 flex items-center gap-1.5">
+              <Truck className="h-3.5 w-3.5 text-blue-600" />
+              Store Manual Delivery
+            </Badge>
+          )}
           {!isPaymentVerified && order.status !== "CANCELLED" && (
             <Badge variant="destructive" className="bg-red-600 text-white font-bold text-xs px-3 py-1 shadow-xs animate-pulse">
               <AlertTriangle className="mr-1 h-3.5 w-3.5" />
@@ -272,8 +309,20 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                     </div>
                   )}
                   <div className="flex justify-between text-slate-600">
-                    <span>Shipping</span>
-                    <span>{order.shippingCost > 0 ? currencyFormatter.format(order.shippingCost) : "Free"}</span>
+                    <span>
+                      {order.fulfillmentType === "STORE_PICKUP"
+                        ? "Store Pickup"
+                        : order.fulfillmentType === "MANUAL_DELIVERY"
+                        ? "Store Delivery (Large Items)"
+                        : "Shipping"}
+                    </span>
+                    <span>
+                      {order.fulfillmentType === "STORE_PICKUP"
+                        ? "Free (Customer Pickup)"
+                        : order.shippingCost > 0
+                        ? currencyFormatter.format(order.shippingCost)
+                        : "Free"}
+                    </span>
                   </div>
                   {order.tax > 0 && (
                     <div className="flex justify-between text-slate-600">
@@ -325,8 +374,9 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                       <p className="text-xs text-red-800 leading-relaxed">
                         This order has an amount of <strong>{currencyFormatter.format(order.total)}</strong>, but <strong>NO payment transaction reference or signature</strong> was returned from Westpac PayWay, OnlinePay, or Stripe.
                       </p>
-                      <p className="text-xs font-bold text-red-950 pt-1">
-                        🛑 DO NOT DISPATCH OR FULFILL: Confirm funds in merchant bank account before shipping goods to this customer.
+                      <p className="text-xs font-bold text-red-950 pt-1 flex items-center gap-1.5">
+                        <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                        DO NOT DISPATCH OR FULFILL: Confirm funds in merchant bank account before shipping goods to this customer.
                       </p>
                     </div>
                   </div>
@@ -344,8 +394,9 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                       Ref: <strong className="text-slate-900">{transactionReference}</strong>
                     </p>
                   ) : order.total > 0 && order.status !== "CANCELLED" ? (
-                    <p className="text-xs text-red-600 font-semibold mt-1">
-                      ⚠️ No transaction ID recorded
+                    <p className="text-xs text-red-600 font-semibold mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                      No transaction ID recorded
                     </p>
                   ) : null}
                 </div>
@@ -377,6 +428,47 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               </div>
             </CardContent>
           </Card>
+
+          {/* Store Pickup Appointment Panel */}
+          {order.fulfillmentType === "STORE_PICKUP" && (
+            <OrderPickupAppointmentPanel
+              orderId={order.id}
+              customerName={order.user?.name || order.address?.name || "Customer"}
+              customerPhone={order.user?.phone || order.guestPhone || order.address?.phone || null}
+              customerEmail={order.user?.email || order.guestEmail || null}
+              initialAppointmentDate={order.pickupAppointmentDate}
+              initialAppointmentTime={order.pickupAppointmentTime}
+              initialPickupStatus={order.pickupStatus}
+              initialPickupNotes={order.pickupNotes}
+            />
+          )}
+
+          {/* Manual Delivery Information Panel */}
+          {order.fulfillmentType === "MANUAL_DELIVERY" && (
+            <Card className="border-blue-200 bg-blue-50/40">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2 text-blue-900">
+                  <Truck className="h-5 w-5 text-blue-600" />
+                  Store Manual Delivery (Large Items)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm text-slate-700">
+                <p>
+                  This order contains large/bulky items not serviced by standard parcel couriers. Delivery is dispatched directly by Complete Home Sollution to postcode <strong>{order.address?.postcode}</strong> ({order.address?.suburb}).
+                </p>
+                <div className="bg-white p-3 rounded-lg border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <span className="text-xs text-slate-500 block">Delivery Charge Collected</span>
+                    <span className="font-semibold text-slate-900">{currencyFormatter.format(order.shippingCost)}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-slate-500 block">Customer Contact</span>
+                    <span className="font-medium text-slate-900">{order.user?.phone || order.guestPhone || order.address?.phone || "No phone provided"}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Right Column - Customer & Shipping */}
@@ -414,16 +506,39 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             </CardContent>
           </Card>
 
-          {/* Shipping Address */}
+          {/* Shipping / Pickup Location */}
           <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                Shipping Address
+                {order.fulfillmentType === "STORE_PICKUP" ? (
+                  <>
+                    <Store className="h-4 w-4 text-amber-600" />
+                    Pickup Location
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="h-4 w-4" />
+                    Shipping Address
+                  </>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {order.address ? (
+              {order.fulfillmentType === "STORE_PICKUP" ? (
+                <div className="space-y-3 text-sm">
+                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <p className="font-semibold text-amber-950">Complete Home Sollution Showroom</p>
+                    <p className="text-amber-800 text-xs mt-0.5">18 Edison Drive, Golden Grove SA 5125</p>
+                    <p className="text-amber-700 text-xs mt-1">Phone: +61 401 682 910</p>
+                  </div>
+                  {order.address && (
+                    <div className="pt-2 text-xs text-slate-500 border-t border-slate-100">
+                      <p className="font-medium text-slate-700">Customer Address:</p>
+                      <p>{order.address.name}, {order.address.line1}, {order.address.suburb} {order.address.state} {order.address.postcode}</p>
+                    </div>
+                  )}
+                </div>
+              ) : order.address ? (
                 <div className="space-y-1 text-sm">
                   <p className="font-medium text-slate-900">{order.address.name}</p>
                   <p className="text-slate-600">{order.address.line1}</p>
@@ -445,15 +560,32 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             </CardContent>
           </Card>
 
+          {/* Packaging Box Configuration & Allocation — only relevant for standard courier delivery */}
+          {order.fulfillmentType !== "STORE_PICKUP" && order.fulfillmentType !== "MANUAL_DELIVERY" && order.items.length > 0 && (
+            <OrderPackagingPanel
+              orderId={order.id}
+              initialPackagePresetId={order.packagePresetId}
+              initialPackageName={order.packageName}
+              initialPackedLength={order.packedLength}
+              initialPackedWidth={order.packedWidth}
+              initialPackedHeight={order.packedHeight}
+              initialPackedWeight={order.packedWeight}
+              initialPackageOverride={order.packageOverride}
+              calculatedProductWeight={netProductWeight}
+              availablePresets={packagingPresets}
+            />
+          )}
+
           {/* Order Status Update */}
           <OrderStatusUpdate
             orderId={order.id}
             currentStatus={order.status}
             currentTrackingNumber={order.trackingNumber}
             currentCarrier={order.carrier}
+            fulfillmentType={order.fulfillmentType}
           />
 
-          {order.items.length > 0 && ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status) && (
+          {order.fulfillmentType !== "STORE_PICKUP" && order.fulfillmentType !== "MANUAL_DELIVERY" && order.items.length > 0 && ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status) && (
             <ReadyToShipPanel
               orderId={order.id}
               currentStatus={order.status}

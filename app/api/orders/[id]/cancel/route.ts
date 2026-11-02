@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { refundTransaction } from "@/lib/payway";
 import { refundOnlinePayOrder, OnlinePayRefundError } from "@/lib/onlinepay";
 import { refundOrderMembership } from "@/lib/membership";
-import { queueRefundReceipt, queueRefundRequest } from "@/lib/email-outbox";
+import { queueRefundReceipt, queueRefundRequest, processDueEmailJobs } from "@/lib/email-outbox";
+import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
 
 // Statuses where we auto-refund immediately (order not yet shipped)
 const AUTO_REFUND_STATUSES = ["PAID", "CONFIRMED", "PROCESSING"];
@@ -45,6 +46,25 @@ export async function POST(
       return NextResponse.json({ error: `Order cannot be cancelled (status: ${order.status})` }, { status: 400 });
     }
 
+    if (order.status === "PENDING") {
+      await db.$transaction(async (tx) => {
+        await tx.order.updateMany({
+          where: { id: orderId, status: "PENDING" },
+          data: { status: "CANCELLED", refundReason: reason || "Customer cancelled pending order" },
+        });
+        if (typeof releaseCouponReservationInTransaction === "function") {
+          await releaseCouponReservationInTransaction(tx, orderId);
+        }
+        if ((tx as any).raffleWinner) {
+          await (tx as any).raffleWinner.updateMany({
+            where: { orderId },
+            data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+          });
+        }
+      });
+      return NextResponse.json({ success: true, cancelled: true });
+    }
+
     const requestReview = () => db.$transaction(async tx => {
       const changed = await tx.order.updateMany({
         where: { id: orderId, status: order.status, refundRequested: false, refundProcessing: false },
@@ -56,6 +76,7 @@ export async function POST(
 
     if (AUTO_REFUND_STATUSES.includes(order.status) && (!order.paywayTransactionId || order.membershipAmount > 0)) {
       await requestReview();
+      await processDueEmailJobs().catch((err) => console.error("[cancel] Outbox error:", err));
       return NextResponse.json({ success: true, autoRefunded: false });
     }
     if (AUTO_REFUND_STATUSES.includes(order.status)) {
@@ -119,11 +140,18 @@ export async function POST(
             refundProcessing: false,
           },
         });
+        if ((tx as any).raffleWinner) {
+          await (tx as any).raffleWinner.updateMany({
+            where: { orderId },
+            data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+          });
+        }
         await queueRefundReceipt(tx, orderId, Math.round(order.total * 100), order.total, true, false);
         return true;
       });
       if (!committed) return NextResponse.json({ success: true, autoRefunded: true, alreadyProcessed: true });
 
+      await processDueEmailJobs().catch((err) => console.error("[cancel] Outbox error:", err));
       return NextResponse.json({ success: true, autoRefunded: true, refundAmount: order.total });
     }
 
@@ -135,6 +163,7 @@ export async function POST(
 
       if (!await requestReview()) return NextResponse.json({ error: "Order changed. Refresh and try again." }, { status: 409 });
 
+      await processDueEmailJobs().catch((err) => console.error("[cancel] Outbox error:", err));
       return NextResponse.json({ success: true, autoRefunded: false });
     }
 

@@ -8,8 +8,9 @@ import {
 } from "@/lib/couriersplease";
 import { createShippingQuoteToken, shippingDestinationKey } from "@/lib/shipping-quote";
 import { db } from "@/lib/db";
-import { buildParcelGroups, FreightRequiredError, shipmentKey } from "@/lib/shipping-packages";
+import { buildParcelGroups, buildPackagedParcelGroups, FreightRequiredError, shipmentKey } from "@/lib/shipping-packages";
 import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { isLargeProduct, getManualDeliveryPostcodeRate } from "@/lib/manual-delivery";
 
 const schema = z.object({
   address: z.object({
@@ -69,13 +70,18 @@ export async function POST(req: NextRequest) {
       where: { id: { in: productIds }, isActive: true },
       select: {
         id: true,
+        name: true,
+        description: true,
+        isLargeItem: true,
+        requiresPackaging: true,
         weight: true,
         length: true,
         width: true,
         height: true,
+        category: { select: { slug: true, name: true } },
         productVariants: {
           where: { isActive: true },
-          select: { id: true, weight: true, length: true, width: true, height: true },
+          select: { id: true, weight: true, length: true, width: true, height: true, requiresPackaging: true },
         },
       },
     });
@@ -84,25 +90,67 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "One or more products are unavailable" }, { status: 400 });
     }
 
-    const groups = buildParcelGroups(
-      items.map((item) => {
-        const product = products.find((val) => val.id === item.productId)!;
-        const variant = item.variantId
-          ? product.productVariants.find((val) => val.id === item.variantId)
-          : null;
-        if (item.variantId && !variant) {
-          throw new FreightRequiredError("A selected product variant is unavailable.");
-        }
-        return {
-          key: `${item.productId}:${item.variantId ?? "base"}`,
-          quantity: item.quantity,
-          weight: variant?.weight ?? product.weight,
-          length: variant?.length ?? product.length,
-          width: variant?.width ?? product.width,
-          height: variant?.height ?? product.height,
-        };
-      })
-    );
+    const hasLargeItems = products.some((p) => isLargeProduct(p));
+
+    // For large items (e.g. sofas), CouriersPlease is not available.
+    // Instead, delivery is handled separately by the admin itself for covered postcodes,
+    // or store pickup is offered.
+    if (hasLargeItems) {
+      const manualRate = await getManualDeliveryPostcodeRate(address.postcode);
+      if (manualRate && manualRate.available) {
+        const rates = [
+          {
+            serviceCode: "MANUAL_DELIVERY",
+            serviceName: "Standard Delivery",
+            price: manualRate.charge,
+            deliveryTime: "5–7 working days",
+            isManualDelivery: true,
+            quoteToken: createShippingQuoteToken({
+              postcode: address.postcode,
+              destinationKey: shippingDestinationKey(address),
+              shipmentKey: "MANUAL_DELIVERY",
+              serviceCode: "MANUAL_DELIVERY",
+              price: manualRate.charge,
+            }),
+          },
+        ];
+        return NextResponse.json({
+          rates,
+          hasLargeItems: true,
+          manualDeliveryAvailable: true,
+          storePickupAvailable: true,
+        });
+      } else {
+        return NextResponse.json({
+          rates: [],
+          hasLargeItems: true,
+          manualDeliveryAvailable: false,
+          storePickupAvailable: true,
+          message: `Delivery is not available to postcode ${address.postcode} for these items. Please select Store Pickup.`,
+        });
+      }
+    }
+
+    const shippingItems = items.map((item) => {
+      const product = products.find((val) => val.id === item.productId)!;
+      const variant = item.variantId
+        ? product.productVariants.find((val) => val.id === item.variantId)
+        : null;
+      if (item.variantId && !variant) {
+        throw new FreightRequiredError("A selected product variant is unavailable.");
+      }
+      return {
+        key: `${item.productId}:${item.variantId ?? "base"}`,
+        quantity: item.quantity,
+        weight: variant?.weight ?? product.weight,
+        length: variant?.length ?? product.length,
+        width: variant?.width ?? product.width,
+        height: variant?.height ?? product.height,
+        requiresPackaging: variant?.requiresPackaging ?? product.requiresPackaging ?? true,
+      };
+    });
+
+    const { groups, packaging } = await buildPackagedParcelGroups(shippingItems);
 
     const key = shipmentKey(groups);
     const allRates = await getCouriersPleaseRates(address, groups);
@@ -118,7 +166,7 @@ export async function POST(req: NextRequest) {
     const rates = [
       {
         serviceCode: bestRate.serviceCode,
-        serviceName: "Couriers Please Delivery",
+        serviceName: "Standard Delivery",
         price: bestRate.price,
         deliveryTime: "5–7 working days",
         quoteToken: createShippingQuoteToken({
@@ -128,10 +176,11 @@ export async function POST(req: NextRequest) {
           serviceCode: bestRate.serviceCode,
           price: bestRate.price,
         }),
+        packaging,
       },
     ];
 
-    return NextResponse.json({ rates });
+    return NextResponse.json({ rates, hasLargeItems: false, storePickupAvailable: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -140,7 +189,11 @@ export async function POST(req: NextRequest) {
       );
     }
     if (error instanceof FreightRequiredError) {
-      return NextResponse.json({ error: error.message, freightRequired: true }, { status: 422 });
+      return NextResponse.json({
+        error: error.message,
+        freightRequired: true,
+        storePickupAvailable: true,
+      }, { status: 422 });
     }
     if (error instanceof CouriersPleaseError) {
       console.error("[POST /api/shipping/couriersplease]", { message: error.message, code: error.code });

@@ -1,4 +1,4 @@
-import { orderContentsLabel } from "@/lib/order-display";
+import { orderContentsLabel, getEffectiveOrderStatus } from "@/lib/order-display";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -8,7 +8,7 @@ import { getAddresses } from "@/lib/actions/address";
 import { AccountSidebar } from "@/components/account/account-sidebar";
 import {
   Package, Crown, ShoppingBag, Heart, ChevronRight, ArrowRight,
-  Star, Truck, ShieldCheck, Tag, Calendar, MapPin, ChevronLeft, Home, Ticket,
+  Star, Truck, ShieldCheck, Tag, Calendar, MapPin, ChevronLeft, Home, Ticket, Store,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "My Dashboard — Complete Home Sollution" };
@@ -120,7 +120,7 @@ export default async function AccountDashboardPage() {
                   </span>
                 </div>
                 <h1 className="text-xl lg:text-2xl xl:text-3xl font-extrabold text-foreground mb-2">
-                  Welcome back, {user.name?.split(" ")[0] ?? "Friend"} 👋
+                  Welcome back, {user.name?.split(" ")[0] ?? "Friend"}
                 </h1>
                 <p className="text-muted-foreground text-sm max-w-md leading-relaxed">
                   {user.isMember
@@ -239,30 +239,52 @@ export default async function AccountDashboardPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {recentOrders.map((order) => (
-                    <Link
-                      key={order.id}
-                      href={`/account/orders/${order.id}`}
-                      className="flex items-center gap-3 lg:gap-4 px-4 lg:px-6 py-3 lg:py-4 hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
-                    >
-                      <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-lg lg:rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                        <Package className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-semibold text-sm text-foreground">#{order.id.slice(-6).toUpperCase()}</span>
-                          <span className={getStatusStyle(order.status)}>{order.status}</span>
+                  {recentOrders.map((order) => {
+                    const effectiveStatus = getEffectiveOrderStatus(order);
+                    const isStorePickup = order.fulfillmentType === "STORE_PICKUP";
+
+                    return (
+                      <Link
+                        key={order.id}
+                        href={`/account/orders/${order.id}`}
+                        className="flex items-center gap-3 lg:gap-4 px-4 lg:px-6 py-3 lg:py-4 hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
+                      >
+                        <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-lg lg:rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                          {isStorePickup ? (
+                            <Store className="h-5 w-5 lg:h-6 lg:w-6 text-amber-600" />
+                          ) : (
+                            <Package className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
+                          )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {orderContentsLabel(order)} · {new Date(order.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
-                        </p>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-semibold text-sm text-foreground">${order.total.toFixed(2)}</p>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
-                      </div>
-                    </Link>
-                  ))}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                            <span className="font-semibold text-sm text-foreground">#{order.id.slice(-6).toUpperCase()}</span>
+                            {isStorePickup && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full uppercase">
+                                <Store className="h-2.5 w-2.5 text-amber-700" /> Pickup
+                              </span>
+                            )}
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border ${effectiveStatus.badgeStyle}`}>
+                              {effectiveStatus.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {orderContentsLabel(order)} · {new Date(order.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                          </p>
+                          {isStorePickup && effectiveStatus.isAppointmentScheduled && effectiveStatus.appointmentFormatted && (
+                            <p className="text-[11px] font-medium text-blue-700 flex items-center gap-1 mt-1">
+                              <Calendar className="h-3 w-3 shrink-0" />
+                              Appointment: {effectiveStatus.appointmentFormatted}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold text-sm text-foreground">${order.total.toFixed(2)}</p>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -5,7 +5,7 @@ import { refundTransaction, PayWayApiError } from "@/lib/payway";
 import { refundOnlinePayOrder, OnlinePayRefundError } from "@/lib/onlinepay";
 import { refundOrderMembership } from "@/lib/membership";
 import { z } from "zod";
-import { queueRefundReceipt } from "@/lib/email-outbox";
+import { queueRefundReceipt, processDueEmailJobs } from "@/lib/email-outbox";
 
 const refundSchema = z.object({
   amount: z.number().positive().refine(value => Math.abs(value * 100 - Math.round(value * 100)) < 1e-7, "Use whole cents"),
@@ -142,6 +142,10 @@ export async function POST(
         return true;
       });
       if (!committed) return NextResponse.json({ success: true, alreadyProcessed: true });
+
+      await processDueEmailJobs().catch((emailErr) => {
+        console.error("[admin refund] Email dispatch note:", emailErr);
+      });
     } catch (dbErr) {
       // DB failed AFTER PayWay already processed the refund.
       // The customer HAS received their money. Log clearly for ops to fix the

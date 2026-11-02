@@ -63,6 +63,7 @@ interface ProductVariant {
   length?: number;
   width?: number;
   height?: number;
+  requiresPackaging?: boolean;
 }
 
 function VariantCard({
@@ -313,6 +314,20 @@ function VariantCard({
                 />
               </div>
             </div>
+
+            {/* Packaging Requirement */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 mt-3">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold text-slate-800">Packaging Needed</Label>
+                <p className="text-[11px] text-slate-500">
+                  When turned off, this variant is shipped directly in its own dimensions without an outer box.
+                </p>
+              </div>
+              <Switch
+                checked={variant.requiresPackaging ?? true}
+                onCheckedChange={(checked: boolean) => onUpdate({ requiresPackaging: checked })}
+              />
+            </div>
           </div>
 
           {/* Variant-specific Description & Highlights (Optional) */}
@@ -453,6 +468,8 @@ export default function NewProductPage() {
   const [roomType, setRoomType] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [isPreOrder, setIsPreOrder] = useState(false);
+  const [isLargeItem, setIsLargeItem] = useState(false);
+  const [requiresPackaging, setRequiresPackaging] = useState(true);
   const [hasVariants, setHasVariants] = useState(false);
   const [images, setImages] = useState<string[]>([]);
 
@@ -519,6 +536,8 @@ export default function NewProductPage() {
         setRoomType(p.roomType || "");
         setIsActive(p.isActive);
         setIsPreOrder(p.isPreOrder ?? false);
+        setIsLargeItem(p.isLargeItem ?? false);
+        setRequiresPackaging(p.requiresPackaging ?? true);
         setHasVariants(p.hasVariants);
         setImages(p.images || []);
         setWeight(p.weight?.toString() || "");
@@ -568,6 +587,7 @@ export default function NewProductPage() {
               length: v.length,
               width: v.width,
               height: v.height,
+              requiresPackaging: v.requiresPackaging ?? true,
             };
           }));
         }
@@ -865,6 +885,8 @@ export default function NewProductPage() {
         roomType: roomType || undefined,
         isActive,
         isPreOrder,
+        isLargeItem,
+        requiresPackaging,
         hasVariants,
         images,
         weight: weight ? parseFloat(weight) : undefined,
@@ -915,6 +937,7 @@ export default function NewProductPage() {
                 length: v.length,
                 width: v.width,
                 height: v.height,
+                requiresPackaging: v.requiresPackaging ?? true,
               };
             })
           : undefined,
@@ -1047,6 +1070,36 @@ export default function NewProductPage() {
                   </p>
                 </div>
                 <Switch checked={isPreOrder} onCheckedChange={setIsPreOrder} />
+              </div>
+
+              <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-semibold text-slate-900">Large Item (Bulky Goods)</Label>
+                    <Badge variant="secondary" className="bg-indigo-100 text-indigo-800 border-indigo-200 text-[10px]">
+                      Manual Delivery / Pickup Only
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-500">
+                    Bypasses CouriersPlease parcel delivery. Dispatched exclusively via Store Admin Manual Delivery (for covered postcodes) or Store Pickup.
+                  </p>
+                </div>
+                <Switch checked={isLargeItem} onCheckedChange={setIsLargeItem} />
+              </div>
+
+              <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Label className="font-semibold text-slate-900">Packaging Needed</Label>
+                    <Badge variant="outline" className="text-slate-600 border-slate-300 text-[10px]">
+                      {requiresPackaging ? "Needs Outer Box" : "Direct Shipping"}
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-slate-500">
+                    Whether this product needs an outer package box. If disabled, shipped directly using product dimensions.
+                  </p>
+                </div>
+                <Switch checked={requiresPackaging} onCheckedChange={setRequiresPackaging} />
               </div>
             </CardContent>
           </Card>

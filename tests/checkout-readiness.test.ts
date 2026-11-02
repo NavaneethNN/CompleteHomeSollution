@@ -38,6 +38,7 @@ const db: any = {
   },
   order: {
     findUnique: async () => order,
+    findMany: async () => [],
     create: async ({ data, include }: any) => {
       void include;
       order = {

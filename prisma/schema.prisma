@@ -129,15 +129,17 @@ model Product {
   roomType     String?
   isActive     Boolean  @default(true)
   isPreOrder   Boolean  @default(false)
+  isLargeItem  Boolean  @default(false) // Large/bulky items (e.g. sofas) requiring store pickup or manual local delivery
   hasVariants  Boolean  @default(false) // Whether this product uses variant system
   categoryId   String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   // Shipping dimensions (in cm)
-  weight       Float?   // Weight in kg
-  length       Float?   // Length in cm
-  width        Float?   // Width in cm
-  height       Float?   // Height in cm
+  weight            Float?   // Weight in kg
+  length            Float?   // Length in cm
+  width             Float?   // Width in cm
+  height            Float?   // Height in cm
+  requiresPackaging Boolean? @default(true) // Whether outer packaging box is needed (false = shipped directly in product dimensions)
 
   category          Category           @relation(fields: [categoryId], references: [id])
   reviews           Review[]
@@ -202,10 +204,11 @@ model ProductVariant {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   // Shipping dimensions (in cm) - overrides product dimensions if set
-  weight       Float?   // Weight in kg
-  length       Float?   // Length in cm
-  width        Float?   // Width in cm
-  height       Float?   // Height in cm
+  weight            Float?   // Weight in kg
+  length            Float?   // Length in cm
+  width             Float?   // Width in cm
+  height            Float?   // Height in cm
+  requiresPackaging Boolean? @default(true) // Whether outer packaging box is needed for this variant
 
   product Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
   images  VariantImage[]       // Images specific to this variant
@@ -299,6 +302,24 @@ model Order {
   refundAmount      Float?
   refundedAt        DateTime?
   paywayRefundId    String?
+
+  // Fulfillment & Store Pickup fields
+  fulfillmentType       String?   @default("DELIVERY") // "DELIVERY" | "STORE_PICKUP" | "MANUAL_DELIVERY"
+  pickupAppointmentDate DateTime?
+  pickupAppointmentTime String?
+  pickupStatus          String?   @default("PENDING_SCHEDULE") // "PENDING_SCHEDULE" | "SCHEDULED" | "READY_FOR_PICKUP" | "PICKED_UP"
+  pickupNotes           String?   @db.Text
+  manualDeliveryNotes   String?   @db.Text
+
+  // Packaging preset & packing details
+  packagePresetId       String?
+  packageName           String?
+  packedWeight          Float?    // Total packed weight in kg (products + empty box tare)
+  packedLength          Float?    // in cm
+  packedWidth           Float?    // in cm (breadth)
+  packedHeight          Float?    // in cm
+  packageOverride       Boolean?  @default(false)
+
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -841,5 +862,37 @@ model RaffleAuditLog {
 
   @@index([raffleId])
   @@index([createdAt])
+}
+
+// ─── Manual Postcode Delivery (for Large Items / Sofas) ──────────────────────
+model ManualDeliveryPostcode {
+  id        String   @id @default(cuid())
+  postcode  String   @unique
+  suburb    String?
+  charge    Float    // Fixed delivery charge for this postcode (AUD)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postcode])
+  @@index([isActive])
+}
+
+// ─── Packaging Presets Configuration ──────────────────────────────────────────
+model PackagingPreset {
+  id          String   @id @default(cuid())
+  name        String   // "Small", "Medium", "Large", "Extra Large"
+  length      Float    // in cm
+  width       Float    // in cm (breadth)
+  height      Float    // in cm
+  maxWeight   Float    // in kg
+  emptyWeight Float    // in kg (empty box weight)
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0) // Higher priority considered first
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([priority])
 }
 

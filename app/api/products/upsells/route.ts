@@ -27,16 +27,26 @@ export async function GET(req: NextRequest) {
           id: { notIn: excludeIds },
           isActive: true,
           isPreOrder: false,
-          OR: [
-            { categoryId: { in: categoryIds } },
-            // Cross-category recommendations (e.g., if buying furniture, suggest accessories)
-            categoryIds.length > 0 ? { category: { slug: { in: ["accessories", "decor", "lighting"] } } } : {},
+          AND: [
+            {
+              OR: [
+                { hasVariants: false, stock: { gt: 0 } },
+                { hasVariants: true, productVariants: { some: { isActive: true, stock: { gt: 0 } } } },
+              ],
+            },
+            {
+              OR: [
+                { categoryId: { in: categoryIds } },
+                // Cross-category recommendations (e.g., if buying furniture, suggest accessories)
+                categoryIds.length > 0 ? { category: { slug: { in: ["accessories", "decor", "lighting"] } } } : {},
+              ],
+            },
           ],
         },
         include: {
           category: { select: { name: true } },
           productVariants: {
-            where: { isActive: true },
+            where: { isActive: true, stock: { gt: 0 } },
             orderBy: { price: "asc" },
             take: 1,
             select: { price: true },
@@ -54,11 +64,15 @@ export async function GET(req: NextRequest) {
           id: { notIn: excludeIds },
           isActive: true,
           isPreOrder: false,
+          OR: [
+            { hasVariants: false, stock: { gt: 0 } },
+            { hasVariants: true, productVariants: { some: { isActive: true, stock: { gt: 0 } } } },
+          ],
         },
         include: {
           category: { select: { name: true } },
           productVariants: {
-            where: { isActive: true },
+            where: { isActive: true, stock: { gt: 0 } },
             orderBy: { price: "asc" },
             take: 1,
             select: { price: true },

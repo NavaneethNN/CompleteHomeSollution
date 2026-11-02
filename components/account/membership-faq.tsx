@@ -15,24 +15,29 @@ const FAQS: FAQItem[] = [
       "Immediately upon joining! Your 5% discount (up to $30 per order) is linked to your account and applied automatically to eligible items at checkout. You can also add membership directly during checkout to discount that very purchase.",
   },
   {
-    question: "Can I use my member discount with promo coupons?",
+    question: "What are exclusive member prices and offers?",
     answer:
-      "Yes! Your member discount automatically applies at the product level, and you can still apply eligible promotional coupon codes to your cart at checkout for compound savings.",
+      "VIP members unlock special catalog pricing on curated furniture pieces (including bed frames, lounges, and dining suites) plus private seasonal promotional offers and bonus reward deals.",
   },
   {
-    question: "How does the 3-Year Extended Warranty work?",
+    question: "How do exclusive member-only raffles work?",
     answer:
-      "Every piece of furniture purchased while your VIP membership is active receives a full 3-year warranty covering timber frames, structural joints, springs, and craftsmanship defects — double our standard 1-year coverage.",
+      "Active VIP members gain exclusive access to enter our member-only furniture prize draws and luxury giveaways with zero entry barriers. Whenever a member raffle is active, your membership unlocks free participation.",
+  },
+  {
+    question: "What is included with exclusive access to blogs?",
+    answer:
+      "You receive unrestricted access to our members-only interior design articles, home styling tutorials, expert furniture maintenance guides, and Australian decor trend forecasts.",
+  },
+  {
+    question: "How does high priority customer support work?",
+    answer:
+      "Your inquiries are routed directly to our priority support queue. Whether you need styling advice, product specs, or delivery scheduling, our Adelaide showroom team handles your request first.",
   },
   {
     question: "Can I cancel auto-renewal anytime?",
     answer:
-      "Yes, 100%. You have complete control in your account dashboard. You can switch off auto-renewal anytime with one click — no questions asked, no phone calls required. You will continue to enjoy your full VIP benefits until your term concludes.",
-  },
-  {
-    question: "Is there a limit to how many times I can save?",
-    answer:
-      "No! There is no limit on the number of orders you can place. You save up to $30 on every single eligible furniture and decor order throughout your entire 365-day membership period.",
+      "Yes, 100%. You have complete control in your account dashboard. You can switch off auto-renewal anytime with one click — no questions asked, zero cancellation fees. You will continue to enjoy your full VIP benefits until your term concludes.",
   },
 ];
 

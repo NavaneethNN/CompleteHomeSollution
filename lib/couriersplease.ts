@@ -214,8 +214,8 @@ export function checkCouriersPleaseAvailability(): { available: boolean; reason:
 /**
  * Split a full name into first and last name for API compatibility.
  */
-function splitName(fullName: string): { firstName: string; lastName: string } {
-  const trimmed = fullName.trim() || "Customer";
+function splitName(fullName?: string | null): { firstName: string; lastName: string } {
+  const trimmed = (fullName || "").trim() || "Customer";
   const parts = trimmed.split(/\s+/);
   if (parts.length === 1) {
     return { firstName: parts[0].slice(0, 50), lastName: "Customer" };
@@ -230,7 +230,7 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
  */
 function cleanPhone(phone?: string | null): string {
   if (!phone) return "0400000000";
-  const cleaned = phone.replace(/[^0-9+]/g, "");
+  const cleaned = phone.replace(/[^0-9+]/g, "").slice(0, 15);
   return cleaned || "0400000000";
 }
 

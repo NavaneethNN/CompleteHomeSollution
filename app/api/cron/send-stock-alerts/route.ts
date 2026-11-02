@@ -3,15 +3,12 @@ import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/brevo";
 import { hasValidCronSecret } from "@/lib/cron-auth";
 import { siteOrigin } from "@/lib/site-indexing";
+import { renderStandardEmail, renderCard, escapeHtml } from "@/lib/email-template";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 type DueAlert = { id: string; email: string; name: string; slug: string };
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
-}
 
 export async function GET(req: NextRequest) {
   if (!hasValidCronSecret(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -42,10 +39,34 @@ export async function GET(req: NextRequest) {
     if (!claimed.count) continue;
     try {
       const productUrl = `${siteOrigin()}/products/${encodeURIComponent(alert.slug)}`;
+      const safeProductName = escapeHtml(alert.name);
+      const bodyHtml = `
+        <p style="margin:0 0 16px;color:#334155;font-size:15px;line-height:1.6;">
+          Good news! An item from your wishlist, <strong>${safeProductName}</strong>, is back in stock and ready to order.
+        </p>
+
+        ${renderCard(`
+          <p style="margin:0;font-size:16px;font-weight:700;color:#1e293b;">${safeProductName}</p>
+          <p style="margin:4px 0 0;font-size:13px;color:#16a34a;font-weight:600;">In Stock & Ready for Dispatch / Showroom Pickup</p>
+        `, { title: "Item Availability", bg: "#f0fdf4", border: "#bbf7d0" })}
+
+        <p style="margin:16px 0 0;font-size:13px;color:#64748b;">
+          Stock quantities are limited and reserved on a first-come, first-served basis. Order today to secure yours!
+        </p>
+      `;
+
+      const htmlContent = renderStandardEmail({
+        title: `${alert.name} is back in stock`,
+        badge: { text: "Back in Stock", type: "success" },
+        greeting: "Hello,",
+        bodyHtml,
+        cta: { text: "View Product & Order Now", url: productUrl },
+      });
+
       await sendEmail({
         to: [{ email: alert.email }],
-        subject: `${alert.name} is back in stock`,
-        htmlContent: `<p>${escapeHtml(alert.name)} is available again.</p><p><a href="${productUrl}">View product</a></p>`,
+        subject: `${alert.name} is back in stock — Complete Home Sollution`,
+        htmlContent,
         textContent: `${alert.name} is available again: ${productUrl}`,
         headers: { idempotencyKey: alert.id },
       });

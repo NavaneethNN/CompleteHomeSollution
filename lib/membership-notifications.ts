@@ -1,8 +1,5 @@
 import { sendEmail } from "./brevo";
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
-}
+import { renderStandardEmail, renderCard, escapeHtml } from "./email-template";
 
 function siteOrigin(): string {
   const raw = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "https://completehomesollution.com.au";
@@ -17,56 +14,36 @@ export async function sendMembershipCancelledEmail(email: string, name: string):
   const safeName = escapeHtml(name || "Customer");
   const membershipUrl = `${siteOrigin()}/account/membership`;
 
+  const bodyHtml = `
+    <p style="margin:0 0 16px;color:#334155;">
+      As requested, your <strong>CHS VIP Membership</strong> has been cancelled.
+    </p>
+
+    ${renderCard(`
+      <ul style="margin:0;padding-left:18px;color:#991b1b;font-size:14px;line-height:1.6;">
+        <li>Recurring autopay has been cancelled immediately.</li>
+        <li>All member benefits (5% discount up to $30, member pricing, 3-Year warranty) have ceased.</li>
+        <li>No further renewal charges will occur.</li>
+      </ul>
+    `, { title: "Cancellation Summary", bg: "#fef2f2", border: "#fecaca" })}
+
+    <p style="margin:20px 0 0;font-size:14px;color:#475569;line-height:1.6;">
+      Ready to return? You can reactivate your membership anytime to restore exclusive discounts and perks.
+    </p>
+  `;
+
+  const htmlContent = renderStandardEmail({
+    title: "Your CHS VIP Membership has been Cancelled",
+    badge: { text: "Membership Cancelled", type: "neutral" },
+    greeting: `Hi ${safeName},`,
+    bodyHtml,
+    cta: { text: "View Membership Details", url: membershipUrl },
+  });
+
   await sendEmail({
     to: [{ email, name }],
     subject: "Your CHS Premium Membership has been Cancelled",
-    htmlContent: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f8fafc; }
-    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; }
-    .header { background: #0f172a; padding: 32px 24px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-    .content { padding: 32px 24px; }
-    .alert-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px; margin: 20px 0; color: #991b1b; font-size: 14px; }
-    .button { display: inline-block; background: #0f172a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; margin-top: 20px; }
-    .footer { padding: 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Complete Home Solution</h1>
-      <p style="margin: 6px 0 0; color: #94a3b8; font-size: 13px;">Membership Update</p>
-    </div>
-    <div class="content">
-      <p style="font-size: 16px; font-weight: 600;">Hi ${safeName},</p>
-      <p>As requested, your <strong>CHS Premium Membership</strong> has been cancelled.</p>
-      
-      <div class="alert-box">
-        <strong>Cancellation Summary:</strong><br>
-        • Recurring autopay has been stopped immediately.<br>
-        • All member benefits (including 5% discount up to $30, member prices, and extended warranty) have ended immediately.<br>
-        • No further renewal charges will occur.
-      </div>
-
-      <p style="font-size: 14px; color: #475569;">You can re-join the membership program at any time to restore your exclusive discounts and member perks.</p>
-
-      <div style="text-align: center;">
-        <a href="${membershipUrl}" class="button">View Membership Details</a>
-      </div>
-    </div>
-    <div class="footer">
-      <p>© ${new Date().getFullYear()} Complete Home Solution. All rights reserved.</p>
-      <p>18 Edison Drive, Golden Grove SA 5125 · info@completehomesollution.com.au</p>
-    </div>
-  </div>
-</body>
-</html>
-`,
+    htmlContent,
   });
 }
 
@@ -94,55 +71,42 @@ export async function sendMembershipPaymentRetryEmail(
     ? "Action Required: Final Notice for Membership Renewal Payment"
     : "Payment Issue: CHS Premium Membership Renewal";
 
-  await sendEmail({
-    to: [{ email, name }],
-    subject,
-    htmlContent: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f8fafc; }
-    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; }
-    .header { background: #0f172a; padding: 32px 24px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-    .content { padding: 32px 24px; }
-    .warning-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 16px; margin: 20px 0; color: #92400e; font-size: 14px; }
-    .button { display: inline-block; background: #0f172a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; margin-top: 20px; }
-    .footer { padding: 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Complete Home Solution</h1>
-      <p style="margin: 6px 0 0; color: #94a3b8; font-size: 13px;">Membership Autopay Notice</p>
-    </div>
-    <div class="content">
-      <p style="font-size: 16px; font-weight: 600;">Hi ${safeName},</p>
-      <p>We attempted to process your automatic renewal for <strong>CHS Premium Membership</strong>, but the payment could not be completed (e.g. due to insufficient funds or a card processing issue).</p>
-      
-      <div class="warning-box">
-        <strong>Attempt ${retryCount} of 2 Failed:</strong><br>
-        • Our system will automatically re-attempt payment on <strong>${formattedDate}</strong> (on a different day).<br>
+  const bodyHtml = `
+    <p style="margin:0 0 16px;color:#334155;">
+      We attempted to process your automatic renewal for <strong>CHS VIP Membership</strong>, but the payment could not be completed (e.g. due to insufficient funds or a card processing issue).
+    </p>
+
+    ${renderCard(`
+      <p style="margin:0 0 8px;font-size:14px;color:#92400e;line-height:1.5;">
+        • Our system will automatically re-attempt payment on <strong>${formattedDate}</strong>.
+      </p>
+      <p style="margin:0;font-size:14px;color:#92400e;line-height:1.5;">
         • ${isFinalRetry
           ? "This will be the final payment attempt. If it fails, your membership and benefits will be cancelled immediately due to payment method failure."
           : "Please ensure your account has sufficient funds or update your payment details to maintain your benefits without interruption."}
-      </div>
+      </p>
+    `, { title: `Attempt ${retryCount} of 2 Failed`, bg: "#fffbeb", border: "#fde68a" })}
 
-      <div style="text-align: center;">
-        <a href="${membershipUrl}" class="button">Manage Membership & Payment</a>
-      </div>
-    </div>
-    <div class="footer">
-      <p>© ${new Date().getFullYear()} Complete Home Solution. All rights reserved.</p>
-      <p>18 Edison Drive, Golden Grove SA 5125 · info@completehomesollution.com.au</p>
-    </div>
-  </div>
-</body>
-</html>
-`,
+    <p style="margin:20px 0 0;font-size:13px;color:#64748b;">
+      To keep your 5% discount, member pricing, and warranty benefits active, please review your payment details below.
+    </p>
+  `;
+
+  const htmlContent = renderStandardEmail({
+    title: subject,
+    badge: {
+      text: isFinalRetry ? "Final Payment Notice" : "Payment Attempt Failed",
+      type: "warning",
+    },
+    greeting: `Hi ${safeName},`,
+    bodyHtml,
+    cta: { text: "Manage Membership & Payment", url: membershipUrl },
+  });
+
+  await sendEmail({
+    to: [{ email, name }],
+    subject,
+    htmlContent,
   });
 }
 
@@ -152,62 +116,43 @@ export async function sendMembershipPaymentRetryEmail(
 export async function sendMembershipRevokedFailureEmail(
   email: string,
   name: string,
-  reason: string
+  _reason: string
 ): Promise<void> {
   const safeName = escapeHtml(name || "Customer");
   const membershipUrl = `${siteOrigin()}/account/membership`;
 
+  const bodyHtml = `
+    <p style="margin:0 0 16px;color:#334155;">
+      Your <strong>CHS VIP Membership</strong> has been revoked due to a <strong>payment method failure issue</strong>.
+    </p>
+
+    ${renderCard(`
+      <p style="margin:0 0 8px;font-size:14px;color:#991b1b;line-height:1.5;">
+        <strong>Reason for Revocation:</strong><br/>
+        Automatic renewal payments failed after 2 retry attempts on different days (due to insufficient funds or card decline).
+      </p>
+      <ul style="margin:8px 0 0;padding-left:18px;color:#991b1b;font-size:14px;line-height:1.5;">
+        <li>Autopay recurring billing has been terminated.</li>
+        <li>Member pricing, exclusive discounts, and all membership benefits have ended.</li>
+      </ul>
+    `, { title: "Revocation Details", bg: "#fef2f2", border: "#fecaca" })}
+
+    <p style="margin:20px 0 0;font-size:14px;color:#475569;">
+      You can restart your membership anytime with an updated payment method by visiting your membership page.
+    </p>
+  `;
+
+  const htmlContent = renderStandardEmail({
+    title: "Membership Revoked: Payment Method Failure Issue",
+    badge: { text: "Membership Revoked", type: "danger" },
+    greeting: `Hi ${safeName},`,
+    bodyHtml,
+    cta: { text: "Renew Membership", url: membershipUrl },
+  });
+
   await sendEmail({
     to: [{ email, name }],
     subject: "Membership Revoked: Payment Method Failure Issue",
-    htmlContent: `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1e293b; margin: 0; padding: 0; background-color: #f8fafc; }
-    .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; }
-    .header { background: #991b1b; padding: 32px 24px; text-align: center; color: #ffffff; }
-    .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-    .content { padding: 32px 24px; }
-    .alert-box { background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 16px; margin: 20px 0; color: #991b1b; font-size: 14px; }
-    .button { display: inline-block; background: #0f172a; color: #ffffff !important; text-decoration: none; padding: 12px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; margin-top: 20px; }
-    .footer { padding: 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="header">
-      <h1>Complete Home Solution</h1>
-      <p style="margin: 6px 0 0; color: #fecaca; font-size: 13px;">Membership Revocation Notice</p>
-    </div>
-    <div class="content">
-      <p style="font-size: 16px; font-weight: 600;">Hi ${safeName},</p>
-      <p>Your <strong>CHS Premium Membership</strong> has been revoked due to a <strong>payment method failure issue</strong>.</p>
-      
-      <div class="alert-box">
-        <strong>Reason for Revocation:</strong><br>
-        Automatic renewal payments failed after 2 retry attempts on different days (due to insufficient funds or card decline).<br><br>
-        <strong>Status:</strong><br>
-        • Autopay recurring billing has been terminated.<br>
-        • Member pricing, exclusive discounts, and all membership benefits have ended.
-      </div>
-
-      <p style="font-size: 14px; color: #475569;">You can restart your membership anytime with an updated payment method by visiting your membership page.</p>
-
-      <div style="text-align: center;">
-        <a href="${membershipUrl}" class="button">Renew Membership</a>
-      </div>
-    </div>
-    <div class="footer">
-      <p>© ${new Date().getFullYear()} Complete Home Solution. All rights reserved.</p>
-      <p>18 Edison Drive, Golden Grove SA 5125 · info@completehomesollution.com.au</p>
-    </div>
-  </div>
-</body>
-</html>
-`,
+    htmlContent,
   });
 }
-

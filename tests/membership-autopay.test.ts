@@ -13,6 +13,12 @@ let updatedUserData: any = null;
 let sentEmails: any[] = [];
 
 const dbMock = {
+  $transaction: async (cb: any) => {
+    return await cb({
+      $queryRaw: async () => [],
+      user: dbMock.user,
+    });
+  },
   user: {
     findUnique: async ({ where }: any) => {
       if (mockUser && mockUser.id === where.id) {
@@ -77,9 +83,11 @@ test("cancelMembership revokes autopay and revokes membership immediately", asyn
   assert.equal(sentEmails[0].email, "customer@example.com");
 });
 
-test("toggleMembershipAutoRenew toggles autopay flag", async () => {
+test("toggleMembershipAutoRenew toggles autopay flag and rejects inactive members", async () => {
   mockUser = {
     id: "user-123",
+    isMember: true,
+    membershipExpiry: new Date(Date.now() + 100 * 24 * 60 * 60 * 1000),
     membershipAutoRenew: true,
   };
 
@@ -90,6 +98,13 @@ test("toggleMembershipAutoRenew toggles autopay flag", async () => {
   const result2 = await toggleMembershipAutoRenew("user-123", true);
   assert.equal(result2, true);
   assert.equal(mockUser.membershipAutoRenew, true);
+
+  // Inactive user attempting to enable autopay should be rejected
+  mockUser.isMember = false;
+  await assert.rejects(
+    toggleMembershipAutoRenew("user-123", true),
+    /Active VIP membership required to enable autopay/
+  );
 });
 
 test("processFailedRenewal attempts 2 retries on different days and then revokes membership for payment method failure", async () => {

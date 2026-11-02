@@ -236,8 +236,8 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
 
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                              🎉 Winner Rank #{win.rank}
+                            <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-primary/10 text-primary inline-flex items-center gap-1">
+                              <Trophy className="h-3 w-3" /> Winner Rank #{win.rank}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               Ticket: <strong className="font-mono text-foreground">{win.ticket.ticketNumber}</strong>
@@ -470,8 +470,8 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
 
                   <div className="flex items-center gap-2">
                     {ticket.winner ? (
-                      <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold text-[10px]">
-                        🏆 Winner (#{ticket.winner.rank})
+                      <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold text-[10px] inline-flex items-center gap-1">
+                        <Trophy className="h-3 w-3" /> Winner (#{ticket.winner.rank})
                       </span>
                     ) : (
                       <span className="text-muted-foreground text-[11px]">

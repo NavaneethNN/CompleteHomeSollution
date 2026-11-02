@@ -14,8 +14,8 @@ const schema = z.object({
 export async function POST(req: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user?.id || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
     }
 
     const body = await req.json().catch(() => null);
@@ -25,8 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { action, userId: targetId } = parsed.data;
-    // Allow admins to target any user; non-admins target themselves
-    const effectiveUserId = (session.user.role === "ADMIN" && targetId) ? targetId : session.user.id;
+    const effectiveUserId = targetId || session.user.id;
 
     if (action === "simulate_failure") {
       const result = await processFailedRenewal(

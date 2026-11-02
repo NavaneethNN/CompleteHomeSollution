@@ -163,9 +163,12 @@ export async function activateMembershipInTransaction(
 export async function cancelMembership(userId: string, reason = "Cancelled manually by customer"): Promise<void> {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true, isMember: true },
+    select: { id: true, email: true, name: true, isMember: true, membershipStatus: true },
   });
   if (!user) throw new Error("User not found");
+  if (!user.isMember && user.membershipStatus === "CANCELLED") {
+    return;
+  }
 
   await db.user.update({
     where: { id: userId },
@@ -190,14 +193,25 @@ export async function cancelMembership(userId: string, reason = "Cancelled manua
 
 /**
  * Toggles autopay on/off for a user without modifying their active membership period.
+ * Requires an active VIP membership if turning autopay on.
  */
 export async function toggleMembershipAutoRenew(userId: string, autoRenew: boolean): Promise<boolean> {
-  const user = await db.user.update({
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, isMember: true, membershipExpiry: true },
+  });
+  if (!user) throw new Error("User not found");
+
+  if (autoRenew && !hasActiveMembership(user)) {
+    throw new Error("Active VIP membership required to enable autopay.");
+  }
+
+  const updated = await db.user.update({
     where: { id: userId },
     data: { membershipAutoRenew: autoRenew },
     select: { membershipAutoRenew: true },
   });
-  return user.membershipAutoRenew;
+  return updated.membershipAutoRenew;
 }
 
 /**
@@ -215,72 +229,75 @@ export async function processFailedRenewal(
   nextRetryAt?: Date | null;
   message: string;
 }> {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, name: true, membershipRetryCount: true, isMember: true },
+  return await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, membershipRetryCount: true, isMember: true },
+    });
+    if (!user) throw new Error("User not found");
+
+    const currentRetries = user.membershipRetryCount || 0;
+
+    if (currentRetries < 2) {
+      const newRetryCount = currentRetries + 1;
+      // Schedule on a different day (24 hours later)
+      const nextRetry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          membershipRetryCount: newRetryCount,
+          membershipNextRetryAt: nextRetry,
+          membershipLastRetryAt: new Date(),
+          membershipStatus: "PAYMENT_RETRYING",
+          membershipCancelReason: `Payment attempt ${newRetryCount} failed: ${failureReason}`,
+        },
+      });
+
+      if (user.email) {
+        await sendMembershipPaymentRetryEmail(user.email, user.name || "Customer", newRetryCount, nextRetry).catch((err) => {
+          console.error("[Membership] Retry notification error:", err);
+        });
+      }
+
+      return {
+        revoked: false,
+        retryCount: newRetryCount,
+        nextRetryAt: nextRetry,
+        message: `Renewal attempt ${newRetryCount} failed. Scheduled retry on a different day (${nextRetry.toISOString()}).`,
+      };
+    } else {
+      // 2 retries already attempted on different days! Revoke immediately.
+      const finalReason = "Payment method failure issue (insufficient funds/declined after 2 retry attempts on different days)";
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          isMember: false,
+          membershipAutoRenew: false,
+          membershipStatus: "REVOKED_PAYMENT_FAILURE",
+          membershipCancelReason: finalReason,
+          membershipCancelledAt: new Date(),
+          membershipExpiry: null,
+          membershipNextRetryAt: null,
+          membershipRetryCount: currentRetries + 1,
+        },
+      });
+
+      if (user.email) {
+        await sendMembershipRevokedFailureEmail(user.email, user.name || "Customer", finalReason).catch((err) => {
+          console.error("[Membership] Revocation notification error:", err);
+        });
+      }
+
+      return {
+        revoked: true,
+        retryCount: currentRetries + 1,
+        message: `Membership revoked immediately stating: ${finalReason}`,
+      };
+    }
   });
-  if (!user) throw new Error("User not found");
-
-  const currentRetries = user.membershipRetryCount || 0;
-
-  if (currentRetries < 2) {
-    const newRetryCount = currentRetries + 1;
-    // Schedule on a different day (24 hours later)
-    const nextRetry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await db.user.update({
-      where: { id: userId },
-      data: {
-        membershipRetryCount: newRetryCount,
-        membershipNextRetryAt: nextRetry,
-        membershipLastRetryAt: new Date(),
-        membershipStatus: "PAYMENT_RETRYING",
-        membershipCancelReason: `Payment attempt ${newRetryCount} failed: ${failureReason}`,
-      },
-    });
-
-    if (user.email) {
-      await sendMembershipPaymentRetryEmail(user.email, user.name || "Customer", newRetryCount, nextRetry).catch((err) => {
-        console.error("[Membership] Retry notification error:", err);
-      });
-    }
-
-    return {
-      revoked: false,
-      retryCount: newRetryCount,
-      nextRetryAt: nextRetry,
-      message: `Renewal attempt ${newRetryCount} failed. Scheduled retry on a different day (${nextRetry.toISOString()}).`,
-    };
-  } else {
-    // 2 retries already attempted on different days! Revoke immediately.
-    const finalReason = "Payment method failure issue (insufficient funds/declined after 2 retry attempts on different days)";
-
-    await db.user.update({
-      where: { id: userId },
-      data: {
-        isMember: false,
-        membershipAutoRenew: false,
-        membershipStatus: "REVOKED_PAYMENT_FAILURE",
-        membershipCancelReason: finalReason,
-        membershipCancelledAt: new Date(),
-        membershipExpiry: null,
-        membershipNextRetryAt: null,
-        membershipRetryCount: currentRetries + 1,
-      },
-    });
-
-    if (user.email) {
-      await sendMembershipRevokedFailureEmail(user.email, user.name || "Customer", finalReason).catch((err) => {
-        console.error("[Membership] Revocation notification error:", err);
-      });
-    }
-
-    return {
-      revoked: true,
-      retryCount: currentRetries + 1,
-      message: `Membership revoked immediately stating: ${finalReason}`,
-    };
-  }
 }
 
 /**
@@ -363,9 +380,15 @@ export async function refundOrderMembership(tx: Prisma.TransactionClient, orderI
       oldExpiry = renewal.expiresAt;
       newExpiry = adjusted;
     }
+    const now = new Date();
+    const stillActive = !!newExpiry && newExpiry > now;
     await tx.user.updateMany({
       where: { id: payment.userId, membershipExpiry: oldExpiry },
-      data: { isMember: !!newExpiry && newExpiry > new Date(), membershipExpiry: newExpiry },
+      data: {
+        isMember: stillActive,
+        membershipExpiry: newExpiry,
+        ...(stillActive ? {} : { membershipAutoRenew: false, membershipStatus: "REFUNDED" }),
+      },
     });
   }
   await tx.membershipPayment.update({ where: { id: payment.id }, data: { refundedAt: new Date() } });

@@ -42,6 +42,15 @@ export async function PUT(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    if (existingOrder.refundRequested || existingOrder.refundProcessing) {
+      return NextResponse.json(
+        {
+          error: `Cannot update order status while a refund is ${existingOrder.refundProcessing ? "processing" : "requested"}. Please resolve the refund request first.`,
+        },
+        { status: 409 }
+      );
+    }
+
     // S-3: Enforce state machine — reject invalid transitions
     const allowedNext = ORDER_TRANSITIONS[existingOrder.status] ?? [];
     if (data.status !== existingOrder.status && !allowedNext.includes(data.status)) {
@@ -58,6 +67,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
       where: { id, status: existingOrder.status, refundProcessing: false, refundRequested: false },
       data: {
         status: data.status,
+        ...(existingOrder.fulfillmentType === "STORE_PICKUP" && data.status === "DELIVERED"
+          ? { pickupStatus: "PICKED_UP" }
+          : {}),
         ...(data.trackingNumber !== undefined ? { trackingNumber: data.trackingNumber } : {}),
         ...(data.carrier !== undefined ? { carrier: data.carrier } : {}),
         updatedAt: new Date(),
@@ -73,7 +85,21 @@ export async function PUT(req: NextRequest, { params }: Params) {
       return transition;
     });
 
-    if (!changed.count) return NextResponse.json({ error: "Order changed. Refresh and try again." }, { status: 409 });
+    if (!changed.count) {
+      const latest = await db.order.findUnique({
+        where: { id },
+        select: { status: true, refundRequested: true, refundProcessing: true },
+      });
+      if (latest?.refundRequested || latest?.refundProcessing) {
+        return NextResponse.json(
+          {
+            error: `Cannot update order status: a refund is currently ${latest.refundProcessing ? "processing" : "requested"}. Please resolve the refund request first.`,
+          },
+          { status: 409 }
+        );
+      }
+      return NextResponse.json({ error: "Order status or details were changed by another session. Refresh and try again." }, { status: 409 });
+    }
 
     // Send status update notification immediately (fits within Vercel free plan)
     if (data.status !== existingOrder.status) {

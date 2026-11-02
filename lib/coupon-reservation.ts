@@ -26,3 +26,36 @@ export async function releaseCouponReservationInTransaction(
 export async function releaseCouponReservation(orderId: string): Promise<boolean> {
   return db.$transaction((tx) => releaseCouponReservationInTransaction(tx, orderId));
 }
+
+/**
+ * Releases reserved coupons and marks abandoned PENDING orders (> 30 mins) as CANCELLED.
+ */
+export async function cleanupStalePendingCouponReservations(
+  couponId?: string | null,
+  userId?: string | null
+): Promise<number> {
+  if (typeof db.order?.findMany !== "function") return 0;
+  const staleCutoff = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes
+  const staleOrders = await db.order.findMany({
+    where: {
+      status: "PENDING",
+      couponReserved: true,
+      createdAt: { lt: staleCutoff },
+      ...(couponId ? { couponId } : {}),
+      ...(userId ? { userId } : {}),
+    },
+    select: { id: true },
+  });
+
+  for (const order of staleOrders) {
+    await db.$transaction(async (tx) => {
+      await releaseCouponReservationInTransaction(tx, order.id);
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: "CANCELLED" },
+      });
+    });
+  }
+
+  return staleOrders.length;
+}

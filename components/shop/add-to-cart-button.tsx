@@ -65,6 +65,18 @@ export function AddToCartButton({
     );
   }
 
+  if (disabled || (product.stock !== undefined && product.stock <= 0)) {
+    return (
+      <a
+        href={`tel:${STORE_PHONE}`}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition-all duration-200 hover:scale-[1.01]"
+      >
+        <PhoneCall className="w-4 h-4" />
+        Call to Order
+      </a>
+    );
+  }
+
   return (
     <>
       <button

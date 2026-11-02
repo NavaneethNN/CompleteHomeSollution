@@ -298,7 +298,7 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
                               </button>
 
                               {isSaved && (
-                                <span className="text-[10px] text-green-600 font-bold">Saved ✓</span>
+                                <span className="text-[10px] text-green-600 font-bold">Saved</span>
                               )}
                             </div>
                           </div>

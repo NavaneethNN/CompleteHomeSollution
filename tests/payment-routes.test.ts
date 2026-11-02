@@ -159,6 +159,14 @@ test("customer pre-shipment OnlinePay cancellation returns funds and stock", asy
   assert.equal(order.status, "REFUNDED"); assert.equal(stock, 1);
 });
 
+test("customer pending order cancellation transitions directly to CANCELLED without provider refund", async () => {
+  reset(); session!.user.role = "CUSTOMER"; order.status = "PENDING";
+  const response = await cancel(request({ reason: "No longer needed" }), context);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).cancelled, true);
+  assert.equal(order.status, "CANCELLED");
+});
+
 test("membership fee cancellation is referred for administrator review", async t => {
   reset(); provider(t); session!.user.role = "CUSTOMER"; order.membershipAmount = 30;
   const response = await cancel(request({}), context);

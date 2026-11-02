@@ -171,9 +171,14 @@ export async function GET(req: NextRequest, { params }: Params) {
       // ── Atomic post-payment transaction: stock guard + order PAID ─────────────
       try {
         const settled = await db.$transaction(async (tx) => {
-          // The conditional update locks and claims this order atomically.
+          // The conditional update locks, claims, and sets settlement metadata on this order atomically.
           const claimed = await tx.order.updateMany({
-            where: { id: orderId, status: "PENDING" }, data: { status: "PAID" },
+            where: { id: orderId, status: "PENDING" },
+            data: {
+              status: "PAID",
+              paywayTransactionId: order.paywayTransactionId,
+              couponReserved: false,
+            },
           });
           if (!claimed.count) return false;
 
@@ -212,14 +217,6 @@ export async function GET(req: NextRequest, { params }: Params) {
             }
           }
 
-          await tx.order.update({
-            where: { id: orderId },
-            data: {
-              status: "PAID",
-              paywayTransactionId: order.paywayTransactionId,
-              couponReserved: false,
-            },
-          });
           await queueOrderConfirmation(tx, orderId);
           if (order.membershipAmount > 0 && order.userId) {
             await activateMembershipInTransaction(tx, { userId: order.userId, planId: order.membershipPlanId, durationDays: order.membershipDurationDays ?? undefined, amountPaid: order.membershipAmount, paywaySessionId: `order:${order.id}:membership` });
@@ -261,7 +258,7 @@ export async function GET(req: NextRequest, { params }: Params) {
       }
 
       // ── Send confirmation notifications ────────────────────────────────────────
-      const phone = order.user?.phone ?? order.guestPhone;
+      const phone = order.user?.phone ?? order.guestPhone ?? order.address?.phone;
 
     after(async () => {
       if (phone) {

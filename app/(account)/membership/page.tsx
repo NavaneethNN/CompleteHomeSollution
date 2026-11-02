@@ -10,28 +10,29 @@ import { MembershipFaq } from "@/components/account/membership-faq";
 import {
   Crown,
   CheckCircle2,
-  ShieldCheck,
   Tag,
   Zap,
-  CalendarDays,
   ChevronRight,
-  ArrowRight,
   Sparkles,
   AlertCircle,
-  XCircle,
   Package,
-  Truck,
   PhoneCall,
   Star,
   Lock,
   Check,
   ShoppingBag,
+  Trophy,
+  BookOpen,
+  ArrowRight,
+  Clock,
+  ShieldCheck,
+  CalendarDays,
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "CHS VIP Membership — Save 5% on Every Furniture Order",
+  title: "CHS VIP Membership — Exclusive Prices, Raffles & 5% Off",
   description:
-    "Join Complete Home Solution VIP. Save up to $30 on every furniture order, get exclusive member pricing, 3-year extended warranty, and priority dispatch across Australia.",
+    "Join Complete Home Solution VIP. Enjoy exclusive member pricing, entry for exclusive raffles, 5% off up to $30, exclusive blog articles, high priority customer support, and exclusive offers.",
   robots: { index: true, follow: true },
 };
 
@@ -43,50 +44,50 @@ const currencyFmt = new Intl.NumberFormat("en-AU", {
 
 const VIP_PERKS = [
   {
-    Icon: Tag,
-    title: "Instant 5% Off Every Order",
-    desc: "Save up to $30 automatically on every single checkout. No promo codes needed — automatically applied.",
-    badge: "Every Order",
-  },
-  {
     Icon: Sparkles,
-    title: "Member-Only Catalog Pricing",
-    desc: "Unlock promotional pricing on selected timber bed frames, luxury sofas, and dining suites.",
-    badge: "Exclusive",
+    title: "Exclusive Member Price",
+    desc: "Unlock promotional pricing across selected timber bed frames, luxury sofas, and dining suites.",
+    badge: "Member Prices",
   },
   {
-    Icon: ShieldCheck,
-    title: "3-Year Extended Warranty",
-    desc: "Double our standard 1-year coverage on all timber frames, joints, springs, and upholstery for total peace of mind.",
-    badge: "$99 Value",
+    Icon: Trophy,
+    title: "Entry for Exclusive Raffles",
+    desc: "Automatic eligibility to enter member-only furniture prize draws and luxury giveaways with zero entry barriers.",
+    badge: "VIP Raffles",
   },
   {
-    Icon: Truck,
-    title: "Priority Warehouse Dispatch",
-    desc: "VIP orders jump to the front of the queue for express packing and courier pickup across Australia.",
+    Icon: Tag,
+    title: "5% Off Up to $30",
+    desc: "Instant 5% discount applied automatically at checkout on every order, saving up to $30 per purchase.",
+    badge: "Up to $30 / Order",
+  },
+  {
+    Icon: BookOpen,
+    title: "Exclusive Access to Blogs",
+    desc: "Read members-only styling guides, Australian interior decor trends, and curated furniture care articles.",
+    badge: "Member Articles",
+  },
+  {
+    Icon: PhoneCall,
+    title: "High Priority Customer Support",
+    desc: "Direct concierge line and prioritized response queue for fast answers to orders and design questions.",
     badge: "Priority Queue",
   },
   {
     Icon: Zap,
-    title: "48-Hour Early Sale Access",
-    desc: "Shop major seasonal events (EOFY, Black Friday, Boxing Day) 2 days before the general public.",
-    badge: "First Dibs",
-  },
-  {
-    Icon: PhoneCall,
-    title: "Dedicated VIP Concierge",
-    desc: "Direct telephone and priority email support with our Adelaide styling and logistics specialists.",
-    badge: "Direct Line",
+    title: "Exclusive Offers",
+    desc: "Receive private seasonal promotions, bonus gift incentives, and member-only flash discount events.",
+    badge: "Special Deals",
   },
 ];
 
 const COMPARISON_ROWS = [
-  { feature: "Everyday Furniture Discount", guest: "Retail price (0%)", vip: "5% Off (up to $30 / order)" },
-  { feature: "Exclusive Member Pricing", guest: "Standard prices only", vip: "Unlocked on curated items" },
-  { feature: "Structural Warranty", guest: "1-Year standard", vip: "3-Year Extended Warranty" },
-  { feature: "Warehouse Handling", guest: "Standard dispatch (5–7 days)", vip: "Priority express queue" },
-  { feature: "Sale Event Access", guest: "Public launch", vip: "48 Hours early access" },
-  { feature: "Customer Support", guest: "Standard email", vip: "Priority phone & direct line" },
+  { feature: "Exclusive Member Price", guest: "Standard prices only", vip: "Unlocked across curated furniture" },
+  { feature: "Entry for Exclusive Raffles", guest: "Public raffles only", vip: "Full entry to VIP-only raffles" },
+  { feature: "5% Off Up to $30", guest: "Retail price (0%)", vip: "5% Off (up to $30 / order)" },
+  { feature: "Exclusive Access to Blogs", guest: "Public articles only", vip: "Full access to member articles" },
+  { feature: "High Priority Customer Support", guest: "Standard email queue", vip: "Priority phone & direct line" },
+  { feature: "Exclusive Offers", guest: "Public promotions only", vip: "Member-only discounts & deals" },
 ];
 
 const TESTIMONIALS = [
@@ -97,16 +98,16 @@ const TESTIMONIALS = [
     saving: "Saved $30 on Order #1",
   },
   {
-    quote: "The 3-year warranty gave us complete peace of mind for our new timber dining table and 6 chairs. Essential value for money.",
+    quote: "Entered the exclusive member raffle for the armchair and got member-only pricing on our dining table. Outstanding value for $20.",
     name: "David & Kelly K.",
     location: "Melbourne, VIC",
-    saving: "Saved $30 + 3-Yr Warranty",
+    saving: "Member Price + VIP Raffle",
   },
   {
-    quote: "Early access allowed us to get the exact oak king bed we wanted before it sold out. Best $20 investment in our home this year.",
+    quote: "The exclusive blogs gave us brilliant styling ideas for our new home, and high-priority support answered our questions immediately.",
     name: "Marcus L.",
     location: "Sydney, NSW",
-    saving: "VIP Early Access",
+    saving: "VIP Blog & Priority Support",
   },
 ];
 
@@ -119,7 +120,7 @@ export default async function MembershipPage() {
   }
 
   // Always read from DB when user is logged in
-  const [dbUser, activePlan] = await Promise.all([
+  const [dbUser, activePlan, memberOnlyRaffles] = await Promise.all([
     user?.id
       ? db.user.findUnique({
           where: { id: user.id },
@@ -139,6 +140,25 @@ export default async function MembershipPage() {
         })
       : null,
     getActiveMembershipPlan(),
+    db.raffle.findMany({
+      where: {
+        visibility: "MEMBERS_ONLY",
+        status: { in: ["ACTIVE", "UPCOMING"] },
+      },
+      include: {
+        prizes: {
+          orderBy: { rank: "asc" },
+        },
+        _count: {
+          select: { tickets: true },
+        },
+      },
+      orderBy: [
+        { isFeatured: "desc" },
+        { endDate: "asc" },
+      ],
+      take: 6,
+    }),
   ]);
 
   const isMember = hasActiveMembership(dbUser);
@@ -191,43 +211,6 @@ export default async function MembershipPage() {
           </div>
         </div>
       </div>
-
-      {/* ── Status alerts for past cancellations / revocations ── */}
-      {(isPaymentFailed || isCancelled) && !isMember && (
-        <div className="container mx-auto px-4 sm:px-6 pt-6">
-          {isPaymentFailed && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 sm:p-5 text-sm text-red-900 flex items-start gap-3 shadow-xs">
-              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-bold text-red-950">
-                  Membership Revoked: Payment Renewal Failed
-                </p>
-                <p className="text-red-800 text-xs">
-                  Your CHS membership was revoked because automatic renewal payments failed after 2 retry attempts. Autopay was cancelled.
-                </p>
-                <p className="text-red-700 text-xs font-semibold pt-1">
-                  You can re-subscribe anytime with an updated payment card below.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {isCancelled && (
-            <div className="rounded-2xl border border-border bg-secondary/50 p-4 sm:p-5 text-sm text-foreground flex items-start gap-3 shadow-xs">
-              <XCircle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-bold text-foreground">Membership Cancelled</p>
-                <p className="text-muted-foreground text-xs">
-                  Your VIP membership was cancelled manually. Recurring autopay was cancelled and member benefits were stopped.
-                </p>
-                <p className="text-foreground text-xs font-medium pt-0.5">
-                  Ready to return? You can activate a new membership below anytime.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ════════════════════════════════════════════════════════════════════════
           ACTIVE MEMBER VIEW
@@ -327,8 +310,9 @@ export default async function MembershipPage() {
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full self-start sm:self-center">
-                ✓ All Perks Active
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full self-start sm:self-center inline-flex items-center gap-1">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                All Perks Active
               </span>
             </div>
           )}
@@ -391,6 +375,89 @@ export default async function MembershipPage() {
             planDuration={planDuration}
             isMember={true}
           />
+
+          {/* Active Member VIP Raffles Section */}
+          {memberOnlyRaffles.length > 0 && (
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-border p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-1.5">
+                    <Trophy className="h-3.5 w-3.5" />
+                    Exclusive Member Perk
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-semibold text-foreground">
+                    Active VIP Member Raffles
+                  </h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    Your active VIP pass includes complimentary entry to these exclusive luxury furniture prize draws.
+                  </p>
+                </div>
+                <Link
+                  href="/raffles"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline self-start sm:self-center"
+                >
+                  View All Raffles <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {memberOnlyRaffles.map((raffle) => {
+                  const mainImage =
+                    raffle.bannerImage ||
+                    raffle.images?.[0] ||
+                    raffle.prizes[0]?.images?.[0] ||
+                    "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80";
+                  const totalPrizeValue = raffle.prizes.reduce((sum, p) => sum + p.value * p.quantity, 0);
+
+                  return (
+                    <div
+                      key={raffle.id}
+                      className="rounded-xl border border-border bg-secondary/20 hover:border-primary/40 transition-colors flex flex-col justify-between overflow-hidden"
+                    >
+                      <div>
+                        <div className="relative aspect-16/10 w-full overflow-hidden bg-secondary">
+                          <img
+                            src={mainImage}
+                            alt={raffle.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-2.5 left-2.5">
+                            <span className="inline-flex items-center gap-1 bg-stone-900/90 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
+                              <Crown className="h-3 w-3 text-primary" />
+                              VIP Exclusive
+                            </span>
+                          </div>
+                          <div className="absolute top-2.5 right-2.5">
+                            <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              {raffle.entryPrice === 0 ? "FREE ENTRY" : `$${raffle.entryPrice}`}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-4 space-y-2">
+                          <h3 className="font-semibold text-foreground text-sm line-clamp-1">{raffle.title}</h3>
+                          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/60">
+                            <span>Prize value:</span>
+                            <span className="font-bold text-foreground">${totalPrizeValue.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="p-4 pt-0">
+                        <Link
+                          href={`/raffles/${raffle.slug}`}
+                          className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white font-semibold text-xs py-2 transition-colors"
+                        >
+                          <Trophy className="h-3.5 w-3.5" />
+                          Enter Raffle (VIP Free Entry)
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         /* ════════════════════════════════════════════════════════════════════════
@@ -401,14 +468,40 @@ export default async function MembershipPage() {
           <section className="bg-[#f7f3ed] py-8 sm:py-14 md:py-20 border-b border-border">
             <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
               <div className="max-w-2xl">
-                {/* Crown VIP pill */}
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider mb-3.5 border border-primary/20 whitespace-nowrap">
-                  <Crown className="h-3.5 w-3.5 shrink-0" />
-                  <span>CHS VIP MEMBERSHIP</span>
+                {/* Crown VIP pill and status badge */}
+                <div className="flex flex-wrap items-center gap-2 mb-3.5">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 text-primary px-3 py-1 text-[11px] sm:text-xs font-bold uppercase tracking-wider border border-primary/20 whitespace-nowrap">
+                    <Crown className="h-3.5 w-3.5 shrink-0" />
+                    <span>CHS VIP MEMBERSHIP</span>
+                  </div>
+
+                  {isCancelled && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-stone-200/90 text-stone-700 px-3 py-1 text-[11px] sm:text-xs font-semibold border border-stone-300/80 whitespace-nowrap">
+                      <span className="h-1.5 w-1.5 rounded-full bg-stone-500" />
+                      Status: Cancelled
+                    </span>
+                  )}
+
+                  {isPaymentFailed && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-900 px-3 py-1 text-[11px] sm:text-xs font-semibold border border-amber-300 whitespace-nowrap">
+                      <AlertCircle className="h-3.5 w-3.5 text-amber-700" />
+                      Status: Renewal Lapsed
+                    </span>
+                  )}
                 </div>
 
                 <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-foreground leading-[1.18] mb-3">
-                  {expiredAt ? (
+                  {isCancelled ? (
+                    <>
+                      Welcome back. <br />
+                      <span className="text-primary font-bold">Reactivate VIP to save 5%.</span>
+                    </>
+                  ) : isPaymentFailed ? (
+                    <>
+                      Renew your VIP access. <br />
+                      <span className="text-primary font-bold">Restore your 5% discount.</span>
+                    </>
+                  ) : expiredAt ? (
                     <>Your VIP access has expired. Renew to continue saving.</>
                   ) : (
                     <>
@@ -418,29 +511,60 @@ export default async function MembershipPage() {
                   )}
                 </h1>
 
-                <p className="text-xs sm:text-base text-muted-foreground leading-relaxed mb-5">
-                  {expiredAt
-                    ? `Your benefits ended on ${new Date(expiredAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. Renew today to restore your 5% discount, 3-year warranty, and priority dispatch.`
-                    : "Join Complete Home Solution VIP. Enjoy instant 5% savings (up to $30 per order), exclusive member prices, a 3-Year Extended Warranty, and priority dispatch."}
+                <p className="text-xs sm:text-base text-muted-foreground leading-relaxed mb-4">
+                  {isCancelled
+                    ? "Your previous VIP membership was cancelled and autopay was stopped. Reactivate today to instantly restore your 5% order discount, exclusive member prices, and VIP raffle entries."
+                    : isPaymentFailed
+                    ? "Your membership lapsed because automatic renewal payments could not be completed. Reactivate below with an updated payment card to restore your VIP privileges."
+                    : expiredAt
+                    ? `Your benefits ended on ${new Date(expiredAt).toLocaleDateString("en-AU", { day: "numeric", month: "long", year: "numeric" })}. Renew today to restore your 5% discount, exclusive member prices, and VIP raffle entries.`
+                    : "Join Complete Home Solution VIP. Enjoy exclusive member prices, entry for exclusive raffles, 5% off up to $30, exclusive blog articles, high priority support, and exclusive offers."}
                 </p>
 
+                {/* Refined inline status note for cancelled or lapsed members */}
+                {(isCancelled || isPaymentFailed) && (
+                  <div className="mb-5 rounded-2xl border border-stone-200/90 bg-white/80 backdrop-blur-xs p-3.5 sm:p-4 text-xs text-stone-700 shadow-2xs">
+                    <div className="flex items-start gap-3">
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <div className="space-y-0.5">
+                        <p className="font-semibold text-stone-900">
+                          {isCancelled ? "Reactivate anytime • Autopay enabled by default" : "Re-subscribe with updated card"}
+                        </p>
+                        <p className="text-stone-600 leading-relaxed">
+                          {isCancelled
+                            ? "When you reactivate, autopay is enabled by default to ensure uninterrupted 5% member savings. You can cancel or pause anytime from your account dashboard with zero penalties."
+                            : "Reactivating re-enables autopay by default for continuous coverage, and you can manage your preferences anytime in your account."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick benefit pills on mobile */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-2 gap-y-2 py-3 border-y border-border/80 text-[11px] sm:text-xs text-foreground font-medium mb-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-2.5 py-3.5 border-y border-border/80 text-[11px] sm:text-xs text-foreground font-medium mb-5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Sparkles className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Exclusive member price</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <Trophy className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Entry for exclusive raffles</span>
+                  </div>
                   <div className="flex items-center gap-1.5 min-w-0">
                     <Tag className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="whitespace-nowrap">5% off all orders</span>
+                    <span className="truncate">5% off up to $30</span>
                   </div>
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <ShieldCheck className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="whitespace-nowrap">3-Year warranty</span>
+                    <BookOpen className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Exclusive access to blogs</span>
                   </div>
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <Truck className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="whitespace-nowrap">Priority dispatch</span>
+                    <PhoneCall className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">High priority support</span>
                   </div>
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <Lock className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="whitespace-nowrap">Cancel anytime</span>
+                    <Zap className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Exclusive offers</span>
                   </div>
                 </div>
 
@@ -452,7 +576,7 @@ export default async function MembershipPage() {
                       className="w-full sm:w-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 sm:px-8 text-sm sm:text-base font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center whitespace-nowrap"
                     >
                       <Crown className="h-4 w-4 shrink-0" />
-                      <span>{expiredAt ? "Renew VIP Membership" : `Join VIP — ${currencyFmt.format(planPrice)}/yr`}</span>
+                      <span>{isCancelled ? `Reactivate VIP — ${currencyFmt.format(planPrice)}/yr` : expiredAt ? "Renew VIP Membership" : `Join VIP — ${currencyFmt.format(planPrice)}/yr`}</span>
                     </Link>
                   ) : (
                     <p className="text-muted-foreground text-sm">Plans temporarily unavailable.</p>
@@ -461,6 +585,17 @@ export default async function MembershipPage() {
                   <span className="text-[11px] sm:text-xs text-muted-foreground text-center sm:text-left whitespace-nowrap">
                     ~${(planPrice / 365).toFixed(2)}/day • Instant activation
                   </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[11px] sm:text-xs text-muted-foreground mt-3">
+                  <span className="inline-flex items-center gap-1 text-emerald-700 font-medium">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    Autopay enabled by default
+                  </span>
+                  <span>•</span>
+                  <span>Cancel anytime in 1 click</span>
+                  <span>•</span>
+                  <span>Zero cancellation fees</span>
                 </div>
               </div>
             </div>
@@ -535,8 +670,9 @@ export default async function MembershipPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-emerald-800 bg-emerald-50/80 p-2.5 rounded-xl text-center border border-emerald-200/60 whitespace-nowrap">
-                    ✓ $30 saved: Pays for your VIP pass!
+                  <p className="text-xs font-semibold text-emerald-800 bg-emerald-50/80 p-2.5 rounded-xl text-center border border-emerald-200/60 whitespace-nowrap inline-flex items-center justify-center gap-1.5 w-full">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>$30 saved: Pays for your VIP pass!</span>
                   </p>
                 </div>
 
@@ -563,9 +699,9 @@ export default async function MembershipPage() {
                         <span>5% VIP discount (max cap):</span>
                         <span>-$30.00</span>
                       </div>
-                      <div className="flex justify-between text-amber-700 font-medium">
-                        <span>3-Year Extended Warranty:</span>
-                        <span>FREE ($99 val)</span>
+                      <div className="flex justify-between text-foreground font-medium">
+                        <span>Exclusive member price:</span>
+                        <span className="text-emerald-700 font-semibold">Unlocked</span>
                       </div>
                       <div className="flex justify-between font-bold text-foreground text-sm pt-1">
                         <span>VIP price:</span>
@@ -574,8 +710,9 @@ export default async function MembershipPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-primary bg-primary/10 p-2.5 rounded-xl text-center whitespace-nowrap">
-                    💎 $129+ total value on day one
+                  <p className="text-xs font-semibold text-primary bg-primary/10 p-2.5 rounded-xl text-center whitespace-nowrap inline-flex items-center justify-center gap-1.5 w-full">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>Max $30 savings + Member prices</span>
                   </p>
                 </div>
 
@@ -609,8 +746,9 @@ export default async function MembershipPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs font-semibold text-foreground bg-white p-2.5 rounded-xl text-center border border-border whitespace-nowrap">
-                    ⭐ Uncapped savings all year round
+                  <p className="text-xs font-semibold text-foreground bg-white p-2.5 rounded-xl text-center border border-border whitespace-nowrap inline-flex items-center justify-center gap-1.5 w-full">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                    <span>Instant savings on every single order</span>
                   </p>
                 </div>
               </div>
@@ -676,6 +814,143 @@ export default async function MembershipPage() {
             </div>
           </section>
 
+          {/* ── Member-Only Raffles Section with Ad ── */}
+          {memberOnlyRaffles.length > 0 && (
+            <section className="py-12 sm:py-18 bg-[#fdfbf9] border-t border-border">
+              <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
+                {/* Section Header */}
+                <div className="max-w-xl mb-8">
+                  <div className="inline-flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-2">
+                    <Trophy className="h-3.5 w-3.5" />
+                    Exclusive Member Raffles
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground leading-tight">
+                    Exclusive Member-Only Raffles
+                  </h2>
+                  <p className="text-sm sm:text-base text-muted-foreground mt-2 leading-relaxed">
+                    Reserved exclusively for active VIP Club subscribers. Win handcrafted designer furniture and homewares with zero entry fees.
+                  </p>
+                </div>
+
+                {/* Ad Banner Card */}
+                <div className="rounded-3xl bg-gradient-to-br from-[#1a2233] to-[#0f1422] text-white p-6 sm:p-8 border border-white/10 shadow-lg mb-8 relative overflow-hidden">
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="max-w-2xl space-y-2">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/20 text-white border border-primary/30 text-xs font-bold uppercase tracking-wider">
+                        <Crown className="h-3.5 w-3.5 text-primary" />
+                        VIP Member Access
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                        Subscribe to Unlock This Raffle
+                      </h3>
+                      <p className="text-white/80 text-xs sm:text-sm leading-relaxed">
+                        These prize draws are reserved exclusively for Complete Home Solution VIP subscribers. Subscribe today to immediately unlock free entry into active raffles, plus exclusive member pricing, 5% off every order, exclusive blogs, and high priority support.
+                      </p>
+                    </div>
+
+                    <div className="shrink-0">
+                      {checkoutUrl ? (
+                        <Link
+                          href={checkoutUrl}
+                          className="inline-flex items-center justify-center gap-2 rounded-full bg-primary hover:bg-primary/90 text-white font-bold text-sm px-7 py-3.5 transition-all shadow-md whitespace-nowrap"
+                        >
+                          <Crown className="h-4 w-4" />
+                          Subscribe to Unlock Raffle
+                          <ArrowRight className="h-4 w-4" />
+                        </Link>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Raffles Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {memberOnlyRaffles.map((raffle) => {
+                    const mainImage =
+                      raffle.bannerImage ||
+                      raffle.images?.[0] ||
+                      raffle.prizes[0]?.images?.[0] ||
+                      "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=800&q=80";
+                    const totalPrizeValue = raffle.prizes.reduce((sum, p) => sum + p.value * p.quantity, 0);
+
+                    return (
+                      <div
+                        key={raffle.id}
+                        className="bg-white rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between overflow-hidden group"
+                      >
+                        <div>
+                          {/* Image */}
+                          <div className="relative aspect-16/10 w-full overflow-hidden bg-secondary">
+                            <img
+                              src={mainImage}
+                              alt={raffle.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute top-3 left-3">
+                              <span className="inline-flex items-center gap-1 bg-stone-900/90 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
+                                <Crown className="h-3 w-3 text-primary" />
+                                VIP Members Only
+                              </span>
+                            </div>
+                            <div className="absolute top-3 right-3">
+                              <span className="bg-emerald-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-xs">
+                                {raffle.entryPrice === 0 ? "FREE ENTRY" : `$${raffle.entryPrice}`}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="p-5 space-y-3">
+                            <h3 className="font-bold text-foreground text-base leading-snug line-clamp-2">
+                              {raffle.title}
+                            </h3>
+                            {raffle.shortDescription && (
+                              <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                                {raffle.shortDescription}
+                              </p>
+                            )}
+
+                            <div className="pt-2 border-t border-border/60 flex items-center justify-between text-xs text-muted-foreground">
+                              <span>Total Prize Value:</span>
+                              <span className="font-bold text-foreground text-sm">
+                                ${totalPrizeValue.toLocaleString()}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                Draw Date:
+                              </span>
+                              <span className="font-medium text-foreground">
+                                {new Date(raffle.drawDate).toLocaleDateString("en-AU", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* CTA */}
+                        <div className="p-5 pt-0">
+                          <Link
+                            href={checkoutUrl ?? `/raffles/${raffle.slug}`}
+                            className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground font-semibold text-xs py-2.5 border border-border transition-colors group-hover:border-primary/40"
+                          >
+                            <Lock className="h-3.5 w-3.5 text-primary" />
+                            Subscribe to Unlock This Raffle
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* ── 5. Comparison: Guest vs VIP Member ── */}
           <section className="py-10 sm:py-16 bg-[#f7f3ed] border-y border-border">
             <div className="container mx-auto px-4 sm:px-6 max-w-5xl">
@@ -700,7 +975,10 @@ export default async function MembershipPage() {
                         <th className="py-3.5 px-4 sm:px-6">Feature & Perk</th>
                         <th className="py-3.5 px-4 sm:px-6 text-muted-foreground font-normal">Guest</th>
                         <th className="py-3.5 px-4 sm:px-6 text-primary font-semibold bg-primary/5">
-                          👑 VIP Member
+                          <span className="inline-flex items-center gap-1.5">
+                            <Crown className="h-4 w-4 text-primary" />
+                            VIP Member
+                          </span>
                         </th>
                       </tr>
                     </thead>
@@ -759,23 +1037,35 @@ export default async function MembershipPage() {
                 <div className="space-y-2.5 text-left max-w-md mx-auto mb-6 text-xs sm:text-sm text-foreground">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Exclusive member prices across curated furniture &amp; homewares</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Free entry for exclusive member-only luxury raffles</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                     <span>5% discount applied automatically on every order (up to $30)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>3-Year Extended Warranty on timber, springs and frames</span>
+                    <span>Exclusive access to interior styling blogs &amp; articles</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>Priority dispatch queue from our Adelaide warehouse</span>
+                    <span>High priority customer support with fast-track routing</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>48-Hour early VIP access to major sale clearances</span>
+                    <span>Exclusive offers, seasonal flash deals, and promotions</span>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span>Cancel auto-renewal online anytime with 1 click</span>
+                    <span>Autopay enabled by default — renews annually so savings never lapse</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>Cancel auto-renewal online anytime with 1 click in your account</span>
                   </div>
                 </div>
 
@@ -785,18 +1075,20 @@ export default async function MembershipPage() {
                     className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm sm:text-base font-bold text-white shadow-md shadow-primary/20 hover:bg-primary/90 transition-all text-center whitespace-nowrap"
                   >
                     <Crown className="h-4 w-4 shrink-0" />
-                    <span>{expiredAt ? "Renew VIP Membership" : `Join VIP Today — ${currencyFmt.format(planPrice)}/yr`}</span>
+                    <span>{isCancelled ? `Reactivate VIP Today — ${currencyFmt.format(planPrice)}/yr` : expiredAt ? "Renew VIP Membership" : `Join VIP Today — ${currencyFmt.format(planPrice)}/yr`}</span>
                   </Link>
                 ) : (
                   <p className="text-muted-foreground text-sm">Plans temporarily unavailable.</p>
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 text-emerald-700 font-medium whitespace-nowrap">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Autopay Enabled by Default
+                  </span>
+                  <span>•</span>
                   <span className="inline-flex items-center gap-1 whitespace-nowrap">
                     <Lock className="h-3 w-3 text-muted-foreground" /> SSL Encrypted
                   </span>
-                  <span>•</span>
-                  <span className="whitespace-nowrap">OnlinePay Protected</span>
                   <span>•</span>
                   <span className="whitespace-nowrap">Cancel Anytime</span>
                 </div>

@@ -198,16 +198,25 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
             </div>
           )}
 
-          {/* Quick add or Call & Customize — visible on hover (desktop) */}
+          {/* Quick add or Call & Customize / Call to Order — visible on hover (desktop) */}
           <div className="absolute bottom-0 inset-x-0 translate-y-full group-hover:translate-y-0 transition-transform duration-200 hidden sm:block">
             {product.isPreOrder ? (
               <a
                 href={`tel:${STORE_PHONE}`}
-                className="w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90"
+                className="w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90 shadow-md"
                 onClick={(e) => e.stopPropagation()}
               >
                 <PhoneCall className="h-3.5 w-3.5" />
                 Call & Customize
+              </a>
+            ) : displayStock === 0 ? (
+              <a
+                href={`tel:${STORE_PHONE}`}
+                className="w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90 shadow-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <PhoneCall className="h-3.5 w-3.5" />
+                Call to Order
               </a>
             ) : (
               <button
@@ -252,7 +261,7 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
           {!product.isPreOrder && (
             <>
               <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-                <span className="text-sm sm:text-base font-bold text-foreground">
+                <span className="text-sm sm:base font-bold text-foreground">
                   ${displayPrice.toLocaleString()}
                 </span>
                 {hasDiscount && (
@@ -274,15 +283,24 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
             <p className="text-[10px] text-amber-800 font-medium">Only {displayStock} left!</p>
           )}
 
-          {/* Mobile add to cart or Call & Customize */}
+          {/* Mobile add to cart or Call & Customize / Call to Order */}
           {product.isPreOrder ? (
             <a
               href={`tel:${STORE_PHONE}`}
-              className="sm:hidden mt-auto pt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90"
+              className="sm:hidden mt-auto pt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90 shadow-md"
               onClick={(e) => e.stopPropagation()}
             >
               <PhoneCall className="h-3.5 w-3.5" />
               Call & Customize
+            </a>
+          ) : displayStock === 0 ? (
+            <a
+              href={`tel:${STORE_PHONE}`}
+              className="sm:hidden mt-auto pt-2 w-full py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-colors bg-primary text-white hover:bg-primary/90 shadow-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <PhoneCall className="h-3.5 w-3.5" />
+              Call to Order
             </a>
           ) : (
             <button

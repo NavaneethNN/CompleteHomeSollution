@@ -168,6 +168,14 @@ export function ProductPopupModal({
                   <PhoneCall className="h-4 w-4" />
                   Call & Customize
                 </a>
+              ) : isOutOfStock ? (
+                <a
+                  href={`tel:${STORE_PHONE}`}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold transition-all duration-200 shadow-md bg-primary text-white hover:bg-primary/90"
+                >
+                  <PhoneCall className="h-4 w-4" />
+                  Call to Order
+                </a>
               ) : (
                 <button
                   type="button"
@@ -175,13 +183,11 @@ export function ProductPopupModal({
                   disabled={isOutOfStock}
                   className={cn(
                     "inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3 sm:py-3.5 text-xs sm:text-sm font-bold transition-all duration-200 shadow-md",
-                    isOutOfStock
-                      ? "cursor-not-allowed bg-muted text-muted-foreground"
-                      : "bg-primary text-white hover:bg-primary/90"
+                    "bg-primary text-white hover:bg-primary/90"
                   )}
                 >
                   <ShoppingBag className="h-4 w-4" />
-                  {isOutOfStock ? "Out of Stock" : confirmLabel}
+                  {confirmLabel}
                 </button>
               )}
             </div>

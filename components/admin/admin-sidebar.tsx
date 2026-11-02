@@ -23,6 +23,8 @@ import {
   Tag,
   Megaphone,
   Ticket,
+  Truck,
+  Boxes,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import { Menu, X } from "lucide-react";
@@ -53,8 +55,10 @@ const NAV_GROUPS = [
     label: "Commerce",
     items: [
       { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+      { href: "/admin/packaging", label: "Packaging Configuration", icon: Boxes },
       { href: "/admin/customers", label: "Customers", icon: Users },
       { href: "/admin/coupons", label: "Coupons", icon: Tag },
+      { href: "/admin/delivery", label: "Manual Delivery", icon: Truck },
       { href: "/admin/membership", label: "Membership", icon: Crown },
       { href: "/admin/raffles", label: "Raffles", icon: Ticket },
     ],

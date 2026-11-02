@@ -464,7 +464,7 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
                 {errors.phone ? (
                   <p className="text-xs text-destructive">{errors.phone.message}</p>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">Couriers Please sends delivery SMS alerts to this number.</p>
+                  <p className="text-[11px] text-muted-foreground">Delivery updates and tracking will be sent to this number.</p>
                 )}
               </div>
 
@@ -594,7 +594,7 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
                   <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                   Country: <strong>Australia (AU)</strong>
                 </span>
-                <span>Couriers Please delivery</span>
+                <span>Tracked delivery</span>
               </div>
 
               <DialogFooter className="gap-2 pt-3">

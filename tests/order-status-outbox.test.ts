@@ -7,11 +7,13 @@ const require = createRequire(import.meta.url);
 let freshAdmin = true;
 let failQueue = false;
 let status = "PAID";
+let refundRequested = false;
+let refundProcessing = false;
 let queued = 0;
 const db = {
   order: {
-    findUnique: async () => ({ id: "order-1", status }),
-    findUniqueOrThrow: async () => ({ id: "order-1", status }),
+    findUnique: async () => ({ id: "order-1", status, refundRequested, refundProcessing }),
+    findUniqueOrThrow: async () => ({ id: "order-1", status, refundRequested, refundProcessing }),
     updateMany: async ({ where, data }: { where: { status: string }; data: { status: string } }) => {
       if (where.status !== status) return { count: 0 };
       status = data.status; return { count: 1 };
@@ -48,4 +50,20 @@ test("status transition and notification commit together without duplicate same-
   assert.equal(queued, 1);
   assert.equal((await PUT(request('{"status":"PROCESSING"}'), context)).status, 200);
   assert.equal(queued, 1);
+});
+
+test("order status updates are blocked with descriptive 409 error when refund is requested or processing", async () => {
+  refundRequested = true;
+  const res = await PUT(request('{"status":"SHIPPED"}'), context);
+  const data = await res.json();
+  assert.equal(res.status, 409);
+  assert.match(data.error, /refund is requested/);
+  refundRequested = false;
+
+  refundProcessing = true;
+  const res2 = await PUT(request('{"status":"SHIPPED"}'), context);
+  const data2 = await res2.json();
+  assert.equal(res2.status, 409);
+  assert.match(data2.error, /refund is processing/);
+  refundProcessing = false;
 });

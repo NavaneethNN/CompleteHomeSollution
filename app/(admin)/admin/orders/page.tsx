@@ -21,6 +21,8 @@ import {
   RefreshCw,
   AlertTriangle,
   ShieldCheck,
+  Store,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,8 +83,12 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
     where.OR = [
       { id: { contains: safeSearch, mode: "insensitive" } },
       { guestEmail: { contains: safeSearch, mode: "insensitive" } },
+      { guestPhone: { contains: safeSearch, mode: "insensitive" } },
+      { trackingNumber: { contains: safeSearch, mode: "insensitive" } },
+      { address: { phone: { contains: safeSearch, mode: "insensitive" } } },
       { user: { name: { contains: safeSearch, mode: "insensitive" } } },
       { user: { email: { contains: safeSearch, mode: "insensitive" } } },
+      { user: { phone: { contains: safeSearch, mode: "insensitive" } } },
     ];
   }
 
@@ -101,6 +107,10 @@ async function getOrders({ page = 1, status, search }: { page: number; status?: 
         guestEmail: true,
         paywayTransactionId: true,
         stripePaymentId: true,
+        fulfillmentType: true,
+        pickupStatus: true,
+        pickupAppointmentDate: true,
+        pickupAppointmentTime: true,
         _count: { select: { items: true } },
         user: { select: { id: true, name: true, email: true } },
         address: { select: { name: true } },
@@ -349,9 +359,48 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                     return (
                       <tr key={order.id} className="hover:bg-slate-50 relative group">
                         <td className="py-2 sm:py-3 px-2 sm:px-4 relative z-10">
-                          <span className="font-mono text-xs text-slate-500">
+                          <span className="font-mono text-xs text-slate-500 block">
                             #{order.id.slice(-8).toUpperCase()}
                           </span>
+                          {order.fulfillmentType === "STORE_PICKUP" && (
+                            <div className="flex flex-col gap-1 mt-1">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
+                                <Store className="h-2.5 w-2.5 text-amber-600" />
+                                Store Pickup
+                              </span>
+                              {order.pickupAppointmentDate ? (
+                                <span
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full w-fit"
+                                  title={`Appointment: ${new Date(order.pickupAppointmentDate).toLocaleDateString("en-AU")} ${order.pickupAppointmentTime || ""}`}
+                                >
+                                  <Calendar className="h-2.5 w-2.5 text-blue-600" />
+                                  {new Date(order.pickupAppointmentDate).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                                  {order.pickupAppointmentTime ? ` · ${order.pickupAppointmentTime.split(" ")[0]}` : ""}
+                                </span>
+                              ) : order.pickupStatus === "READY_FOR_PICKUP" ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full w-fit">
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-teal-600" />
+                                  Ready
+                                </span>
+                              ) : order.pickupStatus === "PICKED_UP" ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full w-fit">
+                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-600" />
+                                  Collected
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-700 bg-amber-50/80 border border-amber-200 px-1.5 py-0.5 rounded-full w-fit">
+                                  <Clock className="h-2.5 w-2.5 text-amber-600" />
+                                  Awaiting Appt
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {order.fulfillmentType === "MANUAL_DELIVERY" && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-800 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded-full mt-1">
+                              <Truck className="h-2.5 w-2.5 text-blue-600" />
+                              Manual
+                            </span>
+                          )}
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 relative z-10">
                           <div className="flex items-center gap-2">

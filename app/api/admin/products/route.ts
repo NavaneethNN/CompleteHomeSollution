@@ -64,6 +64,7 @@ const productVariantSchema = z.object({
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  requiresPackaging: z.boolean().optional().default(true),
 });
 
 const createProductSchema = z.object({
@@ -81,6 +82,7 @@ const createProductSchema = z.object({
   roomType: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
   isPreOrder: z.boolean().default(false),
+  isLargeItem: z.boolean().default(false),
   hasVariants: z.boolean().default(false),
   images: z.array(z.string())
     .max(MAX_IMAGES_COUNT, `Maximum ${MAX_IMAGES_COUNT} images allowed`)
@@ -93,6 +95,7 @@ const createProductSchema = z.object({
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  requiresPackaging: z.boolean().optional().default(true),
   // For products with variants
   variantAttributes: z.array(variantAttributeSchema).optional(),
   productVariants: z.array(productVariantSchema).optional(),
@@ -219,12 +222,14 @@ export async function POST(req: Request) {
           roomType: data.roomType,
           isActive: data.isActive,
           isPreOrder: data.isPreOrder ?? false,
+          isLargeItem: data.isLargeItem ?? false,
           hasVariants: data.hasVariants,
           images: data.images,
           weight: data.weight,
           length: data.length,
           width: data.width,
           height: data.height,
+          requiresPackaging: data.requiresPackaging ?? true,
         },
       });
 
@@ -286,6 +291,7 @@ export async function POST(req: Request) {
                 length: variant.length,
                 width: variant.width,
                 height: variant.height,
+                requiresPackaging: variant.requiresPackaging ?? true,
               },
             });
 

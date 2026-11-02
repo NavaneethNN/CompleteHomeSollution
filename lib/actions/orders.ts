@@ -17,6 +17,12 @@ export interface OrderWithItems {
   trackingNumber: string | null;
   carrier: string | null;
   guestEmail: string | null;
+  fulfillmentType?: string | null;
+  pickupAppointmentDate?: Date | null;
+  pickupAppointmentTime?: string | null;
+  pickupStatus?: string | null;
+  pickupNotes?: string | null;
+  manualDeliveryNotes?: string | null;
   refundRequested: boolean;
   refundReason: string | null;
   refundAmount: number | null;

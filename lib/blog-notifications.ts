@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { sendEmail } from "./brevo";
+import { renderStandardEmail, renderCard, escapeHtml } from "./email-template";
 
 interface BlogPost {
   id: string;
@@ -35,66 +36,46 @@ export async function sendNewBlogPostNotifications(post: BlogPost) {
       return;
     }
 
-    const blogUrl = `${process.env.NEXT_PUBLIC_APP_URL}/blog/${post.slug}`;
-    
-    // Prepare email template
-    const emailHtml = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>New Blog Post - Complete Home Solution</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .header h1 { color: white; margin: 0; font-size: 28px; }
-          .content { background: #f9f9f9; padding: 30px; }
-          .post-title { color: #2c3e50; font-size: 24px; margin-bottom: 10px; }
-          .post-meta { color: #7f8c8d; font-size: 14px; margin-bottom: 20px; }
-          .post-excerpt { color: #34495e; margin-bottom: 30px; line-height: 1.6; }
-          .cta-button { display: inline-block; background: #3498db; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-bottom: 20px; }
-          .cta-button:hover { background: #2980b9; }
-          .footer { background: #ecf0f1; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; font-size: 12px; color: #7f8c8d; }
-          .member-badge { background: #f39c12; color: white; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h1>🏠 Complete Home Solution</h1>
-        </div>
-        
-        <div class="content">
-          <h2 class="post-title">${post.title}</h2>
-          <div class="post-meta">
-            By ${post.author?.name || "Complete Home Solution Team"} • 
-            ${post.publishedAt.toLocaleDateString("en-AU", { 
-              weekday: "long", 
-              year: "numeric", 
-              month: "long", 
-              day: "numeric" 
-            })}
-          </div>
-          
-          ${post.excerpt ? `<div class="post-excerpt">${post.excerpt}</div>` : ""}
-          
-          <div style="text-align: center;">
-            <a href="${blogUrl}" class="cta-button">Read Full Article</a>
-          </div>
-          
-          <p style="text-align: center; color: #7f8c8d; font-size: 14px;">
-            As a valued member, you get exclusive access to our latest insights and tips.
-          </p>
-        </div>
-        
-        <div class="footer">
-          <p>You're receiving this email because you're a member of Complete Home Solution.</p>
-          <p>Want to manage your notifications? <a href="${process.env.NEXT_PUBLIC_APP_URL}/account/profile">Visit your account</a></p>
-          <p>&copy; 2024 Complete Home Solution. All rights reserved.</p>
-        </div>
-      </body>
-      </html>
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://completehomesollution.com.au").replace(/\/$/, "");
+    const blogUrl = `${appUrl}/blog/${encodeURIComponent(post.slug)}`;
+    const formattedDate = post.publishedAt.toLocaleDateString("en-AU", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const bodyHtml = `
+      <h2 style="font-size:20px;font-weight:800;color:#1e293b;margin:0 0 8px;">
+        ${escapeHtml(post.title)}
+      </h2>
+      <p style="font-size:13px;color:#64748b;margin:0 0 16px;">
+        By ${escapeHtml(post.author?.name || "Complete Home Sollution Team")} · ${formattedDate}
+      </p>
+
+      ${
+        post.excerpt
+          ? renderCard(`
+            <p style="margin:0;font-size:14px;color:#334155;line-height:1.6;font-style:italic;">
+              "${escapeHtml(post.excerpt)}"
+            </p>
+          `, { bg: "#f8fafc" })
+          : ""
+      }
+
+      <p style="margin:16px 0 0;font-size:14px;color:#475569;line-height:1.6;">
+        As a valued member, enjoy early and exclusive access to our newest home design ideas, styling guides, and furniture care articles.
+      </p>
     `;
+
+    const emailHtml = renderStandardEmail({
+      title: `New Article: ${post.title}`,
+      badge: { text: "Exclusive Member Reading", type: "info" },
+      greeting: "Hello Valued Member,",
+      bodyHtml,
+      cta: { text: "Read Full Article", url: blogUrl },
+      secondaryCta: { text: "Manage Notification Preferences", url: `${appUrl}/account/profile` },
+    });
 
     // Send emails in batches to avoid rate limits
     const batchSize = 50;

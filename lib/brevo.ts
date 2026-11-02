@@ -1,7 +1,5 @@
 import { createGuestOrderToken } from "@/lib/order-access";
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
-}
+import { renderStandardEmail, renderCard, escapeHtml } from "@/lib/email-template";
 
 const BREVO_API_URL = "https://api.brevo.com/v3";
 
@@ -44,16 +42,34 @@ export async function sendOtpEmail(
   name: string,
   otp: string
 ): Promise<void> {
+  const firstName = escapeHtml(name?.split(" ")[0] || "there");
+  const bodyHtml = `
+    <p style="margin:0 0 16px;color:#334155;">
+      Use the secure one-time verification code below to sign in to your Complete Home Sollution account. This code expires in <strong>10 minutes</strong>.
+    </p>
+
+    ${renderCard(`
+      <div style="text-align:center;padding:12px 0;">
+        <span style="font-size:32px;letter-spacing:0.35em;font-weight:900;color:#1a2e5a;font-family:monospace;">${escapeHtml(otp)}</span>
+      </div>
+    `, { title: "Your 6-Digit Login Code", bg: "#f1f5f9" })}
+
+    <p style="margin:20px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+      If you did not request this login code, you can safely disregard this email. For security, never share this code with anyone.
+    </p>
+  `;
+
+  const htmlContent = renderStandardEmail({
+    title: "Your login code — Complete Home Sollution",
+    badge: { text: "Secure Account Sign-In", type: "info" },
+    greeting: `Hi ${firstName},`,
+    bodyHtml,
+  });
+
   await sendEmail({
     to: [{ email, name }],
     subject: "Your Complete Home Sollution login code",
-    htmlContent: `
-      <h2>Your login code</h2>
-      <p>Hi ${escapeHtml(name)},</p>
-      <p>Use the code below to log in to Complete Home Sollution. It expires in 10 minutes.</p>
-      <h1 style="letter-spacing:0.3em;font-size:2rem;">${escapeHtml(otp)}</h1>
-      <p>If you didn't request this, you can safely ignore this email.</p>
-    `,
+    htmlContent,
   });
 }
 
@@ -108,162 +124,74 @@ export async function sendOrderConfirmationEmail(params: {
   const shortId = escapeHtml(params.orderId.slice(-8).toUpperCase());
   const firstName = escapeHtml(params.name.split(" ")[0] || "there");
   const itemsTable = buildItemsTable(params.items);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://completehomesollution.com.au";
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://completehomesollution.com.au").replace(/\/$/, "");
 
   const addrHtml = params.address
     ? escapeHtml(`${params.address.line1}${params.address.line2 ? ", " + params.address.line2 : ""}, ${params.address.suburb} ${params.address.state} ${params.address.postcode}, ${params.address.country}`)
     : "Not provided";
 
   // ── Customer email ────────────────────────────────────────────────────────
-  const customerHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#f7f3ef;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f3ef;padding:40px 16px;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  const customerBodyHtml = `
+    <p style="margin:0 0 20px;color:#334155;">
+      Thank you for your order! We've received your payment and our team is getting your items ready.
+      You'll receive a notification as soon as your items are dispatched or prepared for pickup.
+    </p>
 
-        <!-- Header -->
-        <tr>
-          <td style="background:#1a2e5a;padding:32px 40px;text-align:center;">
-            <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;">Complete Home Sollution</p>
-            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.6);letter-spacing:0.05em;">PREMIUM FURNITURE · AUSTRALIA</p>
-          </td>
-        </tr>
+    <p style="margin:0 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Order Items</p>
+    ${itemsTable}
 
-        <!-- Success banner -->
-        <tr>
-          <td style="background:#e8f5e9;padding:20px 40px;text-align:center;border-bottom:1px solid #c8e6c9;">
-            <p style="margin:0;font-size:18px;font-weight:800;color:#2e7d32;">✓ &nbsp;Order Confirmed!</p>
-            <p style="margin:6px 0 0;font-size:13px;color:#388e3c;">Order #${shortId}</p>
-          </td>
-        </tr>
+    <div style="margin-top:16px;text-align:right;">
+      <span style="font-size:18px;font-weight:900;color:#1a2e5a;border-top:2px solid #1a2e5a;padding-top:8px;display:inline-block;">
+        Total: A$${params.total.toFixed(2)}
+      </span>
+    </div>
 
-        <!-- Body -->
-        <tr>
-          <td style="padding:36px 40px;">
-            <p style="margin:0 0 16px;font-size:16px;color:#1a1a1a;">Hi <strong>${firstName}</strong>,</p>
-            <p style="margin:0 0 24px;font-size:15px;color:#555;line-height:1.6;">
-              Thank you for your order! We've received your payment and we're getting your items ready.
-              You'll receive a shipping notification once your order is on its way.
-            </p>
+    ${renderCard(`
+      <p style="margin:0;font-weight:700;color:#1e293b;">${escapeHtml(params.address?.name ?? params.name)}</p>
+      <p style="margin:4px 0 0;color:#475569;font-size:13px;line-height:1.5;">${addrHtml}</p>
+    `, { title: "Delivery / Recipient Address", bg: "#f8fafc" })}
+  `;
 
-            <!-- Order summary -->
-            <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:0.06em;">Order Summary</p>
-            ${itemsTable}
-
-            <!-- Total -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
-              <tr>
-                <td style="padding:12px 12px;text-align:right;font-size:16px;font-weight:800;color:#1a1a1a;border-top:2px solid #1a2e5a;">
-                  Total: A$${params.total.toFixed(2)}
-                </td>
-              </tr>
-            </table>
-
-            <!-- Shipping address -->
-            <div style="margin-top:28px;background:#f7f3ef;border-radius:10px;padding:16px 20px;">
-              <p style="margin:0 0 6px;font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:0.08em;">Shipping To</p>
-              <p style="margin:0;font-size:14px;color:#1a1a1a;line-height:1.6;">${escapeHtml(params.address?.name ?? params.name)}<br/>${addrHtml}</p>
-            </div>
-
-            <!-- CTA -->
-            <table cellpadding="0" cellspacing="0" style="margin:28px auto 0;">
-              <tr>
-                <td style="background:#e03d2a;border-radius:12px;">
-                  <a href="${escapeHtml(appUrl)}/order-confirmation/${encodeURIComponent(params.orderId)}?token=${createGuestOrderToken(params.orderId, params.email)}" style="display:inline-block;padding:13px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">
-                    View My Order
-                  </a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td style="border-top:1px solid #f0ebe5;padding:24px 40px;text-align:center;">
-            <p style="margin:0 0 4px;font-size:12px;color:#aaa;">© ${new Date().getFullYear()} Complete Home Sollution Pty Ltd · Australia</p>
-            <p style="margin:0;font-size:12px;color:#aaa;">Questions? Email us at <a href="mailto:${ADMIN_EMAIL}" style="color:#e03d2a;text-decoration:none;">${ADMIN_EMAIL}</a></p>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const customerHtml = renderStandardEmail({
+    title: `Order confirmed — #${shortId}`,
+    badge: { text: "Order Confirmed & Paid", subtitle: `Order #${shortId}`, type: "success" },
+    greeting: `Hi ${firstName},`,
+    bodyHtml: customerBodyHtml,
+    cta: {
+      text: "View My Order",
+      url: `${appUrl}/order-confirmation/${encodeURIComponent(params.orderId)}?token=${createGuestOrderToken(params.orderId, params.email)}`,
+    },
+  });
 
   // ── Admin notification email ───────────────────────────────────────────────
-  const adminHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#f1f5f9;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:40px 16px;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  const adminBodyHtml = `
+    ${renderCard(`
+      <p style="margin:0 0 4px;font-weight:700;color:#1e293b;">${escapeHtml(params.name)}</p>
+      ${params.customerEmail ? `<p style="margin:0 0 6px;color:#64748b;font-size:13px;">${escapeHtml(params.customerEmail)}</p>` : ""}
+      <p style="margin:8px 0 2px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;">Delivery Address</p>
+      <p style="margin:0;color:#334155;font-size:13px;line-height:1.5;">${addrHtml}</p>
+    `, { title: "Customer Information", bg: "#f8fafc" })}
 
-        <!-- Header -->
-        <tr>
-          <td style="background:#1a2e5a;padding:28px 40px;text-align:center;">
-            <p style="margin:0;font-size:20px;font-weight:900;color:#ffffff;">🛒 New Order Received</p>
-            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.6);">Order #${shortId} · A$${params.total.toFixed(2)}</p>
-          </td>
-        </tr>
+    <p style="margin:16px 0 8px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Items Ordered</p>
+    ${itemsTable}
 
-        <!-- Body -->
-        <tr>
-          <td style="padding:32px 40px;">
+    <div style="margin-top:16px;text-align:right;">
+      <span style="font-size:18px;font-weight:900;color:#1a2e5a;border-top:2px solid #1a2e5a;padding-top:8px;display:inline-block;">
+        Total: A$${params.total.toFixed(2)}
+      </span>
+    </div>
+  `;
 
-            <!-- Customer details -->
-            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-              <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">Customer</p>
-              <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1a1a1a;">${escapeHtml(params.name)}</p>
-              ${params.customerEmail ? `<p style="margin:0 0 4px;font-size:13px;color:#555;">${escapeHtml(params.customerEmail)}</p>` : ""}
-              <p style="margin:8px 0 0;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;">Ship to</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#555;line-height:1.6;">${addrHtml}</p>
-            </div>
-
-            <!-- Order items -->
-            <p style="margin:0 0 8px;font-size:13px;font-weight:700;color:#1a1a1a;text-transform:uppercase;letter-spacing:0.06em;">Items Ordered</p>
-            ${itemsTable}
-
-            <!-- Total -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
-              <tr>
-                <td style="padding:12px;text-align:right;font-size:16px;font-weight:800;color:#1a2e5a;border-top:2px solid #1a2e5a;">
-                  Total: A$${params.total.toFixed(2)}
-                </td>
-              </tr>
-            </table>
-
-            <!-- Admin link -->
-            <table cellpadding="0" cellspacing="0" style="margin:28px auto 0;">
-              <tr>
-                <td style="background:#1a2e5a;border-radius:12px;">
-                  <a href="${escapeHtml(appUrl)}/admin/orders/${encodeURIComponent(params.orderId)}" style="display:inline-block;padding:13px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;">
-                    View Order in Admin
-                  </a>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-
-        <!-- Footer -->
-        <tr>
-          <td style="border-top:1px solid #e2e8f0;padding:20px 40px;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#aaa;">This is an automated notification from Complete Home Sollution.</p>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`;
+  const adminHtml = renderStandardEmail({
+    title: `New Order #${shortId} Received`,
+    badge: { text: `New Order #${shortId} — A$${params.total.toFixed(2)}`, type: "info" },
+    bodyHtml: adminBodyHtml,
+    cta: {
+      text: "View Order in Admin",
+      url: `${appUrl}/admin/orders/${encodeURIComponent(params.orderId)}`,
+    },
+    isAdmin: true,
+  });
 
   await Promise.all([
     // Customer confirmation
@@ -310,55 +238,48 @@ export async function sendOrderCancellationEmail(params: {
       ? `Partial refund issued for Order #${shortId}`
       : `Order #${shortId} refunded`;
 
+  const customerBodyHtml = `
+    <p style="margin:0 0 16px;color:#334155;">
+      ${params.autoRefunded ? "Your order has been successfully cancelled." : "We've processed a refund for your order."} ${refundNote}
+    </p>
+
+    ${renderCard(`
+      <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;">
+        <tr>
+          <td style="padding:6px 0;color:#64748b;width:40%;">Order Number:</td>
+          <td style="padding:6px 0;font-weight:700;">#${shortId}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;">Original Total:</td>
+          <td style="padding:6px 0;">A$${params.total.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;">Refund Amount:</td>
+          <td style="padding:6px 0;font-weight:800;color:#dc2626;">A$${params.refundAmount.toFixed(2)}</td>
+        </tr>
+      </table>
+    `, { title: "Refund Summary", bg: "#fef2f2", border: "#fecaca" })}
+
+    <p style="margin:20px 0 0;font-size:13px;color:#64748b;">
+      If you have questions about your refund or need help with a replacement item, simply reply to this email or reach out to our support team.
+    </p>
+  `;
+
+  const customerHtml = renderStandardEmail({
+    title: subject,
+    badge: {
+      text: params.autoRefunded ? `Order #${shortId} Cancelled & Refunded` : `Order #${shortId} Refunded`,
+      type: "danger",
+    },
+    greeting: `Hi ${firstName},`,
+    bodyHtml: customerBodyHtml,
+  });
+
   if (params.audience !== "admin") await sendEmail({
     ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: params.email, name: params.name }],
     subject,
-    htmlContent: `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
-<body style="margin:0;padding:0;background:#f7f3ef;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f3ef;padding:40px 16px;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a2e5a;padding:32px 40px;text-align:center;">
-            <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;">Complete Home Sollution</p>
-            <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.6);">PREMIUM FURNITURE · AUSTRALIA</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="background:#fef2f2;padding:20px 40px;text-align:center;border-bottom:1px solid #fecaca;">
-            <p style="margin:0;font-size:18px;font-weight:800;color:#dc2626;">Order #${shortId} — ${params.autoRefunded ? "Cancelled & Refunded" : "Refunded"}</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:36px 40px;">
-            <p style="margin:0 0 16px;font-size:16px;color:#1a1a1a;">Hi <strong>${firstName}</strong>,</p>
-            <p style="margin:0 0 20px;font-size:15px;color:#555;line-height:1.6;">
-              ${params.autoRefunded ? "Your order has been successfully cancelled." : "We've processed a refund for your order."} ${refundNote}
-            </p>
-            <div style="background:#f7f3ef;border-radius:10px;padding:16px 20px;margin-bottom:24px;">
-              <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#888;text-transform:uppercase;">Order</p>
-              <p style="margin:0;font-size:14px;color:#1a1a1a;">#${shortId} · Original total: A$${params.total.toFixed(2)}</p>
-              <p style="margin:8px 0 0;font-size:14px;color:#1a1a1a;">Refund amount: <strong>A$${params.refundAmount.toFixed(2)}</strong></p>
-            </div>
-            <p style="margin:0;font-size:13px;color:#888;line-height:1.6;">
-              Questions? Reply to this email or contact us at <a href="mailto:${ADMIN_EMAIL}" style="color:#e03d2a;">${ADMIN_EMAIL}</a>
-            </p>
-          </td>
-        </tr>
-        <tr>
-          <td style="border-top:1px solid #f0ebe5;padding:24px 40px;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#aaa;">© ${new Date().getFullYear()} Complete Home Sollution Pty Ltd · Australia</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    htmlContent: customerHtml,
   });
 
   // Also notify admin
@@ -366,7 +287,18 @@ export async function sendOrderCancellationEmail(params: {
     ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: ADMIN_EMAIL, name: ADMIN_NAME }],
     subject: `[Admin] ${params.autoRefunded ? "Auto-refund" : "Refund issued"} for Order #${shortId}`,
-    htmlContent: `<p>Order <strong>#${shortId}</strong> has been ${params.autoRefunded ? "cancelled and auto-refunded" : "refunded"}.</p><p>Amount: <strong>A$${params.refundAmount.toFixed(2)}</strong></p><p>Customer: ${escapeHtml(params.name)} (${escapeHtml(params.email)})</p>`,
+    htmlContent: renderStandardEmail({
+      title: `[Admin] Refund for Order #${shortId}`,
+      badge: { text: `${params.autoRefunded ? "Auto-refund" : "Refund"} Issued — Order #${shortId}`, type: "neutral" },
+      bodyHtml: `
+        ${renderCard(`
+          <p><strong>Order:</strong> #${shortId}</p>
+          <p><strong>Amount:</strong> A$${params.refundAmount.toFixed(2)}</p>
+          <p><strong>Customer:</strong> ${escapeHtml(params.name)} (${escapeHtml(params.email)})</p>
+        `, { title: "Refund Details" })}
+      `,
+      isAdmin: true,
+    }),
   });
 }
 
@@ -381,64 +313,75 @@ export async function sendRefundRequestEmail(params: {
 }): Promise<void> {
   const shortId = escapeHtml(params.orderId.slice(-8).toUpperCase());
   const firstName = escapeHtml(params.name.split(" ")[0] || "there");
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://completehomesollution.com.au";
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://completehomesollution.com.au").replace(/\/$/, "");
 
   // Customer: acknowledge receipt of request
+  const customerBodyHtml = `
+    <p style="margin:0 0 16px;color:#334155;">
+      We've received your refund request for Order <strong>#${shortId}</strong>. Our customer care team will review your request and get back to you within 1–2 business days.
+    </p>
+
+    ${renderCard(`
+      <p style="margin:0;font-size:14px;color:#334155;line-height:1.5;">${escapeHtml(params.reason)}</p>
+    `, { title: "Submitted Reason", bg: "#f8fafc" })}
+
+    <p style="margin:20px 0 0;font-size:13px;color:#64748b;">
+      If you have additional details or photos to provide, you can simply reply directly to this email.
+    </p>
+  `;
+
+  const customerHtml = renderStandardEmail({
+    title: `Refund request received — Order #${shortId}`,
+    badge: { text: "Refund Request Received", subtitle: `Order #${shortId}`, type: "neutral" },
+    greeting: `Hi ${firstName},`,
+    bodyHtml: customerBodyHtml,
+  });
+
   if (params.audience !== "admin") await sendEmail({
     ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: params.email, name: params.name }],
     subject: `Refund request received — Order #${shortId}`,
-    htmlContent: `
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"/></head>
-<body style="margin:0;padding:0;background:#f7f3ef;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f3ef;padding:40px 16px;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
-        <tr>
-          <td style="background:#1a2e5a;padding:32px 40px;text-align:center;">
-            <p style="margin:0;font-size:22px;font-weight:900;color:#ffffff;">Complete Home Sollution</p>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:36px 40px;">
-            <p style="margin:0 0 16px;font-size:16px;color:#1a1a1a;">Hi <strong>${firstName}</strong>,</p>
-            <p style="margin:0 0 20px;font-size:15px;color:#555;line-height:1.6;">
-              We've received your refund request for Order <strong>#${shortId}</strong>. Our team will review it and get back to you within 1–2 business days.
-            </p>
-            <div style="background:#f7f3ef;border-radius:10px;padding:16px 20px;">
-              <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#888;text-transform:uppercase;">Your reason</p>
-              <p style="margin:0;font-size:14px;color:#1a1a1a;">${escapeHtml(params.reason)}</p>
-            </div>
-            <p style="margin:24px 0 0;font-size:13px;color:#888;">Questions? Contact us at <a href="mailto:${ADMIN_EMAIL}" style="color:#e03d2a;">${ADMIN_EMAIL}</a></p>
-          </td>
-        </tr>
-        <tr>
-          <td style="border-top:1px solid #f0ebe5;padding:20px 40px;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#aaa;">© ${new Date().getFullYear()} Complete Home Sollution Pty Ltd</p>
-          </td>
-        </tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
+    htmlContent: customerHtml,
   });
 
   // Admin: alert with link to order
+  const adminBodyHtml = `
+    ${renderCard(`
+      <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;">
+        <tr>
+          <td style="padding:6px 0;color:#64748b;width:30%;">Order:</td>
+          <td style="padding:6px 0;font-weight:700;">#${shortId}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;">Customer:</td>
+          <td style="padding:6px 0;">${escapeHtml(params.name)} (${escapeHtml(params.email)})</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;">Order Total:</td>
+          <td style="padding:6px 0;font-weight:700;">A$${params.total.toFixed(2)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;vertical-align:top;">Reason:</td>
+          <td style="padding:6px 0;line-height:1.5;">${escapeHtml(params.reason)}</td>
+        </tr>
+      </table>
+    `, { title: "Refund Request Summary" })}
+  `;
+
   if (params.audience !== "customer") await sendEmail({
     ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: ADMIN_EMAIL, name: ADMIN_NAME }],
     subject: `[Action Required] Refund request for Order #${shortId} — A$${params.total.toFixed(2)}`,
-    htmlContent: `
-      <h2>Refund Request Received</h2>
-      <p><strong>Order:</strong> #${shortId}</p>
-      <p><strong>Customer:</strong> ${escapeHtml(params.name)} (${escapeHtml(params.email)})</p>
-      <p><strong>Order Total:</strong> A$${params.total.toFixed(2)}</p>
-      <p><strong>Reason:</strong> ${escapeHtml(params.reason)}</p>
-      <p><a href="${escapeHtml(appUrl)}/admin/orders/${encodeURIComponent(params.orderId)}" style="background:#1a2e5a;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;margin-top:12px;">Review Order in Admin</a></p>
-    `,
+    htmlContent: renderStandardEmail({
+      title: `[Action Required] Refund Request #${shortId}`,
+      badge: { text: `Refund Requested — Order #${shortId}`, type: "warning" },
+      bodyHtml: adminBodyHtml,
+      cta: {
+        text: "Review Order in Admin",
+        url: `${appUrl}/admin/orders/${encodeURIComponent(params.orderId)}`,
+      },
+      isAdmin: true,
+    }),
   });
 }
 
@@ -450,15 +393,50 @@ export async function sendShippingUpdateEmail(params: {
   carrier: string;
   idempotencyKey?: string;
 }): Promise<void> {
+  const shortId = escapeHtml(params.orderId.slice(-8).toUpperCase());
+  const firstName = escapeHtml(params.name?.split(" ")[0] || "there");
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://completehomesollution.com.au").replace(/\/$/, "");
+  const orderUrl = `${appUrl}/order-confirmation/${encodeURIComponent(params.orderId)}?token=${createGuestOrderToken(params.orderId, params.email)}`;
+
+  const bodyHtml = `
+    <p style="margin:0 0 16px;color:#334155;">
+      Great news! Your order <strong>#${shortId}</strong> has been carefully packed and dispatched. You can track your shipment as it travels to your delivery address.
+    </p>
+
+    ${renderCard(`
+      <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1e293b;">
+        <tr>
+          <td style="padding:6px 0;color:#64748b;width:40%;">Order Number:</td>
+          <td style="padding:6px 0;font-weight:700;">#${shortId}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;">Carrier:</td>
+          <td style="padding:6px 0;font-weight:700;">${escapeHtml(params.carrier)}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0;color:#64748b;">Tracking Number:</td>
+          <td style="padding:6px 0;font-weight:700;color:#1a2e5a;">${escapeHtml(params.trackingNumber)}</td>
+        </tr>
+      </table>
+    `, { title: "Dispatch & Tracking Details", bg: "#f8fafc" })}
+
+    <p style="margin:20px 0 0;font-size:12px;color:#94a3b8;line-height:1.5;">
+      Tracking events typically take a few hours to sync with carrier scans after parcel collection.
+    </p>
+  `;
+
+  const htmlContent = renderStandardEmail({
+    title: `Your order #${shortId} has shipped!`,
+    badge: { text: "Order Dispatched & On Its Way", type: "success" },
+    greeting: `Hi ${firstName},`,
+    bodyHtml,
+    cta: { text: "View Order & Tracking", url: orderUrl },
+  });
+
   await sendEmail({
     ...(params.idempotencyKey ? { headers: { idempotencyKey: params.idempotencyKey } } : {}),
     to: [{ email: params.email, name: params.name }],
-    subject: `Your Complete Home Sollution order #${params.orderId} has shipped!`,
-    htmlContent: `
-      <h2>Your order is on its way!</h2>
-      <p>Hi ${escapeHtml(params.name)},</p>
-      <p>Carrier: <strong>${escapeHtml(params.carrier)}</strong></p>
-      <p>Tracking number: <strong>${escapeHtml(params.trackingNumber)}</strong></p>
-    `,
+    subject: `Your Complete Home Sollution order #${shortId} has shipped!`,
+    htmlContent,
   });
 }

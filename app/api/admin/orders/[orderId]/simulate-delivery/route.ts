@@ -41,9 +41,9 @@ export async function POST(_req: NextRequest, { params }: Context) {
       });
     }
 
-    if (["CANCELLED", "REFUNDED"].includes(order.status)) {
+    if (!["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY"].includes(order.status)) {
       return NextResponse.json(
-        { error: `Cannot mark a ${order.status} order as delivered.` },
+        { error: `Only paid or dispatched orders can be marked as delivered. Current status: ${order.status}` },
         { status: 409 }
       );
     }

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, Package, ArrowRight, Mail, Crown, Clock } from "lucide-react";
+import { CheckCircle2, Package, ArrowRight, Mail, Crown, Clock, Store, Truck, Calendar, Phone } from "lucide-react";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { verifyGuestOrderToken, verifyOrderReturnToken } from "@/lib/order-access";
 import { ClearCartOnSuccess } from "@/components/shop/clear-cart-on-success";
 import { PollPendingPayment } from "@/components/shop/poll-pending-payment";
+import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
 
 export const metadata: Metadata = { title: "Order Confirmed", robots: { index: false, follow: false } };
 
@@ -209,10 +210,16 @@ export default async function OrderConfirmationPage({
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Shipping</span>
+              <span className="text-muted-foreground">
+                {order.fulfillmentType === "STORE_PICKUP"
+                  ? "Store Pickup"
+                  : "Delivery"}
+              </span>
               <span>
-                {order.shippingCost === 0 ? (
-                  <span className="text-green-600">Free</span>
+                {order.fulfillmentType === "STORE_PICKUP" ? (
+                  <span className="text-green-600 font-semibold">Free</span>
+                ) : order.shippingCost === 0 ? (
+                  <span className="text-green-600 font-semibold">Free</span>
                 ) : (
                   currencyFormatter.format(order.shippingCost)
                 )}
@@ -243,21 +250,96 @@ export default async function OrderConfirmationPage({
             </div>
           </div>
 
-          {/* Shipping Address */}
-          {order.address && (
-            <div className="border-t border-border pt-4">
-              <h3 className="text-sm font-semibold text-foreground mb-2">Shipping To</h3>
-              <div className="text-sm text-muted-foreground space-y-0.5">
-                <p className="font-medium text-foreground">{order.address.name}</p>
-                <p>
-                  {order.address.line1}
-                  {order.address.line2 ? `, ${order.address.line2}` : ""}
-                </p>
-                <p>
-                  {order.address.suburb}, {order.address.state} {order.address.postcode}
+          {/* Fulfillment Details */}
+          {order.fulfillmentType === "STORE_PICKUP" ? (
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Store className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Store Pickup Collection Point</h3>
+              </div>
+              <div className="rounded-xl border border-border bg-secondary/30 p-4 text-xs space-y-1.5 text-foreground">
+                <p className="font-bold text-sm text-foreground">{STORE_PICKUP_LOCATION.name}</p>
+                <p className="text-muted-foreground">{STORE_PICKUP_LOCATION.fullAddress}</p>
+                <p className="text-muted-foreground">Operating Hours: {STORE_PICKUP_LOCATION.hours}</p>
+                <p className="text-muted-foreground">Phone: {STORE_PICKUP_LOCATION.contactPhone}</p>
+                {order.pickupAppointmentDate ? (
+                  <div className="mt-2 p-2.5 rounded-lg bg-white border border-border text-foreground font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-primary shrink-0" />
+                    <div>
+                      <strong>Pickup Appointment Confirmed:</strong>{" "}
+                      {new Date(order.pickupAppointmentDate).toLocaleDateString("en-AU", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                      {order.pickupAppointmentTime ? ` at ${order.pickupAppointmentTime}` : ""}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 pt-2 border-t border-border flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span><strong>Next Step:</strong> Our showroom team will contact you shortly to coordinate an agreed pickup date and time.</span>
+                  </div>
+                )}
+                <div className="pt-2 flex items-center gap-3">
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Complete+Home+Sollution+18+Edison+Drive+Golden+Grove+SA+5125"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-primary hover:underline"
+                  >
+                    Get Directions →
+                  </a>
+                  <span>·</span>
+                  <a
+                    href={`tel:${STORE_PICKUP_LOCATION.contactPhone}`}
+                    className="font-bold text-primary hover:underline"
+                  >
+                    Call Showroom ({STORE_PICKUP_LOCATION.contactPhone})
+                  </a>
+                </div>
+              </div>
+              {order.address && (
+                <div className="text-xs text-muted-foreground pt-1">
+                  <span className="font-semibold text-foreground">Customer details: </span>
+                  {order.address.name} · {order.address.phone}
+                </div>
+              )}
+            </div>
+          ) : order.fulfillmentType === "MANUAL_DELIVERY" ? (
+            <div className="border-t border-border pt-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Scheduled Delivery</h3>
+              </div>
+              <div className="rounded-xl border border-border bg-secondary/30 p-4 text-xs space-y-1 text-foreground">
+                <p className="font-semibold text-foreground">Delivering to:</p>
+                <p className="font-medium text-foreground">{order.address?.name}</p>
+                <p className="text-muted-foreground">{order.address?.line1}{order.address?.line2 ? `, ${order.address?.line2}` : ""}</p>
+                <p className="text-muted-foreground">{order.address?.suburb}, {order.address?.state} {order.address?.postcode}</p>
+                <p className="mt-1 text-muted-foreground flex items-center gap-2 pt-1 border-t border-border">
+                  <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span>Our logistics team will call you to schedule a delivery appointment.</span>
                 </p>
               </div>
             </div>
+          ) : (
+            order.address && (
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-semibold text-foreground mb-2">Shipping To</h3>
+                <div className="text-sm text-muted-foreground space-y-0.5">
+                  <p className="font-medium text-foreground">{order.address.name}</p>
+                  <p>
+                    {order.address.line1}
+                    {order.address.line2 ? `, ${order.address.line2}` : ""}
+                  </p>
+                  <p>
+                    {order.address.suburb}, {order.address.state} {order.address.postcode}
+                  </p>
+                </div>
+              </div>
+            )
           )}
 
           {/* Email Notification */}

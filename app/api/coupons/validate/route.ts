@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { calculateCartPricing, moneyToCents } from "@/lib/cart-pricing";
 import { hasActiveMembership } from "@/lib/membership";
 import { resolveMemberPrice } from "@/lib/member-price";
+import { cleanupStalePendingCouponReservations } from "@/lib/coupon-reservation";
 
 const itemsSchema = z.array(z.object({
   productId: z.string().cuid(),
@@ -58,6 +59,16 @@ async function validateCoupon(input: z.infer<typeof validateCouponSchema>) {
   if (coupon.endDate && coupon.endDate < now) {
     return NextResponse.json({ error: "This coupon has expired" }, { status: 400 });
   }
+
+  if (coupon.usageLimit != null || coupon.perUserLimit != null) {
+    await cleanupStalePendingCouponReservations(coupon.id, userId);
+    const refreshed = await db.coupon.findUnique({
+      where: { id: coupon.id },
+      select: { usageCount: true },
+    });
+    if (refreshed) coupon.usageCount = refreshed.usageCount;
+  }
+
   if (coupon.usageLimit != null && coupon.usageCount >= coupon.usageLimit) {
     return NextResponse.json({ error: "This coupon has reached its usage limit" }, { status: 400 });
   }

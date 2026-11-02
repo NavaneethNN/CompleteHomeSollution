@@ -1,5 +1,5 @@
 import { OrderMembershipItem } from "@/components/account/order-membership-item";
-import { orderContentsLabel } from "@/lib/order-display";
+import { orderContentsLabel, getEffectiveOrderStatus } from "@/lib/order-display";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
@@ -19,9 +19,15 @@ import {
   User,
   Tag,
   CheckCircle2,
+  Check,
   Clock,
   Hash,
+  Store,
+  Navigation,
+  FileText,
+  AlertCircle,
 } from "lucide-react";
+import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
 import { CancelOrderButton } from "@/components/shop/cancel-order-button";
 import { BuyAgainButton } from "@/components/shop/buy-again-button";
 import { RefreshOrderStatus } from "@/components/account/refresh-order-status";
@@ -55,6 +61,14 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
   const isPreShip = ["PAID", "CONFIRMED", "PROCESSING"].includes(order.status);
   const isPostShip = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
   const isCancellable = isPreShip || isPostShip;
+  const effectiveStatus = getEffectiveOrderStatus(order);
+  const isStorePickup = order.fulfillmentType === "STORE_PICKUP";
+
+  // Stepper calculations for store pickup
+  const pickupStep1Done = isPaid;
+  const pickupStep2Done = Boolean(effectiveStatus.isAppointmentScheduled || effectiveStatus.isReadyForPickup || effectiveStatus.isPickedUp);
+  const pickupStep3Done = Boolean(effectiveStatus.isReadyForPickup || effectiveStatus.isPickedUp);
+  const pickupStep4Done = effectiveStatus.isPickedUp;
 
   return (
     <div className="min-h-screen bg-secondary/30">
@@ -83,31 +97,245 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               Placed on {formattedDate} at {formattedTime}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {order.status !== "PENDING" && <BuyAgainButton items={order.items} variant="outline" size="sm" />}
-            <span className={getStatusStyle(order.status)}>{formatStatusLabel(order.status)}</span>
+            {isStorePickup && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-full uppercase tracking-wide">
+                <Store className="h-3.5 w-3.5 text-slate-600" />
+                Store Pickup
+              </span>
+            )}
+            <span className={`text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide border ${effectiveStatus.badgeStyle}`}>
+              {effectiveStatus.label}
+            </span>
           </div>
         </div>
 
         {/* ── Pending Payment Banner ── */}
         {order.status === "PENDING" && (
-          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="mb-6 rounded-2xl border border-border bg-secondary/40 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
-              <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <Clock className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
               <div>
-                <p className="font-semibold text-amber-900 text-sm">Payment not completed</p>
-                <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                <p className="font-semibold text-foreground text-sm">Payment not completed</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                   This order is waiting for payment. Your items are reserved but will not be confirmed until payment is completed.
                 </p>
               </div>
             </div>
             <Link
               href={`/order-confirmation/${order.id}`}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-5 py-2.5 transition-colors shrink-0"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-bold px-5 py-2.5 transition-colors shrink-0"
             >
               <CreditCard className="h-4 w-4" />
               Complete Payment
             </Link>
+          </div>
+        )}
+
+        {/* ── Enhanced Store Pickup Experience ── */}
+        {isStorePickup && (
+          <div className="mb-8 rounded-2xl border border-border bg-white p-5 sm:p-6 shadow-xs">
+            {/* Pickup Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-secondary text-foreground border border-border flex items-center justify-center shrink-0">
+                  <Store className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-foreground text-lg">Store Pickup Details</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Collect directly from Complete Home Sollution Showroom &amp; Warehouse
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {effectiveStatus.isPickedUp ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Order Collected &amp; Completed
+                  </span>
+                ) : effectiveStatus.isReadyForPickup ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Ready for Collection
+                  </span>
+                ) : effectiveStatus.isAppointmentScheduled ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-secondary text-foreground border border-border">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" /> Appointment Confirmed
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-secondary text-muted-foreground border border-border">
+                    <Clock className="h-3.5 w-3.5" /> Coordinating Appointment
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Store Pickup 4-Stage Visual Stepper */}
+            {order.status !== "CANCELLED" && order.status !== "REFUNDED" && (
+              <div className="py-5 border-b border-border">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* Step 1: Placed */}
+                  <div className={`p-3 rounded-xl border flex items-center gap-2.5 ${pickupStep1Done ? "bg-secondary/40 border-border text-foreground" : "bg-card border-border/60 text-muted-foreground"}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${pickupStep1Done ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"}`}>
+                      <Check className="h-3.5 w-3.5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold leading-tight">1. Order Placed</p>
+                      <p className="text-[10px] text-muted-foreground">Payment Confirmed</p>
+                    </div>
+                  </div>
+
+                  {/* Step 2: Appointment Scheduled */}
+                  <div className={`p-3 rounded-xl border flex items-center gap-2.5 ${pickupStep2Done ? "bg-secondary/40 border-border text-foreground" : "bg-card border-border/60 text-muted-foreground"}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${pickupStep2Done ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>
+                      {pickupStep2Done ? <Check className="h-3.5 w-3.5" /> : "2"}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold leading-tight">2. Appointment</p>
+                      <p className="text-[10px] text-muted-foreground">{pickupStep2Done ? "Date & Time Set" : "Pending Contact"}</p>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Ready for Pickup */}
+                  <div className={`p-3 rounded-xl border flex items-center gap-2.5 ${pickupStep3Done ? "bg-secondary/40 border-border text-foreground" : "bg-card border-border/60 text-muted-foreground"}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${pickupStep3Done ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"}`}>
+                      {pickupStep3Done ? <Check className="h-3.5 w-3.5" /> : "3"}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold leading-tight">3. Ready in Store</p>
+                      <p className="text-[10px] text-muted-foreground">{pickupStep3Done ? "Items Packed" : "Preparing Order"}</p>
+                    </div>
+                  </div>
+
+                  {/* Step 4: Picked Up */}
+                  <div className={`p-3 rounded-xl border flex items-center gap-2.5 ${pickupStep4Done ? "bg-secondary/40 border-border text-foreground" : "bg-card border-border/60 text-muted-foreground"}`}>
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${pickupStep4Done ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"}`}>
+                      {pickupStep4Done ? <Check className="h-3.5 w-3.5" /> : "4"}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold leading-tight">4. Collected</p>
+                      <p className="text-[10px] text-muted-foreground">{pickupStep4Done ? "Pickup Complete" : "Awaiting Pickup"}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Detail Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 text-sm">
+              {/* Showroom & Directions */}
+              <div className="bg-secondary/30 p-4 rounded-xl border border-border space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-foreground text-xs uppercase tracking-wide flex items-center gap-1.5">
+                    <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                    Collection Showroom
+                  </p>
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Open for Pickup
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-foreground text-base">{STORE_PICKUP_LOCATION.name}</p>
+                  <p className="text-muted-foreground text-xs leading-relaxed">{STORE_PICKUP_LOCATION.fullAddress}</p>
+                  <p className="text-muted-foreground text-xs mt-1">
+                    <strong>Hours:</strong> {STORE_PICKUP_LOCATION.hours}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    <strong>Phone:</strong> {STORE_PICKUP_LOCATION.contactPhone}
+                  </p>
+                </div>
+                <div className="pt-2 flex items-center gap-2 flex-wrap">
+                  <a
+                    href="https://www.google.com/maps/search/?api=1&query=Complete+Home+Sollution+18+Edison+Drive+Golden+Grove+SA+5125"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    <Navigation className="h-3.5 w-3.5" />
+                    Get Directions
+                  </a>
+                  <a
+                    href={`tel:${STORE_PICKUP_LOCATION.contactPhone}`}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-foreground bg-white hover:bg-secondary px-3 py-1.5 rounded-lg border border-border transition-colors"
+                  >
+                    <Phone className="h-3.5 w-3.5" />
+                    Call Showroom
+                  </a>
+                </div>
+              </div>
+
+              {/* Scheduled Appointment Details */}
+              <div className="bg-secondary/30 p-4 rounded-xl border border-border space-y-2.5 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-bold text-foreground text-xs uppercase tracking-wide flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                      Scheduled Appointment
+                    </p>
+                    {order.pickupAppointmentDate && (
+                      <span className="text-[11px] font-semibold text-foreground bg-white px-2 py-0.5 rounded border border-border">
+                        Slot Confirmed
+                      </span>
+                    )}
+                  </div>
+
+                  {order.pickupAppointmentDate ? (
+                    <div className="space-y-2">
+                      <div className="p-3 bg-white rounded-lg border border-border">
+                        <p className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                          <Calendar className="h-4 w-4 text-primary shrink-0" />
+                          {new Date(order.pickupAppointmentDate).toLocaleDateString("en-AU", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </p>
+                        {order.pickupAppointmentTime && (
+                          <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mt-1">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            {order.pickupAppointmentTime}
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-relaxed">
+                        Your goods are held specifically for this collection window. If you need to reschedule, please call our team at least 2 hours in advance.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-white rounded-lg border border-border text-xs text-muted-foreground leading-relaxed space-y-1">
+                      <p className="font-semibold text-foreground">Coordinating Appointment Slot</p>
+                      <p>
+                        Our showroom team will contact you shortly by phone or email to schedule a convenient collection slot.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* What to Bring Checklist */}
+                <div className="pt-2 border-t border-border">
+                  <p className="text-[11px] font-bold text-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
+                    <FileText className="h-3 w-3 text-muted-foreground" /> What to bring for collection:
+                  </p>
+                  <ul className="text-[11px] text-muted-foreground space-y-0.5 list-disc pl-4">
+                    <li>Order Number: <strong className="font-mono text-foreground">#{order.id.slice(-8).toUpperCase()}</strong></li>
+                    <li>Matching Photo ID (Driver&apos;s License or Passport)</li>
+                    <li>Suitable vehicle or trailer for bulky item collection</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Admin Notes if provided */}
+            {order.pickupNotes && (
+              <div className="mt-4 p-3 bg-secondary/40 rounded-xl border border-border text-xs text-foreground">
+                <p className="font-bold text-foreground flex items-center gap-1.5 mb-0.5">
+                  <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                  Special Instructions from Showroom Staff:
+                </p>
+                <p className="text-muted-foreground">{order.pickupNotes}</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -201,32 +429,67 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
               </div>
             </div>
 
-            {/* Shipping / Tracking */}
-            {!membershipOnly && <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
-              <div className="px-6 py-5 border-b border-border">
-                <h2 className="font-bold text-foreground flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-primary" /> Shipping Information
-                </h2>
-              </div>
-              <div className="px-6 py-4 space-y-3">
-                {order.trackingNumber ? (
-                  <>
-                    <Row label="Carrier" value={order.carrier || "Standard Delivery"} />
-                    <Row label="Tracking Number" value={order.trackingNumber} mono />
-                    {trackingUrl && (
-                      <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex text-sm font-semibold text-primary hover:underline">
-                        Track with {order.carrier}
-                      </a>
+            {/* Shipping / Pickup Information */}
+            {!membershipOnly && (
+              <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+                <div className="px-6 py-5 border-b border-border">
+                  <h2 className="font-bold text-foreground flex items-center gap-2">
+                    {order.fulfillmentType === "STORE_PICKUP" ? (
+                      <>
+                        <Store className="h-5 w-5 text-primary" /> Pickup Information
+                      </>
+                    ) : (
+                      <>
+                        <Truck className="h-5 w-5 text-primary" /> Shipping Information
+                      </>
                     )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Tracking information will be available once your order ships.
-                  </p>
-                )}
+                  </h2>
+                </div>
+                <div className="px-6 py-4 space-y-3">
+                  {order.fulfillmentType === "STORE_PICKUP" ? (
+                    <div className="space-y-2 text-sm">
+                      <Row label="Method" value="Store Pickup (Golden Grove SA Showroom)" />
+                      <Row label="Address" value={STORE_PICKUP_LOCATION.fullAddress} />
+                      <Row
+                        label="Status"
+                        value={
+                          order.pickupStatus === "PICKED_UP"
+                            ? "Collected"
+                            : order.pickupStatus === "READY_FOR_PICKUP"
+                            ? "Ready for Collection"
+                            : order.pickupStatus === "SCHEDULED"
+                            ? "Appointment Scheduled"
+                            : "Coordinating Appointment"
+                        }
+                      />
+                    </div>
+                  ) : order.fulfillmentType === "MANUAL_DELIVERY" ? (
+                    <div className="space-y-2 text-sm">
+                      <Row label="Method" value="Store Scheduled Delivery (Large / Bulky Goods)" />
+                      <Row label="Status" value="Dispatched directly by store admin" />
+                      <p className="text-xs text-muted-foreground pt-1">
+                        Our logistics team will contact you to coordinate a scheduled delivery slot.
+                      </p>
+                    </div>
+                  ) : order.trackingNumber ? (
+                    <>
+                      <Row label="Carrier" value={order.carrier || "Standard Delivery"} />
+                      <Row label="Tracking Number" value={order.trackingNumber} mono />
+                      {trackingUrl && (
+                        <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex text-sm font-semibold text-primary hover:underline">
+                          Track with {order.carrier}
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      Tracking information will be available once your order ships.
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>}
+            )}
           </div>
 
           {/* ── Right Column ── */}
@@ -243,9 +506,17 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
                 {!membershipOnly && <Row label="Subtotal" value={`$${order.subtotal.toFixed(2)}`} />}
                 {order.membershipAmount > 0 && <Row label="Membership" value={`$${order.membershipAmount.toFixed(2)}`} />}
                 <Row
-                  label={membershipOnly ? "Delivery" : "Shipping"}
-                  value={membershipOnly ? "Not required" : order.shippingCost === 0 ? "Free" : `$${order.shippingCost.toFixed(2)}`}
-                  valueClass={order.shippingCost === 0 ? "text-emerald-600 font-semibold" : undefined}
+                  label={membershipOnly ? "Delivery" : order.fulfillmentType === "STORE_PICKUP" ? "Store Pickup" : "Shipping"}
+                  value={
+                    membershipOnly
+                      ? "Not required"
+                      : order.fulfillmentType === "STORE_PICKUP"
+                      ? "Free (Store Pickup)"
+                      : order.shippingCost === 0
+                      ? "Free"
+                      : `$${order.shippingCost.toFixed(2)}`
+                  }
+                  valueClass={order.fulfillmentType === "STORE_PICKUP" || order.shippingCost === 0 ? "text-emerald-600 font-semibold" : undefined}
                 />
                 {order.tax > 0 ? (
                   <Row label="GST (10%)" value={`$${order.tax.toFixed(2)}`} />
@@ -287,7 +558,7 @@ export default async function OrderDetailPage({ params }: OrderDetailPageProps) 
             <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
               <div className="px-6 py-5 border-b border-border">
                 <h2 className="font-bold text-foreground flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-primary" /> {membershipOnly ? "Billing Address" : "Delivery Address"}
+                  <MapPin className="h-5 w-5 text-primary" /> {membershipOnly || order.fulfillmentType === "STORE_PICKUP" ? "Billing Address" : "Delivery Address"}
                 </h2>
               </div>
               <div className="px-6 py-4 space-y-2">

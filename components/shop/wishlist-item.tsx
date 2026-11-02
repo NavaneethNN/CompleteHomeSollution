@@ -177,6 +177,14 @@ export function WishlistItem({ product }: WishlistItemProps) {
                   <PhoneCall className="h-3.5 w-3.5" />
                   Call & Customize
                 </a>
+              ) : outOfStock ? (
+                <a
+                  href={`tel:${STORE_PHONE}`}
+                  className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg sm:rounded-xl px-2 py-2.5 sm:py-3 text-[11px] sm:text-xs font-bold transition-colors min-h-[40px] sm:min-h-[44px] bg-primary text-white hover:bg-primary/90 shadow-md"
+                >
+                  <PhoneCall className="h-3.5 w-3.5" />
+                  Call to Order
+                </a>
               ) : (
                 <button
                   type="button"

@@ -29,8 +29,6 @@ export function MembershipSavingsCalculator({
   // 5% discount up to $30 max per order
   const calculatedDiscount = Math.min(spend * 0.05, 30);
   const netOrderCost = spend - calculatedDiscount;
-  const warrantyValue = 99; // Value of 3-year extended warranty
-  const totalValue = calculatedDiscount + warrantyValue;
   const netProfit = calculatedDiscount - planPrice;
 
   return (
@@ -46,7 +44,7 @@ export function MembershipSavingsCalculator({
             Calculate your day-one savings
           </h3>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Slide to your furniture budget to see your instant discount and warranty value.
+            Slide to your furniture budget to see your instant 5% discount and member benefits.
           </p>
         </div>
 
@@ -132,47 +130,50 @@ export function MembershipSavingsCalculator({
           </div>
         </div>
 
-        {/* 3-Year Extended Warranty */}
+        {/* Exclusive Member Price */}
         <div className="bg-white rounded-xl p-4 border border-border shadow-xs flex sm:flex-col justify-between items-center sm:items-start">
           <div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-              <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
-              <span>3-Year Warranty</span>
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+              <span>Exclusive Member Price</span>
             </div>
-            <p className="text-2xl sm:text-3xl font-bold text-amber-600">
-              FREE
+            <p className="text-2xl sm:text-3xl font-bold text-foreground">
+              UNLOCKED
             </p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Normally $99 standalone value
+              Curated items at member rates
             </p>
           </div>
           <div className="text-right sm:text-left sm:mt-3 pt-0 sm:pt-2 sm:border-t sm:border-border/60">
-            <span className="text-xs text-muted-foreground block">Coverage</span>
-            <span className="text-sm font-semibold text-foreground">Frames & joinery</span>
+            <span className="text-xs text-muted-foreground block">Catalog</span>
+            <span className="text-sm font-semibold text-foreground">VIP Pricing</span>
           </div>
         </div>
 
-        {/* Total Day-1 Value */}
-        <div className="bg-gradient-to-br from-primary/10 via-white to-secondary/60 rounded-xl p-4 border border-primary/25 shadow-xs flex sm:flex-col justify-between items-center sm:items-start">
+        {/* Exclusive Perks */}
+        <div className="bg-white rounded-xl p-4 border border-border shadow-xs flex sm:flex-col justify-between items-center sm:items-start">
           <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-primary mb-1">
               <Sparkles className="h-3.5 w-3.5" />
-              <span>Total Day-1 VIP Value</span>
+              <span>VIP Perks Included</span>
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-foreground">
-              ${totalValue.toFixed(0)}+
+              6 PERKS
             </p>
-            <p className="text-[11px] font-medium text-emerald-700 mt-0.5">
+            <p className="text-[11px] font-medium text-emerald-700 mt-0.5 inline-flex items-center gap-1">
               {netProfit >= 0 ? (
-                `✓ Pays for membership + $${netProfit.toFixed(0)} saved`
+                <>
+                  <CheckCircle2 className="h-3 w-3 shrink-0" />
+                  <span>Pays for pass on order #1</span>
+                </>
               ) : (
-                `Saves $${calculatedDiscount.toFixed(0)} toward your pass`
+                <span>Saves ${calculatedDiscount.toFixed(0)} toward pass</span>
               )}
             </p>
           </div>
-          <div className="text-right sm:text-left sm:mt-3 pt-0 sm:pt-2 sm:border-t sm:border-primary/20">
-            <span className="text-xs text-muted-foreground block">Dispatch</span>
-            <span className="text-sm font-semibold text-foreground">Priority queue</span>
+          <div className="text-right sm:text-left sm:mt-3 pt-0 sm:pt-2 sm:border-t sm:border-border/60">
+            <span className="text-xs text-muted-foreground block">Support &amp; Raffles</span>
+            <span className="text-sm font-semibold text-foreground">All Unlocked</span>
           </div>
         </div>
       </div>

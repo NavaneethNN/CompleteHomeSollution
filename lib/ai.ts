@@ -23,11 +23,19 @@ export async function getSimilarProducts(
   const results = await db.$queryRaw<
     { id: string; name: string; slug: string; price: number; images: string[] }[]
   >`
-    SELECT id, name, slug, price, images
+    SELECT id, name, slug, "basePrice" AS price, images
     FROM "Product"
     WHERE id != ${productId}
       AND embedding IS NOT NULL
       AND "isActive" = true
+      AND "isPreOrder" = false
+      AND (
+        ("hasVariants" = false AND stock > 0) OR
+        ("hasVariants" = true AND EXISTS (
+          SELECT 1 FROM "ProductVariant" pv 
+          WHERE pv."productId" = "Product".id AND pv."isActive" = true AND pv.stock > 0
+        ))
+      )
     ORDER BY embedding <=> (
       SELECT embedding FROM "Product" WHERE id = ${productId}
     )
@@ -44,9 +52,17 @@ export async function getRecommendationsForUser(
   const results = await db.$queryRaw<
     { id: string; name: string; slug: string; price: number; images: string[] }[]
   >`
-    SELECT p.id, p.name, p.slug, p.price, p.images
+    SELECT p.id, p.name, p.slug, p."basePrice" AS price, p.images
     FROM "Product" p
     WHERE p."isActive" = true
+      AND p."isPreOrder" = false
+      AND (
+        (p."hasVariants" = false AND p.stock > 0) OR
+        (p."hasVariants" = true AND EXISTS (
+          SELECT 1 FROM "ProductVariant" pv 
+          WHERE pv."productId" = p.id AND pv."isActive" = true AND pv.stock > 0
+        ))
+      )
       AND p.embedding IS NOT NULL
       AND p.id NOT IN (
         SELECT oi."productId"

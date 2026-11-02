@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Loader2,
   Check,
+  CheckCircle2,
   Lock,
   ShieldCheck,
   CreditCard,
@@ -34,11 +35,15 @@ import {
   User,
   Phone,
   Sparkles,
+  Store,
+  Award,
 } from "lucide-react";
 import { cleanAustralianSuburb } from "@/lib/data/australian-suburbs";
 import { Address } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { checkoutTotals } from "@/lib/checkout-totals";
+import { isLargeProduct } from "@/lib/manual-delivery";
+import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -170,6 +175,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     return emailRegex.test(email) && email.length <= 254;
   };
 
+  // Fulfillment & Store Pickup state
+  const [fulfillmentType, setFulfillmentType] = useState<"DELIVERY" | "STORE_PICKUP">("DELIVERY");
+  const [hasLargeItemsState, setHasLargeItemsState] = useState(false);
+  const [manualDeliveryAvailable, setManualDeliveryAvailable] = useState<boolean | null>(null);
+  const [largeItemMessage, setLargeItemMessage] = useState<string | null>(null);
+
   // Couriers Please shipping rates
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
   const [selectedRateCode, setSelectedRateCode] = useState<string | null>(null);
@@ -293,11 +304,18 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   const displayedSubtotal = currentCoupon?.subtotal ?? subtotal;
   const discount = Math.min(currentCoupon?.discount ?? 0, displayedSubtotal);
   const discountedSubtotal = currentCoupon?.discountedSubtotal ?? displayedSubtotal - discount;
+  const cartHasLargeItems = useMemo(() => {
+    return items.some((item) => isLargeProduct(item.product)) || hasLargeItemsState;
+  }, [items, hasLargeItemsState]);
+
+  const isStorePickup = fulfillmentType === "STORE_PICKUP";
   const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode) ?? shippingRates[0] ?? null;
-  const freeShipping = discountedSubtotal >= 1200;
-  const shippingCost = freeShipping ? 0 : (selectedRate?.price ?? null);
+  const freeShipping = !isStorePickup && !cartHasLargeItems && (discountedSubtotal >= 1200);
+  const shippingCost = isStorePickup ? 0 : freeShipping ? 0 : (selectedRate?.price ?? null);
   const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
   const { tax: gst, total } = checkoutTotals(discountedSubtotal, shippingCost ?? 0, membershipAdd);
+  const isFreeOrder = Math.round(total * 100) === 0;
+  const isShippingReady = isStorePickup || freeShipping || (shippingAvailable === true && shippingCost !== null);
   // Net benefit: savings on items minus membership fee
   const netBenefit = memberSavings - MEMBERSHIP_PRICE;
 
@@ -382,13 +400,28 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
         const data = await res.json().catch(() => ({}));
         if (requestId !== shippingRequestRef.current) return;
+
+        if (data.hasLargeItems !== undefined) {
+          setHasLargeItemsState(Boolean(data.hasLargeItems));
+        }
+        if (data.manualDeliveryAvailable !== undefined) {
+          setManualDeliveryAvailable(Boolean(data.manualDeliveryAvailable));
+        }
+        if (data.message) {
+          setLargeItemMessage(data.message);
+        } else {
+          setLargeItemMessage(null);
+        }
+
         if (!res.ok) {
-          setRatesError(data.error ?? "Could not fetch shipping rates from Couriers Please.");
+          setRatesError(data.error ?? data.message ?? "Could not fetch shipping rates.");
         } else if (data.rates?.length) {
           setShippingRates(data.rates);
           setSelectedRateCode(data.rates[0].serviceCode);
+        } else if (data.hasLargeItems && !data.manualDeliveryAvailable) {
+          setRatesError(data.message || `Delivery for large items is not available to postcode ${cleanPostcode}. Please choose Store Pickup.`);
         } else {
-          setRatesError("No Couriers Please delivery services available for this postcode.");
+          setRatesError("No delivery services available for this postcode.");
         }
       } catch {
         if (requestId === shippingRequestRef.current) setRatesError("Could not connect to shipping service.");
@@ -622,6 +655,8 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   // Every price/quantity/membership change affects coupon amounts, including ALL coupons.
   useEffect(() => {
+    try { sessionStorage.removeItem("chs_checkout_idempotency_key"); } catch {}
+    idempotencyKeyRef.current = null;
     if (appliedCouponCode) void applyCoupon(appliedCouponCode, true);
     // Revalidate only when inputs change, not when the response updates coupon state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -675,9 +710,14 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             ? { savedAddressId: selectedAddressId }
             : { address: guestAddress }),
           guestEmail: !isAuthenticated ? guestEmail.trim().toLowerCase() : undefined,
-          shippingRateCode: selectedRateCode ?? undefined,
+          fulfillmentType: isStorePickup
+            ? "STORE_PICKUP"
+            : selectedRate?.serviceCode === "MANUAL_DELIVERY" || selectedRateCode === "MANUAL_DELIVERY"
+            ? "MANUAL_DELIVERY"
+            : fulfillmentType,
+          shippingRateCode: isStorePickup ? "STORE_PICKUP" : (selectedRateCode ?? undefined),
           shippingCost: shippingCost ?? 0,
-          shippingQuoteToken: selectedRate?.quoteToken,
+          shippingQuoteToken: isStorePickup ? undefined : selectedRate?.quoteToken,
           couponCode: appliedCoupon?.code || undefined,
           addMembership: !isMember && addMembership,
           // REL-5: send the same key on every retry for this attempt
@@ -689,6 +729,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       if (!response.ok) {
         if (data.retryWithNewKey || [400, 401, 402, 422].includes(response.status)) {
           idempotencyKeyRef.current = null;
+          try { sessionStorage.removeItem("chs_checkout_idempotency_key"); } catch {}
         }
         const msg = data.error || "Payment failed. Please try again.";
         setPaymentError(msg);
@@ -699,11 +740,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         return;
       }
       if (data.status === "success" || data.status === "pending") {
-        // REL-3 fix: Only clear the cart when payment is confirmed (success).
-        // For a "pending" async payment the cart must survive — if the PayWay
-        // transaction ultimately fails, the customer still has their cart intact
-        // and can retry without rebuilding it from scratch. The cart is cleared
-        // by <ClearCartOnSuccess> on the confirmation page once the order is PAID.
+        try { sessionStorage.removeItem("chs_checkout_idempotency_key"); } catch {}
         if (data.status === "success") {
           clearCart();
         }
@@ -768,15 +805,25 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
       toast({ title: "Address required", description: "Please enter your shipping address.", variant: "destructive" });
       return;
     }
-    if (!freeShipping && !selectedRateCode) {
+    if (!isStorePickup && !freeShipping && !selectedRateCode) {
       toast({ title: "Select a shipping option", description: "Please choose a shipping service.", variant: "destructive" });
       return;
     }
     setPaymentError(null);
     setSingleUseTokenId(null);
     submissionInFlightRef.current = false; // reset guard for this new attempt
-    idempotencyKeyRef.current ??= crypto.randomUUID(); // retain across ambiguous network failures
-    if (usesOnlinePay) {
+    if (!idempotencyKeyRef.current) {
+      try {
+        idempotencyKeyRef.current = sessionStorage.getItem("chs_checkout_idempotency_key");
+      } catch {}
+      if (!idempotencyKeyRef.current) {
+        idempotencyKeyRef.current = crypto.randomUUID();
+        try {
+          sessionStorage.setItem("chs_checkout_idempotency_key", idempotencyKeyRef.current);
+        } catch {}
+      }
+    }
+    if (isFreeOrder || usesOnlinePay) {
       submissionInFlightRef.current = true;
       submitOrderWithToken("");
       return;
@@ -812,15 +859,15 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               </div>
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                    🎉 Raffle Prize Claim
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-1">
+                    <Award className="h-3 w-3" /> Raffle Prize Claim
                   </span>
                   {rafflePrizeItem.product.price === 0 ? (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border">
                       100% Free Gift
                     </span>
                   ) : (
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary text-foreground border border-border">
                       Winner Price: ${rafflePrizeItem.product.price}
                     </span>
                   )}
@@ -898,12 +945,133 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           </div>
         </section>
 
-        {/* Shipping Address */}
+        {/* ── Fulfillment Method Selection: Delivery vs Store Pickup ── */}
+        <section className="rounded-2xl border border-border bg-card p-4 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <Truck className="h-4 w-4 text-primary" />
+              Fulfillment Method
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Delivery Option */}
+            <button
+              type="button"
+              onClick={() => setFulfillmentType("DELIVERY")}
+              className={cn(
+                "flex flex-col gap-1.5 p-4 rounded-xl border-2 text-left transition-all",
+                fulfillmentType === "DELIVERY"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                  : "border-border hover:border-border/80 bg-background"
+              )}
+            >
+              <div className="flex items-center justify-between w-full">
+                <span className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <Truck className="h-4 w-4 text-primary" />
+                  Home Delivery
+                </span>
+                <div className={cn(
+                  "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                  fulfillmentType === "DELIVERY" ? "border-primary" : "border-muted-foreground/40"
+                )}>
+                  {fulfillmentType === "DELIVERY" && <div className="h-2 w-2 rounded-full bg-primary" />}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Dispatched directly to your address with full tracking.
+              </p>
+            </button>
+
+            {/* Store Pickup Option */}
+            <button
+              type="button"
+              onClick={() => setFulfillmentType("STORE_PICKUP")}
+              className={cn(
+                "flex flex-col gap-1.5 p-4 rounded-xl border-2 text-left transition-all",
+                fulfillmentType === "STORE_PICKUP"
+                  ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                  : "border-border hover:border-border/80 bg-background"
+              )}
+            >
+              <div className="flex items-center justify-between w-full">
+                <span className="flex items-center gap-2 font-bold text-sm text-foreground">
+                  <Store className="h-4 w-4 text-primary" />
+                  Store Pickup
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    FREE
+                  </span>
+                  <div className={cn(
+                    "h-4 w-4 rounded-full border-2 flex items-center justify-center",
+                    fulfillmentType === "STORE_PICKUP" ? "border-primary" : "border-muted-foreground/40"
+                  )}>
+                    {fulfillmentType === "STORE_PICKUP" && <div className="h-2 w-2 rounded-full bg-primary" />}
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Pick up directly from our Golden Grove showroom. By appointment.
+              </p>
+            </button>
+          </div>
+
+          {/* Large Item Information Alert */}
+          {cartHasLargeItems && (
+            <div className="rounded-xl border border-border bg-secondary/40 p-3.5 text-xs text-foreground flex items-start gap-2.5">
+              <Package className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-foreground">Bulky Furniture in Cart</p>
+                <p className="text-muted-foreground mt-0.5 leading-relaxed">
+                  Bulky items require specialized delivery to covered postcodes, or you can select free Store Pickup from our showroom.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Store Pickup Location Details */}
+          {fulfillmentType === "STORE_PICKUP" && (
+            <div className="rounded-xl border border-border bg-secondary/30 p-4 text-xs space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                <div>
+                  <p className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                    <Store className="h-4 w-4 text-primary" />
+                    {STORE_PICKUP_LOCATION.name}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    {STORE_PICKUP_LOCATION.fullAddress}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    <strong>Hours:</strong> {STORE_PICKUP_LOCATION.hours}
+                  </p>
+                </div>
+                <span className="self-start font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full text-xs border border-emerald-200">
+                  $0.00 Delivery Fee
+                </span>
+              </div>
+              <div className="pt-2 border-t border-border text-muted-foreground space-y-1">
+                <p>
+                  <strong>How Pickup Works:</strong> Complete your payment online today. Our team will contact you by phone or email to coordinate your pickup appointment before collection.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Shipping / Contact Address */}
         <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
-          <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            Shipping Address
-          </h2>
+          <div className="flex flex-col gap-1">
+            <h2 className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              {fulfillmentType === "STORE_PICKUP" ? "Customer Contact & Billing Details" : "Shipping Address"}
+            </h2>
+            {fulfillmentType === "STORE_PICKUP" && (
+              <p className="text-xs text-muted-foreground">
+                Please ensure your phone number is valid so our store team can contact you regarding your pickup appointment.
+              </p>
+            )}
+          </div>
 
           {/* Saved address cards */}
           {isAuthenticated && addresses.length > 0 && (
@@ -1086,10 +1254,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Shipping</span>
+              <span className="text-muted-foreground">Shipping / Fulfillment</span>
               <span className="font-medium">
-                {freeShipping ? (
-                  <span className="text-green-600">Free</span>
+                {isStorePickup ? (
+                  <span className="text-emerald-700 font-semibold">Free (Store Pickup)</span>
+                ) : freeShipping ? (
+                  <span className="text-green-600 font-semibold">Free</span>
                 ) : isFetchingRates ? (
                   <span className="text-muted-foreground flex items-center gap-1">
                     <Loader2 className="h-3 w-3 animate-spin" /> Calculating…
@@ -1119,21 +1289,43 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             <div className="flex justify-between items-center">
               <span className="text-base font-bold">Total</span>
               <span className="text-xl font-black">
-                {freeShipping || shippingCost !== null
+                {isStorePickup || freeShipping || shippingCost !== null
                   ? currencyFormatter.format(total)
                   : "—"}
               </span>
             </div>
           </div>
 
-          {freeShipping && (
+          {freeShipping && !isStorePickup && (
             <p className="mt-3 text-xs text-green-600 font-medium flex items-center gap-1">
               Free shipping on orders of $1,200 or more
             </p>
           )}
 
-          {/* Couriers Please shipping options */}
-          {!freeShipping && (
+          {/* Store Pickup summary indicator */}
+          {isStorePickup && (
+            <div className="mt-4 space-y-1.5">
+              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Store className="h-3.5 w-3.5 text-primary" />
+                Fulfillment Option
+              </p>
+              <div className="w-full flex items-center justify-between rounded-lg border border-border bg-secondary/40 px-3 py-2.5 text-left text-xs">
+                <span className="flex items-center gap-2.5">
+                  <Store className="h-4 w-4 text-foreground shrink-0" />
+                  <span className="flex flex-col gap-0.5">
+                    <span className="font-semibold text-foreground">Store Pickup</span>
+                    <span className="text-[11px] text-muted-foreground leading-snug">
+                      Pickup by appointment · Golden Grove SA
+                    </span>
+                  </span>
+                </span>
+                <span className="font-bold text-foreground">FREE</span>
+              </div>
+            </div>
+          )}
+
+          {/* Delivery shipping options */}
+          {!isStorePickup && !freeShipping && (
             <div className="mt-4">
               {isFetchingRates && (
                 <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
@@ -1142,7 +1334,21 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                 </div>
               )}
               {ratesError && !isFetchingRates && (
-                <p className="text-xs text-destructive py-1">{ratesError}</p>
+                <div className="space-y-2 py-1">
+                  <p className="text-xs text-destructive">{ratesError}</p>
+                  {cartHasLargeItems && !manualDeliveryAvailable && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFulfillmentType("STORE_PICKUP")}
+                      className="w-full text-xs font-semibold border-border bg-secondary hover:bg-secondary/80 text-foreground"
+                    >
+                      <Store className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                      Select Free Store Pickup Instead
+                    </Button>
+                  )}
+                </div>
               )}
               {!isFetchingRates && shippingRates.length > 0 && (() => {
                 const bestRate = shippingRates[0];
@@ -1156,8 +1362,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                       <span className="flex items-center gap-2.5">
                         <Package className="h-4 w-4 text-primary shrink-0" />
                         <span className="flex flex-col gap-0.5">
-                          <span className="font-semibold text-foreground">Couriers Please Delivery</span>
-                          <span className="text-[11px] text-muted-foreground leading-snug">5–7 working days</span>
+                          <span className="font-semibold text-foreground">
+                            Standard Delivery
+                          </span>
+                          <span className="text-[11px] text-muted-foreground leading-snug">
+                            5–7 working days • Tracked dispatch
+                          </span>
                         </span>
                       </span>
                       <span className="font-bold text-foreground">
@@ -1197,6 +1407,9 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                         {hasExpiredMembership ? "Renew CHS Membership" : "Add CHS Membership"}
                       </span>
                       <span className="text-xs font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full whitespace-nowrap">+{currencyFormatter.format(MEMBERSHIP_PRICE)}</span>
+                      <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded-full whitespace-nowrap flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Autopay Enabled
+                      </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {hasExpiredMembership
@@ -1237,45 +1450,65 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] text-muted-foreground mt-2">{activePlan ? `${activePlan.name} · activates immediately on payment` : "Annual membership · activates immediately on payment"}</p>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    {activePlan ? `${activePlan.name} · activates immediately on payment` : "Annual membership · activates immediately on payment"}
+                    {" • Autopay is enabled by default to ensure uninterrupted benefits (manage or cancel anytime in account settings)."}
+                  </p>
                 </div>
               )}
 
               {/* Active confirmation strip */}
               {addMembership && (
-                <div className="px-4 py-2 bg-primary/10 border-t border-primary/20 flex items-center gap-2">
-                  <Check className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <p className="text-xs font-semibold text-primary">Membership added — activates after payment</p>
+                <div className="px-4 py-2.5 bg-primary/10 border-t border-primary/20 flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <p className="text-xs font-semibold text-primary">Membership added — activates after payment</p>
+                  </div>
+                  <span className="text-[11px] font-medium text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3 text-emerald-600" /> Autopay enabled by default
+                  </span>
                 </div>
               )}
             </div>
           )}
 
-          {/* PayWay is retained until OnlinePay is enabled through the gateway switch. */}
-          {paymentAvailable && !usesOnlinePay && <div className="mt-4">
-            <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              Card Details
-            </p>
-            <PayWayCardFrame
-              onTokenReady={(token) => {
-                setSingleUseTokenId(token);
-                setPaymentError(null);
-                // token is set; the useEffect below will fire submitOrderWithToken
-              }}
-              onError={(msg) => {
-                setPaymentError(msg);
-                setAwaitingToken(false);
-                setIsProcessing(false);
-              }}
-              disabled={isProcessing}
-            />
-            {paymentError && (
-              <p className="mt-2 text-xs text-destructive font-medium">{paymentError}</p>
-            )}
-          </div>}
+          {/* Payment Details Section: For $0 free orders, no payment card is needed */}
+          {isFreeOrder ? (
+            <div className="mt-4 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950">
+              <div className="flex items-center gap-2 font-semibold text-xs mb-1">
+                <Sparkles className="h-4 w-4 text-emerald-600" />
+                <span>100% Free Order</span>
+              </div>
+              <p className="text-xs text-emerald-800">
+                No payment card required. Your order will be confirmed immediately upon submission.
+              </p>
+            </div>
+          ) : paymentAvailable && !usesOnlinePay ? (
+            <div className="mt-4">
+              <p className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
+                Card Details
+              </p>
+              <PayWayCardFrame
+                onTokenReady={(token) => {
+                  setSingleUseTokenId(token);
+                  setPaymentError(null);
+                  // token is set; the useEffect below will fire submitOrderWithToken
+                }}
+                onError={(msg) => {
+                  setPaymentError(msg);
+                  setAwaitingToken(false);
+                  setIsProcessing(false);
+                }}
+                disabled={isProcessing}
+              />
+              {paymentError && (
+                <p className="mt-2 text-xs text-destructive font-medium">{paymentError}</p>
+              )}
+            </div>
+          ) : null}
 
-          {!paymentAvailable && <p role="alert" className="mt-4 text-sm text-destructive">Payment checkout is temporarily unavailable. Please try again later.</p>}
+          {!isFreeOrder && !paymentAvailable && <p role="alert" className="mt-4 text-sm text-destructive">Payment checkout is temporarily unavailable. Please try again later.</p>}
           {usesOnlinePay && paymentError && <p role="alert" className="mt-2 text-sm text-destructive">{paymentError}</p>}
           {pricesError && <p role="alert" className="mt-2 text-sm text-destructive">{pricesError}</p>}
           {unavailable && <p role="alert" className="mt-2 text-sm text-destructive">An item is unavailable or exceeds stock. Update your cart before paying.</p>}
@@ -1290,7 +1523,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           <Button
             className="mt-5 hidden w-full h-12 text-sm font-semibold lg:flex"
             onClick={handlePlaceOrder}
-            disabled={!paymentAvailable || shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
+            disabled={(!isFreeOrder && !paymentAvailable) || !isShippingReady || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0}
           >
             {isProcessing ? (
               <>
@@ -1299,15 +1532,19 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
               </>
             ) : (
               <>
-                <CreditCard className="mr-2 h-4 w-4" />
-                {addMembership && !isMember
-                  ? `Pay ${freeShipping || shippingCost !== null ? currencyFormatter.format(total) : "—"} & Join`
+                {isFreeOrder ? <Sparkles className="mr-2 h-4 w-4" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                {isFreeOrder
+                  ? (rafflePrizeItem ? "Claim Free Prize & Confirm Order" : "Confirm Free Order")
+                  : addMembership && !isMember
+                  ? `Pay ${isStorePickup || freeShipping || shippingCost !== null ? currencyFormatter.format(total) : "—"} & Join`
+                  : isStorePickup
+                  ? "Pay & Reserve for Store Pickup"
                   : "Place Order & Pay"}
               </>
             )}
           </Button>
 
-          {paymentAvailable && <p className="mt-3 hidden text-center text-[11px] text-muted-foreground leading-relaxed lg:block">
+          {!isFreeOrder && paymentAvailable && <p className="mt-3 hidden text-center text-[11px] text-muted-foreground leading-relaxed lg:block">
             Your payment is processed securely by {usesOnlinePay ? "Westpac OnlinePay" : "PayWay (Westpac)"}. Card details never touch our servers.
           </p>}
 
@@ -1331,7 +1568,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           <div className="flex-1 min-w-0">
             <p className="text-[11px] text-muted-foreground leading-none">Order total</p>
             <p className="mt-0.5 text-lg font-black text-foreground leading-none">
-              {freeShipping || shippingCost !== null
+              {isStorePickup || freeShipping || shippingCost !== null
                 ? currencyFormatter.format(total)
                 : "—"}
             </p>
@@ -1339,13 +1576,19 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           <Button
             className="h-11 min-w-[140px] sm:min-w-[160px] rounded-xl text-sm font-bold shrink-0"
             onClick={handlePlaceOrder}
-            disabled={!paymentAvailable || shippingAvailable !== true || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0 || (!freeShipping && shippingCost === null)}
+            disabled={(!isFreeOrder && !paymentAvailable) || !isShippingReady || !pricesReady || unavailable || couponNeedsRefresh || isApplyingCoupon || isProcessing || awaitingToken || items.length === 0}
           >
             {isProcessing ? (
               <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />Processing...</>
             ) : (
               <><Lock className="mr-1.5 h-3.5 w-3.5" />
-                {addMembership && !isMember ? "Pay & Join" : "Place Order"}</>
+                {isFreeOrder
+                  ? (rafflePrizeItem ? "Claim Free Prize" : "Confirm Order")
+                  : addMembership && !isMember
+                  ? "Pay & Join"
+                  : isStorePickup
+                  ? "Pay & Reserve"
+                  : "Place Order"}</>
             )}
           </Button>
         </div>
@@ -1373,7 +1616,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             </div>
             <DialogDescription className="text-xs text-muted-foreground">
               {addressStep === 1
-                ? "Step 1: Contact details for courier delivery SMS & receipts"
+                ? "Step 1: Contact details for delivery updates & receipt"
                 : "Step 2: Enter delivery street address, suburb, and postcode"}
             </DialogDescription>
           </DialogHeader>
@@ -1504,7 +1747,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                 {addressErrors.phone ? (
                   <p id="dlg-phone-error" role="alert" className="text-xs text-destructive">{addressErrors.phone.message}</p>
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">Couriers Please sends real-time delivery SMS updates to this mobile number.</p>
+                  <p className="text-[11px] text-muted-foreground">Real-time delivery tracking and updates will be sent to this mobile number.</p>
                 )}
               </div>
 
@@ -1637,7 +1880,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   <Globe className="h-3.5 w-3.5 text-muted-foreground" />
                   Country: <strong>Australia (AU)</strong>
                 </span>
-                <span>Couriers Please delivery</span>
+                <span>Tracked delivery</span>
               </div>
 
               <DialogFooter className="gap-2 pt-3">

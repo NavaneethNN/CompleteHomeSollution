@@ -108,16 +108,23 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
             className="object-cover group-hover:scale-105 transition-transform duration-500"
           />
           </Link>
-          {product.discount && (
-            <span className="absolute top-3 left-3 z-10 bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
-              {product.discount}
-            </span>
-          )}
+          <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1.5 items-center">
+            {product.isPreOrder && (
+              <span className="bg-amber-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+                Pre-Order
+              </span>
+            )}
+            {product.discount && (
+              <span className="bg-primary text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">
+                {product.discount}
+              </span>
+            )}
+          </div>
           <WishlistToggleButton
             product={wishlistProduct}
             className="absolute top-3 right-3 z-10 h-9 w-9"
           />
-          {outOfStock && (
+          {outOfStock && !product.isPreOrder && (
             <div className="absolute inset-0 z-0 flex items-center justify-center bg-black/50">
               <span className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-foreground">
                 Out of Stock
@@ -184,6 +191,14 @@ export function HomeTrendingProductCard({ product, isMember = false }: HomeTrend
               >
                 <PhoneCall className="h-3.5 w-3.5" />
                 Call & Customize
+              </a>
+            ) : outOfStock ? (
+              <a
+                href={`tel:${STORE_PHONE}`}
+                className="w-full min-h-11 inline-flex items-center justify-center gap-1.5 rounded-xl px-2 py-2.5 text-xs sm:text-sm font-semibold transition-colors bg-primary text-white hover:bg-primary/90 shadow-md"
+              >
+                <PhoneCall className="h-3.5 w-3.5" />
+                Call to Order
               </a>
             ) : (
               <button

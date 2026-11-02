@@ -11,7 +11,12 @@ function createPrismaClient() {
   const connectionString =
     process.env.DATABASE_URL || process.env.DATABASE_URL_UNPOOLED || "";
 
-  const adapter = new PrismaNeon({ connectionString, max: 5, connectionTimeoutMillis: 10000, idleTimeoutMillis: 30000 });
+  const adapter = new PrismaNeon({
+    connectionString,
+    max: 5,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+  });
 
   return new PrismaClient({
     adapter,
@@ -26,6 +31,34 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClientInstance | undefined;
 };
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
+function getPrismaInstance(): PrismaClientInstance {
+  const existing = globalForPrisma.prisma;
+  // In development environments with hot module replacement / Turbopack,
+  // ensure the cached client has newly generated schema models available.
+  if (
+    existing &&
+    "manualDeliveryPostcode" in (existing as unknown as Record<string, unknown>) &&
+    "packagingPreset" in (existing as unknown as Record<string, unknown>)
+  ) {
+    return existing;
+  }
 
-globalForPrisma.prisma = db;
+  if (existing) {
+    (existing as unknown as { $disconnect?: () => Promise<void> }).$disconnect?.().catch(() => {});
+  }
+
+  const fresh = createPrismaClient();
+  globalForPrisma.prisma = fresh;
+  return fresh;
+}
+
+export const db: PrismaClientInstance = new Proxy({} as PrismaClientInstance, {
+  get(_target, prop, receiver) {
+    const client = getPrismaInstance();
+    const val = Reflect.get(client, prop, receiver);
+    if (typeof val === "function") {
+      return val.bind(client);
+    }
+    return val;
+  },
+});

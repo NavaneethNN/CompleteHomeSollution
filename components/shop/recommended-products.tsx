@@ -14,7 +14,7 @@ export async function RecommendedProducts({
   currentProductId,
 }: RecommendedProductsProps) {
   const products = await cacheFetch(
-    `category:recommended:${categoryId}:${currentProductId}`,
+    `category:recommended:instock:${categoryId}:${currentProductId}`,
     CACHE_TTL.categoryProducts,
     () =>
       db.product.findMany({
@@ -23,6 +23,21 @@ export async function RecommendedProducts({
           id: { not: currentProductId },
           isActive: true,
           isPreOrder: false,
+          OR: [
+            {
+              hasVariants: false,
+              stock: { gt: 0 },
+            },
+            {
+              hasVariants: true,
+              productVariants: {
+                some: {
+                  isActive: true,
+                  stock: { gt: 0 },
+                },
+              },
+            },
+          ],
         },
         select: {
           id: true,
@@ -37,7 +52,7 @@ export async function RecommendedProducts({
           material: true,
           _count: { select: { reviews: true } },
           productVariants: {
-            where: { isActive: true },
+            where: { isActive: true, stock: { gt: 0 } },
             orderBy: { price: "asc" },
             take: 1,
             select: { price: true, comparePrice: true, stock: true },

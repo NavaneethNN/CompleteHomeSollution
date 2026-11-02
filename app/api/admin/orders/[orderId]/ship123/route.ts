@@ -82,6 +82,12 @@ export async function POST(req: NextRequest, { params }: Context) {
   try {
     const order = await orderForShipping(orderId);
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    if (order.fulfillmentType === "STORE_PICKUP" || order.fulfillmentType === "MANUAL_DELIVERY") {
+      return NextResponse.json(
+        { error: `Cannot generate courier shipping label for a ${order.fulfillmentType === "STORE_PICKUP" ? "Store Pickup" : "Manual Local Delivery"} order.` },
+        { status: 409 }
+      );
+    }
     if (!["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status) || !order.items.length) {
       return NextResponse.json({ error: "Only paid physical orders can receive a shipping label" }, { status: 409 });
     }
