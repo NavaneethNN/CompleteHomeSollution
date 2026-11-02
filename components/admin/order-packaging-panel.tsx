@@ -162,6 +162,10 @@ export function OrderPackagingPanel({
               <Badge variant="outline" className="text-amber-800 bg-amber-50 border-amber-300 text-xs">
                 Staff Override
               </Badge>
+            ) : packageName?.includes("Estimated Minimum") ? (
+              <Badge variant="outline" className="text-blue-800 bg-blue-50 border-blue-300 text-xs font-semibold">
+                Estimated Minimum
+              </Badge>
             ) : (!packagePresetId && availablePresets.length === 0) ? (
               <Badge variant="outline" className="text-slate-700 bg-slate-50 border-slate-300 text-xs font-semibold">
                 Product Dimensions

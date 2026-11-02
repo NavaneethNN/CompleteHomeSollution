@@ -77,6 +77,89 @@ export interface PackagingCalculationResult {
   packedWeight: number;
   fitsInPreset: boolean;
   availablePresetsCount: number;
+  isAutoEstimated?: boolean;
+}
+
+/**
+ * Calculates estimated minimum packaging dimensions and weight required to package multiple items
+ * together when no packaging box presets are configured or when items exceed all presets.
+ */
+export function calculateEstimatedMinimumDimensions(items: PackagingItemInput[]): PackagingCalculationResult {
+  let totalProductWeight = 0;
+  let totalProductVolume = 0;
+  let maxItemL = 0;
+  let maxItemW = 0;
+  let maxItemH = 0;
+  let stackedHeight = 0;
+  let totalQuantity = 0;
+
+  for (const item of items) {
+    const qty = Math.max(1, item.quantity || 1);
+    totalQuantity += qty;
+
+    const w = item.weight && item.weight > 0 ? item.weight : 0.5;
+    const rawDims = [
+      item.length && item.length > 0 ? item.length : 15,
+      item.width && item.width > 0 ? item.width : 10,
+      item.height && item.height > 0 ? item.height : 5,
+    ].sort((a, b) => b - a); // [L, W, H] where L >= W >= H
+
+    const [l, b, h] = rawDims;
+
+    totalProductWeight += w * qty;
+    totalProductVolume += l * b * h * qty;
+    stackedHeight += h * qty;
+
+    maxItemL = Math.max(maxItemL, l);
+    maxItemW = Math.max(maxItemW, b);
+    maxItemH = Math.max(maxItemH, h);
+  }
+
+  totalProductWeight = Math.round(totalProductWeight * 1000) / 1000;
+
+  // Packing allowance: 80% packing efficiency (20% void space / protective wrapping)
+  const requiredVolume = totalProductVolume * 1.25;
+
+  let boxL = Math.ceil(maxItemL);
+  let boxW = Math.ceil(maxItemW);
+  let boxH = Math.ceil(Math.max(maxItemH, requiredVolume / (boxL * boxW)));
+
+  // If stacking items makes height disproportionately large (> 1.5x length) and there are multiple items,
+  // simulate side-by-side arrangement by expanding width
+  if (totalQuantity > 1 && boxH > boxL * 1.5) {
+    boxW = Math.ceil(Math.max(boxW * 1.8, Math.sqrt(requiredVolume / boxL)));
+    boxH = Math.ceil(Math.max(maxItemH, requiredVolume / (boxL * boxW)));
+  }
+
+  boxL = Math.max(Math.ceil(maxItemL), boxL);
+  boxW = Math.max(Math.ceil(maxItemW), boxW);
+  boxH = Math.max(Math.ceil(maxItemH), boxH);
+
+  if (stackedHeight > 0 && boxH > Math.ceil(stackedHeight * 1.1)) {
+    boxH = Math.ceil(stackedHeight * 1.1);
+  }
+
+  // Tare weight of estimated carton based on total weight tier
+  const emptyWeight =
+    totalProductWeight <= 3 ? 0.2 :
+    totalProductWeight <= 10 ? 0.4 :
+    totalProductWeight <= 20 ? 0.6 : 0.8;
+
+  const packedWeight = Math.round((totalProductWeight + emptyWeight) * 1000) / 1000;
+
+  return {
+    presetId: null,
+    packageName: totalQuantity > 1 ? "Estimated Minimum Package (Auto-packed)" : "Estimated Minimum Package",
+    length: boxL,
+    width: boxW,
+    height: boxH,
+    productWeight: totalProductWeight,
+    emptyWeight,
+    packedWeight,
+    fitsInPreset: false,
+    availablePresetsCount: 0,
+    isAutoEstimated: true,
+  };
 }
 
 /**
@@ -118,9 +201,15 @@ export async function selectPackagingPreset(
     }
   }
 
-  // If no packaging presets are configured in the database, return null
-  // so the caller falls back directly to the product's actual dimensions for courier.
+  // If no packaging presets are configured in the database:
+  // - When multiple items need to be shipped (total quantity > 1 or multiple items):
+  //   automatically calculate the estimated minimum dimensions required to pack those items into 1 package.
+  // - When only a single item is shipped (quantity = 1): return null to use product's own dimensions.
+  const totalQuantity = items.reduce((sum, item) => sum + Math.max(1, item.quantity || 1), 0);
   if (!presets || presets.length === 0) {
+    if (totalQuantity > 1) {
+      return calculateEstimatedMinimumDimensions(items);
+    }
     return null;
   }
 
@@ -218,21 +307,22 @@ export async function selectPackagingPreset(
   });
   const largest = sortedPresets[0];
 
-  // If even the largest box is too small, estimate bounding box or use largest
-  const fallbackEmptyWeight = largest?.emptyWeight || 0.8;
+  const estimated = calculateEstimatedMinimumDimensions(items);
+  const fallbackEmptyWeight = largest?.emptyWeight || estimated.emptyWeight;
   const packedWeight = Math.round((totalProductWeight + fallbackEmptyWeight) * 1000) / 1000;
 
   return {
     presetId: largest?.id && !largest.id.startsWith("default-") ? largest.id : null,
-    packageName: largest ? `${largest.name} (Custom / Multi-box)` : "Standard Carton",
-    length: largest?.length || Math.max(60, Math.ceil(maxItemDimension)),
-    width: largest?.width || 45,
-    height: largest?.height || 40,
+    packageName: largest ? `${largest.name} (Custom / Multi-box)` : "Estimated Minimum Package (Auto-packed)",
+    length: Math.max(largest?.length || 0, estimated.length),
+    width: Math.max(largest?.width || 0, estimated.width),
+    height: Math.max(largest?.height || 0, estimated.height),
     productWeight: totalProductWeight,
     emptyWeight: fallbackEmptyWeight,
     packedWeight,
     fitsInPreset: false,
     availablePresetsCount: presets.length,
+    isAutoEstimated: true,
   };
 }
 
