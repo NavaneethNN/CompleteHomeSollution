@@ -10,12 +10,9 @@ export const revalidate = 0;
 export const metadata: Metadata = { title: "Membership — Admin" };
 
 export default async function AdminMembershipPage() {
-  const [plans, members] = await Promise.all([getPlans(), getMembers()]);
-
-  const activePlans = plans.filter((p) => p.isActive).length;
-
-  // Revenue comes from actual MembershipPayment records + any paid orders with membershipAmount
-  const [paymentsResult, orderPayments, paidOrders] = await Promise.all([
+  const [plans, members, paymentsResult, orderPayments, paidOrders] = await Promise.all([
+    getPlans(),
+    getMembers(),
     db.membershipPayment.aggregate({ where: { refundedAt: null }, _sum: { amount: true } }),
     db.membershipPayment.findMany({
       where: { refundedAt: null, paywaySessionId: { startsWith: "order:" } },
@@ -29,6 +26,8 @@ export default async function AdminMembershipPage() {
       select: { id: true, membershipAmount: true },
     }),
   ]);
+
+  const activePlans = plans.filter((p) => p.isActive).length;
 
   const recordedOrderIds = new Set(
     orderPayments

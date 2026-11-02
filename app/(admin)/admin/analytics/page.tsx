@@ -24,6 +24,8 @@ import {
 } from "@/components/admin/analytics-charts";
 
 export const metadata: Metadata = { title: "Analytics — Admin" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",
@@ -141,7 +143,12 @@ async function getAnalyticsData() {
 
     // Top categories by revenue
     db.orderItem.findMany({
-      where: { order: { status: { notIn: ["CANCELLED", "REFUNDED"] } } },
+      where: {
+        order: {
+          status: { notIn: ["CANCELLED", "REFUNDED"] },
+          createdAt: { gte: twelveMonthsAgo },
+        },
+      },
       select: {
         unitPrice: true,
         quantity: true,

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import {
   ShoppingCart,
@@ -16,6 +15,8 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Dashboard — Admin" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",
@@ -37,61 +38,55 @@ const ORDER_STATUS_CONFIG: Record<
   REFUNDED:   { label: "Refunded",   icon: AlertCircle,    className: "text-orange-600 bg-orange-50 border-orange-200" },
 };
 
-// P-6: Cache dashboard stats for 30 seconds — avoids hammering DB on every page visit
-const getStats = unstable_cache(
-  async () => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+async function getStats() {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [
-      totalOrders,
-      ordersThisMonth,
-      totalRevenue,
-      revenueThisMonth,
-      totalProducts,
-      totalCustomers,
-      totalMembers,
-      recentOrders,
-      pendingOrders,
-    ] = await Promise.all([
-      db.order.count(),
-      db.order.count({ where: { createdAt: { gte: startOfMonth } } }),
-      db.order.aggregate({ where: { status: { notIn: ["CANCELLED", "REFUNDED"] } }, _sum: { total: true } }),
-      db.order.aggregate({ where: { status: { notIn: ["CANCELLED", "REFUNDED"] }, createdAt: { gte: startOfMonth } }, _sum: { total: true } }),
-      db.product.count({ where: { isActive: true } }),
-      db.user.count({ where: { role: "CUSTOMER" } }),
-      db.user.count({ where: { isMember: true } }),
-      // P-5: Select only fields required by the dashboard table — no full order object
-      db.order.findMany({
-        take: 6,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          status: true,
-          total: true,
-          createdAt: true,
-          user: { select: { name: true, email: true } },
-          address: { select: { name: true } },
-        },
-      }),
-      db.order.count({ where: { status: "PENDING" } }),
-    ]);
+  const [
+    totalOrders,
+    ordersThisMonth,
+    totalRevenue,
+    revenueThisMonth,
+    totalProducts,
+    totalCustomers,
+    totalMembers,
+    recentOrders,
+    pendingOrders,
+  ] = await Promise.all([
+    db.order.count(),
+    db.order.count({ where: { createdAt: { gte: startOfMonth } } }),
+    db.order.aggregate({ where: { status: { notIn: ["CANCELLED", "REFUNDED"] } }, _sum: { total: true } }),
+    db.order.aggregate({ where: { status: { notIn: ["CANCELLED", "REFUNDED"] }, createdAt: { gte: startOfMonth } }, _sum: { total: true } }),
+    db.product.count({ where: { isActive: true } }),
+    db.user.count({ where: { role: "CUSTOMER" } }),
+    db.user.count({ where: { isMember: true } }),
+    db.order.findMany({
+      take: 6,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        total: true,
+        createdAt: true,
+        user: { select: { name: true, email: true } },
+        address: { select: { name: true } },
+      },
+    }),
+    db.order.count({ where: { status: "PENDING" } }),
+  ]);
 
-    return {
-      totalOrders,
-      ordersThisMonth,
-      totalRevenue: totalRevenue._sum.total ?? 0,
-      revenueThisMonth: revenueThisMonth._sum.total ?? 0,
-      totalProducts,
-      totalCustomers,
-      totalMembers,
-      recentOrders,
-      pendingOrders,
-    };
-  },
-  ["admin-dashboard-stats"],
-  { revalidate: 30 }
-);
+  return {
+    totalOrders,
+    ordersThisMonth,
+    totalRevenue: totalRevenue._sum.total ?? 0,
+    revenueThisMonth: revenueThisMonth._sum.total ?? 0,
+    totalProducts,
+    totalCustomers,
+    totalMembers,
+    recentOrders,
+    pendingOrders,
+  };
+}
 
 export default async function AdminDashboardPage() {
   const stats = await getStats();

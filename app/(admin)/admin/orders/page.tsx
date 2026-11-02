@@ -31,6 +31,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 
 export const metadata: Metadata = { title: "Manage Orders — Admin" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",

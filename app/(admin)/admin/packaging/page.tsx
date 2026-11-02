@@ -9,6 +9,9 @@ export const metadata: Metadata = {
   description: "Configure box presets, dimensions, weight capacity, and tare weights.",
 };
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function PackagingPage() {
   const session = await auth();
   if (!session || session.user.role !== "ADMIN") {

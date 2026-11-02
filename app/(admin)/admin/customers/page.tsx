@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Customers — Admin" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 interface CustomersPageProps {
   searchParams: Promise<{

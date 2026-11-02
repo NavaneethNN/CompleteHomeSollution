@@ -33,6 +33,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export const metadata: Metadata = { title: "Order Details — Admin" };
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const currencyFormatter = new Intl.NumberFormat("en-AU", {
   style: "currency",
@@ -129,15 +131,16 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
   }
 
   const { id } = await params;
-  const order = await getOrder(id);
+  const [order, packagingPresets] = await Promise.all([
+    getOrder(id),
+    db.packagingPreset.findMany({
+      orderBy: [{ priority: "desc" }, { maxWeight: "asc" }, { name: "asc" }],
+    }),
+  ]);
 
   if (!order) {
     notFound();
   }
-
-  const packagingPresets = await db.packagingPreset.findMany({
-    orderBy: [{ priority: "desc" }, { maxWeight: "asc" }, { name: "asc" }],
-  });
 
   const netProductWeight = order.items.reduce((sum, item) => {
     const w = (item as any).productVariant?.weight ?? (item as any).product?.weight ?? 0.5;
