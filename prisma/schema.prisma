@@ -747,6 +747,7 @@ model Raffle {
   auditLogs RaffleAuditLog[]
 
   @@index([status])
+  @@index([visibility, status])
   @@index([isFeatured])
   @@index([displayOnHomepage])
   @@index([startDate, endDate])

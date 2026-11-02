@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { revokeMembership as revokeUtil, grantMembership as grantUtil } from "@/lib/membership";
+import { invalidateMembershipPlanCache } from "@/lib/membership-plan";
 
 async function requireAdmin() {
   const session = await auth();
@@ -72,7 +73,9 @@ export async function createPlan(input: PlanInput): Promise<PlanResult> {
   }
 
   await db.membershipPlan.create({ data });
+  await invalidateMembershipPlanCache();
   revalidatePath("/admin/membership");
+  revalidatePath("/membership");
   return { success: true };
 }
 
@@ -91,14 +94,18 @@ export async function updatePlan(id: string, input: PlanInput): Promise<PlanResu
   }
 
   await db.membershipPlan.update({ where: { id }, data });
+  await invalidateMembershipPlanCache();
   revalidatePath("/admin/membership");
+  revalidatePath("/membership");
   return { success: true };
 }
 
 export async function deletePlan(id: string): Promise<PlanResult> {
   await requireAdmin();
   await db.membershipPlan.delete({ where: { id } });
+  await invalidateMembershipPlanCache();
   revalidatePath("/admin/membership");
+  revalidatePath("/membership");
   return { success: true };
 }
 
@@ -106,7 +113,9 @@ export async function setDefaultPlan(id: string): Promise<PlanResult> {
   await requireAdmin();
   await db.membershipPlan.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
   await db.membershipPlan.update({ where: { id }, data: { isDefault: true } });
+  await invalidateMembershipPlanCache();
   revalidatePath("/admin/membership");
+  revalidatePath("/membership");
   return { success: true };
 }
 

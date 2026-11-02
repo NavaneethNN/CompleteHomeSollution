@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS "Raffle" (
 
 CREATE UNIQUE INDEX IF NOT EXISTS "Raffle_slug_key" ON "Raffle"("slug");
 CREATE INDEX IF NOT EXISTS "Raffle_status_idx" ON "Raffle"("status");
+CREATE INDEX IF NOT EXISTS "Raffle_visibility_status_idx" ON "Raffle"("visibility", "status");
 CREATE INDEX IF NOT EXISTS "Raffle_isFeatured_idx" ON "Raffle"("isFeatured");
 CREATE INDEX IF NOT EXISTS "Raffle_displayOnHomepage_idx" ON "Raffle"("displayOnHomepage");
 CREATE INDEX IF NOT EXISTS "Raffle_startDate_endDate_idx" ON "Raffle"("startDate", "endDate");

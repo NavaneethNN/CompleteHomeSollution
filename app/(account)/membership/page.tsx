@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getActiveMembershipPlan, durationLabel } from "@/lib/membership-plan";
 import { enforceExpiry, hasActiveMembership } from "@/lib/membership";
+import { cacheGet, cacheSet } from "@/lib/redis";
 import { MembershipAutopayControls } from "@/components/account/membership-autopay-controls";
 import { MembershipSavingsCalculator } from "@/components/account/membership-savings-calculator";
 import { MembershipFaq } from "@/components/account/membership-faq";
@@ -111,15 +112,78 @@ const TESTIMONIALS = [
   },
 ];
 
+type MemberOnlyRaffle = {
+  id: string;
+  title: string;
+  slug: string;
+  shortDescription: string | null;
+  bannerImage: string | null;
+  images: string[];
+  entryPrice: number;
+  drawDate: Date;
+  prizes: {
+    id: string;
+    value: number;
+    quantity: number;
+    images: string[];
+  }[];
+};
+
+async function getMemberOnlyRaffles(): Promise<MemberOnlyRaffle[]> {
+  const cacheKey = "membership:member_only_raffles";
+  try {
+    const cached = await cacheGet<MemberOnlyRaffle[]>(cacheKey);
+    if (cached && Array.isArray(cached)) {
+      return cached.map((r) => ({
+        ...r,
+        drawDate: new Date(r.drawDate),
+      }));
+    }
+  } catch {}
+
+  const raffles = await db.raffle.findMany({
+    where: {
+      visibility: "MEMBERS_ONLY",
+      status: { in: ["ACTIVE", "UPCOMING"] },
+    },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      shortDescription: true,
+      bannerImage: true,
+      images: true,
+      entryPrice: true,
+      drawDate: true,
+      prizes: {
+        select: {
+          id: true,
+          value: true,
+          quantity: true,
+          images: true,
+        },
+        orderBy: { rank: "asc" },
+      },
+    },
+    orderBy: [
+      { isFeatured: "desc" },
+      { endDate: "asc" },
+    ],
+    take: 6,
+  });
+
+  try {
+    await cacheSet(cacheKey, raffles, 60);
+  } catch {}
+
+  return raffles;
+}
+
 export default async function MembershipPage() {
   const session = await auth();
   const user = session?.user;
 
-  if (user?.id) {
-    await enforceExpiry(user.id);
-  }
-
-  // Always read from DB when user is logged in
+  // Run all queries simultaneously in parallel without any blocking write query
   const [dbUser, activePlan, memberOnlyRaffles] = await Promise.all([
     user?.id
       ? db.user.findUnique({
@@ -140,26 +204,13 @@ export default async function MembershipPage() {
         })
       : null,
     getActiveMembershipPlan(),
-    db.raffle.findMany({
-      where: {
-        visibility: "MEMBERS_ONLY",
-        status: { in: ["ACTIVE", "UPCOMING"] },
-      },
-      include: {
-        prizes: {
-          orderBy: { rank: "asc" },
-        },
-        _count: {
-          select: { tickets: true },
-        },
-      },
-      orderBy: [
-        { isFeatured: "desc" },
-        { endDate: "asc" },
-      ],
-      take: 6,
-    }),
+    getMemberOnlyRaffles(),
   ]);
+
+  // Non-blocking background expiry cleanup if user's membership has physically passed expiry
+  if (user?.id && dbUser?.isMember && dbUser.membershipExpiry && dbUser.membershipExpiry <= new Date()) {
+    enforceExpiry(user.id).catch(() => {});
+  }
 
   const isMember = hasActiveMembership(dbUser);
   const memberSince = dbUser?.memberSince;
