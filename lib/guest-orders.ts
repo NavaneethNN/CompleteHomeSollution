@@ -3,6 +3,8 @@
 import { db } from "@/lib/db";
 import { verifyGuestOrderToken, createGuestOrderToken } from "@/lib/order-access";
 import type { OrderWithItems } from "@/lib/actions/orders";
+import { headers } from "next/headers";
+import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * Shared include query for orders
@@ -172,6 +174,20 @@ export async function lookupGuestOrder(
   }
 
   try {
+    try {
+      const reqHeaders = await headers();
+      const ip = getClientIp(reqHeaders);
+      const rl = await consumeRateLimit("guest-order-lookup", `${ip}:${cleanEmail}`, 10, 15 * 60);
+      if (!rl.allowed) {
+        return {
+          success: false,
+          error: "Too many lookup attempts. Please wait a few minutes before trying again.",
+        };
+      }
+    } catch {
+      // Gracefully bypass if called outside HTTP request context (e.g. testing)
+    }
+
     // Search by full ID or last characters (short ID is usually 8 chars uppercase)
     const order = await db.order.findFirst({
       where: {

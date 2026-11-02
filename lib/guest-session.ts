@@ -100,3 +100,4 @@ export function clearGuestOrdersFromSession(): void {
     console.warn("[guest-session] Failed to clear guest orders:", err);
   }
 }
+
