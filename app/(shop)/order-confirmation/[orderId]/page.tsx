@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CheckCircle2, Package, ArrowRight, Mail, Crown, Clock, Store, Truck, Calendar, Phone } from "lucide-react";
+import {
+  CheckCircle2,
+  Package,
+  ArrowRight,
+  Mail,
+  Crown,
+  Clock,
+  Store,
+  Truck,
+  Calendar,
+  Phone,
+  XCircle,
+  RotateCcw,
+} from "lucide-react";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { verifyGuestOrderToken, verifyOrderReturnToken } from "@/lib/order-access";
@@ -9,6 +22,7 @@ import { ClearCartOnSuccess } from "@/components/shop/clear-cart-on-success";
 import { SaveGuestSessionOrder } from "@/components/shop/save-guest-session-order";
 import { PollPendingPayment } from "@/components/shop/poll-pending-payment";
 import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
+import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
 
 export const metadata: Metadata = { title: "Order Confirmed", robots: { index: false, follow: false } };
 
@@ -74,10 +88,22 @@ export default async function OrderConfirmationPage({
   searchParams,
 }: {
   params: Promise<{ orderId: string }>;
-  searchParams: Promise<{ token?: string; return_token?: string }>;
+  searchParams: Promise<{
+    token?: string;
+    return_token?: string;
+    status?: string;
+    result?: string;
+    cancel?: string;
+  }>;
 }) {
   const { orderId } = await params;
-  const { token, return_token: returnToken } = await searchParams;
+  const {
+    token,
+    return_token: returnToken,
+    status: returnStatus,
+    result: returnResult,
+    cancel,
+  } = await searchParams;
 
   if (!orderId) return notFound();
 
@@ -89,6 +115,36 @@ export default async function OrderConfirmationPage({
 
   if (!authorized && !userId) redirect(`/login?callbackUrl=${encodeURIComponent(`/order-confirmation/${orderId}`)}`);
   if (!authorized || !order) return notFound();
+
+  // If the bank or hosted checkout redirected back with an explicit cancellation/failure flag,
+  // update the pending order to CANCELLED immediately so the user isn't left hanging.
+  if (
+    order.status === "PENDING" &&
+    (
+      ["CANCELLED", "CANCELED", "FAILED", "DECLINED", "REJECTED"].includes(returnStatus?.toUpperCase() ?? "") ||
+      ["CANCELLED", "CANCELED", "FAILED", "DECLINED"].includes(returnResult?.toUpperCase() ?? "") ||
+      cancel === "true" ||
+      cancel === "1"
+    )
+  ) {
+    await db.$transaction(async (tx) => {
+      await tx.order.updateMany({
+        where: { id: orderId, status: "PENDING" },
+        data: { status: "CANCELLED", refundReason: "Cancelled on payment provider hosted page" },
+      });
+      if (typeof releaseCouponReservationInTransaction === "function") {
+        await releaseCouponReservationInTransaction(tx, orderId);
+      }
+      if ((tx as any).raffleWinner) {
+        await (tx as any).raffleWinner.updateMany({
+          where: { orderId },
+          data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+        });
+      }
+    });
+    order.status = "CANCELLED";
+  }
+
   const paid = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
   const membershipCharge = order.membershipAmount;
 
@@ -110,40 +166,81 @@ export default async function OrderConfirmationPage({
         />
       )}
 
-      {/* REL-4: Poll for payment confirmation if order is still PENDING */}
-      {order.status === "PENDING" && (
-        <PollPendingPayment
-          orderId={orderId}
-          guestToken={!order.userId ? token : undefined}
-          returnToken={returnToken}
-        />
-      )}
-
       <div className="container mx-auto max-w-2xl px-4 md:px-6">
-        {/* Pending payment banner */}
-        {order.status === "PENDING" && (
-          <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <Clock className="h-5 w-5 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800">Payment is being confirmed</p>
-              <p className="text-xs text-amber-700 mt-1">
-                Your payment is processing with our bank. This page will update automatically —
-                please do not close it. You will receive a confirmation email once complete.
-              </p>
+        {/* Status Header */}
+        <div className="text-center mb-8">
+          {paid ? (
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-5">
+              <CheckCircle2 className="h-8 w-8 text-green-600" />
+            </div>
+          ) : order.status === "PENDING" ? (
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 mb-5">
+              <Clock className="h-8 w-8 text-amber-600 animate-pulse" />
+            </div>
+          ) : order.status === "REFUNDED" ? (
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 mb-5">
+              <RotateCcw className="h-8 w-8 text-purple-600" />
+            </div>
+          ) : (
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 mb-5">
+              <XCircle className="h-8 w-8 text-rose-600" />
+            </div>
+          )}
+
+          <h1 className="text-3xl font-black text-foreground md:text-4xl">
+            {paid
+              ? "Order Confirmed!"
+              : order.status === "PENDING"
+              ? "Awaiting Payment Confirmation"
+              : order.status === "REFUNDED"
+              ? "Order Refunded"
+              : "Payment Incomplete / Order Cancelled"}
+          </h1>
+
+          <p className="mt-3 text-sm md:text-base text-muted-foreground max-w-lg mx-auto">
+            {paid
+              ? "Thank you for your purchase. Your payment is confirmed."
+              : order.status === "PENDING"
+              ? "We have not yet received payment confirmation from the bank. If you completed payment, this page will update automatically. If you did not finish payment, you can complete it or cancel this order below."
+              : order.status === "REFUNDED"
+              ? "This order has been refunded. Contact support if you have a payment or refund question."
+              : "This order was cancelled because payment was not completed. Your card was not charged."}
+          </p>
+        </div>
+
+        {/* If Cancelled, provide clear Action Buttons to return to checkout or cart */}
+        {order.status === "CANCELLED" && (
+          <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50/70 p-5 sm:p-6 text-center space-y-4">
+            <p className="text-sm font-semibold text-rose-900">
+              Your items are still safely saved in your shopping cart.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href="/checkout"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-bold text-white shadow-sm hover:bg-primary/90 transition-colors"
+              >
+                Return to Checkout &amp; Pay
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/cart"
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-white px-6 py-3 text-sm font-semibold text-foreground hover:bg-slate-50 transition-colors"
+              >
+                View Cart
+              </Link>
             </div>
           </div>
         )}
 
-        {/* Success Header */}
-        <div className="text-center mb-10">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-5">
-            <CheckCircle2 className="h-8 w-8 text-green-600" />
-          </div>
-          <h1 className="text-3xl font-black text-foreground md:text-4xl">{paid ? "Order Confirmed!" : order.status === "PENDING" ? "Awaiting payment confirmation" : order.status === "REFUNDED" ? "Order refunded" : "Order cancelled"}</h1>
-          <p className="mt-3 text-muted-foreground">
-            {paid ? "Thank you for your purchase. Your payment is confirmed." : order.status === "PENDING" ? "We have not yet confirmed your payment. Please do not place another order while verification is in progress." : "This order is not being fulfilled. Contact support if you have a payment or refund question."}
-          </p>
-        </div>
+        {/* REL-4: Active pending payment control & polling card */}
+        {order.status === "PENDING" && (
+          <PollPendingPayment
+            orderId={orderId}
+            guestToken={!order.userId ? token : undefined}
+            returnToken={returnToken}
+          />
+        )}
+
 
         {membershipCharge > 0 && !paid && (
           <div role="status" className="mb-6 rounded-xl border p-4 text-sm">

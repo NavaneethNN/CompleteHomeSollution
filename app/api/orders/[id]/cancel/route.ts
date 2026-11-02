@@ -6,6 +6,7 @@ import { refundOnlinePayOrder, OnlinePayRefundError } from "@/lib/onlinepay";
 import { refundOrderMembership } from "@/lib/membership";
 import { queueRefundReceipt, queueRefundRequest, processDueEmailJobs } from "@/lib/email-outbox";
 import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
+import { verifyGuestOrderToken, verifyOrderReturnToken } from "@/lib/order-access";
 
 // Statuses where we auto-refund immediately (order not yet shipped)
 const AUTO_REFUND_STATUSES = ["PAID", "CONFIRMED", "PROCESSING"];
@@ -20,13 +21,15 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-    }
-
     const { id: orderId } = await params;
     const body = await req.json().catch(() => ({}));
     const reason = typeof body?.reason === "string" ? body.reason.slice(0, 1000) : "";
+    const returnToken =
+      req.nextUrl.searchParams.get("return_token") ||
+      (typeof body?.returnToken === "string" ? body.returnToken : undefined);
+    const guestToken =
+      req.nextUrl.searchParams.get("token") ||
+      (typeof body?.guestToken === "string" ? body.guestToken : undefined);
 
     // Fetch order with ownership check
     const order = await db.order.findUnique({
@@ -39,9 +42,19 @@ export async function POST(
     });
 
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    if (order.userId !== session.user.id) {
+
+    const isAdmin = session?.user?.role === "ADMIN";
+    const isOwner = !!(session?.user?.id && order.userId === session.user.id);
+    const isReturn = verifyOrderReturnToken(order.id, returnToken);
+    const isGuest = !order.userId && verifyGuestOrderToken(order.id, order.guestEmail, guestToken);
+
+    if (!isAdmin && !isOwner && !isGuest && !isReturn) {
+      if (!session?.user?.id) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      }
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
+
     if (NON_CANCELLABLE_STATUSES.includes(order.status)) {
       return NextResponse.json({ error: `Order cannot be cancelled (status: ${order.status})` }, { status: 400 });
     }
@@ -64,6 +77,12 @@ export async function POST(
       });
       return NextResponse.json({ success: true, cancelled: true });
     }
+
+    // For non-pending orders (already paid), requesting refund requires authenticated session
+    if (!session?.user?.id || (!isAdmin && !isOwner)) {
+      return NextResponse.json({ error: "Authentication required to request a refund" }, { status: 401 });
+    }
+
 
     const requestReview = () => db.$transaction(async tx => {
       const changed = await tx.order.updateMany({

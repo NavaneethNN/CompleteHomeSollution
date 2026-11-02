@@ -205,8 +205,30 @@ export function onlinePayPaymentSucceeded(checkout: OnlinePayCheckoutStatus): bo
 export function onlinePayPaymentFailed(checkout: OnlinePayCheckoutStatus): boolean {
   // A failed attempt can be retried on the hosted page. Only a closed checkout
   // is terminal; otherwise retain PENDING so a later successful attempt settles.
-  return !onlinePayPaymentSucceeded(checkout) &&
-    ["CANCELLED", "CANCELED", "EXPIRED"].includes(checkout.status?.toUpperCase() ?? "");
+  if (onlinePayPaymentSucceeded(checkout)) return false;
+
+  const status = checkout.status?.toUpperCase() ?? "";
+  if (
+    [
+      "CANCELLED",
+      "CANCELED",
+      "EXPIRED",
+      "DECLINED",
+      "FAILED",
+      "REJECTED",
+      "ABORTED",
+      "TERMINATED",
+      "ERROR",
+    ].includes(status)
+  ) {
+    return true;
+  }
+
+  const events = checkout.events ?? [];
+  return events.some((event) => {
+    const type = (event.type ?? "").toUpperCase();
+    return ["CHECKOUT_CANCELLED", "USER_CANCELLED", "PAYMENT_CANCELLED"].includes(type);
+  });
 }
 
 export class OnlinePayRefundError extends Error {
