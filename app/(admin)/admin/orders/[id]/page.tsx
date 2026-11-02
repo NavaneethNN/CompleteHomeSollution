@@ -560,8 +560,12 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             </CardContent>
           </Card>
 
-          {/* Packaging Box Configuration & Allocation — only relevant for standard courier delivery */}
-          {order.fulfillmentType !== "STORE_PICKUP" && order.fulfillmentType !== "MANUAL_DELIVERY" && order.items.length > 0 && (
+          {/* Packaging Box Configuration & Allocation — only relevant for standard courier delivery of active orders */}
+          {order.fulfillmentType !== "STORE_PICKUP" &&
+            order.fulfillmentType !== "MANUAL_DELIVERY" &&
+            order.items.length > 0 &&
+            order.status !== "CANCELLED" &&
+            order.status !== "REFUNDED" && (
             <OrderPackagingPanel
               orderId={order.id}
               initialPackagePresetId={order.packagePresetId}

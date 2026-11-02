@@ -178,37 +178,41 @@ export function OrderPackagingPanel({
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100 flex flex-col justify-between">
               <span className="text-xs text-slate-500 block">Package Preset</span>
-              <span className="font-semibold text-slate-900 text-sm mt-0.5 block truncate">
+              <span className="font-semibold text-slate-900 text-sm mt-0.5 block line-clamp-2 leading-snug" title={packageName}>
                 {packageName}
               </span>
             </div>
 
-            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100 flex flex-col justify-between">
               <span className="text-xs text-slate-500 block">Dimensions</span>
-              <span className="font-mono text-slate-900 text-sm mt-0.5 block">
-                {packedLength} × {packedWidth} × {packedHeight} cm
-              </span>
-              <span className="text-[10px] text-slate-400">({volumeLiters} L)</span>
+              <div className="mt-0.5">
+                <span className="font-mono text-slate-900 text-sm font-semibold whitespace-nowrap block">
+                  {packedLength} × {packedWidth} × {packedHeight} cm
+                </span>
+                <span className="text-[10px] text-slate-400 block">({volumeLiters} L)</span>
+              </div>
             </div>
 
-            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100 flex flex-col justify-between">
               <span className="text-xs text-slate-500 block">Items Net Weight</span>
-              <span className="font-semibold text-slate-900 text-sm mt-0.5 block">
+              <span className="font-semibold text-slate-900 text-sm mt-0.5 block whitespace-nowrap">
                 {calculatedProductWeight.toFixed(2)} kg
               </span>
             </div>
 
-            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100">
+            <div className="rounded-lg bg-slate-50 p-3 border border-slate-100 flex flex-col justify-between">
               <span className="text-xs text-slate-500 block">Total Packed Weight</span>
-              <span className="font-bold text-slate-900 text-sm mt-0.5 block">
-                {packedWeight.toFixed(2)} kg
-              </span>
-              <span className="text-[10px] text-slate-400">
-                (incl. box tare: {Math.max(0, packedWeight - calculatedProductWeight).toFixed(2)} kg)
-              </span>
+              <div className="mt-0.5">
+                <span className="font-bold text-slate-900 text-sm block whitespace-nowrap">
+                  {packedWeight.toFixed(2)} kg
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  (incl. box tare: {Math.max(0, packedWeight - calculatedProductWeight).toFixed(2)} kg)
+                </span>
+              </div>
             </div>
           </div>
         </CardContent>
