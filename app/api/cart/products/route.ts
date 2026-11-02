@@ -2,14 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { resolveMemberPrice } from "@/lib/member-price";
+import { cacheGet, cacheSet } from "@/lib/redis";
 
 const schema = z.object({ ids: z.array(z.string().cuid()).min(1).max(50) });
 export async function POST(req: NextRequest) {
   try {
     if (Number(req.headers.get("content-length") ?? 0) > 4096) return NextResponse.json({ error: "Request too large" }, { status: 413 });
     const { ids } = schema.parse(await req.json());
+    const uniqueSortedIds = [...new Set(ids)].sort();
+    const cacheKey = `cart:catalog:${uniqueSortedIds.join(",")}`;
+
+    const cached = await cacheGet<{ prices: any; catalog: any }>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
     const products = await db.product.findMany({
-      where: { id: { in: [...new Set(ids)] }, isActive: true },
+      where: { id: { in: uniqueSortedIds }, isActive: true },
       select: { id: true, name: true, slug: true, sku: true, images: true, hasVariants: true, basePrice: true, memberPrice: true, stock: true, weight: true,
         productVariants: { where: { isActive: true }, select: { id: true, sku: true, price: true, memberPrice: true, stock: true, weight: true,
           images: { select: { url: true }, orderBy: { displayOrder: "asc" } },
@@ -31,6 +40,9 @@ export async function POST(req: NextRequest) {
           variantLabel: variant.values.map(value => `${value.variantValue.variantAttribute.name}: ${value.variantValue.value}`).join(" · ") };
       }
     }
+
+    await cacheSet(cacheKey, { prices, catalog }, 30).catch(() => {});
+
     return NextResponse.json({ prices, catalog });
   } catch (error) {
     if (error instanceof z.ZodError || error instanceof SyntaxError) return NextResponse.json({ error: "Invalid cart" }, { status: 400 });

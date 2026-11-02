@@ -28,34 +28,45 @@ export function CartUpsell({ isMember = false }: CartUpsellProps) {
   const [upsells, setUpsells] = useState<UpsellProduct[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchUpsells() {
-      if (items.length === 0) {
-        setLoading(false);
-        return;
-      }
+  const productIdsKey = [...new Set(items.map((i) => i.product.id))].sort().join(",");
 
+  useEffect(() => {
+    if (!productIdsKey) {
+      setUpsells([]);
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    async function fetchUpsells() {
       try {
-        // Fetch complementary products based on cart items
-        const productIds = items.map(item => item.product.id).join(",");
-        
         const response = await fetch(
-          `/api/products/upsells?basedOn=${productIds}&exclude=${items.map(i => i.product.id).join(",")}&limit=3`
+          `/api/products/upsells?basedOn=${encodeURIComponent(productIdsKey)}&exclude=${encodeURIComponent(productIdsKey)}&limit=3`,
+          { signal: controller.signal }
         );
-        
+
         if (response.ok) {
           const data = await response.json();
-          setUpsells(data.products || []);
+          if (!controller.signal.aborted) {
+            setUpsells(data.products || []);
+          }
         }
-      } catch (error) {
-        console.error("Failed to fetch upsells:", error);
+      } catch (error: any) {
+        if (error?.name !== "AbortError") {
+          console.error("Failed to fetch upsells:", error);
+        }
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     }
 
     fetchUpsells();
-  }, [items]);
+
+    return () => controller.abort();
+  }, [productIdsKey]);
 
   if (loading || upsells.length === 0) return null;
 

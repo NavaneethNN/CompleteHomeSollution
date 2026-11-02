@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { cacheGet, cacheSet } from "@/lib/redis";
 
 export async function GET(req: NextRequest) {
   try {
@@ -7,6 +8,15 @@ export async function GET(req: NextRequest) {
     const excludeIds = searchParams.get("exclude")?.split(",").filter(Boolean) || [];
     const limit = parseInt(searchParams.get("limit") || "3", 10);
     const basedOnIds = searchParams.get("basedOn")?.split(",").filter(Boolean) || [];
+
+    const cacheKey = `upsells:${basedOnIds.sort().join(",")}:${excludeIds.sort().join(",")}:${limit}`;
+    const cached = await cacheGet<any[]>(cacheKey);
+    if (cached) {
+      return NextResponse.json(
+        { products: cached },
+        { headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600" } }
+      );
+    }
 
     // If we have products to base recommendations on, try to find similar ones
     // Otherwise, return trending/popular products
@@ -99,7 +109,12 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ products: formattedProducts });
+    await cacheSet(cacheKey, formattedProducts, 300).catch(() => {});
+
+    return NextResponse.json(
+      { products: formattedProducts },
+      { headers: { "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600" } }
+    );
   } catch (error) {
     console.error("[GET /api/products/upsells]", error);
     return NextResponse.json(
