@@ -853,7 +853,15 @@ export async function POST(req: NextRequest) {
               data: { status: "PENDING_CLAIM", orderId: null },
             });
           }
-          return NextResponse.json({ error: error.message, retryWithNewKey: true }, { status: 422 });
+          let clientError = error.message;
+          if (
+            clientError.includes("parameter is invalid") ||
+            clientError.includes("details property") ||
+            clientError.includes("requests body")
+          ) {
+            clientError = "Payment checkout could not be initiated. Please check your contact and address details, or try again.";
+          }
+          return NextResponse.json({ error: clientError, retryWithNewKey: true }, { status: 422 });
         }
         if (hostedCheckout) {
           return NextResponse.json({

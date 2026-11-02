@@ -1,6 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { onlinePayPaymentSucceeded, onlinePayPaymentFailed, createOnlinePayCheckout, getOnlinePayCheckout, onlinePayBillingAddress, OnlinePayCheckoutError } from "../lib/onlinepay";
+import {
+  onlinePayPaymentSucceeded,
+  onlinePayPaymentFailed,
+  createOnlinePayCheckout,
+  getOnlinePayCheckout,
+  onlinePayBillingAddress,
+  sanitizeOnlinePayName,
+  sanitizeOnlinePayCity,
+  sanitizeOnlinePayItemName,
+  OnlinePayCheckoutError,
+} from "../lib/onlinepay";
 
 test("billing addresses preserve all characters within provider line limits", () => {
   for (const length of [1, 40, 41, 72, 80, 81, 120]) {
@@ -62,6 +72,48 @@ test("hosted checkout sends integer AUD amount and handles upstream failure", as
     assert.equal(error.httpStatus, 400);
     assert.equal(error.definitelyRejected, true);
     assert.deepEqual(error.invalidFields, ["customer_details.billing.address_1"]);
+    return true;
+  });
+});
+
+test("sanitizeOnlinePayName and sanitizeOnlinePayCity enforce provider length and character limits", () => {
+  assert.equal(sanitizeOnlinePayName("O'Connor"), "OConnor");
+  assert.equal(sanitizeOnlinePayName("Smith & Sons"), "Smith and Sons");
+  assert.equal(sanitizeOnlinePayName("A".repeat(50)), "A".repeat(22));
+  assert.equal(sanitizeOnlinePayName("", "Customer"), "Customer");
+
+  assert.equal(sanitizeOnlinePayCity("Golden Grove & Warehouse"), "Golden Grove and Warehouse");
+  assert.equal(sanitizeOnlinePayCity("B".repeat(50)), "B".repeat(28));
+  assert.equal(sanitizeOnlinePayCity("", "City"), "City");
+
+  assert.equal(sanitizeOnlinePayItemName("Line\nItem\tName"), "Line Item Name");
+});
+
+test("provider technical developer messages are translated to friendly guidance", async (t) => {
+  for (const key of ["ONLINEPAY_USER_UID", "ONLINEPAY_API_KEY", "ONLINEPAY_ENTITY_ID", "ONLINEPAY_PPC_ID", "ONLINEPAY_3DS_ID"]) {
+    const previous = process.env[key];
+    process.env[key] = "test";
+    t.after(() => { if (previous === undefined) delete process.env[key]; else process.env[key] = previous; });
+  }
+  const input = {
+    amountCents: 100,
+    merchantReference: "order-test",
+    returnUrl: "https://shop.example/return",
+    shopUrl: "https://shop.example",
+    customer: { email: "test@example.com", firstName: "Test", lastName: "Buyer", address1: "1 Test St", city: "Sydney", state: "NSW", postcode: "2000" },
+    lineItems: [{ name: "Test Item", quantity: 1, unitPriceCents: 100 }],
+  };
+
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    message: "At least one parameter is invalid. Examine the details property for more information. Invalid parameters are listed and prefixed accordingly: body for parameters submitted in the requests body, query for parameters appended to the requests URL, and params for templated parameters of the requests URL.",
+    details: { "customer_details.billing.city": ["allowed symbols +_-,."] },
+  }, { status: 400 }));
+
+  await assert.rejects(createOnlinePayCheckout(input), (error: unknown) => {
+    assert.ok(error instanceof OnlinePayCheckoutError);
+    assert.ok(!error.message.includes("Examine the details property"));
+    assert.ok(!error.message.includes("requests body"));
+    assert.ok(error.message.includes("address and postcode"));
     return true;
   });
 });

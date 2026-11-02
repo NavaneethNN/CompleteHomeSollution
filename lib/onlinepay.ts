@@ -50,6 +50,42 @@ export function onlinePayBillingAddress(address: string) {
   };
 }
 
+// Verifone Cloud Checkout API billing schema constraints:
+// - first_name: max 22 chars, allowed symbols: letters, numbers, spaces, +_-,.
+// - last_name: max 22 chars, allowed symbols: letters, numbers, spaces, +_-,.
+// - city: max 28 chars, allowed symbols: letters, numbers, spaces, +_-,.
+export function sanitizeOnlinePayName(name: string, fallback = "Customer"): string {
+  const cleaned = (name || "")
+    .replace(/['’`]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-zA-Z0-9\s+_,\.\-]/g, "")
+    .trim()
+    .slice(0, 22)
+    .trim();
+  return cleaned || fallback;
+}
+
+export function sanitizeOnlinePayCity(city: string, fallback = "City"): string {
+  const cleaned = (city || "")
+    .replace(/['’`]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-zA-Z0-9\s+_,\.\-]/g, "")
+    .trim()
+    .slice(0, 28)
+    .trim();
+  return cleaned || fallback;
+}
+
+export function sanitizeOnlinePayItemName(name: string, fallback = "Item"): string {
+  const cleaned = (name || "")
+    .replace(/[\r\n\t]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 200)
+    .trim();
+  return cleaned || fallback;
+}
+
 export async function createOnlinePayCheckout(input: {
   amountCents: number;
   merchantReference: string;
@@ -66,6 +102,9 @@ export async function createOnlinePayCheckout(input: {
   }
   const { baseUrl, auth } = onlinePayConfig();
   const billingAddress = onlinePayBillingAddress(input.customer.address1);
+  const firstName = sanitizeOnlinePayName(input.customer.firstName, "Customer");
+  const lastName = sanitizeOnlinePayName(input.customer.lastName, "Customer");
+  const city = sanitizeOnlinePayCity(input.customer.city, "City");
 
   const response = await fetch(`${baseUrl}/oidc/checkout-service/v2/checkout`, {
     method: "POST",
@@ -80,15 +119,20 @@ export async function createOnlinePayCheckout(input: {
       shop_url: input.shopUrl,
       redirect_method: "HEADER_REDIRECT",
       display_line_items: true,
-      line_items: input.lineItems.map((item) => ({ name: item.name, quantity: item.quantity, unit_price: item.unitPriceCents, total_amount: item.unitPriceCents * item.quantity })),
+      line_items: input.lineItems.map((item) => ({
+        name: sanitizeOnlinePayItemName(item.name),
+        quantity: item.quantity,
+        unit_price: item.unitPriceCents,
+        total_amount: item.unitPriceCents * item.quantity,
+      })),
       customer_details: {
         entity_id: required("ONLINEPAY_ENTITY_ID"),
-        email_address: input.customer.email,
+        email_address: input.customer.email.trim(),
         billing: {
-          first_name: input.customer.firstName,
-          last_name: input.customer.lastName,
+          first_name: firstName,
+          last_name: lastName,
           ...billingAddress,
-          city: input.customer.city,
+          city,
           state: input.customer.state,
           postal_code: input.customer.postcode,
           country_code: "AU",
@@ -113,11 +157,25 @@ export async function createOnlinePayCheckout(input: {
   const payload = await response.json().catch(() => ({}));
   if (!response.ok || !payload.url || !payload.id) {
     const reason = typeof payload?.details?.reason === "string" ? payload.details.reason : "";
-    const baseMessage = typeof payload?.message === "string" ? payload.message : "OnlinePay could not create a checkout.";
-    const message = reason ? `${baseMessage}: ${reason}` : baseMessage;
+    const rawMessage = typeof payload?.message === "string" ? payload.message : "OnlinePay could not create a checkout.";
     const invalidFields = payload?.details && typeof payload.details === "object"
       ? Object.keys(payload.details).filter(key => /^[a-zA-Z0-9_.[\]-]{1,150}$/.test(key)) : [];
     console.error("[OnlinePay] Checkout creation rejected by provider", { status: response.status, details: payload?.details, message: payload?.message });
+
+    let message = reason ? `${rawMessage}: ${reason}` : rawMessage;
+    // Translate provider internal developer messages into clear customer-friendly guidance
+    if (rawMessage.includes("parameter is invalid") || rawMessage.includes("details property") || rawMessage.includes("requests body")) {
+      if (invalidFields.some(f => f.includes("email"))) {
+        message = "Please check your email address and try again.";
+      } else if (invalidFields.some(f => f.includes("billing") || f.includes("city") || f.includes("postal_code") || f.includes("address"))) {
+        message = "Please check your address and postcode details and try again.";
+      } else if (invalidFields.some(f => f.includes("first_name") || f.includes("last_name") || f.includes("name"))) {
+        message = "Please check your name details and try again.";
+      } else {
+        message = "Unable to initialize payment checkout. Please check your contact and address details, or try again.";
+      }
+    }
+
     throw new OnlinePayCheckoutError(message, [400, 401, 403, 404, 422].includes(response.status), response.status, invalidFields);
   }
   if (typeof payload.url !== "string" || !URL.canParse(payload.url) || new URL(payload.url).protocol !== "https:") throw new OnlinePayCheckoutError("Invalid hosted checkout URL", false);

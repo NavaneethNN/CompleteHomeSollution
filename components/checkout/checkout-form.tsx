@@ -38,6 +38,7 @@ import {
   Sparkles,
   Store,
   Award,
+  AlertCircle,
 } from "lucide-react";
 import { cleanAustralianSuburb } from "@/lib/data/australian-suburbs";
 import { Address } from "@prisma/client";
@@ -732,10 +733,18 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           idempotencyKeyRef.current = null;
           try { sessionStorage.removeItem("chs_checkout_idempotency_key"); } catch {}
         }
-        const msg = data.error || "Payment failed. Please try again.";
+        let msg = data.error || "Payment failed. Please try again.";
+        if (
+          msg.includes("parameter is invalid") ||
+          msg.includes("details property") ||
+          msg.includes("requests body") ||
+          msg.includes("templated parameters")
+        ) {
+          msg = "We couldn't set up your payment session. Please check your contact and address details, or try again.";
+        }
         setPaymentError(msg);
         setSingleUseTokenId(null); // token was consumed — user must re-enter card
-        toast({ title: response.status === 503 ? "Checkout Unavailable" : "Payment Failed", description: msg, variant: "destructive" });
+        toast({ title: response.status === 503 ? "Checkout Unavailable" : "Payment Notice", description: msg, variant: "destructive" });
         submissionInFlightRef.current = false; // allow retry
         setIsProcessing(false);
         return;
@@ -1524,7 +1533,15 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           ) : null}
 
           {!isFreeOrder && !paymentAvailable && <p role="alert" className="mt-4 text-sm text-destructive">Payment checkout is temporarily unavailable. Please try again later.</p>}
-          {usesOnlinePay && paymentError && <p role="alert" className="mt-2 text-sm text-destructive">{paymentError}</p>}
+          {usesOnlinePay && paymentError && (
+            <div role="alert" className="mt-4 rounded-xl border border-destructive/25 bg-destructive/5 p-3.5 text-destructive flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
+              <div className="flex-1 space-y-0.5">
+                <p className="text-xs font-semibold text-destructive">Checkout Notice</p>
+                <p className="text-xs text-destructive/90 leading-relaxed">{paymentError}</p>
+              </div>
+            </div>
+          )}
           {pricesError && <p role="alert" className="mt-2 text-sm text-destructive">{pricesError}</p>}
           {unavailable && <p role="alert" className="mt-2 text-sm text-destructive">An item is unavailable or exceeds stock. Update your cart before paying.</p>}
           {shippingAvailable === false && <div className="mt-2">
