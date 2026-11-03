@@ -103,10 +103,15 @@ async function main() {
   // Build Prisma where clause
   const where: any = {};
   if (options.ids?.length) {
-    where.id = { in: options.ids };
+    const cleanIds = options.ids.map((id) => id.replace(/^#/, "").trim().toLowerCase());
+    where.OR = [
+      ...cleanIds.map((id) => ({ id: { equals: id, mode: "insensitive" } })),
+      ...cleanIds.map((id) => ({ id: { endsWith: id, mode: "insensitive" } })),
+    ];
   }
   if (options.emails?.length) {
     where.OR = [
+      ...(where.OR || []),
       ...options.emails.map((e) => ({ guestEmail: { equals: e, mode: "insensitive" } })),
       ...options.emails.map((e) => ({ user: { email: { equals: e, mode: "insensitive" } } })),
     ];
