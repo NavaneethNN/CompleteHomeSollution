@@ -508,7 +508,6 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                                   href={`/admin/orders/${order.id}/label`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
                                 >
                                   <Button
                                     variant="outline"
