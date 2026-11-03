@@ -50,19 +50,6 @@ export default async function OrderShippingLabelPage({ params, searchParams }: L
     notFound();
   }
 
-  if (order.fulfillmentType === "STORE_PICKUP" || order.fulfillmentType === "MANUAL_DELIVERY") {
-    return (
-      <div className="p-8 max-w-lg mx-auto text-center space-y-4">
-        <h1 className="text-xl font-bold text-slate-900">
-          {order.fulfillmentType === "STORE_PICKUP" ? "Store Pickup Order" : "Manual Local Delivery Order"}
-        </h1>
-        <p className="text-sm text-slate-600">
-          This order does not use standard courier parcel dispatch. No courier shipping label is required.
-        </p>
-      </div>
-    );
-  }
-
   // ── Packaging Box Specifications Resolution ─────────────────────────────
   let packageName = order.packageName || "Standard Package";
   let length = order.packedLength || 30;
@@ -135,14 +122,12 @@ export default async function OrderShippingLabelPage({ params, searchParams }: L
 
   // ── Consignment & Barcode Code ────────────────────────────────────────────
   const orderNumber = order.id.slice(-8).toUpperCase();
-  const consignmentCode = order.trackingNumber || order.ship123OrderNo || `CP${order.address?.phone?.replace(/\D/g, "").slice(-8) || "98422999"}${orderNumber}`;
-  const barcodeSvg = generateCode128Svg(consignmentCode, {
-    height: 48,
-    moduleWidth: 1.8,
-    showText: false,
-  });
+  let carrier = order.carrier || "Couriers Please";
+  let serviceName = order.shippingServiceCode === "CP_EXPRESS" ? "EXPRESS AM PRIORITY" : "ROAD EXPRESS - TRACKED";
+  let consignmentCode = order.trackingNumber || order.ship123OrderNo || `CP${order.address?.phone?.replace(/\D/g, "").slice(-8) || "98422999"}${orderNumber}`;
+  let specialInstructions = "Safe drop permitted";
 
-  const recipient = {
+  let recipient = {
     name: order.address?.name || order.user?.name || "Customer",
     line1: order.address?.line1 || "Customer Address",
     line2: order.address?.line2 || null,
@@ -153,8 +138,37 @@ export default async function OrderShippingLabelPage({ params, searchParams }: L
     email: order.user?.email || order.guestEmail || null,
   };
 
-  const carrier = order.carrier || "Couriers Please";
-  const serviceName = order.shippingServiceCode === "CP_EXPRESS" ? "EXPRESS AM PRIORITY" : "ROAD EXPRESS - TRACKED";
+  if (order.fulfillmentType === "STORE_PICKUP") {
+    carrier = "CHS Store Pickup";
+    serviceName = "WAREHOUSE COLLECTION DOCKET";
+    consignmentCode = order.trackingNumber || `PK${orderNumber}`;
+    const apptDate = order.pickupAppointmentDate
+      ? new Date(order.pickupAppointmentDate).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+      : "Pending Appointment";
+    const apptTime = order.pickupAppointmentTime || "";
+    specialInstructions = `Store Pickup: ${apptDate} ${apptTime}. ${order.pickupNotes || "Customer pickup at Golden Grove showroom."}`.trim();
+    recipient = {
+      name: order.user?.name || order.address?.name || "Store Pickup Customer",
+      line1: "Pickup: 18 Edison Drive (Showroom & Warehouse)",
+      line2: "Customer Collection Counter",
+      suburb: "Golden Grove",
+      state: "SA",
+      postcode: "5125",
+      phone: order.address?.phone || order.user?.phone || order.guestPhone || null,
+      email: order.user?.email || order.guestEmail || null,
+    };
+  } else if (order.fulfillmentType === "MANUAL_DELIVERY") {
+    carrier = "CHS Local Delivery";
+    serviceName = "DIRECT VAN DISPATCH - BULKY GOODS";
+    consignmentCode = order.trackingNumber || `MD${orderNumber}`;
+    specialInstructions = `Store Van Delivery. ${order.manualDeliveryNotes || "Large items delivery. Driver to call customer upon arrival."}`.trim();
+  }
+
+  const barcodeSvg = generateCode128Svg(consignmentCode, {
+    height: 48,
+    moduleWidth: 1.8,
+    showText: false,
+  });
 
   return (
     <ShippingLabelView
@@ -176,7 +190,7 @@ export default async function OrderShippingLabelPage({ params, searchParams }: L
         cubicWeight,
         itemCount: order.items.reduce((s, it) => s + it.quantity, 0),
         itemNames: order.items.map((it) => `${it.quantity}x ${it.product.name}`),
-        specialInstructions: "Safe drop permitted",
+        specialInstructions,
       }}
       barcodeSvg={barcodeSvg}
       autoPrint={autoprint === "1" || autoprint === "true"}

@@ -499,30 +499,39 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                           )}
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 text-right relative z-10">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {order.fulfillmentType !== "STORE_PICKUP" &&
-                              order.fulfillmentType !== "MANUAL_DELIVERY" &&
-                              order.status !== "PENDING" &&
-                              order.status !== "CANCELLED" && (
-                                <Link
-                                  href={`/admin/orders/${order.id}/label`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                          <div className="flex items-center justify-end gap-1.5 flex-nowrap">
+                            {order.status !== "CANCELLED" && (
+                              <Link
+                                href={`/admin/orders/${order.id}/label`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  title={
+                                    order.fulfillmentType === "STORE_PICKUP"
+                                      ? "Print Warehouse Pickup Docket"
+                                      : order.fulfillmentType === "MANUAL_DELIVERY"
+                                      ? "Print Local Delivery Docket"
+                                      : "Print Courier Shipping Label (100x150mm / A4)"
+                                  }
+                                  className="h-8 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 hover:text-blue-800 border-blue-200 hover:border-blue-300 font-semibold text-xs flex items-center gap-1.5 whitespace-nowrap shadow-2xs"
                                 >
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    title="Print Courier Shipping Label (100x150mm / A4)"
-                                    className="px-2 sm:px-2.5 h-8 text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200"
-                                  >
-                                    <Printer className="h-3.5 w-3.5 sm:mr-1" />
-                                    <span className="hidden md:inline text-xs font-semibold">Label</span>
-                                  </Button>
-                                </Link>
-                              )}
+                                  <Printer className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                                  <span>
+                                    {order.fulfillmentType === "STORE_PICKUP"
+                                      ? "Pickup Docket"
+                                      : order.fulfillmentType === "MANUAL_DELIVERY"
+                                      ? "Delivery Docket"
+                                      : "Print Label"}
+                                  </span>
+                                </Button>
+                              </Link>
+                            )}
                             <Link href={`/admin/orders/${order.id}`}>
-                              <Button variant="ghost" size="sm" title="View full order details" className="px-2 sm:px-3 h-8 cursor-pointer relative z-10">
-                                <Eye className="h-4 w-4 sm:mr-1" />
+                              <Button variant="ghost" size="sm" title="View full order details" className="px-2.5 h-8 cursor-pointer relative z-10 text-slate-700 hover:text-slate-900">
+                                <Eye className="h-4 w-4 sm:mr-1 text-slate-500" />
                                 <span className="hidden sm:inline">View</span>
                               </Button>
                             </Link>

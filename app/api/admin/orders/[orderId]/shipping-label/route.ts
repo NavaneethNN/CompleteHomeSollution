@@ -42,13 +42,6 @@ export async function GET(_req: NextRequest, { params }: Context) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (order.fulfillmentType === "STORE_PICKUP" || order.fulfillmentType === "MANUAL_DELIVERY") {
-      return NextResponse.json(
-        { error: `Cannot generate courier label for ${order.fulfillmentType === "STORE_PICKUP" ? "Store Pickup" : "Manual Local Delivery"}` },
-        { status: 400 }
-      );
-    }
-
     // ── Packaging Box Specifications Resolution ─────────────────────────────
     let packageName = order.packageName || "Standard Package";
     let length = order.packedLength || 30;
@@ -103,26 +96,56 @@ export async function GET(_req: NextRequest, { params }: Context) {
     }
 
     const orderNumber = order.id.slice(-8).toUpperCase();
-    const consignmentCode = order.trackingNumber || order.ship123OrderNo || `CP${order.address?.phone?.replace(/\D/g, "").slice(-8) || "98422999"}${orderNumber}`;
+    let carrier = order.carrier || "Couriers Please";
+    let serviceName = order.shippingServiceCode === "CP_EXPRESS" ? "EXPRESS AM PRIORITY" : "ROAD EXPRESS - TRACKED";
+    let consignmentCode = order.trackingNumber || order.ship123OrderNo || `CP${order.address?.phone?.replace(/\D/g, "").slice(-8) || "98422999"}${orderNumber}`;
+    let specialInstructions = "Safe drop permitted";
+
+    let recipient = {
+      name: order.address?.name || order.user?.name || "Customer",
+      line1: order.address?.line1 || "Customer Address",
+      line2: order.address?.line2 || null,
+      suburb: order.address?.suburb || "Wollongong",
+      state: order.address?.state || "WA",
+      postcode: order.address?.postcode || "6410",
+      phone: order.address?.phone || order.user?.phone || order.guestPhone || null,
+    };
+
+    if (order.fulfillmentType === "STORE_PICKUP") {
+      carrier = "CHS Store Pickup";
+      serviceName = "WAREHOUSE COLLECTION DOCKET";
+      consignmentCode = order.trackingNumber || `PK${orderNumber}`;
+      const apptDate = order.pickupAppointmentDate
+        ? new Date(order.pickupAppointmentDate).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+        : "Pending Appointment";
+      const apptTime = order.pickupAppointmentTime || "";
+      specialInstructions = `Store Pickup: ${apptDate} ${apptTime}. ${order.pickupNotes || "Customer pickup at Golden Grove showroom."}`.trim();
+      recipient = {
+        name: order.user?.name || order.address?.name || "Store Pickup Customer",
+        line1: "Pickup: 18 Edison Drive (Showroom & Warehouse)",
+        line2: "Customer Collection Counter",
+        suburb: "Golden Grove",
+        state: "SA",
+        postcode: "5125",
+        phone: order.address?.phone || order.user?.phone || order.guestPhone || null,
+      };
+    } else if (order.fulfillmentType === "MANUAL_DELIVERY") {
+      carrier = "CHS Local Delivery";
+      serviceName = "DIRECT VAN DISPATCH - BULKY GOODS";
+      consignmentCode = order.trackingNumber || `MD${orderNumber}`;
+      specialInstructions = `Store Van Delivery. ${order.manualDeliveryNotes || "Large items delivery. Driver to call customer upon arrival."}`.trim();
+    }
 
     const labelData: CourierLabelData = {
       orderId: order.id,
       orderNumber,
-      carrier: order.carrier || "Couriers Please",
-      serviceName: order.shippingServiceCode === "CP_EXPRESS" ? "EXPRESS AM PRIORITY" : "ROAD EXPRESS - TRACKED",
+      carrier,
+      serviceName,
       trackingNumber: order.trackingNumber || consignmentCode,
       consignmentCode,
       createdAt: order.createdAt,
       sender,
-      recipient: {
-        name: order.address?.name || order.user?.name || "Customer",
-        line1: order.address?.line1 || "Customer Address",
-        line2: order.address?.line2 || null,
-        suburb: order.address?.suburb || "Wollongong",
-        state: order.address?.state || "WA",
-        postcode: order.address?.postcode || "6410",
-        phone: order.address?.phone || order.user?.phone || order.guestPhone || null,
-      },
+      recipient,
       parcel: {
         packageName,
         length,
@@ -131,7 +154,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
         weight,
         cubicWeight,
         itemCount: order.items.reduce((s, it) => s + it.quantity, 0),
-        specialInstructions: "Safe drop permitted",
+        specialInstructions,
       },
     };
 

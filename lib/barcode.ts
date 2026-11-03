@@ -124,3 +124,4 @@ export function generateCode128Svg(text: string, options: BarcodeSvgOptions = {}
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} ${height}" width="${totalWidth}" height="${height}" class="${className}" style="display:block;max-width:100%;">${rects.join("")}${textElement}</svg>`;
 }
+

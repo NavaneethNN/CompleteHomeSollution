@@ -249,24 +249,26 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {order.fulfillmentType !== "STORE_PICKUP" &&
-            order.fulfillmentType !== "MANUAL_DELIVERY" &&
-            order.status !== "CANCELLED" && (
-              <Link
-                href={`/admin/orders/${order.id}/label`}
-                target="_blank"
-                rel="noopener noreferrer"
+          {order.status !== "CANCELLED" && (
+            <Link
+              href={`/admin/orders/${order.id}/label`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border-blue-300 font-semibold text-xs shadow-xs flex items-center gap-1.5"
               >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border-blue-200 font-semibold text-xs shadow-xs"
-                >
-                  <Printer className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
-                  Print Courier Label
-                </Button>
-              </Link>
-            )}
+                <Printer className="h-3.5 w-3.5 text-blue-600" />
+                {order.fulfillmentType === "STORE_PICKUP"
+                  ? "Print Pickup Docket"
+                  : order.fulfillmentType === "MANUAL_DELIVERY"
+                  ? "Print Delivery Docket"
+                  : "Print Courier Label"}
+              </Button>
+            </Link>
+          )}
           {order.fulfillmentType === "STORE_PICKUP" && (
             <Badge variant="outline" className="bg-amber-50 text-amber-900 border-amber-300 font-semibold text-xs px-3 py-1 flex items-center gap-1.5">
               <Store className="h-3.5 w-3.5 text-amber-600" />
@@ -532,6 +534,67 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               )}
             </CardContent>
           </Card>
+
+          {/* Courier & Dispatch Label Card */}
+          {order.status !== "CANCELLED" && (
+            <Card className="border-blue-200 bg-gradient-to-br from-blue-50/60 to-indigo-50/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center justify-between">
+                  <span className="flex items-center gap-2 text-blue-950 font-semibold">
+                    <Printer className="h-4 w-4 text-blue-600" />
+                    {order.fulfillmentType === "STORE_PICKUP"
+                      ? "Store Pickup Collection Docket"
+                      : order.fulfillmentType === "MANUAL_DELIVERY"
+                      ? "Local Delivery Driver Docket"
+                      : "Courier Shipping Label"}
+                  </span>
+                  <Badge variant="outline" className="bg-white text-blue-700 border-blue-200 text-[11px] font-semibold">
+                    100x150mm &amp; A4
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {order.fulfillmentType === "STORE_PICKUP"
+                    ? "Generate and print the official warehouse collection docket with scannable barcode for order pickup verification."
+                    : order.fulfillmentType === "MANUAL_DELIVERY"
+                    ? "Generate and print the store driver delivery docket with customer address, contact phone, and dispatch notes."
+                    : "Generate and print the transport-standard courier shipping label with scannable Code 128 barcode."}
+                </p>
+                <div className="flex items-center gap-2 pt-1">
+                  <Link
+                    href={`/admin/orders/${order.id}/label`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1"
+                  >
+                    <Button
+                      size="sm"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <Printer className="h-4 w-4" />
+                      Open &amp; Print Label
+                    </Button>
+                  </Link>
+                  <a
+                    href={`/api/admin/orders/${order.id}/shipping-label`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download={`label-${order.id.slice(-8).toUpperCase()}.pdf`}
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="bg-white hover:bg-slate-50 text-slate-700 border-slate-300 text-xs flex items-center gap-1"
+                      title="Download Vector PDF"
+                    >
+                      PDF
+                    </Button>
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Store Pickup Appointment Panel — only relevant for active confirmed orders */}
           {order.fulfillmentType === "STORE_PICKUP" && order.status !== "CANCELLED" && order.status !== "REFUNDED" && (
