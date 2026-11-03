@@ -680,8 +680,8 @@ export async function bookCouriersPleasePickup(input: {
  * GET /v1/domestic/shipment/label?consignmentNumber=...
  */
 export async function getCouriersPleaseLabel(consignmentNumber: string): Promise<string | null> {
-  if (consignmentNumber.startsWith("CPTEST-") || isCouriersPleaseTestMode()) {
-    return createSampleLabelPdf(consignmentNumber);
+  if (consignmentNumber.startsWith("CPTEST-")) {
+    return null;
   }
 
   const authHeader = getAuthHeader();

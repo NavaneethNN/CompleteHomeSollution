@@ -141,6 +141,13 @@ export async function GET(_req: NextRequest, { params }: Context) {
       specialInstructions = `Store Van Delivery. ${order.manualDeliveryNotes || "Bulky delivery. Driver to call customer upon arrival."}`.trim();
     }
 
+    const isCouriersPlease =
+      order.fulfillmentType !== "STORE_PICKUP" &&
+      order.fulfillmentType !== "MANUAL_DELIVERY" &&
+      (!order.carrier || order.carrier.toLowerCase().includes("couriers please"));
+
+    const hasCouriersPleaseBooking = Boolean(order.trackingNumber && isCouriersPlease);
+
     return NextResponse.json({
       orderId: order.id,
       orderNumber,
@@ -150,6 +157,9 @@ export async function GET(_req: NextRequest, { params }: Context) {
       serviceName,
       consignmentCode,
       trackingNumber: order.trackingNumber || consignmentCode,
+      isCouriersPlease,
+      hasCouriersPleaseBooking,
+      couriersPleaseLabelUrl: `/api/admin/orders/${order.id}/couriersplease/label`,
       createdAt: order.createdAt.toISOString(),
       sender,
       recipient,
@@ -182,3 +192,4 @@ export async function GET(_req: NextRequest, { params }: Context) {
     return NextResponse.json({ error: "Failed to load label data" }, { status: 500 });
   }
 }
+

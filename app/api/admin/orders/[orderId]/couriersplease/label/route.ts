@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hasFreshAdminSession } from "@/lib/admin-auth";
-import { getCouriersPleaseLabel, couriersPleaseSenderFromEnv } from "@/lib/couriersplease";
+import {
+  getCouriersPleaseLabel,
+  couriersPleaseSenderFromEnv,
+  createCouriersPleaseShipment,
+} from "@/lib/couriersplease";
 import { generateCourierLabelPdf, type CourierLabelData } from "@/lib/shipping-label-pdf";
 
 type Context = { params: Promise<{ orderId: string }> };
@@ -34,8 +38,59 @@ export async function GET(_req: NextRequest, { params }: Context) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    const consignmentNumber = order.trackingNumber || order.ship123OrderNo;
+    let consignmentNumber = order.trackingNumber || order.ship123OrderNo;
     let pdfBuffer: Buffer | null = null;
+
+    // Auto-create shipment with Couriers Please if order doesn't have a consignment yet
+    if (
+      !consignmentNumber &&
+      order.fulfillmentType !== "STORE_PICKUP" &&
+      order.fulfillmentType !== "MANUAL_DELIVERY" &&
+      order.address
+    ) {
+      try {
+        const recipient = {
+          name: order.address.name,
+          line1: order.address.line1,
+          line2: order.address.line2,
+          suburb: order.address.suburb,
+          state: order.address.state,
+          postcode: order.address.postcode,
+          phone: order.address.phone || order.user?.phone || null,
+          email: order.user?.email || undefined,
+        };
+        const shipmentItems = [
+          {
+            quantity: 1,
+            length: order.packedLength || 30,
+            width: order.packedWidth || 25,
+            height: order.packedHeight || 20,
+            weight: order.packedWeight || 1.0,
+            description: order.packageName ? `Box: ${order.packageName}` : "Packed Order",
+          },
+        ];
+        const cpShipment = await createCouriersPleaseShipment({
+          orderId: order.id,
+          rateCardId: order.shippingServiceCode,
+          recipient,
+          items: shipmentItems,
+          specialInstructions: "Safe drop permitted",
+        });
+        if (cpShipment?.consignmentCode) {
+          consignmentNumber = cpShipment.consignmentCode;
+          await db.order.update({
+            where: { id: order.id },
+            data: {
+              trackingNumber: cpShipment.consignmentCode,
+              carrier: "Couriers Please",
+              status: order.status === "PAID" || order.status === "CONFIRMED" ? "PROCESSING" : order.status,
+            },
+          }).catch(() => null);
+        }
+      } catch (cpErr) {
+        console.warn("[CouriersPlease label auto-create warning]", cpErr);
+      }
+    }
 
     if (consignmentNumber) {
       const base64Label = await getCouriersPleaseLabel(consignmentNumber).catch(() => null);

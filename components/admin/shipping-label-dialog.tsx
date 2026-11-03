@@ -35,6 +35,9 @@ interface LabelDataResponse {
   serviceName: string;
   consignmentCode: string;
   trackingNumber: string;
+  isCouriersPlease?: boolean;
+  hasCouriersPleaseBooking?: boolean;
+  couriersPleaseLabelUrl?: string;
   createdAt: string;
   sender: {
     name: string;
@@ -107,6 +110,7 @@ export function ShippingLabelDialog({
   const [instructions, setInstructions] = useState("Safe drop permitted");
   const [printFormat, setPrintFormat] = useState<"thermal" | "a4">("thermal");
   const [isPrinting, setIsPrinting] = useState(false);
+  const [bookingCouriersPlease, setBookingCouriersPlease] = useState(false);
 
   // Fetch full order label data when modal opens
   const fetchLabelData = useCallback(async () => {
@@ -133,6 +137,32 @@ export function ShippingLabelDialog({
       setLoading(false);
     }
   }, [orderId]);
+
+  const handleBookCouriersPlease = async () => {
+    setBookingCouriersPlease(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/ready-to-ship`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          packedLength: length,
+          packedWidth: width,
+          packedHeight: height,
+          packedWeight: weight,
+          specialInstructions: instructions.slice(0, 15),
+        }),
+      });
+      const resJson = await res.json();
+      if (!res.ok) {
+        throw new Error(resJson.error || "Couriers Please booking failed");
+      }
+      await fetchLabelData();
+    } catch (err: any) {
+      alert(err.message || "Failed to create consignment with Couriers Please");
+    } finally {
+      setBookingCouriersPlease(false);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -179,6 +209,34 @@ export function ShippingLabelDialog({
 
   // Hidden iframe printing ensures 0 page-bleed or UI artifacts
   const handlePrint = () => {
+    if (carrier.includes("Couriers Please") && data?.hasCouriersPleaseBooking) {
+      setIsPrinting(true);
+      const printFrame = document.createElement("iframe");
+      printFrame.style.position = "fixed";
+      printFrame.style.right = "0";
+      printFrame.style.bottom = "0";
+      printFrame.style.width = "0";
+      printFrame.style.height = "0";
+      printFrame.style.border = "0";
+      printFrame.src = `/api/admin/orders/${orderId}/couriersplease/label`;
+      document.body.appendChild(printFrame);
+      printFrame.onload = () => {
+        try {
+          printFrame.contentWindow?.focus();
+          printFrame.contentWindow?.print();
+        } catch {
+          window.open(`/api/admin/orders/${orderId}/couriersplease/label`, "_blank");
+        }
+        setTimeout(() => {
+          if (document.body.contains(printFrame)) {
+            document.body.removeChild(printFrame);
+          }
+          setIsPrinting(false);
+        }, 1500);
+      };
+      return;
+    }
+
     setIsPrinting(true);
     const printFrame = document.createElement("iframe");
     printFrame.style.position = "fixed";
@@ -673,149 +731,195 @@ export function ShippingLabelDialog({
 
             {/* Right: Live Interactive Label Preview */}
             <div className="md:col-span-7 p-6 flex flex-col items-center justify-center bg-slate-100/70 overflow-y-auto max-h-[75vh]">
-              {/* Preview Format Switcher */}
-              <div className="flex items-center gap-2 mb-4 bg-white p-1 rounded-lg border border-slate-200 text-xs shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setPrintFormat("thermal")}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
-                    printFormat === "thermal" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  4" × 6" Thermal Sticker
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPrintFormat("a4")}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all ${
-                    printFormat === "a4" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  A4 Paper Document
-                </button>
-              </div>
-
-              {/* Realistic Thermal Label Card */}
-              <div
-                className={`transition-all ${
-                  printFormat === "a4"
-                    ? "p-6 bg-white border border-slate-300 shadow-md rounded-md"
-                    : "shadow-lg"
-                }`}
-              >
-                <div
-                  className="bg-white text-slate-950 border-2 border-black select-none"
-                  style={{
-                    width: "360px",
-                    minHeight: "520px",
-                    padding: "12px",
-                    fontFamily: "Arial, Helvetica, sans-serif",
-                  }}
-                >
-                  {/* Carrier Header */}
-                  <div className="bg-black text-white p-2.5 flex items-center justify-between">
-                    <div>
-                      <h1 className="text-base font-black tracking-tight leading-none uppercase">
-                        {carrier}
-                      </h1>
-                      <p className="text-[9px] font-bold tracking-wider text-slate-200 mt-1 uppercase">
-                        {serviceName}
-                      </p>
+              {carrier.includes("Couriers Please") && data.hasCouriersPleaseBooking ? (
+                <div className="w-full flex flex-col items-center">
+                  <div className="flex items-center justify-between w-full mb-3 bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-lg text-xs">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span className="font-semibold text-emerald-950">Official Carrier Label generated directly by Couriers Please API</span>
                     </div>
-                    <div className="text-right">
-                      <span className="inline-block bg-white text-black text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider">
-                        PRIORITY
-                      </span>
-                      <p className="text-[8px] text-slate-300 font-mono mt-1">
-                        {formattedDate}
-                      </p>
-                    </div>
+                    <Badge variant="outline" className="bg-white text-emerald-800 border-emerald-300 font-mono text-[11px]">
+                      {data.consignmentCode}
+                    </Badge>
                   </div>
 
-                  {/* Destination Hub */}
-                  <div className="border-b-2 border-black py-2 px-1 flex items-center justify-between bg-slate-50/60">
-                    <div>
-                      <p className="text-[7.5px] font-bold uppercase tracking-wider text-slate-500">Destination Hub</p>
-                      <h2 className="text-lg font-black leading-tight uppercase tracking-tight text-slate-950">
-                        {data.recipient.suburb}
-                      </h2>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-black leading-tight tracking-tight text-slate-950">
-                        {data.recipient.state} {data.recipient.postcode}
-                      </div>
-                      <p className="text-[8px] font-bold font-mono text-slate-600 uppercase">
-                        ZONE: {data.recipient.state}-01
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Consignee */}
-                  <div className="border-b-2 border-black py-2 px-1 space-y-0.5 text-xs">
-                    <div className="flex items-center justify-between text-[7.5px] font-black text-slate-500">
-                      <span>DELIVER TO:</span>
-                      <span>REF #{data.orderNumber}</span>
-                    </div>
-                    <p className="text-xs font-black text-slate-950">{data.recipient.name}</p>
-                    <p className="text-[11px] font-semibold text-slate-900">{data.recipient.line1}</p>
-                    {data.recipient.line2 && <p className="text-[10px] text-slate-700">{data.recipient.line2}</p>}
-                    <p className="text-[11px] font-black text-slate-950 uppercase">
-                      {data.recipient.suburb} {data.recipient.state} {data.recipient.postcode} AU
-                    </p>
-                    {data.recipient.phone && (
-                      <p className="text-[9px] font-mono font-bold text-slate-700 pt-0.5">
-                        TEL: {data.recipient.phone}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Sender */}
-                  <div className="border-b-2 border-black py-1.5 px-1 text-[8.5px] text-slate-700 leading-tight">
-                    <span className="text-[7px] font-black uppercase text-slate-500 block mb-0.5">SENDER (FROM):</span>
-                    <p className="font-bold text-slate-900">{data.sender.name}</p>
-                    <p>{data.sender.line1}, {data.sender.suburb} {data.sender.state} {data.sender.postcode}</p>
-                  </div>
-
-                  {/* Parcel Specs */}
-                  <div className="border-b-2 border-black py-1.5 px-1 text-[8.5px]">
-                    <div className="flex justify-between font-medium">
-                      <span>Box: <strong>{packageName}</strong></span>
-                      <span className="font-mono">{length}×{width}×{height} cm</span>
-                    </div>
-                    <div className="grid grid-cols-3 gap-1 pt-1 mt-1 border-t border-slate-200 font-mono text-[8px]">
-                      <div>Dead: <strong>{weight.toFixed(2)} kg</strong></div>
-                      <div>Cubic: <strong>{cubicWeight.toFixed(2)} kg</strong></div>
-                      <div className="text-right">Items: <strong>{data.parcel.itemCount}</strong></div>
-                    </div>
-                  </div>
-
-                  {/* Instructions */}
-                  <div className="border-b-2 border-black py-1.5 px-1 bg-slate-50/80 text-[8.5px]">
-                    <div className="flex justify-between font-black text-[7.5px]">
-                      <span>AUTHORITY TO LEAVE: YES</span>
-                      <span className="text-emerald-700">SAFE DROP</span>
-                    </div>
-                    <p className="text-[9px] text-slate-800 mt-0.5 font-medium">{instructions}</p>
-                  </div>
-
-                  {/* Barcode Section */}
-                  <div className="pt-2.5 pb-1 flex flex-col items-center justify-center">
-                    <div
-                      className="w-full flex items-center justify-center"
-                      dangerouslySetInnerHTML={{ __html: barcodeSvg }}
+                  <div className="w-full h-[530px] rounded-lg border-2 border-slate-300 overflow-hidden shadow-md bg-white">
+                    <iframe
+                      src={`/api/admin/orders/${orderId}/couriersplease/label`}
+                      className="w-full h-full border-0"
+                      title="Official Couriers Please Carrier Label"
                     />
-                    <p className="text-[9px] font-mono font-black text-slate-950 tracking-wider text-center mt-1">
-                      CONSIGNMENT: {consignmentCode}
-                    </p>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="pt-1 border-t border-slate-300 flex justify-between text-[7px] font-mono text-slate-500">
-                    <span>COMPLETE HOME SOLLUTION DISPATCH</span>
-                    <span>100x150MM VECTOR CODE 128</span>
                   </div>
                 </div>
-              </div>
+              ) : carrier.includes("Couriers Please") && !data.hasCouriersPleaseBooking ? (
+                <div className="w-full max-w-md p-8 text-center bg-white border border-blue-200 rounded-xl shadow-xs space-y-4">
+                  <div className="h-12 w-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mx-auto">
+                    <Truck className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-slate-900 text-base">Generate Official Couriers Please Label</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      This order will be registered directly with the <strong>Couriers Please Carrier API</strong> with confirmed dimensions ({length}×{width}×{height} cm, {weight} kg).
+                      Couriers Please will generate its authentic carrier routing label with live tracking barcode.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleBookCouriersPlease}
+                    disabled={bookingCouriersPlease}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-9 px-4 gap-2 shadow-sm"
+                  >
+                    {bookingCouriersPlease ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+                    {bookingCouriersPlease ? "Contacting Couriers Please…" : "Generate Official Label with Couriers Please"}
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* Preview Format Switcher */}
+                  <div className="flex items-center gap-2 mb-4 bg-white p-1 rounded-lg border border-slate-200 text-xs shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => setPrintFormat("thermal")}
+                      className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                        printFormat === "thermal" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      4" × 6" Thermal Sticker
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPrintFormat("a4")}
+                      className={`px-3 py-1 rounded-md font-semibold transition-all ${
+                        printFormat === "a4" ? "bg-blue-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      A4 Paper Document
+                    </button>
+                  </div>
+
+                  {/* Realistic Thermal Label Card */}
+                  <div
+                    className={`transition-all ${
+                      printFormat === "a4"
+                        ? "p-6 bg-white border border-slate-300 shadow-md rounded-md"
+                        : "shadow-lg"
+                    }`}
+                  >
+                    <div
+                      className="bg-white text-slate-950 border-2 border-black select-none"
+                      style={{
+                        width: "360px",
+                        minHeight: "520px",
+                        padding: "12px",
+                        fontFamily: "Arial, Helvetica, sans-serif",
+                      }}
+                    >
+                      {/* Carrier Header */}
+                      <div className="bg-black text-white p-2.5 flex items-center justify-between">
+                        <div>
+                          <h1 className="text-base font-black tracking-tight leading-none uppercase">
+                            {carrier}
+                          </h1>
+                          <p className="text-[9px] font-bold tracking-wider text-slate-200 mt-1 uppercase">
+                            {serviceName}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="inline-block bg-white text-black text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider">
+                            PRIORITY
+                          </span>
+                          <p className="text-[8px] text-slate-300 font-mono mt-1">
+                            {formattedDate}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Destination Hub */}
+                      <div className="border-b-2 border-black py-2 px-1 flex items-center justify-between bg-slate-50/60">
+                        <div>
+                          <p className="text-[7.5px] font-bold uppercase tracking-wider text-slate-500">Destination Hub</p>
+                          <h2 className="text-lg font-black leading-tight uppercase tracking-tight text-slate-950">
+                            {data.recipient.suburb}
+                          </h2>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-black leading-tight tracking-tight text-slate-950">
+                            {data.recipient.state} {data.recipient.postcode}
+                          </div>
+                          <p className="text-[8px] font-bold font-mono text-slate-600 uppercase">
+                            ZONE: {data.recipient.state}-01
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Consignee */}
+                      <div className="border-b-2 border-black py-2 px-1 space-y-0.5 text-xs">
+                        <div className="flex items-center justify-between text-[7.5px] font-black text-slate-500">
+                          <span>DELIVER TO:</span>
+                          <span>REF #{data.orderNumber}</span>
+                        </div>
+                        <p className="text-xs font-black text-slate-950">{data.recipient.name}</p>
+                        <p className="text-[11px] font-semibold text-slate-900">{data.recipient.line1}</p>
+                        {data.recipient.line2 && <p className="text-[10px] text-slate-700">{data.recipient.line2}</p>}
+                        <p className="text-[11px] font-black text-slate-950 uppercase">
+                          {data.recipient.suburb} {data.recipient.state} {data.recipient.postcode} AU
+                        </p>
+                        {data.recipient.phone && (
+                          <p className="text-[9px] font-mono font-bold text-slate-700 pt-0.5">
+                            TEL: {data.recipient.phone}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Sender */}
+                      <div className="border-b-2 border-black py-1.5 px-1 text-[8.5px] text-slate-700 leading-tight">
+                        <span className="text-[7px] font-black uppercase text-slate-500 block mb-0.5">SENDER (FROM):</span>
+                        <p className="font-bold text-slate-900">{data.sender.name}</p>
+                        <p>{data.sender.line1}, {data.sender.suburb} {data.sender.state} {data.sender.postcode}</p>
+                      </div>
+
+                      {/* Parcel Specs */}
+                      <div className="border-b-2 border-black py-1.5 px-1 text-[8.5px]">
+                        <div className="flex justify-between font-medium">
+                          <span>Box: <strong>{packageName}</strong></span>
+                          <span className="font-mono">{length}×{width}×{height} cm</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 pt-1 mt-1 border-t border-slate-200 font-mono text-[8px]">
+                          <div>Dead: <strong>{weight.toFixed(2)} kg</strong></div>
+                          <div>Cubic: <strong>{cubicWeight.toFixed(2)} kg</strong></div>
+                          <div className="text-right">Items: <strong>{data.parcel.itemCount}</strong></div>
+                        </div>
+                      </div>
+
+                      {/* Instructions */}
+                      <div className="border-b-2 border-black py-1.5 px-1 bg-slate-50/80 text-[8.5px]">
+                        <div className="flex justify-between font-black text-[7.5px]">
+                          <span>AUTHORITY TO LEAVE: YES</span>
+                          <span className="text-emerald-700">SAFE DROP</span>
+                        </div>
+                        <p className="text-[9px] text-slate-800 mt-0.5 font-medium">{instructions}</p>
+                      </div>
+
+                      {/* Barcode Section */}
+                      <div className="pt-2.5 pb-1 flex flex-col items-center justify-center">
+                        <div
+                          className="w-full flex items-center justify-center"
+                          dangerouslySetInnerHTML={{ __html: barcodeSvg }}
+                        />
+                        <p className="text-[9px] font-mono font-black text-slate-950 tracking-wider text-center mt-1">
+                          CONSIGNMENT: {consignmentCode}
+                        </p>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="pt-1 border-t border-slate-300 flex justify-between text-[7px] font-mono text-slate-500">
+                        <span>COMPLETE HOME SOLLUTION DISPATCH</span>
+                        <span>100x150MM VECTOR CODE 128</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : null}
@@ -824,7 +928,11 @@ export function ShippingLabelDialog({
         <div className="bg-white px-6 py-3.5 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            <span>Barcode &amp; dimensions synchronized with dispatch rules.</span>
+            <span>
+              {carrier.includes("Couriers Please")
+                ? "Couriers Please official domestic carrier network."
+                : "Barcode & dimensions synchronized with dispatch rules."}
+            </span>
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -839,7 +947,11 @@ export function ShippingLabelDialog({
             </Button>
 
             <a
-              href={`/api/admin/orders/${orderId}/shipping-label`}
+              href={
+                carrier.includes("Couriers Please")
+                  ? `/api/admin/orders/${orderId}/couriersplease/label`
+                  : `/api/admin/orders/${orderId}/shipping-label`
+              }
               target="_blank"
               rel="noopener noreferrer"
               download={`label-${data?.orderNumber || "ORDER"}.pdf`}
@@ -855,7 +967,15 @@ export function ShippingLabelDialog({
               </Button>
             </a>
 
-            <Link href={`/admin/orders/${orderId}/label`} target="_blank" rel="noopener noreferrer">
+            <Link
+              href={
+                carrier.includes("Couriers Please") && data?.hasCouriersPleaseBooking
+                  ? `/api/admin/orders/${orderId}/couriersplease/label`
+                  : `/admin/orders/${orderId}/label`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <Button
                 type="button"
                 variant="outline"
