@@ -28,6 +28,7 @@ import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { ReadyToShipPanel } from "@/components/admin/ready-to-ship-panel";
 import { OrderPickupAppointmentPanel } from "@/components/admin/order-pickup-appointment-panel";
 import { OrderPackagingPanel } from "@/components/admin/order-packaging-panel";
+import { OrderLabelButton } from "@/components/admin/order-label-button";
 import { selectPackagingPreset } from "@/lib/packaging";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -250,24 +251,13 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {order.status !== "CANCELLED" && (
-            <Link
-              href={`/admin/orders/${order.id}/label`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border-blue-300 font-semibold text-xs shadow-xs flex items-center gap-1.5"
-              >
-                <Printer className="h-3.5 w-3.5 text-blue-600" />
-                {order.fulfillmentType === "STORE_PICKUP"
-                  ? "Print Pickup Docket"
-                  : order.fulfillmentType === "MANUAL_DELIVERY"
-                  ? "Print Delivery Docket"
-                  : "Print Courier Label"}
-              </Button>
-            </Link>
+            <OrderLabelButton
+              orderId={order.id}
+              orderNumber={order.id.slice(-8).toUpperCase()}
+              fulfillmentType={order.fulfillmentType}
+              status={order.status}
+              className="bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border-blue-300 font-semibold text-xs shadow-xs flex items-center gap-1.5"
+            />
           )}
           {order.fulfillmentType === "STORE_PICKUP" && (
             <Badge variant="outline" className="bg-amber-50 text-amber-900 border-amber-300 font-semibold text-xs px-3 py-1 flex items-center gap-1.5">
@@ -562,20 +552,14 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                     : "Generate and print the transport-standard courier shipping label with scannable Code 128 barcode."}
                 </p>
                 <div className="flex items-center gap-2 pt-1">
-                  <Link
-                    href={`/admin/orders/${order.id}/label`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1"
-                  >
-                    <Button
-                      size="sm"
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs"
-                    >
-                      <Printer className="h-4 w-4" />
-                      Open &amp; Print Label
-                    </Button>
-                  </Link>
+                  <OrderLabelButton
+                    orderId={order.id}
+                    orderNumber={order.id.slice(-8).toUpperCase()}
+                    fulfillmentType={order.fulfillmentType}
+                    status={order.status}
+                    label="Open & Print Label"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs flex items-center justify-center gap-1.5 shadow-xs h-9"
+                  />
                   <a
                     href={`/api/admin/orders/${order.id}/shipping-label`}
                     target="_blank"
