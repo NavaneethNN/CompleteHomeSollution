@@ -42,13 +42,13 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-flex flex-col items-start mb-5 gap-2" aria-label="Complete Home Sollution — Home">
-              <div className="bg-white rounded-xl px-3.5 py-2 shadow-xs">
+              <div className="bg-white rounded-xl p-2.5 shadow-xs inline-flex items-center justify-center">
                 <Image
                   src="/chs-logo.png"
                   alt="Complete Home Sollution"
-                  width={430}
-                  height={131}
-                  className="h-16 w-auto object-contain"
+                  width={200}
+                  height={148}
+                  className="h-12 sm:h-14 w-auto object-contain"
                   style={{ width: "auto" }}
                 />
               </div>

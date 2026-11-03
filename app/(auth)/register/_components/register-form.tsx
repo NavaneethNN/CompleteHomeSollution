@@ -272,13 +272,13 @@ export default function RegisterForm() {
         <div className="relative z-10 flex flex-col justify-between h-full px-10 py-12 xl:px-14 xl:py-14">
 
           {/* Logo */}
-          <Link href="/" aria-label="Complete Home Sollution — Home">
+          <Link href="/" aria-label="Complete Home Sollution — Home" className="inline-block py-1">
             <Image
               src="/chs-logo.png"
               alt="Complete Home Sollution"
-              width={180}
-              height={55}
-              className="h-14 w-auto object-contain brightness-0 invert"
+              width={200}
+              height={148}
+              className="h-12 xl:h-14 w-auto object-contain brightness-0 invert"
               style={{ width: "auto" }}
             />
           </Link>
@@ -336,13 +336,13 @@ export default function RegisterForm() {
 
         {/* Mobile logo */}
         <div className="lg:hidden mb-8 flex justify-center">
-          <Link href="/" aria-label="Complete Home Sollution — Home">
+          <Link href="/" aria-label="Complete Home Sollution — Home" className="inline-block py-1">
             <Image
               src="/chs-logo.png"
               alt="Complete Home Sollution"
-              width={160}
-              height={49}
-              className="h-12 w-auto object-contain"
+              width={200}
+              height={148}
+              className="h-11 sm:h-12 w-auto object-contain"
               style={{ width: "auto" }}
             />
           </Link>

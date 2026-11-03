@@ -238,14 +238,14 @@ export function Navbar() {
       >
         <div className="flex items-center h-[72px] lg:h-[68px] px-4 md:px-5 gap-4 xl:gap-8 overflow-visible lg:max-w-screen-xl lg:mx-auto lg:px-6 xl:px-10">
 
-            {/* ── Logo (no frame, no text) ─────────────────── */}
-            <Link href="/" className="shrink-0 flex items-center" aria-label="Complete Home Sollution – Home">
+            {/* ── Logo ─────────────────── */}
+            <Link href="/" className="shrink-0 flex items-center py-1" aria-label="Complete Home Sollution – Home">
               <Image
                 src="/chs-logo.png"
                 alt="Complete Home Sollution"
-                width={430}
-                height={131}
-                className="h-14 lg:h-[100px] xl:h-[131px] w-auto object-contain"
+                width={200}
+                height={148}
+                className="h-11 sm:h-12 lg:h-[50px] xl:h-[54px] w-auto object-contain"
                 style={{ width: "auto" }}
                 priority
               />
@@ -615,13 +615,13 @@ export function Navbar() {
       >
         {/* Drawer header */}
         <div className="flex items-center justify-between h-[72px] px-4 border-b border-border shrink-0">
-          <Link href="/" onClick={() => setMobileOpen(false)} aria-label="Home">
+          <Link href="/" onClick={() => setMobileOpen(false)} aria-label="Home" className="flex items-center py-1">
             <Image
               src="/chs-logo.png"
               alt="Complete Home Sollution"
-              width={180}
-              height={55}
-              className="h-10 w-auto object-contain"
+              width={200}
+              height={148}
+              className="h-11 sm:h-12 w-auto object-contain"
               style={{ width: "auto" }}
             />
           </Link>
