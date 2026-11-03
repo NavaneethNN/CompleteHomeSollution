@@ -199,7 +199,7 @@ export function OrderStatusUpdate({
             </Select>
           </div>
 
-          {isStorePickup && (
+          {isStorePickup && selectedStatus !== "CANCELLED" && currentStatus !== "CANCELLED" && (
             <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
               <Store className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
               <div>

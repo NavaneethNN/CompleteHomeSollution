@@ -137,6 +137,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
   const [order, packagingPresets] = await Promise.all([
     getOrder(id),
     db.packagingPreset.findMany({
+      where: { isActive: true },
       orderBy: [{ priority: "desc" }, { maxWeight: "asc" }, { name: "asc" }],
     }),
   ]);
@@ -491,11 +492,18 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             <CardContent>
               {order.fulfillmentType === "STORE_PICKUP" ? (
                 <div className="space-y-3 text-sm">
-                  <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
-                    <p className="font-semibold text-amber-950">Complete Home Sollution Showroom</p>
-                    <p className="text-amber-800 text-xs mt-0.5">18 Edison Drive, Golden Grove SA 5125</p>
-                    <p className="text-amber-700 text-xs mt-1">Phone: +61 401 682 910</p>
-                  </div>
+                  {order.status === "CANCELLED" ? (
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-600 text-xs">
+                      <p className="font-semibold text-slate-700">Complete Home Sollution Showroom (Pickup Cancelled)</p>
+                      <p className="text-slate-500 mt-0.5">18 Edison Drive, Golden Grove SA 5125</p>
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <p className="font-semibold text-amber-950">Complete Home Sollution Showroom</p>
+                      <p className="text-amber-800 text-xs mt-0.5">18 Edison Drive, Golden Grove SA 5125</p>
+                      <p className="text-amber-700 text-xs mt-1">Phone: +61 401 682 910</p>
+                    </div>
+                  )}
                   {order.address && (
                     <div className="pt-2 text-xs text-slate-500 border-t border-slate-100">
                       <p className="font-medium text-slate-700">Customer Address:</p>

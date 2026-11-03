@@ -60,14 +60,17 @@ export function OrderPackagingPanel({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   // Current display state
-  const [packagePresetId, setPackagePresetId] = useState<string | null>(initialPackagePresetId || null);
+  const fallbackPreset = availablePresets.length > 0 ? availablePresets[0] : null;
+  const [packagePresetId, setPackagePresetId] = useState<string | null>(initialPackagePresetId || fallbackPreset?.id || null);
   const [packageName, setPackageName] = useState(
-    initialPackageName || (availablePresets.length > 0 ? "Standard Package" : "Direct Product Dimensions (No Box Configured)")
+    initialPackageName || fallbackPreset?.name || "Direct Product Dimensions (No Box Configured)"
   );
-  const [packedLength, setPackedLength] = useState<number>(initialPackedLength || 30);
-  const [packedWidth, setPackedWidth] = useState<number>(initialPackedWidth || 25);
-  const [packedHeight, setPackedHeight] = useState<number>(initialPackedHeight || 20);
-  const [packedWeight, setPackedWeight] = useState<number>(initialPackedWeight || Math.max(0.5, calculatedProductWeight + 0.2));
+  const [packedLength, setPackedLength] = useState<number>(initialPackedLength || fallbackPreset?.length || 30);
+  const [packedWidth, setPackedWidth] = useState<number>(initialPackedWidth || fallbackPreset?.width || 25);
+  const [packedHeight, setPackedHeight] = useState<number>(initialPackedHeight || fallbackPreset?.height || 20);
+  const [packedWeight, setPackedWeight] = useState<number>(
+    initialPackedWeight || Math.max(0.5, calculatedProductWeight + (fallbackPreset?.emptyWeight ?? 0.2))
+  );
   const [packageOverride, setPackageOverride] = useState<boolean>(initialPackageOverride || false);
 
   useEffect(() => {
