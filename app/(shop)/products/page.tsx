@@ -5,7 +5,6 @@ import { auth } from "@/auth";
 import { ProductsClient } from "@/components/shop/products-client";
 import { PromoBannerCarousel } from "@/components/shop/promo-banner-carousel";
 import { getActivePromotions } from "@/lib/actions/promotions";
-import { hasActiveMembership } from "@/lib/membership";
 import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
 export const metadata: Metadata = {
@@ -86,25 +85,12 @@ async function getCategories() {
   }
 }
 
-async function getMemberStatus(userId?: string) {
-  if (!userId) return false;
-  try {
-    const membership = await db.user.findUnique({
-      where: { id: userId },
-      select: { isMember: true, membershipExpiry: true },
-    });
-    return hasActiveMembership(membership);
-  } catch {
-    return false;
-  }
-}
-
 export default async function ProductsPage() {
   const session = await auth();
-  const [products, categories, isMember, promotions] = await Promise.all([
+  const isMember = Boolean(session?.user?.isMember);
+  const [products, categories, promotions] = await Promise.all([
     getProducts(),
     getCategories(),
-    getMemberStatus(session?.user?.id),
     getActivePromotions(),
   ]);
 

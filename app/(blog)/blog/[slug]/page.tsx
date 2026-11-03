@@ -24,7 +24,6 @@ import {
 import BlogRelatedPosts from "@/components/blog/blog-related-posts";
 import BlogSocialShare from "@/components/blog/blog-social-share";
 import BlogLikeButton from "@/components/blog/blog-like-button";
-import { hasActiveMembership } from "@/lib/membership";
 import { publishedBlogWhere } from "@/lib/blog-publication";
 import { sanitizeBlogHtml } from "@/lib/sanitize-blog-html";
 
@@ -214,13 +213,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const session = await auth();
-  const membership = session?.user?.id
-    ? await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { isMember: true, membershipExpiry: true },
-      })
-    : null;
-  const isMember = hasActiveMembership(membership);
+  const isMember = Boolean(session?.user?.isMember);
   const { slug } = await params;
 
   const post = await getBlogPost(slug, session?.user?.id);

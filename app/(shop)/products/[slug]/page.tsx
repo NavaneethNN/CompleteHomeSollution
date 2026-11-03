@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { hasActiveMembership } from "@/lib/membership";
 import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
@@ -136,13 +135,7 @@ export default async function ProductDetailPage({
     return notFound();
   }
 
-  // Check if user is a member
-  const isMember = session?.user?.id 
-    ? await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { isMember: true, membershipExpiry: true },
-      }).then(hasActiveMembership)
-    : false;
+  const isMember = Boolean(session?.user?.isMember);
 
   // Match requested variant if query param is provided
   const requestedVariant = requestedVariantId && product.hasVariants

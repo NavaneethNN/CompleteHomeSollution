@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
 export const metadata: Metadata = { title: "Categories — Complete Home Sollution" };
 export const dynamic = "force-dynamic";
@@ -9,10 +10,16 @@ export const dynamic = "force-dynamic";
 export default async function CategoriesPage() {
   let categories: Array<{ id: string; name: string; slug: string; image: string | null; _count?: { products: number } }>;
   try {
-    categories = await db.category.findMany({
-      include: { _count: { select: { products: { where: { isActive: true } } } } },
-      orderBy: { name: "asc" },
-    });
+    categories = await cacheFetch(
+      CACHE_KEYS.categories,
+      CACHE_TTL.categories,
+      async () => {
+        return db.category.findMany({
+          include: { _count: { select: { products: { where: { isActive: true } } } } },
+          orderBy: { name: "asc" },
+        });
+      }
+    );
   } catch (error) {
     console.error("[categories] Unable to load catalog", error);
     throw new Error("The catalog is temporarily unavailable.");

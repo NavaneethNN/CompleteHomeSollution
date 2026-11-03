@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@/auth";
-import { hasActiveMembership } from "@/lib/membership";
 import { db } from "@/lib/db";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,13 +78,7 @@ interface BlogPageProps {
 
 export default async function BlogPage({ searchParams }: BlogPageProps) {
   const session = await auth();
-  const membership = session?.user?.id
-    ? await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { isMember: true, membershipExpiry: true },
-      })
-    : null;
-  const isMember = hasActiveMembership(membership);
+  const isMember = Boolean(session?.user?.isMember);
   const { search, category } = await searchParams;
 
   const [posts, categories] = await Promise.all([

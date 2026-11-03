@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { hasActiveMembership } from "@/lib/membership";
 import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 import { CategorySlider } from "@/components/shop/category-slider";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
@@ -137,21 +136,6 @@ async function getTrendingProducts() {
   }
 }
 
-async function getMemberStatus(userId?: string) {
-  if (!userId) return false;
-
-  try {
-    const membership = await db.user.findUnique({
-      where: { id: userId },
-      select: { isMember: true, membershipExpiry: true },
-    });
-    return hasActiveMembership(membership);
-  } catch {
-    // Public storefront pages remain available when the database is offline.
-    return false;
-  }
-}
-
 interface SectionHeadingProps { readonly tag: string; readonly title: string; }
 function SectionHeading({ tag, title }: SectionHeadingProps) {
   return (
@@ -164,10 +148,10 @@ function SectionHeading({ tag, title }: SectionHeadingProps) {
 
 export default async function HomePage() {
   const session = await auth();
-  const [trendingProducts, categories, isMember, promotions] = await Promise.all([
+  const isMember = Boolean(session?.user?.isMember);
+  const [trendingProducts, categories, promotions] = await Promise.all([
     getTrendingProducts(),
     getCategories(),
-    getMemberStatus(session?.user?.id),
     getActivePromotions(),
   ]);
 

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { hasActiveMembership } from "@/lib/membership";
 import { CategoryProductsClient } from "@/components/shop/category-products-client";
 import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
 
@@ -97,18 +96,7 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   if (!data) notFound();
 
   const { category, products } = data;
-  let isMember = false;
-  if (session?.user?.id) {
-    try {
-      const membership = await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { isMember: true, membershipExpiry: true },
-      });
-      isMember = hasActiveMembership(membership);
-    } catch {
-      // The category data already has a storefront fallback.
-    }
-  }
+  const isMember = Boolean(session?.user?.isMember);
 
   return (
     <main className="min-h-screen bg-background">
