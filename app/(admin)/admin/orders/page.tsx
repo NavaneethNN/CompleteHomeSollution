@@ -69,14 +69,21 @@ const ORDERS_PER_PAGE = 20;
 async function getOrders({ page = 1, status, search }: { page: number; status?: string; search?: string }) {
   const skip = (page - 1) * ORDERS_PER_PAGE;
 
-  // Pending orders are payment attempts awaiting provider confirmation. Keep
-  // them out of the fulfilment queue unless an admin explicitly opens the
-  // pending-payments view.
-  const where: Prisma.OrderWhereInput = {
-    status: { not: "PENDING" },
-  };
-  if (status && Object.hasOwn(ORDER_STATUS_CONFIG, status)) {
+  // By default (or "ALL"), show regular confirmed/successful orders.
+  // PENDING orders (payment attempts) and CANCELLED orders are separated out so they
+  // do not clutter the active fulfillment queue.
+  // CANCELLED orders are only shown when the "CANCELLED" filter is explicitly selected.
+  const where: Prisma.OrderWhereInput = {};
+
+  if (status === "PENDING") {
+    where.status = "PENDING";
+  } else if (status === "CANCELLED") {
+    where.status = "CANCELLED";
+  } else if (status && status !== "ALL" && Object.hasOwn(ORDER_STATUS_CONFIG, status)) {
     where.status = status as OrderStatus;
+  } else {
+    // Default or "ALL": Only show regular successful orders
+    where.status = { notIn: ["PENDING", "CANCELLED"] };
   }
 
   if (search) {
@@ -158,8 +165,10 @@ async function getOrderStats() {
   );
 
   const pendingOrders = countByStatus["PENDING"] ?? 0;
+  const cancelledOrders = countByStatus["CANCELLED"] ?? 0;
+  // totalOrders in "ALL" represents active/successful regular orders (excluding pending and cancelled)
   const totalOrders = statusGroups.reduce(
-    (acc, g) => acc + (g.status === "PENDING" ? 0 : g._count._all),
+    (acc, g) => acc + (g.status === "PENDING" || g.status === "CANCELLED" ? 0 : g._count._all),
     0
   );
 
@@ -170,6 +179,7 @@ async function getOrderStats() {
   return {
     totalOrders,
     pendingOrders,
+    cancelledOrders,
     paidOrders,
     processingOrders,
     todayOrders: todayStats._count._all,
@@ -228,8 +238,20 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{viewingPendingOrders ? "Pending Payments" : "Orders"}</h1>
-          <p className="text-sm text-slate-500">{viewingPendingOrders ? "Orders awaiting payment confirmation" : "Manage and track confirmed customer orders"}</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {viewingPendingOrders
+              ? "Pending Payments"
+              : status === "CANCELLED"
+              ? "Cancelled Orders"
+              : "Orders"}
+          </h1>
+          <p className="text-sm text-slate-500">
+            {viewingPendingOrders
+              ? "Orders awaiting payment confirmation"
+              : status === "CANCELLED"
+              ? "Archived and cancelled orders"
+              : "Manage and track confirmed customer orders"}
+          </p>
         </div>
         {viewingPendingOrders ? (
           <Button asChild variant="outline" size="sm" className="shrink-0">
@@ -295,19 +317,26 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
               <Filter className="h-4 w-4 text-slate-400 shrink-0" />
               <span className="text-sm text-slate-500 shrink-0">Status:</span>
               <div className="flex gap-1 flex-wrap">
-                {statusOptions.map((s) => (
-                  <Link
-                    key={s}
-                    href={`/admin/orders?page=1&status=${s}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
-                    className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
-                      (status || "ALL") === s
-                        ? "bg-slate-900 text-white"
-                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}
-                  >
-                    {s}
-                  </Link>
-                ))}
+                {statusOptions.map((s) => {
+                  const label = s === "CANCELLED" && stats.cancelledOrders > 0
+                    ? `CANCELLED (${stats.cancelledOrders})`
+                    : s;
+                  return (
+                    <Link
+                      key={s}
+                      href={`/admin/orders?page=1&status=${s}${search ? `&search=${encodeURIComponent(search)}` : ""}`}
+                      className={`px-2 sm:px-3 py-1 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
+                        (status || "ALL") === s
+                          ? "bg-slate-900 text-white"
+                          : s === "CANCELLED"
+                          ? "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
               </div>
             </div>
             
@@ -326,7 +355,11 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
       <Card className="w-full">
         <CardHeader className="pb-4">
           <CardTitle className="text-base">
-            {viewingPendingOrders ? "Pending payments" : "Orders"} ({totalCount.toLocaleString()})
+            {viewingPendingOrders
+              ? "Pending payments"
+              : status === "CANCELLED"
+              ? "Cancelled orders"
+              : "Orders"} ({totalCount.toLocaleString()})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 w-full">

@@ -27,6 +27,7 @@ import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { ReadyToShipPanel } from "@/components/admin/ready-to-ship-panel";
 import { OrderPickupAppointmentPanel } from "@/components/admin/order-pickup-appointment-panel";
 import { OrderPackagingPanel } from "@/components/admin/order-packaging-panel";
+import { selectPackagingPreset } from "@/lib/packaging";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -147,6 +148,57 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
     return sum + w * item.quantity;
   }, 0);
 
+  // ── Packaging Box Specifications Resolution ─────────────────────────────
+  // Ensure the database, OrderPackagingPanel, and ReadyToShipPanel always use the exact same specs
+  let effectivePackagePresetId = order.packagePresetId;
+  let effectivePackageName = order.packageName;
+  let effectivePackedLength = order.packedLength;
+  let effectivePackedWidth = order.packedWidth;
+  let effectivePackedHeight = order.packedHeight;
+  let effectivePackedWeight = order.packedWeight;
+  let effectivePackageOverride = order.packageOverride ?? false;
+
+  if (
+    order.fulfillmentType !== "STORE_PICKUP" &&
+    order.fulfillmentType !== "MANUAL_DELIVERY" &&
+    order.items.length > 0 &&
+    (!effectivePackedLength || !effectivePackedWeight || !effectivePackageName)
+  ) {
+    const packagingItems = order.items.map((it) => ({
+      quantity: it.quantity,
+      weight: (it as any).productVariant?.weight ?? (it as any).product?.weight ?? 0.5,
+      length: (it as any).productVariant?.length ?? (it as any).product?.length ?? 20,
+      width: (it as any).productVariant?.width ?? (it as any).product?.width ?? 15,
+      height: (it as any).productVariant?.height ?? (it as any).product?.height ?? 10,
+      name: (it as any).product?.name,
+    }));
+
+    const calculated = await selectPackagingPreset(packagingItems, packagingPresets as any).catch(() => null);
+    if (calculated) {
+      effectivePackagePresetId = calculated.presetId ?? null;
+      effectivePackageName = calculated.packageName;
+      effectivePackedLength = calculated.length;
+      effectivePackedWidth = calculated.width;
+      effectivePackedHeight = calculated.height;
+      effectivePackedWeight = calculated.packedWeight;
+      effectivePackageOverride = false;
+
+      // Auto-persist to DB so Couriers Please API, Packaging Panel, and database are 100% synchronized
+      await db.order.update({
+        where: { id: order.id },
+        data: {
+          packagePresetId: effectivePackagePresetId,
+          packageName: effectivePackageName,
+          packedLength: effectivePackedLength,
+          packedWidth: effectivePackedWidth,
+          packedHeight: effectivePackedHeight,
+          packedWeight: effectivePackedWeight,
+          packageOverride: false,
+        },
+      }).catch((err) => console.error("[admin order] Auto-persist packaging failed:", err));
+    }
+  }
+
   const StatusConfig = ORDER_STATUS_CONFIG[order.status] || ORDER_STATUS_CONFIG.PAID;
   const StatusIcon = StatusConfig.icon;
 
@@ -226,6 +278,18 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </Badge>
         </div>
       </div>
+
+      {order.status === "CANCELLED" && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 text-rose-950 shadow-xs flex items-start gap-3">
+          <XCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-sm text-rose-950">Cancelled Order</p>
+            <p className="text-xs text-rose-800 leading-relaxed">
+              This order has been cancelled. Inventory reservations have been released back to stock. Packaging, dispatch, and appointment scheduling are deactivated.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column - Order Items, Packaging & Destination */}
@@ -351,13 +415,13 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             order.status !== "REFUNDED" && (
             <OrderPackagingPanel
               orderId={order.id}
-              initialPackagePresetId={order.packagePresetId}
-              initialPackageName={order.packageName}
-              initialPackedLength={order.packedLength}
-              initialPackedWidth={order.packedWidth}
-              initialPackedHeight={order.packedHeight}
-              initialPackedWeight={order.packedWeight}
-              initialPackageOverride={order.packageOverride}
+              initialPackagePresetId={effectivePackagePresetId}
+              initialPackageName={effectivePackageName}
+              initialPackedLength={effectivePackedLength}
+              initialPackedWidth={effectivePackedWidth}
+              initialPackedHeight={effectivePackedHeight}
+              initialPackedWeight={effectivePackedWeight}
+              initialPackageOverride={effectivePackageOverride}
               calculatedProductWeight={netProductWeight}
               availablePresets={packagingPresets}
             />
@@ -450,8 +514,8 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             </CardContent>
           </Card>
 
-          {/* Store Pickup Appointment Panel */}
-          {order.fulfillmentType === "STORE_PICKUP" && (
+          {/* Store Pickup Appointment Panel — only relevant for active confirmed orders */}
+          {order.fulfillmentType === "STORE_PICKUP" && order.status !== "CANCELLED" && order.status !== "REFUNDED" && (
             <OrderPickupAppointmentPanel
               orderId={order.id}
               customerName={order.user?.name || order.address?.name || "Customer"}
@@ -464,8 +528,8 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             />
           )}
 
-          {/* Manual Delivery Information Panel */}
-          {order.fulfillmentType === "MANUAL_DELIVERY" && (
+          {/* Manual Delivery Information Panel — only relevant for active confirmed orders */}
+          {order.fulfillmentType === "MANUAL_DELIVERY" && order.status !== "CANCELLED" && order.status !== "REFUNDED" && (
             <Card className="border-blue-200 bg-blue-50/40">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2 text-blue-900">
@@ -598,6 +662,14 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               currentStatus={order.status}
               currentTrackingNumber={order.trackingNumber}
               currentCarrier={order.carrier}
+              initialPackaging={{
+                packageName: effectivePackageName,
+                packedLength: effectivePackedLength,
+                packedWidth: effectivePackedWidth,
+                packedHeight: effectivePackedHeight,
+                packedWeight: effectivePackedWeight,
+                packageOverride: effectivePackageOverride,
+              }}
             />
           )}
 
@@ -627,6 +699,16 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                   </div>
                 </div>
                 
+                {order.status === "CANCELLED" && (
+                  <div className="flex gap-3">
+                    <div className="w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                    <div>
+                      <p className="font-medium text-slate-900">Order Cancelled</p>
+                      <p className="text-slate-500">Order voided and fulfillment cancelled</p>
+                    </div>
+                  </div>
+                )}
+
                 {order.status !== "PENDING" && order.status !== "CANCELLED" && (
                   <div className="flex gap-3">
                     <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />

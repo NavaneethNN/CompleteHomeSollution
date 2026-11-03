@@ -79,6 +79,7 @@ export function OrderStatusUpdate({
 }: OrderStatusUpdateProps) {
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [showOverride, setShowOverride] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState(currentStatus);
   const [trackingNumber, setTrackingNumber] = useState(currentTrackingNumber ?? "");
   const [carrier, setCarrier] = useState(currentCarrier ?? "");
@@ -89,6 +90,38 @@ export function OrderStatusUpdate({
   const hasChanged = selectedStatus !== currentStatus
     || (!isStorePickup && (trackingNumber !== (currentTrackingNumber ?? "") || carrier !== (currentCarrier ?? "")));
   const currentConfig = activeConfig[currentStatus] ?? activeConfig.PAID;
+
+  if (currentStatus === "CANCELLED" && !showOverride) {
+    return (
+      <Card className="border-slate-200">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <XCircle className="h-4 w-4 text-rose-600" />
+              Order Status
+            </span>
+            <Badge variant="destructive" className="bg-rose-100 text-rose-800 border-rose-300 font-semibold">
+              Cancelled
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-slate-500 leading-relaxed">
+            This order has been cancelled. Inventory holds have been released and all fulfillment operations are deactivated.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowOverride(true)}
+            className="w-full text-xs text-slate-600 hover:text-slate-900 border-dashed"
+          >
+            Reopen or Change Status
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const handleUpdate = async () => {
     if (!hasChanged) {

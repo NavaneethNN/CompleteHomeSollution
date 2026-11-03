@@ -60,18 +60,41 @@ export function ReadyToShipPanel({
   currentStatus,
   currentTrackingNumber,
   currentCarrier,
+  initialPackaging,
 }: {
   orderId: string;
   currentStatus: string;
   currentTrackingNumber?: string | null;
   currentCarrier?: string | null;
+  initialPackaging?: {
+    packageName?: string | null;
+    packedLength?: number | null;
+    packedWidth?: number | null;
+    packedHeight?: number | null;
+    packedWeight?: number | null;
+    packageOverride?: boolean | null;
+  };
 }) {
   const router = useRouter();
-  const [order, setOrder] = useState<OrderShipmentData | null>(null);
+  const [order, setOrder] = useState<OrderShipmentData | null>(initialPackaging ? {
+    id: orderId,
+    status: currentStatus,
+    carrier: currentCarrier ?? null,
+    trackingNumber: currentTrackingNumber ?? null,
+    shippingServiceCode: null,
+    ship123OrderNo: null,
+    ship123LabelUrl: null,
+    packageName: initialPackaging.packageName,
+    packedLength: initialPackaging.packedLength,
+    packedWidth: initialPackaging.packedWidth,
+    packedHeight: initialPackaging.packedHeight,
+    packedWeight: initialPackaging.packedWeight,
+    packageOverride: initialPackaging.packageOverride,
+  } : null);
   const [recipient, setRecipient] = useState<RecipientInfo | null>(null);
   const [isBooked, setIsBooked] = useState(false);
   const [trackingUrl, setTrackingUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPackaging);
   const [booking, setBooking] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -84,10 +107,53 @@ export function ReadyToShipPanel({
 
   // Package dimensions and weight confirmation states
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [lengthStr, setLengthStr] = useState<string>("30");
-  const [widthStr, setWidthStr] = useState<string>("25");
-  const [heightStr, setHeightStr] = useState<string>("20");
-  const [weightStr, setWeightStr] = useState<string>("1.0");
+  const [lengthStr, setLengthStr] = useState<string>(
+    initialPackaging?.packedLength ? String(initialPackaging.packedLength) : "30"
+  );
+  const [widthStr, setWidthStr] = useState<string>(
+    initialPackaging?.packedWidth ? String(initialPackaging.packedWidth) : "25"
+  );
+  const [heightStr, setHeightStr] = useState<string>(
+    initialPackaging?.packedHeight ? String(initialPackaging.packedHeight) : "20"
+  );
+  const [weightStr, setWeightStr] = useState<string>(
+    initialPackaging?.packedWeight ? String(initialPackaging.packedWeight) : "1.0"
+  );
+
+  useEffect(() => {
+    if (initialPackaging?.packedLength) setLengthStr(String(initialPackaging.packedLength));
+    if (initialPackaging?.packedWidth) setWidthStr(String(initialPackaging.packedWidth));
+    if (initialPackaging?.packedHeight) setHeightStr(String(initialPackaging.packedHeight));
+    if (initialPackaging?.packedWeight) setWeightStr(String(initialPackaging.packedWeight));
+    if (initialPackaging?.packageName) {
+      setOrder((prev) => ({
+        id: orderId,
+        status: prev?.status || currentStatus,
+        carrier: prev?.carrier || currentCarrier || null,
+        trackingNumber: prev?.trackingNumber || currentTrackingNumber || null,
+        shippingServiceCode: prev?.shippingServiceCode || null,
+        ship123OrderNo: prev?.ship123OrderNo || null,
+        ship123LabelUrl: prev?.ship123LabelUrl || null,
+        packageName: initialPackaging.packageName,
+        packedLength: initialPackaging.packedLength,
+        packedWidth: initialPackaging.packedWidth,
+        packedHeight: initialPackaging.packedHeight,
+        packedWeight: initialPackaging.packedWeight,
+        packageOverride: initialPackaging.packageOverride,
+      }));
+    }
+  }, [
+    initialPackaging?.packedLength,
+    initialPackaging?.packedWidth,
+    initialPackaging?.packedHeight,
+    initialPackaging?.packedWeight,
+    initialPackaging?.packageName,
+    initialPackaging?.packageOverride,
+    orderId,
+    currentStatus,
+    currentCarrier,
+    currentTrackingNumber,
+  ]);
 
   useEffect(() => {
     setOrderStatus(currentStatus);

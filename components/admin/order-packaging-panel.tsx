@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Scale,
@@ -54,6 +55,7 @@ export function OrderPackagingPanel({
   calculatedProductWeight,
   availablePresets,
 }: OrderPackagingPanelProps) {
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -67,6 +69,24 @@ export function OrderPackagingPanel({
   const [packedHeight, setPackedHeight] = useState<number>(initialPackedHeight || 20);
   const [packedWeight, setPackedWeight] = useState<number>(initialPackedWeight || Math.max(0.5, calculatedProductWeight + 0.2));
   const [packageOverride, setPackageOverride] = useState<boolean>(initialPackageOverride || false);
+
+  useEffect(() => {
+    if (initialPackagePresetId !== undefined) setPackagePresetId(initialPackagePresetId);
+    if (initialPackageName) setPackageName(initialPackageName);
+    if (initialPackedLength) setPackedLength(initialPackedLength);
+    if (initialPackedWidth) setPackedWidth(initialPackedWidth);
+    if (initialPackedHeight) setPackedHeight(initialPackedHeight);
+    if (initialPackedWeight) setPackedWeight(initialPackedWeight);
+    if (initialPackageOverride !== undefined) setPackageOverride(initialPackageOverride || false);
+  }, [
+    initialPackagePresetId,
+    initialPackageName,
+    initialPackedLength,
+    initialPackedWidth,
+    initialPackedHeight,
+    initialPackedWeight,
+    initialPackageOverride,
+  ]);
 
   // Form editing state
   const [formPresetId, setFormPresetId] = useState<string>(packagePresetId || "");
@@ -141,6 +161,7 @@ export function OrderPackagingPanel({
         setPackageOverride(true);
         setIsDialogOpen(false);
         toast({ title: "Packaging Updated", description: "Packed dimensions and weight saved." });
+        router.refresh();
       } else {
         toast({ title: "Error", description: res.error, variant: "destructive" });
       }

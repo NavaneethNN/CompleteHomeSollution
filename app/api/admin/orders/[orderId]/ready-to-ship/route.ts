@@ -97,6 +97,20 @@ export async function GET(_req: NextRequest, { params }: Context) {
           packedWeight: calculated.packedWeight,
           packageOverride: false,
         };
+
+        // Persist so all views and future queries share the identical packaging record
+        await db.order.update({
+          where: { id: order.id },
+          data: {
+            packagePresetId: calculated.presetId || null,
+            packageName: calculated.packageName,
+            packedLength: calculated.length,
+            packedWidth: calculated.width,
+            packedHeight: calculated.height,
+            packedWeight: calculated.packedWeight,
+            packageOverride: false,
+          },
+        }).catch((err) => console.error("[ready-to-ship auto-persist] note:", err));
       } else {
         const netWeight = packagingItems.reduce((acc, it) => acc + (it.weight || 0.5) * it.quantity, 0);
         defaultPackaging.packedWeight = Math.round((netWeight + 0.2) * 100) / 100;
