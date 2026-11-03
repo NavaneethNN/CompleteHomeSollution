@@ -3,7 +3,7 @@ import { db } from "../lib/db";
 
 interface CleanupOptions {
   ids?: string[];
-  email?: string;
+  emails?: string[];
   beforeDate?: Date;
   status?: string;
   restoreStock: boolean;
@@ -24,8 +24,10 @@ function parseArgs(): CleanupOptions {
       options.restoreStock = false;
     } else if (arg.startsWith("--ids=")) {
       options.ids = arg.slice(6).split(",").map((s) => s.trim()).filter(Boolean);
+    } else if (arg.startsWith("--emails=")) {
+      options.emails = arg.slice(9).split(",").map((s) => s.trim().replace(/[.,;]+$/, "")).filter(Boolean);
     } else if (arg.startsWith("--email=")) {
-      options.email = arg.slice(8).trim();
+      options.emails = arg.slice(8).split(",").map((s) => s.trim().replace(/[.,;]+$/, "")).filter(Boolean);
     } else if (arg.startsWith("--before=")) {
       options.beforeDate = new Date(arg.slice(9).trim());
       if (isNaN(options.beforeDate.getTime())) {
@@ -49,15 +51,15 @@ async function main() {
   console.log(`Mode:          ${options.dryRun ? "🔍 DRY-RUN (Preview only, no changes)" : "🚨 LIVE EXECUTION (Permanent Deletion)"}`);
   console.log(`Restore Stock: ${options.restoreStock ? "Yes (Inventory will be returned)" : "No"}`);
   if (options.ids?.length) console.log(`Filter IDs:    ${options.ids.join(", ")}`);
-  if (options.email) console.log(`Filter Email:  ${options.email}`);
+  if (options.emails?.length) console.log(`Filter Emails: ${options.emails.join(", ")}`);
   if (options.beforeDate) console.log(`Filter Before: ${options.beforeDate.toISOString()}`);
   if (options.status) console.log(`Filter Status: ${options.status}`);
   console.log("-------------------------------------------------");
 
-  if (!options.ids?.length && !options.email && !options.beforeDate && !options.status) {
+  if (!options.ids?.length && !options.emails?.length && !options.beforeDate && !options.status) {
     console.error("❌ SAFETY ERROR: You must provide at least one filter criterion:");
     console.error("   --ids=order_id_1,order_id_2");
-    console.error("   --email=test@example.com");
+    console.error("   --emails=test1@example.com,test2@example.com");
     console.error("   --before=2026-11-01");
     console.error("   --status=PENDING");
     console.error("\nExample (Dry Run):");
@@ -72,10 +74,10 @@ async function main() {
   if (options.ids?.length) {
     where.id = { in: options.ids };
   }
-  if (options.email) {
+  if (options.emails?.length) {
     where.OR = [
-      { guestEmail: { equals: options.email, mode: "insensitive" } },
-      { user: { email: { equals: options.email, mode: "insensitive" } } },
+      ...options.emails.map((e) => ({ guestEmail: { equals: e, mode: "insensitive" } })),
+      ...options.emails.map((e) => ({ user: { email: { equals: e, mode: "insensitive" } } })),
     ];
   }
   if (options.beforeDate) {
@@ -145,35 +147,47 @@ async function main() {
 
   await db.$transaction(
     async (tx) => {
-      // 1. Restore product stock if requested
+      // 1. Restore product stock if requested (aggregated in-memory for fast batch execution)
       if (options.restoreStock) {
         console.log("📦 Restoring product inventory...");
+        const productIncrements = new Map<string, number>();
+        const variantIncrements = new Map<string, number>();
+        const couponDecrements = new Map<string, number>();
+
         for (const order of orders) {
-          // Only restore stock if order was paid, confirmed, processing, shipped, or delivered
           if (["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status)) {
             for (const item of order.items) {
               if (item.productVariantId) {
-                await tx.productVariant.update({
-                  where: { id: item.productVariantId },
-                  data: { stock: { increment: item.quantity } },
-                });
+                variantIncrements.set(item.productVariantId, (variantIncrements.get(item.productVariantId) || 0) + item.quantity);
               } else if (item.productId) {
-                await tx.product.update({
-                  where: { id: item.productId },
-                  data: { stock: { increment: item.quantity } },
-                });
+                productIncrements.set(item.productId, (productIncrements.get(item.productId) || 0) + item.quantity);
               }
             }
           }
-
-          // Restore coupon usage count if coupon was used
           if (order.couponId && order.couponReserved) {
-            await tx.coupon.updateMany({
-              where: { id: order.couponId, usageCount: { gt: 0 } },
-              data: { usageCount: { decrement: 1 } },
-            });
+            couponDecrements.set(order.couponId, (couponDecrements.get(order.couponId) || 0) + 1);
           }
         }
+
+        for (const [variantId, qty] of variantIncrements.entries()) {
+          await tx.productVariant.update({
+            where: { id: variantId },
+            data: { stock: { increment: qty } },
+          });
+        }
+        for (const [productId, qty] of productIncrements.entries()) {
+          await tx.product.update({
+            where: { id: productId },
+            data: { stock: { increment: qty } },
+          });
+        }
+        for (const [couponId, count] of couponDecrements.entries()) {
+          await tx.coupon.updateMany({
+            where: { id: couponId, usageCount: { gte: count } },
+            data: { usageCount: { decrement: count } },
+          });
+        }
+        console.log(`📦 Restored inventory for ${productIncrements.size} product(s) and ${variantIncrements.size} variant(s)`);
       }
 
       // 2. Delete EmailJob records associated with these orders
@@ -210,20 +224,18 @@ async function main() {
       console.log(`🗑️  Deleted ${deletedOrders.count} Order record(s)`);
 
       // 7. Cleanup orphan guest addresses if any
-      let cleanedAddresses = 0;
-      for (const addressId of addressIdsToCheck) {
-        const remainingOrders = await tx.order.count({ where: { addressId } });
-        const address = await tx.address.findUnique({ where: { id: addressId }, select: { userId: true } });
-        if (remainingOrders === 0 && !address?.userId) {
-          await tx.address.delete({ where: { id: addressId } }).catch(() => {});
-          cleanedAddresses++;
-        }
-      }
-      if (cleanedAddresses > 0) {
-        console.log(`🏠 Cleaned up ${cleanedAddresses} unused guest address record(s)`);
+      const deletedAddresses = await tx.address.deleteMany({
+        where: {
+          id: { in: Array.from(addressIdsToCheck) },
+          userId: null,
+          orders: { none: {} },
+        },
+      });
+      if (deletedAddresses.count > 0) {
+        console.log(`🏠 Cleaned up ${deletedAddresses.count} unused guest address record(s)`);
       }
     },
-    { timeout: 30000, maxWait: 15000 }
+    { timeout: 60000, maxWait: 20000 }
   );
 
   console.log("\n✅ SUCCESS: Test orders cleaned up completely!");
