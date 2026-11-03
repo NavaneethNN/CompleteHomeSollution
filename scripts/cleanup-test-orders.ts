@@ -1,5 +1,10 @@
 import "dotenv/config";
-import { db } from "../lib/db";
+import { PrismaClient } from "@prisma/client";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { neonConfig } from "@neondatabase/serverless";
+import WebSocket from "ws";
+
+neonConfig.webSocketConstructor = WebSocket;
 
 interface CleanupOptions {
   ids?: string[];
@@ -8,6 +13,7 @@ interface CleanupOptions {
   status?: string;
   restoreStock: boolean;
   dryRun: boolean;
+  prod: boolean;
 }
 
 function parseArgs(): CleanupOptions {
@@ -15,11 +21,14 @@ function parseArgs(): CleanupOptions {
   const options: CleanupOptions = {
     restoreStock: true,
     dryRun: true,
+    prod: false,
   };
 
   for (const arg of args) {
     if (arg === "--execute") {
       options.dryRun = false;
+    } else if (arg === "--prod" || arg === "--production") {
+      options.prod = true;
     } else if (arg === "--no-restore-stock") {
       options.restoreStock = false;
     } else if (arg.startsWith("--ids=")) {
@@ -42,12 +51,37 @@ function parseArgs(): CleanupOptions {
   return options;
 }
 
+function getDatabaseClient(isProd: boolean) {
+  const connectionString = isProd
+    ? (process.env.DATABASE_URL_PRODUCTION || process.env.DATABASE_URL || "")
+    : (process.env.DATABASE_URL || "");
+
+  const hostMatch = connectionString.match(/@([^/:]+)/);
+  const host = hostMatch ? hostMatch[1] : "unknown-host";
+
+  const adapter = new PrismaNeon({
+    connectionString,
+    max: 5,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
+  });
+
+  const client = new PrismaClient({
+    adapter,
+    transactionOptions: { maxWait: 15000, timeout: 60000 },
+  });
+
+  return { client, host, isProd };
+}
+
 async function main() {
   const options = parseArgs();
+  const { client, host, isProd } = getDatabaseClient(options.prod);
 
   console.log("=================================================");
   console.log("🧹 Complete Home Sollution — Test Order Cleanup");
   console.log("=================================================");
+  console.log(`Database:      ${isProd ? "🚨 PRODUCTION" : "🧪 DEVELOPMENT/STAGING"} (${host})`);
   console.log(`Mode:          ${options.dryRun ? "🔍 DRY-RUN (Preview only, no changes)" : "🚨 LIVE EXECUTION (Permanent Deletion)"}`);
   console.log(`Restore Stock: ${options.restoreStock ? "Yes (Inventory will be returned)" : "No"}`);
   if (options.ids?.length) console.log(`Filter IDs:    ${options.ids.join(", ")}`);
@@ -62,10 +96,7 @@ async function main() {
     console.error("   --emails=test1@example.com,test2@example.com");
     console.error("   --before=2026-11-01");
     console.error("   --status=PENDING");
-    console.error("\nExample (Dry Run):");
-    console.error("   npx tsx scripts/cleanup-test-orders.ts --email=nnnavaneeth171@gmail.com");
-    console.error("\nExample (Execute):");
-    console.error("   npx tsx scripts/cleanup-test-orders.ts --email=nnnavaneeth171@gmail.com --execute");
+    console.error("\nAdd --prod to target the production database.");
     process.exit(1);
   }
 
@@ -87,7 +118,7 @@ async function main() {
     where.status = options.status;
   }
 
-  const orders = await db.order.findMany({
+  const orders = await client.order.findMany({
     where,
     orderBy: { createdAt: "desc" },
     include: {
@@ -103,7 +134,8 @@ async function main() {
   });
 
   if (orders.length === 0) {
-    console.log("No orders found matching the specified criteria.");
+    console.log("No orders found matching the specified criteria on this database.");
+    await client.$disconnect();
     return;
   }
 
@@ -117,7 +149,7 @@ async function main() {
     if (o.addressId) addressIdsToCheck.add(o.addressId);
     const customer = o.user?.name || o.address?.name || "Guest";
     const email = o.user?.email || o.guestEmail || "No Email";
-    console.log(`[${index + 1}] ID: ${o.id}`);
+    console.log(`[${index + 1}] ID: #${o.id.slice(-8).toUpperCase()} (${o.id})`);
     console.log(`    Date:     ${o.createdAt.toISOString()}`);
     console.log(`    Customer: ${customer} (${email})`);
     console.log(`    Status:   ${o.status} | Total: $${o.total.toFixed(2)}`);
@@ -138,6 +170,7 @@ async function main() {
     console.log("ℹ️  This was a DRY-RUN. No changes were made to the database.");
     console.log("To permanently delete these orders, run again with --execute:");
     console.log(`npx tsx scripts/cleanup-test-orders.ts ${process.argv.slice(2).filter((a) => a !== "--execute").join(" ")} --execute`);
+    await client.$disconnect();
     return;
   }
 
@@ -145,7 +178,7 @@ async function main() {
 
   const orderIds = orders.map((o) => o.id);
 
-  await db.$transaction(
+  await client.$transaction(
     async (tx) => {
       // 1. Restore product stock if requested (aggregated in-memory for fast batch execution)
       if (options.restoreStock) {
@@ -239,6 +272,7 @@ async function main() {
   );
 
   console.log("\n✅ SUCCESS: Test orders cleaned up completely!");
+  await client.$disconnect();
 }
 
 main()
@@ -247,6 +281,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await db.$disconnect?.().catch(() => {});
     process.exit(0);
   });
