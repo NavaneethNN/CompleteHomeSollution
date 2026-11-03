@@ -1,0 +1,185 @@
+import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
+import { auth } from "@/auth";
+import { db } from "@/lib/db";
+import { couriersPleaseSenderFromEnv } from "@/lib/couriersplease";
+import { selectPackagingPreset } from "@/lib/packaging";
+import { generateCode128Svg } from "@/lib/barcode";
+import { ShippingLabelView } from "@/components/admin/shipping-label-view";
+
+export const metadata: Metadata = {
+  title: "Courier Shipping Label — Admin",
+};
+export const dynamic = "force-dynamic";
+
+interface LabelPageProps {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ autoprint?: string }>;
+}
+
+export default async function OrderShippingLabelPage({ params, searchParams }: LabelPageProps) {
+  const session = await auth();
+  if (!session || session.user.role !== "ADMIN") {
+    redirect("/login");
+  }
+
+  const { id } = await params;
+  const { autoprint } = await searchParams;
+
+  const [order, packagingPresets] = await Promise.all([
+    db.order.findUnique({
+      where: { id },
+      include: {
+        address: true,
+        user: { select: { name: true, email: true, phone: true } },
+        items: {
+          include: {
+            product: { select: { name: true, sku: true, weight: true, length: true, width: true, height: true } },
+            productVariant: { select: { weight: true, length: true, width: true, height: true } },
+          },
+        },
+      },
+    }),
+    db.packagingPreset.findMany({
+      where: { isActive: true },
+      orderBy: [{ priority: "desc" }, { maxWeight: "asc" }],
+    }),
+  ]);
+
+  if (!order) {
+    notFound();
+  }
+
+  if (order.fulfillmentType === "STORE_PICKUP" || order.fulfillmentType === "MANUAL_DELIVERY") {
+    return (
+      <div className="p-8 max-w-lg mx-auto text-center space-y-4">
+        <h1 className="text-xl font-bold text-slate-900">
+          {order.fulfillmentType === "STORE_PICKUP" ? "Store Pickup Order" : "Manual Local Delivery Order"}
+        </h1>
+        <p className="text-sm text-slate-600">
+          This order does not use standard courier parcel dispatch. No courier shipping label is required.
+        </p>
+      </div>
+    );
+  }
+
+  // ── Packaging Box Specifications Resolution ─────────────────────────────
+  let packageName = order.packageName || "Standard Package";
+  let length = order.packedLength || 30;
+  let width = order.packedWidth || 25;
+  let height = order.packedHeight || 20;
+  let weight = order.packedWeight || 1.0;
+
+  if (!order.packedLength || !order.packedWeight || !order.packageName) {
+    const packagingItems = order.items.map((it) => ({
+      quantity: it.quantity,
+      weight: it.productVariant?.weight ?? it.product.weight ?? 0.5,
+      length: it.productVariant?.length ?? it.product.length ?? 20,
+      width: it.productVariant?.width ?? it.product.width ?? 15,
+      height: it.productVariant?.height ?? it.product.height ?? 10,
+      name: it.product.name,
+    }));
+
+    const calculated = await selectPackagingPreset(packagingItems, packagingPresets as any).catch(() => null);
+    if (calculated) {
+      packageName = calculated.packageName;
+      length = calculated.length;
+      width = calculated.width;
+      height = calculated.height;
+      weight = calculated.packedWeight;
+
+      // Auto-persist to DB
+      await db.order.update({
+        where: { id: order.id },
+        data: {
+          packagePresetId: calculated.presetId || null,
+          packageName: calculated.packageName,
+          packedLength: calculated.length,
+          packedWidth: calculated.width,
+          packedHeight: calculated.height,
+          packedWeight: calculated.packedWeight,
+          packageOverride: false,
+        },
+      }).catch(() => null);
+    }
+  }
+
+  const cubicWeight = Math.round(((length * width * height) / 4000) * 100) / 100;
+
+  // ── Sender Details ────────────────────────────────────────────────────────
+  let sender = {
+    name: "Complete Home Solution",
+    line1: "18 Edison Drive",
+    suburb: "Golden Grove",
+    state: "SA",
+    postcode: "5125",
+    phone: "0401 682 910",
+    email: "info@completehomesollution.com.au",
+  };
+  try {
+    const envSender = couriersPleaseSenderFromEnv();
+    if (envSender) {
+      sender = {
+        name: envSender.name || sender.name,
+        line1: envSender.line1 || sender.line1,
+        suburb: envSender.suburb || sender.suburb,
+        state: envSender.state || sender.state,
+        postcode: envSender.postcode || sender.postcode,
+        phone: envSender.phone || sender.phone,
+        email: envSender.email || sender.email,
+      };
+    }
+  } catch {
+    // Keep fallback sender
+  }
+
+  // ── Consignment & Barcode Code ────────────────────────────────────────────
+  const orderNumber = order.id.slice(-8).toUpperCase();
+  const consignmentCode = order.trackingNumber || order.ship123OrderNo || `CP${order.address?.phone?.replace(/\D/g, "").slice(-8) || "98422999"}${orderNumber}`;
+  const barcodeSvg = generateCode128Svg(consignmentCode, {
+    height: 48,
+    moduleWidth: 1.8,
+    showText: false,
+  });
+
+  const recipient = {
+    name: order.address?.name || order.user?.name || "Customer",
+    line1: order.address?.line1 || "Customer Address",
+    line2: order.address?.line2 || null,
+    suburb: order.address?.suburb || "Wollongong",
+    state: order.address?.state || "WA",
+    postcode: order.address?.postcode || "6410",
+    phone: order.address?.phone || order.user?.phone || order.guestPhone || null,
+    email: order.user?.email || order.guestEmail || null,
+  };
+
+  const carrier = order.carrier || "Couriers Please";
+  const serviceName = order.shippingServiceCode === "CP_EXPRESS" ? "EXPRESS AM PRIORITY" : "ROAD EXPRESS - TRACKED";
+
+  return (
+    <ShippingLabelView
+      orderId={order.id}
+      orderNumber={orderNumber}
+      carrier={carrier}
+      serviceName={serviceName}
+      trackingNumber={order.trackingNumber || consignmentCode}
+      consignmentCode={consignmentCode}
+      createdAt={order.createdAt.toISOString()}
+      sender={sender}
+      recipient={recipient}
+      parcel={{
+        packageName,
+        length,
+        width,
+        height,
+        weight,
+        cubicWeight,
+        itemCount: order.items.reduce((s, it) => s + it.quantity, 0),
+        itemNames: order.items.map((it) => `${it.quantity}x ${it.product.name}`),
+        specialInstructions: "Safe drop permitted",
+      }}
+      barcodeSvg={barcodeSvg}
+      autoPrint={autoprint === "1" || autoprint === "true"}
+    />
+  );
+}

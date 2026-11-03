@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   Store,
+  Printer,
 } from "lucide-react";
 import { AdminRefundPanel } from "@/components/admin/refund-panel";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
@@ -248,6 +249,24 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {order.fulfillmentType !== "STORE_PICKUP" &&
+            order.fulfillmentType !== "MANUAL_DELIVERY" &&
+            order.status !== "CANCELLED" && (
+              <Link
+                href={`/admin/orders/${order.id}/label`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-white hover:bg-blue-50 text-blue-700 hover:text-blue-800 border-blue-200 font-semibold text-xs shadow-xs"
+                >
+                  <Printer className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
+                  Print Courier Label
+                </Button>
+              </Link>
+            )}
           {order.fulfillmentType === "STORE_PICKUP" && (
             <Badge variant="outline" className="bg-amber-50 text-amber-900 border-amber-300 font-semibold text-xs px-3 py-1 flex items-center gap-1.5">
               <Store className="h-3.5 w-3.5 text-amber-600" />

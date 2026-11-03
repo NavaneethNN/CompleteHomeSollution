@@ -461,15 +461,15 @@ export function ReadyToShipPanel({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full flex items-center justify-center gap-1.5 text-xs"
+                  className="w-full flex items-center justify-center gap-1.5 text-xs bg-white text-slate-900 border-slate-300 hover:bg-slate-50 font-semibold"
                   asChild
                 >
                   <a
-                    href={`/api/admin/orders/${orderId}/couriersplease/label`}
+                    href={`/admin/orders/${orderId}/label`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <Printer className="h-3.5 w-3.5" />
+                    <Printer className="h-3.5 w-3.5 text-emerald-600" />
                     Print Shipping Label
                   </a>
                 </Button>
