@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
+import { cacheFetch } from "@/lib/redis";
 import {
   TrendingUp,
   ShoppingCart,
@@ -57,6 +58,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 async function getAnalyticsData() {
+  return cacheFetch("admin:analytics:summary", 30, async () => {
   const now = new Date();
   const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -149,6 +151,7 @@ async function getAnalyticsData() {
           createdAt: { gte: twelveMonthsAgo },
         },
       },
+      take: 500,
       select: {
         unitPrice: true,
         quantity: true,
@@ -159,6 +162,7 @@ async function getAnalyticsData() {
     // Customer signups per month
     db.user.findMany({
       where: { role: "CUSTOMER", createdAt: { gte: twelveMonthsAgo } },
+      take: 1000,
       select: { createdAt: true },
     }),
 
@@ -277,6 +281,7 @@ async function getAnalyticsData() {
     lowStockCount,
     totalOrderCount: totalOrders,
   };
+  });
 }
 
 function DeltaBadge({ current, previous }: { current: number; previous: number }) {
