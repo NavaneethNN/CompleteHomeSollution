@@ -251,7 +251,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {order.status !== "CANCELLED" && (
+          {order.status !== "CANCELLED" && order.status !== "REFUNDED" && order.status !== "PENDING" && (
             <OrderLabelButton
               orderId={order.id}
               orderNumber={order.id.slice(-8).toUpperCase()}
@@ -534,7 +534,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
           </Card>
 
           {/* Courier & Dispatch Label Card */}
-          {order.status !== "CANCELLED" && (
+          {order.status !== "CANCELLED" && order.status !== "REFUNDED" && order.status !== "PENDING" && (
             <Card className="border-blue-200 bg-gradient-to-br from-blue-50/60 to-indigo-50/30">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center justify-between">

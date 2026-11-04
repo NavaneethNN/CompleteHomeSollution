@@ -501,7 +501,7 @@ export default async function AdminOrdersPage({ searchParams }: OrdersPageProps)
                         </td>
                         <td className="py-2 sm:py-3 px-2 sm:px-4 text-right relative z-10">
                           <div className="flex items-center justify-end gap-1.5 flex-nowrap">
-                            {order.status !== "CANCELLED" && (
+                            {order.status !== "CANCELLED" && order.status !== "REFUNDED" && order.status !== "PENDING" && (
                               <OrderLabelButton
                                 orderId={order.id}
                                 orderNumber={order.id.slice(-8).toUpperCase()}

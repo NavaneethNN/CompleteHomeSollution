@@ -42,6 +42,13 @@ export async function GET(_req: NextRequest, { params }: Context) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    if (order.status === "CANCELLED" || order.status === "REFUNDED" || order.status === "PENDING") {
+      return NextResponse.json(
+        { error: `Cannot generate shipping label for ${order.status.toLowerCase()} order` },
+        { status: 400 }
+      );
+    }
+
     // ── Packaging Box Specifications Resolution ─────────────────────────────
     let packageName = order.packageName || "Standard Package";
     let length = order.packedLength || 30;
