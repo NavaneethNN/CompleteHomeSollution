@@ -54,7 +54,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
   const [height, setHeight] = useState("20");
   const [maxWeight, setMaxWeight] = useState("3.0");
   const [emptyWeight, setEmptyWeight] = useState("0.2");
-  const [priority, setPriority] = useState("0");
+  const [priority, setPriority] = useState("");
   const [isActive, setIsActive] = useState(true);
 
   const openAddDialog = () => {
@@ -65,7 +65,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
     setHeight("20");
     setMaxWeight("3.0");
     setEmptyWeight("0.2");
-    setPriority("0");
+    setPriority("");
     setIsActive(true);
     setIsDialogOpen(true);
   };
@@ -402,6 +402,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
                   type="number"
                   step="0.1"
                   min="1"
+                  placeholder="0"
                   value={length}
                   onChange={(e) => setLength(e.target.value)}
                 />
@@ -413,6 +414,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
                   type="number"
                   step="0.1"
                   min="1"
+                  placeholder="0"
                   value={width}
                   onChange={(e) => setWidth(e.target.value)}
                 />
@@ -424,6 +426,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
                   type="number"
                   step="0.1"
                   min="1"
+                  placeholder="0"
                   value={height}
                   onChange={(e) => setHeight(e.target.value)}
                 />
@@ -438,6 +441,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
                   type="number"
                   step="0.1"
                   min="0.1"
+                  placeholder="0.0"
                   value={maxWeight}
                   onChange={(e) => setMaxWeight(e.target.value)}
                 />
@@ -449,6 +453,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
                   type="number"
                   step="0.05"
                   min="0"
+                  placeholder="0.0"
                   value={emptyWeight}
                   onChange={(e) => setEmptyWeight(e.target.value)}
                 />
@@ -461,6 +466,7 @@ export function PackagingClient({ initialPresets }: { initialPresets: PackagingP
                 <Input
                   id="preset-priority"
                   type="number"
+                  placeholder="0"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
                 />

@@ -172,9 +172,27 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
     e.preventDefault();
     setLoading(true);
 
+    const submissionData = {
+      ...formData,
+      maxEntriesPerUser: Number(formData.maxEntriesPerUser) || 1,
+      minEntriesPerUser: Number(formData.minEntriesPerUser) || 1,
+      totalMaxEntries: formData.totalMaxEntries ? Number(formData.totalMaxEntries) : null,
+      prizes: formData.prizes.map((p) => {
+        const rawPrice = p.price as unknown as string | number;
+        const rawValue = p.value as unknown as string | number;
+        const rawQty = p.quantity as unknown as string | number;
+        return {
+          ...p,
+          price: p.prizeType === "FREE_PRODUCT" ? 0 : (rawPrice === "" ? 0 : Number(rawPrice) || 0),
+          value: rawValue === "" ? 0 : Number(rawValue) || 0,
+          quantity: rawQty === "" ? 1 : Number(rawQty) || 1,
+        };
+      }),
+    };
+
     try {
       if (isEditing) {
-        const res = await updateRaffle(initialData.id, formData);
+        const res = await updateRaffle(initialData.id, submissionData);
         if (res.success) {
           toast.success(res.message);
           router.push(`/admin/raffles/${initialData.id}`);
@@ -183,7 +201,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
           toast.error(res.error || "Failed to update raffle");
         }
       } else {
-        const res = await createRaffle(formData);
+        const res = await createRaffle(submissionData);
         if (res.success) {
           toast.success(res.message);
           router.push(`/admin/raffles/${res.raffleId}`);
@@ -446,9 +464,11 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
                     <input
                       type="number"
                       min={0}
+                      step="0.01"
+                      placeholder="0.00"
                       disabled={isFree}
-                      value={isFree ? 0 : prize.price}
-                      onChange={(e) => handlePrizeChange(idx, "price", parseFloat(e.target.value) || 0)}
+                      value={isFree ? 0 : (prize.price ?? "")}
+                      onChange={(e) => handlePrizeChange(idx, "price", e.target.value)}
                       className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-white focus:outline-hidden font-bold disabled:bg-slate-100"
                     />
                   </div>
@@ -460,8 +480,9 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
                     <input
                       type="number"
                       min={0}
-                      value={prize.value}
-                      onChange={(e) => handlePrizeChange(idx, "value", parseFloat(e.target.value) || 0)}
+                      step="0.01"
+                      value={prize.value ?? ""}
+                      onChange={(e) => handlePrizeChange(idx, "value", e.target.value)}
                       placeholder="e.g. 899"
                       className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-white focus:outline-hidden font-bold"
                     />
@@ -474,8 +495,9 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
                     <input
                       type="number"
                       min={1}
-                      value={prize.quantity}
-                      onChange={(e) => handlePrizeChange(idx, "quantity", parseInt(e.target.value) || 1)}
+                      placeholder="1"
+                      value={prize.quantity ?? ""}
+                      onChange={(e) => handlePrizeChange(idx, "quantity", e.target.value)}
                       className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-white focus:outline-hidden font-bold"
                     />
                   </div>
@@ -545,8 +567,9 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
             <input
               type="number"
               min={1}
-              value={formData.maxEntriesPerUser}
-              onChange={(e) => setFormData({ ...formData, maxEntriesPerUser: parseInt(e.target.value) || 1 })}
+              placeholder="1"
+              value={formData.maxEntriesPerUser ?? ""}
+              onChange={(e) => setFormData({ ...formData, maxEntriesPerUser: e.target.value as any })}
               className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden font-bold"
             />
           </div>
@@ -558,11 +581,11 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
             <input
               type="number"
               min={1}
-              value={formData.totalMaxEntries || ""}
+              value={formData.totalMaxEntries ?? ""}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  totalMaxEntries: e.target.value ? parseInt(e.target.value) : null,
+                  totalMaxEntries: e.target.value ? (e.target.value as any) : null,
                 })
               }
               placeholder="Leave blank for unlimited"

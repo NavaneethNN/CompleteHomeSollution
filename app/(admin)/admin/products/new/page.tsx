@@ -49,20 +49,20 @@ interface VariantAttribute {
 interface ProductVariant {
   id: string;
   sku: string;
-  price: number;
-  comparePrice?: number;
-  memberPrice?: number;
-  stock: number;
+  price: number | string;
+  comparePrice?: number | string;
+  memberPrice?: number | string;
+  stock: number | string;
   isActive: boolean;
   valueIds: string[];
   images: string[];
   description?: string;
   bulletTitle?: string;
   bulletPoints?: string[];
-  weight?: number;
-  length?: number;
-  width?: number;
-  height?: number;
+  weight?: number | string;
+  length?: number | string;
+  width?: number | string;
+  height?: number | string;
   requiresPackaging?: boolean;
 }
 
@@ -156,8 +156,9 @@ function VariantCard({
                 type="number"
                 min="0"
                 step="0.01"
+                placeholder="0.00"
                 value={variant.price ?? ""}
-                onChange={(e) => onUpdate({ price: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => onUpdate({ price: e.target.value })}
                 className="h-8 text-xs"
               />
             </div>
@@ -166,9 +167,9 @@ function VariantCard({
               <Input
                 type="number"
                 min="0"
-                value={variant.stock}
-                onFocus={(e) => variant.stock === 0 && e.target.select()}
-                onChange={(e) => onUpdate({ stock: parseInt(e.target.value) || 0 })}
+                placeholder="0"
+                value={variant.stock ?? ""}
+                onChange={(e) => onUpdate({ stock: e.target.value })}
                 className="h-8 text-xs"
               />
             </div>
@@ -179,9 +180,7 @@ function VariantCard({
                 min="0"
                 step="0.01"
                 value={variant.comparePrice ?? ""}
-                onChange={(e) =>
-                  onUpdate({ comparePrice: e.target.value ? parseFloat(e.target.value) : undefined })
-                }
+                onChange={(e) => onUpdate({ comparePrice: e.target.value })}
                 className="h-8 text-xs"
                 placeholder="Optional"
               />
@@ -193,9 +192,7 @@ function VariantCard({
                 min="0"
                 step="0.01"
                 value={variant.memberPrice ?? ""}
-                onChange={(e) =>
-                  onUpdate({ memberPrice: e.target.value ? parseFloat(e.target.value) : undefined })
-                }
+                onChange={(e) => onUpdate({ memberPrice: e.target.value })}
                 className="h-8 text-xs"
                 placeholder="Optional"
               />
@@ -282,7 +279,7 @@ function VariantCard({
                 <Input
                   type="number" min="0" step="0.1"
                   value={variant.weight ?? ""}
-                  onChange={(e) => onUpdate({ weight: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  onChange={(e) => onUpdate({ weight: e.target.value })}
                   className="h-8 text-xs" placeholder="0.0"
                 />
               </div>
@@ -291,7 +288,7 @@ function VariantCard({
                 <Input
                   type="number" min="0"
                   value={variant.length ?? ""}
-                  onChange={(e) => onUpdate({ length: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  onChange={(e) => onUpdate({ length: e.target.value })}
                   className="h-8 text-xs" placeholder="0"
                 />
               </div>
@@ -300,7 +297,7 @@ function VariantCard({
                 <Input
                   type="number" min="0"
                   value={variant.width ?? ""}
-                  onChange={(e) => onUpdate({ width: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  onChange={(e) => onUpdate({ width: e.target.value })}
                   className="h-8 text-xs" placeholder="0"
                 />
               </div>
@@ -309,7 +306,7 @@ function VariantCard({
                 <Input
                   type="number" min="0"
                   value={variant.height ?? ""}
-                  onChange={(e) => onUpdate({ height: e.target.value ? parseFloat(e.target.value) : undefined })}
+                  onChange={(e) => onUpdate({ height: e.target.value })}
                   className="h-8 text-xs" placeholder="0"
                 />
               </div>
@@ -573,20 +570,20 @@ export default function NewProductPage() {
             return {
               id: normalizedId,
               sku: v.sku,
-              price: v.price,
-              comparePrice: v.comparePrice,
-              memberPrice: v.memberPrice,
-              stock: v.stock,
+              price: v.price ?? "",
+              comparePrice: v.comparePrice ?? "",
+              memberPrice: v.memberPrice ?? "",
+              stock: v.stock ?? "",
               isActive: v.isActive,
               valueIds,
               images: v.images?.map((img: any) => img.url) || [],
               description: v.description || "",
               bulletTitle: v.bulletTitle || "",
               bulletPoints: v.bulletPoints || [],
-              weight: v.weight,
-              length: v.length,
-              width: v.width,
-              height: v.height,
+              weight: v.weight ?? "",
+              length: v.length ?? "",
+              width: v.width ?? "",
+              height: v.height ?? "",
               requiresPackaging: v.requiresPackaging ?? true,
             };
           }));
@@ -648,8 +645,8 @@ export default function NewProductPage() {
       const newVariant: ProductVariant = {
         id,
         sku: variantSku,
-        price: parseFloat(basePrice) || 0,
-        stock: 0,
+        price: basePrice || "",
+        stock: "",
         isActive: true,
         valueIds,
         images: [],
@@ -843,12 +840,14 @@ export default function NewProductPage() {
           setActiveTab("variants");
           return;
         }
-        if (v.price < 0) {
+        const priceNum = parseFloat(String(v.price));
+        if (!isNaN(priceNum) && priceNum < 0) {
           toast.error(`Variant price for "${v.sku}" cannot be negative`);
           setActiveTab("variants");
           return;
         }
-        if (v.stock < 0) {
+        const stockNum = parseInt(String(v.stock));
+        if (!isNaN(stockNum) && stockNum < 0) {
           toast.error(`Variant stock for "${v.sku}" cannot be negative`);
           setActiveTab("variants");
           return;
@@ -923,20 +922,20 @@ export default function NewProductPage() {
                 : (primaryVal?.images && primaryVal.images.length > 0 ? primaryVal.images : []);
               return {
                 sku: v.sku.trim(),
-                price: v.price,
-                comparePrice: v.comparePrice,
-                memberPrice: v.memberPrice,
-                stock: v.stock,
+                price: parseFloat(String(v.price)) || 0,
+                comparePrice: v.comparePrice !== undefined && v.comparePrice !== "" ? parseFloat(String(v.comparePrice)) : undefined,
+                memberPrice: v.memberPrice !== undefined && v.memberPrice !== "" ? parseFloat(String(v.memberPrice)) : undefined,
+                stock: parseInt(String(v.stock)) || 0,
                 isActive: v.isActive,
                 valueIds: v.valueIds,
                 images: resolvedImages,
                 description: v.description ? sanitizeInput(v.description) : undefined,
                 bulletTitle: v.bulletTitle ? sanitizeInput(v.bulletTitle) : undefined,
                 bulletPoints: (v.bulletPoints || []).map((p) => sanitizeInput(p)).filter(Boolean),
-                weight: v.weight,
-                length: v.length,
-                width: v.width,
-                height: v.height,
+                weight: v.weight !== undefined && v.weight !== "" ? parseFloat(String(v.weight)) : undefined,
+                length: v.length !== undefined && v.length !== "" ? parseFloat(String(v.length)) : undefined,
+                width: v.width !== undefined && v.width !== "" ? parseFloat(String(v.width)) : undefined,
+                height: v.height !== undefined && v.height !== "" ? parseFloat(String(v.height)) : undefined,
                 requiresPackaging: v.requiresPackaging ?? true,
               };
             })

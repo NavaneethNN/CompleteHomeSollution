@@ -98,6 +98,7 @@ export function AdminRefundPanel({
             min="0.01"
             max={remaining}
             step="0.01"
+            placeholder="0.00"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="w-full pl-8 pr-3 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"

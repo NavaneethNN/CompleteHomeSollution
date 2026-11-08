@@ -655,6 +655,7 @@ export function ReadyToShipPanel({
                       step="0.5"
                       min="1"
                       max="300"
+                      placeholder="0"
                       value={lengthStr}
                       onChange={(e) => setLengthStr(e.target.value)}
                       className="text-xs h-8 pr-7 font-mono"
@@ -671,6 +672,7 @@ export function ReadyToShipPanel({
                       step="0.5"
                       min="1"
                       max="300"
+                      placeholder="0"
                       value={widthStr}
                       onChange={(e) => setWidthStr(e.target.value)}
                       className="text-xs h-8 pr-7 font-mono"
@@ -687,6 +689,7 @@ export function ReadyToShipPanel({
                       step="0.5"
                       min="1"
                       max="300"
+                      placeholder="0"
                       value={heightStr}
                       onChange={(e) => setHeightStr(e.target.value)}
                       className="text-xs h-8 pr-7 font-mono"
@@ -713,6 +716,7 @@ export function ReadyToShipPanel({
                       step="0.1"
                       min="0.1"
                       max="100"
+                      placeholder="0.0"
                       value={weightStr}
                       onChange={(e) => setWeightStr(e.target.value)}
                       className="text-xs h-8 pr-7 font-mono"

@@ -34,7 +34,17 @@ function Avatar({ name, image }: { name: string | null; image: string | null }) 
 
 /* ── Plan Form Modal ─────────────────────────────────────────────────── */
 
-const EMPTY_FORM: PlanInput = {
+interface PlanFormState {
+  name: string;
+  description: string;
+  price: number | string;
+  durationDays: number | string;
+  discountPercent: number | string;
+  isActive: boolean;
+  isDefault: boolean;
+}
+
+const EMPTY_FORM: PlanFormState = {
   name: "",
   description: "",
   price: 30,
@@ -54,7 +64,7 @@ function PlanModal({
   onSaved: (p: MembershipPlan) => void;
 }) {
   const isEdit = !!plan;
-  const [form, setForm] = useState<PlanInput>(
+  const [form, setForm] = useState<PlanFormState>(
     plan
       ? {
           name: plan.name,
@@ -70,20 +80,26 @@ function PlanModal({
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const set = <K extends keyof PlanInput>(key: K, value: PlanInput[K]) =>
+  const set = <K extends keyof PlanFormState>(key: K, value: PlanFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const submissionForm: PlanInput = {
+      ...form,
+      price: Number(form.price) || 0,
+      durationDays: Number(form.durationDays) || 1,
+      discountPercent: Number(form.discountPercent) || 0,
+    };
     startTransition(async () => {
       const result = isEdit
-        ? await updatePlan(plan!.id, form)
-        : await createPlan(form);
+        ? await updatePlan(plan!.id, submissionForm)
+        : await createPlan(submissionForm);
       if (result.error) { setError(result.error); return; }
       onSaved({
         ...(plan ?? { id: "", createdAt: new Date(), updatedAt: new Date() }),
-        ...form,
+        ...submissionForm,
         updatedAt: new Date(),
       } as MembershipPlan);
       onClose();
@@ -154,9 +170,8 @@ function PlanModal({
                     type="number"
                     min={0.01}
                     step={0.01}
-                    value={form.price === 0 ? "" : form.price}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => set("price", e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                    value={form.price}
+                    onChange={(e) => set("price", e.target.value)}
                     placeholder="0.00"
                     className="w-full rounded-lg border border-border bg-background pl-7 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
@@ -170,9 +185,8 @@ function PlanModal({
                     min={0}
                     max={100}
                     step={0.5}
-                    value={form.discountPercent === 0 ? "" : form.discountPercent}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => set("discountPercent", e.target.value === "" ? 0 : parseFloat(e.target.value) || 0)}
+                    value={form.discountPercent}
+                    onChange={(e) => set("discountPercent", e.target.value)}
                     placeholder="0"
                     className="w-full rounded-lg border border-border bg-background px-3 pr-8 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
@@ -191,7 +205,7 @@ function PlanModal({
                     type="button"
                     onClick={() => set("durationDays", p.days)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                      form.durationDays === p.days
+                      Number(form.durationDays) === p.days
                         ? "bg-primary text-primary-foreground border-primary"
                         : "bg-muted border-border text-muted-foreground hover:bg-muted/70"
                     }`}
@@ -205,12 +219,13 @@ function PlanModal({
                   required
                   type="number"
                   min={1}
+                  placeholder="365"
                   value={form.durationDays}
-                  onChange={(e) => set("durationDays", parseInt(e.target.value) || 1)}
+                  onChange={(e) => set("durationDays", e.target.value)}
                   className="w-28 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 <span className="text-sm text-muted-foreground">days</span>
-                <span className="text-xs text-muted-foreground">= {durationLabel(form.durationDays)}</span>
+                <span className="text-xs text-muted-foreground">= {durationLabel(Number(form.durationDays) || 0)}</span>
               </div>
             </div>
 

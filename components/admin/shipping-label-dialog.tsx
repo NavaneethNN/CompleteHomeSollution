@@ -102,10 +102,10 @@ export function ShippingLabelDialog({
   const [carrier, setCarrier] = useState("Couriers Please");
   const [serviceName, setServiceName] = useState("ROAD EXPRESS - TRACKED");
   const [consignmentCode, setConsignmentCode] = useState("");
-  const [length, setLength] = useState(30);
-  const [width, setWidth] = useState(25);
-  const [height, setHeight] = useState(20);
-  const [weight, setWeight] = useState(1.0);
+  const [length, setLength] = useState<number | string>(30);
+  const [width, setWidth] = useState<number | string>(25);
+  const [height, setHeight] = useState<number | string>(20);
+  const [weight, setWeight] = useState<number | string>(1.0);
   const [packageName, setPackageName] = useState("Standard Package");
   const [instructions, setInstructions] = useState("Safe drop permitted");
   const [printFormat, setPrintFormat] = useState<"thermal" | "a4">("thermal");
@@ -145,10 +145,10 @@ export function ShippingLabelDialog({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packedLength: length,
-          packedWidth: width,
-          packedHeight: height,
-          packedWeight: weight,
+          packedLength: Number(length) || 0,
+          packedWidth: Number(width) || 0,
+          packedHeight: Number(height) || 0,
+          packedWeight: Number(weight) || 0,
           specialInstructions: instructions.slice(0, 15),
         }),
       });
@@ -172,7 +172,10 @@ export function ShippingLabelDialog({
 
   // Cubic weight calculation
   const cubicWeight = useMemo(() => {
-    return Math.round(((length * width * height) / 4000) * 100) / 100;
+    const l = Number(length) || 0;
+    const w = Number(width) || 0;
+    const h = Number(height) || 0;
+    return Math.round(((l * w * h) / 4000) * 100) / 100;
   }, [length, width, height]);
 
   // Code 128 barcode SVG generated in real time
@@ -440,7 +443,7 @@ export function ShippingLabelDialog({
                 <div><strong>Size:</strong> ${length}×${width}×${height} cm</div>
               </div>
               <div class="specs-grid">
-                <div>Weight: <strong>${weight.toFixed(2)} kg</strong></div>
+                <div>Weight: <strong>${(Number(weight) || 0).toFixed(2)} kg</strong></div>
                 <div>Cubic: <strong>${cubicWeight.toFixed(2)} kg</strong></div>
                 <div>Items: <strong>${data?.parcel.itemCount || 1}</strong></div>
               </div>
@@ -629,8 +632,9 @@ export function ShippingLabelDialog({
                     <span className="text-[10px] text-slate-500 block">L (cm)</span>
                     <Input
                       type="number"
+                      placeholder="0"
                       value={length}
-                      onChange={(e) => setLength(Number(e.target.value))}
+                      onChange={(e) => setLength(e.target.value)}
                       className="h-8 text-xs font-mono"
                     />
                   </div>
@@ -638,8 +642,9 @@ export function ShippingLabelDialog({
                     <span className="text-[10px] text-slate-500 block">W (cm)</span>
                     <Input
                       type="number"
+                      placeholder="0"
                       value={width}
-                      onChange={(e) => setWidth(Number(e.target.value))}
+                      onChange={(e) => setWidth(e.target.value)}
                       className="h-8 text-xs font-mono"
                     />
                   </div>
@@ -647,8 +652,9 @@ export function ShippingLabelDialog({
                     <span className="text-[10px] text-slate-500 block">H (cm)</span>
                     <Input
                       type="number"
+                      placeholder="0"
                       value={height}
-                      onChange={(e) => setHeight(Number(e.target.value))}
+                      onChange={(e) => setHeight(e.target.value)}
                       className="h-8 text-xs font-mono"
                     />
                   </div>
@@ -657,8 +663,9 @@ export function ShippingLabelDialog({
                     <Input
                       type="number"
                       step="0.1"
+                      placeholder="0.0"
                       value={weight}
-                      onChange={(e) => setWeight(Number(e.target.value))}
+                      onChange={(e) => setWeight(e.target.value)}
                       className="h-8 text-xs font-mono"
                     />
                   </div>
@@ -885,7 +892,7 @@ export function ShippingLabelDialog({
                           <span className="font-mono">{length}×{width}×{height} cm</span>
                         </div>
                         <div className="grid grid-cols-3 gap-1 pt-1 mt-1 border-t border-slate-200 font-mono text-[8px]">
-                          <div>Dead: <strong>{weight.toFixed(2)} kg</strong></div>
+                          <div>Dead: <strong>{(Number(weight) || 0).toFixed(2)} kg</strong></div>
                           <div>Cubic: <strong>{cubicWeight.toFixed(2)} kg</strong></div>
                           <div className="text-right">Items: <strong>{data.parcel.itemCount}</strong></div>
                         </div>

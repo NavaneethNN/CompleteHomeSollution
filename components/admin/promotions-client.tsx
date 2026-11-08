@@ -77,7 +77,7 @@ export function PromotionsClient({ initialPromotions }: PromotionsClientProps) {
   const [showInPopup, setShowInPopup] = useState(true);
   const [showInBanner, setShowInBanner] = useState(true);
   const [isActive, setIsActive] = useState(true);
-  const [displayOrder, setDisplayOrder] = useState(0);
+  const [displayOrder, setDisplayOrder] = useState<number | string>(0);
 
   const openCreateDialog = () => {
     setEditingPromo(null);
@@ -90,7 +90,7 @@ export function PromotionsClient({ initialPromotions }: PromotionsClientProps) {
     setShowInPopup(true);
     setShowInBanner(true);
     setIsActive(true);
-    setDisplayOrder(promotions.length);
+    setDisplayOrder(promotions.length === 0 ? "" : promotions.length);
     setIsDialogOpen(true);
   };
 
@@ -133,7 +133,7 @@ export function PromotionsClient({ initialPromotions }: PromotionsClientProps) {
       showInPopup,
       showInBanner,
       isActive,
-      displayOrder: Number(displayOrder) || 0,
+      displayOrder: displayOrder === "" ? 0 : (parseInt(String(displayOrder)) || 0),
     };
 
     startTransition(async () => {
@@ -521,8 +521,9 @@ export function PromotionsClient({ initialPromotions }: PromotionsClientProps) {
                 <Input
                   id="promo-order"
                   type="number"
+                  placeholder="0"
                   value={displayOrder}
-                  onChange={(e) => setDisplayOrder(parseInt(e.target.value) || 0)}
+                  onChange={(e) => setDisplayOrder(e.target.value)}
                   className="mt-1.5"
                 />
               </div>

@@ -294,6 +294,7 @@ export function OrderPackagingPanel({
                   type="number"
                   step="0.1"
                   min="1"
+                  placeholder="0"
                   value={formLength}
                   onChange={(e) => setFormLength(e.target.value)}
                 />
@@ -305,6 +306,7 @@ export function OrderPackagingPanel({
                   type="number"
                   step="0.1"
                   min="1"
+                  placeholder="0"
                   value={formWidth}
                   onChange={(e) => setFormWidth(e.target.value)}
                 />
@@ -316,6 +318,7 @@ export function OrderPackagingPanel({
                   type="number"
                   step="0.1"
                   min="1"
+                  placeholder="0"
                   value={formHeight}
                   onChange={(e) => setFormHeight(e.target.value)}
                 />
@@ -331,6 +334,7 @@ export function OrderPackagingPanel({
                 type="number"
                 step="0.05"
                 min="0.1"
+                placeholder="0.0"
                 value={formWeight}
                 onChange={(e) => setFormWeight(e.target.value)}
               />

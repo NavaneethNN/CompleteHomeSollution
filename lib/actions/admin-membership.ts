@@ -45,9 +45,9 @@ export type MemberUser = {
 const planSchema = z.object({
   name:            z.string().min(1).max(80),
   description:     z.string().max(500).optional().nullable(),
-  price:           z.number().positive(),
-  durationDays:    z.number().int().positive(),
-  discountPercent: z.number().min(0).max(100),
+  price:           z.coerce.number().positive(),
+  durationDays:    z.coerce.number().int().positive(),
+  discountPercent: z.coerce.number().min(0).max(100),
   isActive:        z.boolean(),
   isDefault:       z.boolean(),
 });
