@@ -34,9 +34,10 @@ const schema = z
   .object({
     name: z
       .string()
+      .trim()
       .min(2, "Name must be at least 2 characters")
       .max(60, "Name must be 60 characters or less"),
-    email: z.string().email("Please enter a valid email address"),
+    email: z.string().trim().email("Please enter a valid email address"),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -109,6 +110,26 @@ const BENEFITS = [
   },
 ] as const;
 
+/* ─── NextAuth error messages ────────────────────────────────────────── */
+
+const AUTH_ERRORS: Record<string, string> = {
+  OAuthAccountNotLinked:
+    "This email is already registered with a different sign-in method. Please use the original sign-in method.",
+  OAuthCallbackError: "Google sign-in was cancelled or failed. Please try again.",
+  OAuthCallback: "Google sign-in was cancelled or failed. Please try again.",
+  OAuthSignin: "Could not start Google sign-in. Please try again.",
+  OAuthCreateAccount: "Could not create your account via Google. Please try again.",
+  Callback: "Google sign-in was cancelled or failed. Please try again.",
+  Configuration: "Google sign-in was cancelled or failed. Please try again.",
+  AccessDenied: "Google sign-in was cancelled. Please try again.",
+  Default: "Something went wrong. Please try again.",
+};
+
+const NOTICE_MESSAGES: Record<string, string> = {
+  no_account: "No account found with this email. Create a free account below to get started.",
+  session_expired: "Your session has expired. Please create an account or sign in.",
+};
+
 /* ─── Reusable field wrapper ─────────────────────────────────────────── */
 
 function FieldError({ message }: { message?: string }) {
@@ -128,11 +149,26 @@ export default function RegisterForm() {
   const searchParams = useSearchParams();
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
   const emailParam = searchParams.get("email") || "";
+  const errorParam = searchParams.get("error");
+  const messageParam = searchParams.get("message");
+
+  let noticeMessage: string | null = null;
+  if (messageParam) {
+    if (messageParam === "no_account") {
+      noticeMessage = emailParam
+        ? `No account found with ${emailParam}. Create a free account below to get started.`
+        : "No account found with this email. Create a free account below to get started.";
+    } else {
+      noticeMessage = NOTICE_MESSAGES[messageParam] ?? messageParam;
+    }
+  }
   
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const [serverError, setServerError] = useState<string | null>(
+    errorParam ? (AUTH_ERRORS[errorParam] ?? AUTH_ERRORS.Default) : null
+  );
   const [success, setSuccess] = useState(false);
 
   const {
@@ -157,7 +193,6 @@ export default function RegisterForm() {
   const strength = getPasswordStrength(password);
 
   // Reset google loading if there's an error (user cancelled OAuth)
-  const errorParam = searchParams.get("error");
   useEffect(() => {
     if (errorParam) {
       setGoogleLoading(false);
@@ -173,16 +208,6 @@ export default function RegisterForm() {
       return () => clearTimeout(timer);
     }
   }, [googleLoading]);
-
-  // Auto-dismiss error messages after 5 seconds
-  useEffect(() => {
-    if (serverError) {
-      const timer = setTimeout(() => {
-        setServerError(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [serverError]);
 
   /* ── Google OAuth ─────────────────────────────────────────────────── */
   const handleGoogle = useCallback(async () => {
@@ -227,6 +252,7 @@ export default function RegisterForm() {
 
   /* ── Success screen ───────────────────────────────────────────────── */
   if (success) {
+    const registeredEmail = watch("email") || emailParam;
     return (
       <div className="flex items-center justify-center py-24 px-6">
         <div className="text-center max-w-sm">
@@ -235,14 +261,36 @@ export default function RegisterForm() {
           </div>
           <h2 className="text-2xl font-black text-foreground mb-2">Check your inbox!</h2>
           <p className="text-sm text-muted-foreground mb-2 leading-relaxed">
-            We&apos;ve sent a verification link to your email address.
+            We&apos;ve sent a verification link to{" "}
+            {registeredEmail ? <strong className="text-foreground">{registeredEmail}</strong> : "your email address"}.
           </p>
           <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
             Click the link in the email to activate your account, then sign in.
           </p>
+          <div className="space-y-3 mb-6">
+            <Link
+              href={`/login?registered=true${registeredEmail ? `&email=${encodeURIComponent(registeredEmail)}` : ""}`}
+              className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-primary/90 text-white font-bold text-sm py-3 rounded-xl transition-colors shadow-sm"
+            >
+              Go to Sign In
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/resend-verification${registeredEmail ? `?email=${encodeURIComponent(registeredEmail)}` : ""}`}
+              className="flex items-center justify-center gap-2 w-full border border-border text-foreground hover:bg-secondary font-medium text-sm py-2.5 rounded-xl transition-colors"
+            >
+              Resend verification email
+            </Link>
+          </div>
           <p className="text-xs text-muted-foreground">
             Didn&apos;t receive it? Check your spam folder or{" "}
-            <Link href="/register" className="text-primary font-medium hover:underline">try again</Link>.
+            <button
+              type="button"
+              onClick={() => setSuccess(false)}
+              className="text-primary font-medium hover:underline inline"
+            >
+              try registering again
+            </button>.
           </p>
         </div>
       </div>
@@ -365,6 +413,17 @@ export default function RegisterForm() {
               </Link>
             </p>
           </div>
+
+          {/* ── Notice banner (e.g. redirected from login when no account exists) ── */}
+          {noticeMessage && (
+            <div
+              role="status"
+              className="mb-5 flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800"
+            >
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
+              <span>{noticeMessage}</span>
+            </div>
+          )}
 
           {/* ── Guest Orders Link Notice ────────────────────────── */}
           {emailParam && (
@@ -506,6 +565,17 @@ export default function RegisterForm() {
               </div>
               <div id="email-error">
                 <FieldError message={errors.email?.message} />
+                {errors.email?.message?.includes("already exists") && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Already have an account?{" "}
+                    <Link
+                      href={`/login?email=${encodeURIComponent(watch("email") || emailParam || "")}`}
+                      className="text-primary font-semibold hover:underline"
+                    >
+                      Sign in instead →
+                    </Link>
+                  </p>
+                )}
               </div>
             </div>
 

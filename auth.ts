@@ -8,26 +8,90 @@ import { hashPassword, passwordNeedsRehash, verifyPassword } from "@/lib/passwor
 import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
 import { claimGuestOrdersForUser } from "@/lib/guest-orders";
 
-class EmailNotVerifiedError extends CredentialsSignin {
+export class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
 }
 
+export class UserNotFoundError extends CredentialsSignin {
+  code = "UserNotFound";
+}
 
-export type UserRole = "ADMIN" | "MEMBER" | "CUSTOMER";
-
-const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1).max(256),
-});
-
-// Custom error for rate limiting
-class RateLimitError extends CredentialsSignin {
+export class RateLimitError extends CredentialsSignin {
   code = "RateLimited";
 }
 
-// Custom error for invalid credentials
-class InvalidCredentialsError extends CredentialsSignin {
+export class OAuthAccountOnlyError extends CredentialsSignin {
+  code = "OAuthAccountOnly";
+}
+
+export class InvalidCredentialsError extends CredentialsSignin {
   code = "CredentialsSignin";
+}
+
+export type UserRole = "ADMIN" | "MEMBER" | "CUSTOMER";
+
+export const credentialsSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(1).max(256),
+});
+
+export async function authorizeCredentials(
+  credentials: unknown,
+  req: { headers: Headers }
+) {
+  const parsed = credentialsSchema.safeParse(credentials);
+  if (!parsed.success) return null;
+
+  const { password } = parsed.data;
+  const email = parsed.data.email.toLowerCase().trim();
+  
+  // Rate limiting check - use IP + email as identifier
+  const ip = getClientIp(req.headers);
+  const rateLimitKey = `${ip}:${email}`;
+  const rateLimit = await consumeRateLimit("login", rateLimitKey, 5, 15 * 60);
+  if (!rateLimit.allowed) {
+    throw new RateLimitError();
+  }
+
+  const user = await db.user.findUnique({ where: { email } });
+
+  if (!user) {
+    throw new UserNotFoundError();
+  }
+
+  if (!user.passwordHash) {
+    throw new OAuthAccountOnlyError();
+  }
+
+  if (!user.emailVerified) {
+    throw new EmailNotVerifiedError();
+  }
+
+  const valid = await verifyPassword(password, user.passwordHash);
+  if (!valid) {
+    return null;
+  }
+
+  if (passwordNeedsRehash(user.passwordHash)) {
+    try {
+      const upgraded = await hashPassword(password);
+      await db.user.updateMany({
+        where: { id: user.id, passwordHash: user.passwordHash },
+        data: { passwordHash: upgraded },
+      });
+    } catch (error) {
+      console.error("[auth] Legacy password hash upgrade failed", error);
+    }
+  }
+
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    name: user.name,
+    image: user.image,
+    role: user.role as UserRole,
+    isMember: !!user.isMember && (!user.membershipExpiry || user.membershipExpiry > new Date()),
+  };
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -50,57 +114,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials, req) {
-        const parsed = credentialsSchema.safeParse(credentials);
-        if (!parsed.success) return null;
-
-        const { password } = parsed.data;
-        const email = parsed.data.email.toLowerCase().trim();
-        
-        // Rate limiting check - use IP + email as identifier
-        const ip = getClientIp(req.headers);
-        const rateLimitKey = `${ip}:${email}`;
-        const rateLimit = await consumeRateLimit("login", rateLimitKey, 5, 15 * 60);
-        if (!rateLimit.allowed) {
-          throw new RateLimitError();
-        }
-
-        const user = await db.user.findUnique({ where: { email } });
-
-        if (!user || !user.passwordHash) {
-          return null;
-        }
-
-        if (!user.emailVerified) {
-          throw new CredentialsSignin("EmailNotVerified");
-        }
-
-        const valid = await verifyPassword(password, user.passwordHash);
-        if (!valid) {
-          return null;
-        }
-
-        if (passwordNeedsRehash(user.passwordHash)) {
-          try {
-            const upgraded = await hashPassword(password);
-            await db.user.updateMany({
-              where: { id: user.id, passwordHash: user.passwordHash },
-              data: { passwordHash: upgraded },
-            });
-          } catch (error) {
-            console.error("[auth] Legacy password hash upgrade failed", error);
-          }
-        }
-
-        return {
-          id: user.id,
-          email: user.email ?? "",
-          name: user.name,
-          image: user.image,
-          role: user.role as UserRole,
-          isMember: !!user.isMember && (!user.membershipExpiry || user.membershipExpiry > new Date()),
-        };
-      },
+      authorize: authorizeCredentials,
     }),
   ],
   session: { 

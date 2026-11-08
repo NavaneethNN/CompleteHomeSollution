@@ -30,6 +30,7 @@ import { getSafeCallbackUrl } from "@/lib/safe-callback";
 const loginSchema = z.object({
   email: z
     .string()
+    .trim()
     .min(1, "Email is required")
     .email("Invalid email address"),
   password: z
@@ -42,10 +43,13 @@ type LoginFormData = z.infer<typeof loginSchema>;
 /* ─── NextAuth error messages ────────────────────────────────────────── */
 
 const AUTH_ERRORS: Record<string, string> = {
-  CredentialsSignin: "Invalid email or password",
+  CredentialsSignin: "Invalid email or password. Please check your credentials and try again.",
+  credentials: "Invalid email or password. Please check your credentials and try again.",
   RateLimited: "Too many failed attempts. Please try again after 15 minutes.",
   EmailNotVerified:
     "Please verify your email before signing in. Check your inbox for the verification link.",
+  OAuthAccountOnly:
+    "This account was created with Google. Please sign in using the 'Continue with Google' button.",
   OAuthAccountNotLinked:
     "This email is already registered with a different sign-in method. Please use the original sign-in method.",
   OAuthCallbackError:   "Google sign-in was cancelled or failed. Please try again.",
@@ -92,16 +96,34 @@ function LoginFormInner() {
   const searchParams = useSearchParams();
 
   const errorParam = searchParams.get("error");
+  const codeParam = searchParams.get("code");
   const emailParam = searchParams.get("email") || "";
   const registered = searchParams.get("registered") === "true";
   const verified = searchParams.get("verified") === "true";
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
 
+  // Check if initial error or code indicates specific status
+  const initialErrorKey = codeParam && AUTH_ERRORS[codeParam] ? codeParam : errorParam;
+
   const [showPw, setShowPw] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorCode, setErrorCode] = useState<string | null>(initialErrorKey || null);
   const [serverError, setServerError] = useState<string | null>(
-    errorParam ? (AUTH_ERRORS[errorParam] ?? AUTH_ERRORS.Default) : null
+    initialErrorKey ? (AUTH_ERRORS[initialErrorKey] ?? AUTH_ERRORS.Default) : null
   );
+
+  // If redirected to login with UserNotFound, redirect immediately to register with message
+  useEffect(() => {
+    if (codeParam === "UserNotFound" || errorParam === "UserNotFound") {
+      const target = new URL("/register", window.location.origin);
+      if (emailParam) target.searchParams.set("email", emailParam);
+      target.searchParams.set("message", "no_account");
+      if (callbackUrl && callbackUrl !== "/") {
+        target.searchParams.set("callbackUrl", callbackUrl);
+      }
+      router.replace(target.pathname + target.search);
+    }
+  }, [codeParam, errorParam, emailParam, callbackUrl, router]);
 
   // Reset google loading if there's an error (user cancelled OAuth)
   useEffect(() => {
@@ -120,20 +142,11 @@ function LoginFormInner() {
     }
   }, [googleLoading]);
 
-  // Auto-dismiss error messages after 5 seconds
-  useEffect(() => {
-    if (serverError) {
-      const timer = setTimeout(() => {
-        setServerError(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [serverError]);
-
   const {
     register,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -164,6 +177,7 @@ function LoginFormInner() {
   /* ── Email / password sign-in ─────────────────────────────────────── */
   const onSubmit = async (data: LoginFormData) => {
     setServerError(null);
+    setErrorCode(null);
 
     try {
       const result = await signIn("credentials", {
@@ -174,22 +188,48 @@ function LoginFormInner() {
 
       console.log("[Login] signIn result:", result);
 
-      if (result?.error) {
-        // Handle specific string matching or use default
-        let errorKey = result.error;
-        if (result.error.includes("EmailNotVerified")) errorKey = "EmailNotVerified";
-        if (result.error.includes("RateLimited")) errorKey = "RateLimited";
-        
+      // Extract error code if present
+      let code = result?.code;
+      if (!code && result?.url) {
+        try {
+          const parsedUrl = new URL(result.url, window.location.origin);
+          code = parsedUrl.searchParams.get("code") || undefined;
+        } catch {}
+      }
+      if (!code && result?.error && result.error !== "CredentialsSignin") {
+        code = result.error;
+      }
+
+      // If user does not have an account, redirect them to the signup page with a message
+      if (code === "UserNotFound" || (result?.url && result.url.includes("code=UserNotFound"))) {
+        const signupUrl = `/register?email=${encodeURIComponent(data.email)}&message=no_account${
+          callbackUrl && callbackUrl !== "/" ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""
+        }`;
+        router.push(signupUrl);
+        return;
+      }
+
+      if (result?.error || code) {
+        const errorKey = code && AUTH_ERRORS[code] ? code : (result?.error ?? "Default");
         const errorMessage = AUTH_ERRORS[errorKey] ?? AUTH_ERRORS.Default;
-        console.log("[Login] Setting error:", errorMessage);
+        console.log("[Login] Setting error:", errorMessage, "code:", errorKey);
         setServerError(errorMessage);
+        setErrorCode(errorKey);
         return;
       }
 
       // Handle NextAuth v5 bug where redirect: false still follows redirects and returns ok: true
       if (result?.url && result.url.includes("error=")) {
         console.log("[Login] Caught redirected error in URL:", result.url);
+        if (result.url.includes("code=UserNotFound")) {
+          const signupUrl = `/register?email=${encodeURIComponent(data.email)}&message=no_account${
+            callbackUrl && callbackUrl !== "/" ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""
+          }`;
+          router.push(signupUrl);
+          return;
+        }
         setServerError("Invalid email or password. Please try again.");
+        setErrorCode("CredentialsSignin");
         return;
       }
 
@@ -197,10 +237,18 @@ function LoginFormInner() {
         router.push(callbackUrl);
         router.refresh();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[Login] Unexpected error:", err);
-      // Fallback for when signIn throws an error instead of returning it
+      const errCode = err?.code || (err?.type?.includes("UserNotFound") ? "UserNotFound" : null);
+      if (errCode === "UserNotFound" || err?.message?.includes("UserNotFound")) {
+        const signupUrl = `/register?email=${encodeURIComponent(data.email)}&message=no_account${
+          callbackUrl && callbackUrl !== "/" ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""
+        }`;
+        router.push(signupUrl);
+        return;
+      }
       setServerError("Invalid email or password. Please try again.");
+      setErrorCode("CredentialsSignin");
     }
   };
 
@@ -405,10 +453,22 @@ function LoginFormInner() {
           {serverError && (
             <div
               role="alert"
-              className="mb-4 flex items-start gap-2.5 px-4 py-3 bg-destructive/8 border border-destructive/25 rounded-xl text-sm text-destructive"
+              className="mb-4 flex flex-col gap-2 px-4 py-3 bg-destructive/10 border border-destructive/25 rounded-xl text-sm text-destructive"
             >
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-              <span>{serverError}</span>
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-destructive" />
+                <span>{serverError}</span>
+              </div>
+              {errorCode === "EmailNotVerified" && (
+                <div className="pl-6.5 text-xs">
+                  <Link
+                    href={`/resend-verification?email=${encodeURIComponent(watch("email") || emailParam || "")}`}
+                    className="font-semibold underline hover:text-destructive/80 focus-visible:outline-none"
+                  >
+                    Resend verification email →
+                  </Link>
+                </div>
+              )}
             </div>
           )}
 

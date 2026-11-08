@@ -12,9 +12,10 @@ const registerSchema = z
   .object({
     name: z
       .string()
+      .trim()
       .min(2, "Name must be at least 2 characters")
       .max(60, "Name must be 60 characters or less"),
-    email: z.string().email("Please enter a valid email address"),
+    email: z.string().trim().email("Please enter a valid email address"),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -44,12 +45,26 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
 
     const { name, password } = parsed.data;
     const email = parsed.data.email.toLowerCase().trim();
-    const requestHeaders = await headers();
+    let requestHeaders: Headers;
+    try {
+      requestHeaders = await headers();
+    } catch {
+      requestHeaders = new Headers();
+    }
     const limit = await consumeRateLimit("registration", `${getClientIp(requestHeaders)}:${email}`, 5, 60 * 60);
     if (!limit.allowed) return { error: "Too many registration attempts. Please try again later." };
 
-    const existing = await db.user.findUnique({ where: { email } });
+    const existing = await db.user.findUnique({
+      where: { email },
+      select: { id: true, passwordHash: true },
+    });
     if (existing) {
+      if (!existing.passwordHash) {
+        return {
+          error: "An account with this email already exists using Google sign-in. Please sign in with Google.",
+          field: "email",
+        };
+      }
       return {
         error: "An account with this email already exists.",
         field: "email",
@@ -59,13 +74,13 @@ export async function registerUser(input: RegisterInput): Promise<RegisterResult
     const passwordHash = await hashPassword(password);
 
     await db.user.create({
-      data: { name, email, passwordHash },
+      data: { name: name.trim(), email, passwordHash },
     });
 
     const token = await createVerificationToken(email);
 
     try {
-      await sendVerificationEmail(email, name, token);
+      await sendVerificationEmail(email, name.trim(), token);
     } catch (emailErr) {
       const detail = emailErr instanceof Error ? emailErr.message : String(emailErr);
       console.error("[registerUser] email send failed:", detail);
