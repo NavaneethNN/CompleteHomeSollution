@@ -141,6 +141,15 @@ export async function seedDefaultPackagingPresets() {
   }
 }
 
+const packedBoxSchema = z.object({
+  label: z.string().trim().min(1).max(120),
+  quantity: z.coerce.number().int().min(1).default(1),
+  length: z.coerce.number().positive("Length must be > 0"),
+  width: z.coerce.number().positive("Width must be > 0"),
+  height: z.coerce.number().positive("Height must be > 0"),
+  weight: z.coerce.number().positive("Weight must be > 0"),
+});
+
 const updateOrderPackagingSchema = z.object({
   orderId: z.string().min(1),
   packagePresetId: z.string().nullable().optional(),
@@ -149,6 +158,7 @@ const updateOrderPackagingSchema = z.object({
   packedWidth: z.coerce.number().positive("Width must be > 0"),
   packedHeight: z.coerce.number().positive("Height must be > 0"),
   packedWeight: z.coerce.number().positive("Weight must be > 0"),
+  packedBoxes: z.array(packedBoxSchema).min(1).optional(),
   packageOverride: z.boolean().default(true),
 });
 
@@ -171,8 +181,22 @@ export async function updateOrderPackaging(input: z.infer<typeof updateOrderPack
     packedWidth,
     packedHeight,
     packedWeight,
+    packedBoxes,
     packageOverride,
   } = parsed.data;
+
+  const boxesToStore = packedBoxes && packedBoxes.length > 0
+    ? packedBoxes
+    : [
+        {
+          label: packageName,
+          quantity: 1,
+          length: packedLength,
+          width: packedWidth,
+          height: packedHeight,
+          weight: packedWeight,
+        },
+      ];
 
   try {
     await db.order.update({
@@ -184,6 +208,7 @@ export async function updateOrderPackaging(input: z.infer<typeof updateOrderPack
         packedWidth,
         packedHeight,
         packedWeight,
+        packedBoxes: boxesToStore as any,
         packageOverride: packageOverride ?? true,
       },
     });

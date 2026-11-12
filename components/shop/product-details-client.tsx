@@ -10,6 +10,7 @@ import { VariantSelector } from "./variant-selector";
 import { AddToCartButton } from "./add-to-cart-button";
 import { WishlistToggleButton } from "./wishlist-toggle-button";
 import { resolveMemberPrice } from "@/lib/member-price";
+import { resolveVariantCustomerDimensions } from "@/lib/variant-dimensions";
 
 interface ProductVariant {
   id: string;
@@ -22,6 +23,9 @@ interface ProductVariant {
   description?: string | null;
   bulletTitle?: string | null;
   bulletPoints?: string[];
+  productLength?: number | null;
+  productWidth?: number | null;
+  productHeight?: number | null;
   weight?: number | null;
   length?: number | null;
   width?: number | null;
@@ -78,6 +82,8 @@ interface ProductDetailsClientProps {
     height?: number | null;
     category?: { name: string; slug: string };
     isPreOrder?: boolean;
+    memberFreeDelivery?: boolean;
+    memberDeliveryCharge?: number | null;
     reviewCount?: number;
     avgRating?: number | null;
   };
@@ -133,12 +139,9 @@ export function ProductDetailsClient({
     : (product.bulletPoints && product.bulletPoints.length > 0 ? product.bulletPoints : []);
   const displayBulletTitle = (hasVariantBullets ? selectedVariant?.bulletTitle : product.bulletTitle)?.trim() || "Key Features";
 
-  // Dimensions — variant values override product-level values
-  const displayWeight = selectedVariant?.weight ?? product.weight;
-  const displayLength = selectedVariant?.length ?? product.length;
-  const displayWidth  = selectedVariant?.width  ?? product.width;
-  const displayHeight = selectedVariant?.height ?? product.height;
-  const hasDimensions = displayWeight || (displayLength && displayWidth && displayHeight);
+  // Customer-visible dimensions — strictly use the variant's product dimensions, never courier parcel dimensions/weight
+  const customerDimensions = resolveVariantCustomerDimensions(selectedVariant);
+  const hasSpecifications = Boolean(product.material || customerDimensions);
 
   // Generate variant label from selected variant's attribute values
   const variantLabel = selectedVariant?.values
@@ -262,6 +265,20 @@ export function ProductDetailsClient({
                 {" · "}save {money(displayPrice - displayMemberPrice)}
               </p>
             )}
+            {product.memberFreeDelivery && (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                <Sparkles className="h-3 w-3 text-emerald-600" />
+                Free Delivery for Members
+              </div>
+            )}
+            {!product.memberFreeDelivery &&
+              typeof product.memberDeliveryCharge === "number" &&
+              product.memberDeliveryCharge >= 0 && (
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  ${product.memberDeliveryCharge.toFixed(2)} Delivery for Members
+                </div>
+              )}
           </div>
         )}
 
@@ -380,10 +397,12 @@ export function ProductDetailsClient({
           )}
         </div>
 
-        {/* Dimensions & Specifications */}
-        {hasDimensions && (
+        {/* Product Dimensions & Specifications */}
+        {hasSpecifications && (
           <div className="border-t border-border/70 pt-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dimensions & Weight</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {customerDimensions ? "Product Dimensions" : "Specifications"}
+            </h2>
             <dl className="mt-2.5 divide-y divide-border/60 text-xs sm:text-sm">
               {product.material && (
                 <div className="flex justify-between gap-4 py-2">
@@ -391,16 +410,10 @@ export function ProductDetailsClient({
                   <dd className="text-right font-medium text-foreground">{product.material}</dd>
                 </div>
               )}
-              {displayWeight != null && (
+              {customerDimensions && (
                 <div className="flex justify-between gap-4 py-2">
-                  <dt className="text-muted-foreground">Estimated package weight</dt>
-                  <dd className="text-right font-medium text-foreground">{displayWeight} kg</dd>
-                </div>
-              )}
-              {displayLength != null && displayWidth != null && displayHeight != null && (
-                <div className="flex justify-between gap-4 py-2">
-                  <dt className="text-muted-foreground">Estimated package dimensions (L × W × H)</dt>
-                  <dd className="text-right font-medium text-foreground">{displayLength} × {displayWidth} × {displayHeight} cm</dd>
+                  <dt className="text-muted-foreground">{customerDimensions.label}</dt>
+                  <dd className="text-right font-medium text-foreground">{customerDimensions.formatted}</dd>
                 </div>
               )}
             </dl>

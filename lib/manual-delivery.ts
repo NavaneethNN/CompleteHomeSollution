@@ -34,11 +34,15 @@ export function isLargeProduct(product: ProductDeliveryDimensions): boolean {
 
   if (isSofa) return true;
 
-  // Courier limits: 25kg physical parcel limit, 180cm maximum dimension
-  const weight = product.weight ?? 0;
-  const maxDimension = Math.max(product.length ?? 0, product.width ?? 0, product.height ?? 0);
+  // Courier limits: 25kg physical parcel limit, 40kg cubic weight limit, 180cm maximum dimension
+  const weight = Math.max(0, product.weight ?? 0);
+  const length = Math.max(0, product.length ?? 0);
+  const width = Math.max(0, product.width ?? 0);
+  const height = Math.max(0, product.height ?? 0);
+  const maxDimension = Math.max(length, width, height);
+  const cubicWeight = (length * width * height) / 4000;
 
-  if (weight > 25 || maxDimension > 180) {
+  if (weight > 25 || maxDimension > 180 || cubicWeight > 40) {
     return true;
   }
 

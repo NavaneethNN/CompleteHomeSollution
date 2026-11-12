@@ -46,6 +46,13 @@ interface VariantAttribute {
   values: { id: string; value: string; hexCode?: string; images?: string[] }[];
 }
 
+interface EditableExtraPackageBox {
+  weight: number | string;
+  length: number | string;
+  width: number | string;
+  height: number | string;
+}
+
 interface ProductVariant {
   id: string;
   sku: string;
@@ -59,11 +66,170 @@ interface ProductVariant {
   description?: string;
   bulletTitle?: string;
   bulletPoints?: string[];
+  productLength?: number | string;
+  productWidth?: number | string;
+  productHeight?: number | string;
   weight?: number | string;
   length?: number | string;
   width?: number | string;
   height?: number | string;
+  extraPackages?: EditableExtraPackageBox[];
   requiresPackaging?: boolean;
+}
+
+function parseExtraPackagesForSubmit(
+  extraBoxes: EditableExtraPackageBox[] | undefined,
+  primary: {
+    weight?: number | string;
+    length?: number | string;
+    width?: number | string;
+    height?: number | string;
+  },
+  contextLabel: string
+): { error: string } | { extraPackages: { weight: number; length: number; width: number; height: number }[] } {
+  const boxes = extraBoxes ?? [];
+  if (boxes.length === 0) {
+    return { extraPackages: [] };
+  }
+  for (const [fieldLabel, raw] of [
+    ["Box 1 weight", primary.weight],
+    ["Box 1 length", primary.length],
+    ["Box 1 width", primary.width],
+    ["Box 1 height", primary.height],
+  ] as const) {
+    const num = parseFloat(String(raw ?? ""));
+    if (raw === undefined || raw === "" || isNaN(num) || num <= 0) {
+      return {
+        error: `${fieldLabel} ${contextLabel} must be greater than 0 when extra packaging boxes are added`,
+      };
+    }
+  }
+  const parsed: { weight: number; length: number; width: number; height: number }[] = [];
+  for (let i = 0; i < boxes.length; i++) {
+    const box = boxes[i];
+    const boxNum = i + 2;
+    const w = parseFloat(String(box.weight ?? ""));
+    const l = parseFloat(String(box.length ?? ""));
+    const wi = parseFloat(String(box.width ?? ""));
+    const h = parseFloat(String(box.height ?? ""));
+    if ([w, l, wi, h].some((n) => isNaN(n) || n <= 0)) {
+      return {
+        error: `Box ${boxNum} ${contextLabel} must have weight, length, width, and height greater than 0`,
+      };
+    }
+    parsed.push({ weight: w, length: l, width: wi, height: h });
+  }
+  return { extraPackages: parsed };
+}
+
+function CourierExtraPackagesSection({
+  extraPackages,
+  onChange,
+  compact = false,
+}: {
+  extraPackages: EditableExtraPackageBox[];
+  onChange: (next: EditableExtraPackageBox[]) => void;
+  compact?: boolean;
+}) {
+  const updateBoxField = (idx: number, field: keyof EditableExtraPackageBox, value: string) => {
+    const next = extraPackages.map((box, i) => (i === idx ? { ...box, [field]: value } : box));
+    onChange(next);
+  };
+
+  return (
+    <div className="space-y-3 pt-2">
+      {extraPackages.map((box, idx) => (
+        <div
+          key={idx}
+          className="rounded-lg border border-slate-200 bg-slate-50/60 p-3 space-y-2"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-700">
+              Box {idx + 2} (Booked Separately)
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange(extraPackages.filter((_, i) => i !== idx))}
+              className="inline-flex items-center gap-1 text-xs text-red-600 hover:text-red-700 font-medium"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Remove
+            </button>
+          </div>
+          <div className={cn("grid grid-cols-2 sm:grid-cols-4", compact ? "gap-3" : "gap-4")}>
+            <div className={compact ? "space-y-1.5" : "space-y-2"}>
+              <Label className={compact ? "text-xs text-slate-500" : ""}>Courier Weight (kg)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                value={box.weight}
+                onChange={(e) => updateBoxField(idx, "weight", e.target.value)}
+                className={compact ? "h-8 text-xs bg-white" : "bg-white"}
+                placeholder="kg"
+              />
+            </div>
+            <div className={compact ? "space-y-1.5" : "space-y-2"}>
+              <Label className={compact ? "text-xs text-slate-500" : ""}>Parcel Length (cm)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                value={box.length}
+                onChange={(e) => updateBoxField(idx, "length", e.target.value)}
+                className={compact ? "h-8 text-xs bg-white" : "bg-white"}
+                placeholder="cm"
+              />
+            </div>
+            <div className={compact ? "space-y-1.5" : "space-y-2"}>
+              <Label className={compact ? "text-xs text-slate-500" : ""}>Parcel Width (cm)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                value={box.width}
+                onChange={(e) => updateBoxField(idx, "width", e.target.value)}
+                className={compact ? "h-8 text-xs bg-white" : "bg-white"}
+                placeholder="cm"
+              />
+            </div>
+            <div className={compact ? "space-y-1.5" : "space-y-2"}>
+              <Label className={compact ? "text-xs text-slate-500" : ""}>Parcel Height (cm)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                value={box.height}
+                onChange={(e) => updateBoxField(idx, "height", e.target.value)}
+                className={compact ? "h-8 text-xs bg-white" : "bg-white"}
+                placeholder="cm"
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            onChange([...extraPackages, { weight: "", length: "", width: "", height: "" }])
+          }
+          className={compact ? "h-8 text-xs" : ""}
+        >
+          <Plus className="h-3.5 w-3.5 mr-1.5" />
+          Add Another Packaging
+        </Button>
+        {extraPackages.length > 0 && (
+          <span className="text-[11px] text-slate-500">
+            {extraPackages.length + 1} separate courier boxes per unit
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function VariantCard({
@@ -267,64 +433,103 @@ function VariantCard({
             )}
           </div>
 
-          {/* Variant Dimensions */}
+          {/* Product Dimensions (Customer Visible) */}
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
-              <Ruler className="h-3.5 w-3.5" />
-              Dimensions &amp; Weight
-            </Label>
+            <div>
+              <Label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
+                <Ruler className="h-3.5 w-3.5" />
+                Product Dimensions (Customer Visible)
+              </Label>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Shown on the product page to help customers check item size.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Product Length (cm)</Label>
+                <Input
+                  type="number" min="0" step="any"
+                  value={variant.productLength ?? ""}
+                  onChange={(e) => onUpdate({ productLength: e.target.value })}
+                  className="h-8 text-xs" placeholder="cm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Product Width (cm)</Label>
+                <Input
+                  type="number" min="0" step="any"
+                  value={variant.productWidth ?? ""}
+                  onChange={(e) => onUpdate({ productWidth: e.target.value })}
+                  className="h-8 text-xs" placeholder="cm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Product Height (cm)</Label>
+                <Input
+                  type="number" min="0" step="any"
+                  value={variant.productHeight ?? ""}
+                  onChange={(e) => onUpdate({ productHeight: e.target.value })}
+                  className="h-8 text-xs" placeholder="cm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Courier Parcel Dimensions & Weight */}
+          <div className="space-y-2 pt-3 border-t border-slate-200">
+            <div>
+              <Label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5" />
+                Courier Parcel Dimensions &amp; Weight (Shipping Calculation)
+              </Label>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Packed parcel dimensions and weight used strictly for courier quotes, packaging, and labels.
+              </p>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Weight (kg)</Label>
+                <Label className="text-xs text-slate-400">Courier Weight (kg)</Label>
                 <Input
-                  type="number" min="0" step="0.1"
+                  type="number" min="0" step="any"
                   value={variant.weight ?? ""}
                   onChange={(e) => onUpdate({ weight: e.target.value })}
-                  className="h-8 text-xs" placeholder="0.0"
+                  className="h-8 text-xs" placeholder="kg"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Length (cm)</Label>
+                <Label className="text-xs text-slate-400">Parcel Length (cm)</Label>
                 <Input
-                  type="number" min="0"
+                  type="number" min="0" step="any"
                   value={variant.length ?? ""}
                   onChange={(e) => onUpdate({ length: e.target.value })}
-                  className="h-8 text-xs" placeholder="0"
+                  className="h-8 text-xs" placeholder="cm"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Width (cm)</Label>
+                <Label className="text-xs text-slate-400">Parcel Width (cm)</Label>
                 <Input
-                  type="number" min="0"
+                  type="number" min="0" step="any"
                   value={variant.width ?? ""}
                   onChange={(e) => onUpdate({ width: e.target.value })}
-                  className="h-8 text-xs" placeholder="0"
+                  className="h-8 text-xs" placeholder="cm"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Height (cm)</Label>
+                <Label className="text-xs text-slate-400">Parcel Height (cm)</Label>
                 <Input
-                  type="number" min="0"
+                  type="number" min="0" step="any"
                   value={variant.height ?? ""}
                   onChange={(e) => onUpdate({ height: e.target.value })}
-                  className="h-8 text-xs" placeholder="0"
+                  className="h-8 text-xs" placeholder="cm"
                 />
               </div>
             </div>
 
-            {/* Packaging Requirement */}
-            <div className="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 mt-3">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold text-slate-800">Packaging Needed</Label>
-                <p className="text-[11px] text-slate-500">
-                  When turned off, this variant is shipped directly in its own dimensions without an outer box.
-                </p>
-              </div>
-              <Switch
-                checked={variant.requiresPackaging ?? true}
-                onCheckedChange={(checked: boolean) => onUpdate({ requiresPackaging: checked })}
-              />
-            </div>
+            <CourierExtraPackagesSection
+              extraPackages={variant.extraPackages ?? []}
+              onChange={(extraPackages) => onUpdate({ extraPackages })}
+              compact
+            />
           </div>
 
           {/* Variant-specific Description & Highlights (Optional) */}
@@ -466,7 +671,9 @@ export default function NewProductPage() {
   const [isActive, setIsActive] = useState(true);
   const [isPreOrder, setIsPreOrder] = useState(false);
   const [isLargeItem, setIsLargeItem] = useState(false);
-  const [requiresPackaging, setRequiresPackaging] = useState(true);
+  const [memberFreeDelivery, setMemberFreeDelivery] = useState(false);
+  const [memberFixedDeliveryEnabled, setMemberFixedDeliveryEnabled] = useState(false);
+  const [memberDeliveryCharge, setMemberDeliveryCharge] = useState("");
   const [hasVariants, setHasVariants] = useState(false);
   const [images, setImages] = useState<string[]>([]);
 
@@ -475,6 +682,7 @@ export default function NewProductPage() {
   const [length, setLength] = useState("");
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
+  const [extraPackages, setExtraPackages] = useState<EditableExtraPackageBox[]>([]);
 
   // Variants
   const [variantAttributes, setVariantAttributes] = useState<VariantAttribute[]>([]);
@@ -534,13 +742,30 @@ export default function NewProductPage() {
         setIsActive(p.isActive);
         setIsPreOrder(p.isPreOrder ?? false);
         setIsLargeItem(p.isLargeItem ?? false);
-        setRequiresPackaging(p.requiresPackaging ?? true);
+        const freeDelivery = Boolean(p.memberFreeDelivery);
+        const fixedCharge =
+          typeof p.memberDeliveryCharge === "number" && Number.isFinite(p.memberDeliveryCharge)
+            ? p.memberDeliveryCharge
+            : null;
+        setMemberFreeDelivery(freeDelivery);
+        setMemberFixedDeliveryEnabled(!freeDelivery && fixedCharge !== null);
+        setMemberDeliveryCharge(!freeDelivery && fixedCharge !== null ? String(fixedCharge) : "");
         setHasVariants(p.hasVariants);
         setImages(p.images || []);
         setWeight(p.weight?.toString() || "");
         setLength(p.length?.toString() || "");
         setWidth(p.width?.toString() || "");
         setHeight(p.height?.toString() || "");
+        setExtraPackages(
+          Array.isArray(p.extraPackages)
+            ? p.extraPackages.map((box: any) => ({
+                weight: box?.weight ?? "",
+                length: box?.length ?? "",
+                width: box?.width ?? "",
+                height: box?.height ?? "",
+              }))
+            : []
+        );
         
         // Load variant attributes if present
         if (p.variantAttributes) {
@@ -580,11 +805,21 @@ export default function NewProductPage() {
               description: v.description || "",
               bulletTitle: v.bulletTitle || "",
               bulletPoints: v.bulletPoints || [],
+              productLength: v.productLength ?? "",
+              productWidth: v.productWidth ?? "",
+              productHeight: v.productHeight ?? "",
               weight: v.weight ?? "",
               length: v.length ?? "",
               width: v.width ?? "",
               height: v.height ?? "",
-              requiresPackaging: v.requiresPackaging ?? true,
+              extraPackages: Array.isArray(v.extraPackages)
+                ? v.extraPackages.map((box: any) => ({
+                    weight: box?.weight ?? "",
+                    length: box?.length ?? "",
+                    width: box?.width ?? "",
+                    height: box?.height ?? "",
+                  }))
+                : [],
             };
           }));
         }
@@ -852,6 +1087,45 @@ export default function NewProductPage() {
           setActiveTab("variants");
           return;
         }
+        for (const [label, raw] of [
+          ["product length", v.productLength],
+          ["product width", v.productWidth],
+          ["product height", v.productHeight],
+        ] as const) {
+          if (raw !== undefined && raw !== "") {
+            const num = parseFloat(String(raw));
+            if (isNaN(num) || num <= 0) {
+              toast.error(`Variant ${label} for "${v.sku}" must be greater than 0`);
+              setActiveTab("variants");
+              return;
+            }
+          }
+        }
+        for (const [label, raw] of [
+          ["courier weight", v.weight],
+          ["parcel length", v.length],
+          ["parcel width", v.width],
+          ["parcel height", v.height],
+        ] as const) {
+          if (raw !== undefined && raw !== "") {
+            const num = parseFloat(String(raw));
+            if (isNaN(num) || num < 0) {
+              toast.error(`Variant ${label} for "${v.sku}" cannot be negative`);
+              setActiveTab("variants");
+              return;
+            }
+          }
+        }
+        const parsedVariantExtra = parseExtraPackagesForSubmit(
+          v.extraPackages,
+          { weight: v.weight, length: v.length, width: v.width, height: v.height },
+          `for "${v.sku}"`
+        );
+        if ("error" in parsedVariantExtra) {
+          toast.error(parsedVariantExtra.error);
+          setActiveTab("variants");
+          return;
+        }
       }
       const variantSkus = productVariants.map((v) => v.sku.trim().toUpperCase());
       const uniqueSkus = new Set(variantSkus);
@@ -865,6 +1139,36 @@ export default function NewProductPage() {
         setActiveTab("variants");
         return;
       }
+    }
+
+    let resolvedBaseExtraPackages: { weight: number; length: number; width: number; height: number }[] = [];
+    if (!hasVariants) {
+      for (const [label, raw] of [
+        ["courier weight", weight],
+        ["parcel length", length],
+        ["parcel width", width],
+        ["parcel height", height],
+      ] as const) {
+        if (raw !== undefined && raw !== "") {
+          const num = parseFloat(String(raw));
+          if (isNaN(num) || num < 0) {
+            toast.error(`Product ${label} cannot be negative`);
+            setActiveTab("shipping");
+            return;
+          }
+        }
+      }
+      const parsedBaseExtra = parseExtraPackagesForSubmit(
+        extraPackages,
+        { weight, length, width, height },
+        "for this product"
+      );
+      if ("error" in parsedBaseExtra) {
+        toast.error(parsedBaseExtra.error);
+        setActiveTab("shipping");
+        return;
+      }
+      resolvedBaseExtraPackages = parsedBaseExtra.extraPackages;
     }
     
     setLoading(true);
@@ -885,13 +1189,19 @@ export default function NewProductPage() {
         isActive,
         isPreOrder,
         isLargeItem,
-        requiresPackaging,
+        memberFreeDelivery,
+        memberDeliveryCharge:
+          !memberFreeDelivery && memberFixedDeliveryEnabled && memberDeliveryCharge.trim() !== ""
+            ? parseFloat(memberDeliveryCharge)
+            : (isEditMode ? null : undefined),
+        requiresPackaging: false,
         hasVariants,
         images,
-        weight: weight ? parseFloat(weight) : undefined,
-        length: length ? parseFloat(length) : undefined,
-        width: width ? parseFloat(width) : undefined,
-        height: height ? parseFloat(height) : undefined,
+        weight: weight ? parseFloat(weight) : (isEditMode ? null : undefined),
+        length: length ? parseFloat(length) : (isEditMode ? null : undefined),
+        width: width ? parseFloat(width) : (isEditMode ? null : undefined),
+        height: height ? parseFloat(height) : (isEditMode ? null : undefined),
+        extraPackages: hasVariants ? [] : resolvedBaseExtraPackages,
         // Always send variant arrays in edit mode so the API can clean up deleted variants.
         // In create mode, omit when not needed to keep payload minimal.
         variantAttributes: (hasVariants || isEditMode)
@@ -920,6 +1230,11 @@ export default function NewProductPage() {
               const resolvedImages = (v.images && v.images.length > 0)
                 ? v.images
                 : (primaryVal?.images && primaryVal.images.length > 0 ? primaryVal.images : []);
+              const parsedVariantExtra = parseExtraPackagesForSubmit(
+                v.extraPackages,
+                { weight: v.weight, length: v.length, width: v.width, height: v.height },
+                `for "${v.sku}"`
+              );
               return {
                 sku: v.sku.trim(),
                 price: parseFloat(String(v.price)) || 0,
@@ -932,11 +1247,16 @@ export default function NewProductPage() {
                 description: v.description ? sanitizeInput(v.description) : undefined,
                 bulletTitle: v.bulletTitle ? sanitizeInput(v.bulletTitle) : undefined,
                 bulletPoints: (v.bulletPoints || []).map((p) => sanitizeInput(p)).filter(Boolean),
-                weight: v.weight !== undefined && v.weight !== "" ? parseFloat(String(v.weight)) : undefined,
-                length: v.length !== undefined && v.length !== "" ? parseFloat(String(v.length)) : undefined,
-                width: v.width !== undefined && v.width !== "" ? parseFloat(String(v.width)) : undefined,
-                height: v.height !== undefined && v.height !== "" ? parseFloat(String(v.height)) : undefined,
-                requiresPackaging: v.requiresPackaging ?? true,
+                productLength: v.productLength !== undefined && v.productLength !== "" ? parseFloat(String(v.productLength)) : null,
+                productWidth: v.productWidth !== undefined && v.productWidth !== "" ? parseFloat(String(v.productWidth)) : null,
+                productHeight: v.productHeight !== undefined && v.productHeight !== "" ? parseFloat(String(v.productHeight)) : null,
+                weight: v.weight !== undefined && v.weight !== "" ? parseFloat(String(v.weight)) : null,
+                length: v.length !== undefined && v.length !== "" ? parseFloat(String(v.length)) : null,
+                width: v.width !== undefined && v.width !== "" ? parseFloat(String(v.width)) : null,
+                height: v.height !== undefined && v.height !== "" ? parseFloat(String(v.height)) : null,
+                extraPackages:
+                  "extraPackages" in parsedVariantExtra ? parsedVariantExtra.extraPackages : [],
+                requiresPackaging: false,
               };
             })
           : undefined,
@@ -1086,19 +1406,71 @@ export default function NewProductPage() {
                 <Switch checked={isLargeItem} onCheckedChange={setIsLargeItem} />
               </div>
 
-              <div className="border-t border-slate-100 pt-3 flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Label className="font-semibold text-slate-900">Packaging Needed</Label>
-                    <Badge variant="outline" className="text-slate-600 border-slate-300 text-[10px]">
-                      {requiresPackaging ? "Needs Outer Box" : "Direct Shipping"}
-                    </Badge>
+              <div className="border-t border-slate-100 pt-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <Label className="font-semibold text-slate-900">Free Delivery for Members</Label>
+                      <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]">
+                        Members Only
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-slate-500">
+                      When enabled, club members pay $0 delivery charge for this product (courier or manual delivery charge is waived).
+                    </p>
                   </div>
-                  <p className="text-sm text-slate-500">
-                    Whether this product needs an outer package box. If disabled, shipped directly using product dimensions.
-                  </p>
+                  <Switch
+                    checked={memberFreeDelivery}
+                    onCheckedChange={(checked) => {
+                      setMemberFreeDelivery(checked);
+                      if (checked) {
+                        setMemberFixedDeliveryEnabled(false);
+                      }
+                    }}
+                  />
                 </div>
-                <Switch checked={requiresPackaging} onCheckedChange={setRequiresPackaging} />
+
+                {!memberFreeDelivery && (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label className="font-medium text-slate-800 text-sm">
+                          Standard Fixed Delivery Charge for Members
+                        </Label>
+                        <p className="text-xs text-slate-500">
+                          Set a flat delivery fee for members instead of dynamic courier rates.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={memberFixedDeliveryEnabled}
+                        onCheckedChange={(checked) => {
+                          setMemberFixedDeliveryEnabled(checked);
+                          if (!checked) {
+                            setMemberDeliveryCharge("");
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {memberFixedDeliveryEnabled && (
+                      <div className="pt-2 flex items-center gap-3">
+                        <Label htmlFor="memberDeliveryCharge" className="text-xs font-semibold text-slate-700 shrink-0">
+                          Member Delivery Charge ($AUD)
+                        </Label>
+                        <Input
+                          id="memberDeliveryCharge"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="e.g. 15.00"
+                          value={memberDeliveryCharge}
+                          onChange={(e) => setMemberDeliveryCharge(e.target.value)}
+                          className="max-w-[160px] bg-white h-9"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1734,50 +2106,58 @@ export default function NewProductPage() {
                 <Ruler className="mx-auto h-10 w-10 text-slate-300" />
                 <p className="mt-2 font-medium text-slate-600">Dimensions are set per variant</p>
                 <p className="text-sm text-slate-400 mt-1">
-                  Open each variant card on the <strong>Variants</strong> tab to set its weight and dimensions.
+                  Open each variant card on the <strong>Variants</strong> tab to set its product dimensions and courier parcel dimensions &amp; weight.
                 </p>
               </CardContent>
             </Card>
           ) : (
-            /* Simple product — single set of dimensions */
+            /* Simple product — courier parcel dimensions & optional extra boxes */
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <Ruler className="h-4 w-4" />
-                  Product Dimensions
+                  <Package className="h-4 w-4" />
+                  Courier Parcel Dimensions &amp; Weight
                 </CardTitle>
+                <p className="text-xs text-slate-500">
+                  Each box configured here is quoted and booked separately with the courier and is never combined with other products.
+                </p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div className="space-y-2">
-                    <Label htmlFor="weight">Weight (kg)</Label>
+                    <Label htmlFor="weight">Courier Weight (kg)</Label>
                     <Input
-                      id="weight" type="number" min="0" step="0.1"
-                      value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="0.0"
+                      id="weight" type="number" min="0" step="any"
+                      value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="kg"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="length">Length (cm)</Label>
+                    <Label htmlFor="length">Parcel Length (cm)</Label>
                     <Input
-                      id="length" type="number" min="0"
-                      value={length} onChange={(e) => setLength(e.target.value)} placeholder="0"
+                      id="length" type="number" min="0" step="any"
+                      value={length} onChange={(e) => setLength(e.target.value)} placeholder="cm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="width">Width (cm)</Label>
+                    <Label htmlFor="width">Parcel Width (cm)</Label>
                     <Input
-                      id="width" type="number" min="0"
-                      value={width} onChange={(e) => setWidth(e.target.value)} placeholder="0"
+                      id="width" type="number" min="0" step="any"
+                      value={width} onChange={(e) => setWidth(e.target.value)} placeholder="cm"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="height">Height (cm)</Label>
+                    <Label htmlFor="height">Parcel Height (cm)</Label>
                     <Input
-                      id="height" type="number" min="0"
-                      value={height} onChange={(e) => setHeight(e.target.value)} placeholder="0"
+                      id="height" type="number" min="0" step="any"
+                      value={height} onChange={(e) => setHeight(e.target.value)} placeholder="cm"
                     />
                   </div>
                 </div>
+
+                <CourierExtraPackagesSection
+                  extraPackages={extraPackages}
+                  onChange={setExtraPackages}
+                />
               </CardContent>
             </Card>
           )}

@@ -111,21 +111,6 @@ export default function OrderDetailLoading() {
             </CardContent>
           </Card>
 
-          {/* Packaging & Box Allocation Card */}
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="border-b border-border/40 pb-4 flex flex-row items-center justify-between">
-              <Skeleton className="h-5 w-44" />
-              <Skeleton className="h-7 w-24 rounded-md" />
-            </CardHeader>
-            <CardContent className="pt-5">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-28 rounded-lg" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Update Order Status Card */}
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="border-b border-border/40 pb-4">

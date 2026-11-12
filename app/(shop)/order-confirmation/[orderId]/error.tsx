@@ -1,9 +1,23 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default function OrderConfirmationError({ reset }: { reset: () => void }) {
+export default function OrderConfirmationError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    Sentry.captureException(error, {
+      tags: { section: "order-confirmation" },
+    });
+  }, [error]);
+
   return (
     <main className="container mx-auto max-w-xl px-4 py-16 text-center">
       <h1 className="text-2xl font-bold">We couldn&apos;t load this order yet</h1>

@@ -33,6 +33,15 @@ export interface CourierLabelData {
     weight: number;
     cubicWeight?: number;
     itemCount: number;
+    totalBoxes?: number;
+    boxes?: Array<{
+      label: string;
+      quantity: number;
+      length: number;
+      width: number;
+      height: number;
+      weight: number;
+    }>;
     specialInstructions?: string | null;
   };
 }
@@ -130,10 +139,15 @@ export function generateCourierLabelPdf(data: CourierLabelData): Buffer {
   streamChunks.push(`BT /F1 8 Tf 16 ${heightPt - 232} Td (Ph: ${escapePdfText(data.sender.phone)} | Ref: #${escapePdfText(data.orderNumber)}) Tj ET`);
 
   // Parcel Specs & Instructions Box
+  const totalBoxes = data.parcel.totalBoxes ?? 1;
+  const specLine =
+    totalBoxes > 1
+      ? `Boxes: ${totalBoxes} separate | Total Wt: ${weight.toFixed(2)} kg | Vol: ${cubic.toFixed(2)} kg`
+      : `Dims: ${length}x${width}x${height} cm | Dead Wt: ${weight.toFixed(2)} kg | Vol: ${cubic.toFixed(2)} kg`;
   streamChunks.push(`8 ${heightPt - 296} ${widthPt - 16} 56 re S`);
   streamChunks.push(`BT /F1 8 Tf 16 ${heightPt - 250} Td (PARCEL SPECIFICATIONS & HANDLING) Tj ET`);
   streamChunks.push(`BT /F2 9 Tf 16 ${heightPt - 263} Td (Package: ${escapePdfText(data.parcel.packageName)}) Tj ET`);
-  streamChunks.push(`BT /F1 8.5 Tf 16 ${heightPt - 275} Td (Dims: ${length}x${width}x${height} cm | Dead Wt: ${weight.toFixed(2)} kg | Vol: ${cubic.toFixed(2)} kg) Tj ET`);
+  streamChunks.push(`BT /F1 8.5 Tf 16 ${heightPt - 275} Td (${escapePdfText(specLine)}) Tj ET`);
   const instructions = data.parcel.specialInstructions || "Safe drop permitted";
   streamChunks.push(`BT /F2 8.5 Tf 16 ${heightPt - 289} Td (Instructions: ${escapePdfText(instructions.slice(0, 45))}) Tj ET`);
 

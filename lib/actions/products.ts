@@ -24,6 +24,9 @@ const productVariantSchema = z.object({
   isActive: z.boolean().default(true),
   variantValueIds: z.array(z.string()).min(1, "At least one variant value is required"),
   images: z.array(z.string()).optional(),
+  productLength: z.number().positive().optional().nullable(),
+  productWidth: z.number().positive().optional().nullable(),
+  productHeight: z.number().positive().optional().nullable(),
   weight: z.number().positive().optional(),
   length: z.number().positive().optional(),
   width: z.number().positive().optional(),
@@ -138,6 +141,9 @@ export async function createProductVariant(
     isActive?: boolean;
     variantValueIds: string[];
     images?: string[];
+    productLength?: number | null;
+    productWidth?: number | null;
+    productHeight?: number | null;
     weight?: number;
     length?: number;
     width?: number;
@@ -165,6 +171,9 @@ export async function createProductVariant(
         memberPrice: validated.memberPrice,
         stock: validated.stock,
         isActive: validated.isActive,
+        productLength: validated.productLength,
+        productWidth: validated.productWidth,
+        productHeight: validated.productHeight,
         weight: validated.weight,
         length: validated.length,
         width: validated.width,
@@ -310,6 +319,9 @@ export async function updateProductVariant(
     memberPrice?: number | null;
     stock?: number;
     isActive?: boolean;
+    productLength?: number | null;
+    productWidth?: number | null;
+    productHeight?: number | null;
     weight?: number | null;
     length?: number | null;
     width?: number | null;
@@ -325,6 +337,9 @@ export async function updateProductVariant(
         ...(data.memberPrice !== undefined && { memberPrice: data.memberPrice }),
         ...(data.stock !== undefined && { stock: data.stock }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
+        ...(data.productLength !== undefined && { productLength: data.productLength }),
+        ...(data.productWidth !== undefined && { productWidth: data.productWidth }),
+        ...(data.productHeight !== undefined && { productHeight: data.productHeight }),
         ...(data.weight !== undefined && { weight: data.weight }),
         ...(data.length !== undefined && { length: data.length }),
         ...(data.width !== undefined && { width: data.width }),
@@ -432,6 +447,8 @@ const createProductSchema = z.object({
   categoryId: z.string().min(1, "Category is required"),
   isPreOrder: z.boolean().default(false),
   hasVariants: z.boolean().default(false),
+  memberFreeDelivery: z.boolean().default(false),
+  memberDeliveryCharge: z.number().min(0).max(100000).nullable().optional(),
   weight: z.number().positive().optional(),
   length: z.number().positive().optional(),
   width: z.number().positive().optional(),
@@ -456,6 +473,8 @@ export async function createProduct(data: {
   categoryId: string;
   isPreOrder?: boolean;
   hasVariants?: boolean;
+  memberFreeDelivery?: boolean;
+  memberDeliveryCharge?: number | null;
   weight?: number;
   length?: number;
   width?: number;
@@ -512,6 +531,8 @@ export async function updateProduct(
     categoryId: string;
     isActive: boolean;
     isPreOrder: boolean;
+    memberFreeDelivery: boolean;
+    memberDeliveryCharge: number | null;
     weight: number | null;
     length: number | null;
     width: number | null;

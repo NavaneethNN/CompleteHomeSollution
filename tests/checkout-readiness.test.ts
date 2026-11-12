@@ -78,7 +78,6 @@ function stub(path: string, exports: unknown) {
 stub("../auth", { auth: async () => guest ? null : ({ user: { id: "user", role: "CUSTOMER", email: "buyer@example.com" } }) });
 stub("../lib/db", { db });
 stub("../lib/couriersplease", { checkCouriersPleaseAvailability: () => ({ available: true, reason: null }), getCouriersPleaseRates: async () => [{ serviceCode: "STANDARD", serviceName: "Standard", price: 12 }] });
-stub("../lib/ship123", { getShip123Rates: async () => [{ serviceCode: "STANDARD", price: 12 }], getEligibleShip123Products: async () => [{ code: "STANDARD" }] });
 stub("../lib/brevo", { sendOrderConfirmationEmail: async () => {} });
 stub("../lib/twilio", { sendOrderConfirmationSms: async () => {}, sendOrderWhatsApp: async () => {} });
 stub("next/server", { ...require("next/server"), after: () => {} });

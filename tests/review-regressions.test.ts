@@ -12,7 +12,7 @@ let allowed = true;
 let providerCalls = 0;
 let limitIdentifier = "";
 const db = {
-  product: { findMany: async () => [{ id: productId, categoryId: "category", basePrice: 10, memberPrice: 7, weight: 1, length: 20, width: 20, height: 20, productVariants: [] }] },
+  product: { findMany: async () => [{ id: productId, name: "Lamp", description: "Compact", isLargeItem: false, categoryId: "category", category: null, basePrice: 10, memberPrice: 7, weight: 1, length: 20, width: 20, height: 20, extraPackages: [], productVariants: [] }] },
   user: { findUnique: async () => ({ isMember: false, membershipExpiry: null }) },
   userCoupon: { count: async () => 0 },
   coupon: { findUnique: async () => ({ id: "coupon", code: "TEN", isActive: true, type: "GLOBAL", discountType: "PERCENTAGE", discountValue: 10, maxDiscount: null, minOrderAmount: null, memberEligibility: "ALL", products: [], categories: [] }) },
@@ -25,9 +25,14 @@ stub("../lib/rate-limit", {
   consumeRateLimit: async (_action: string, id: string) => { limitIdentifier = id; return { allowed, retryAfter: 60 }; },
   rateLimitResponse: () => Response.json({ error: "Too many requests" }, { status: 429, headers: { "Retry-After": "60" } }),
 });
-stub("../lib/ship123", { getShip123Rates: async () => { providerCalls++; return [{ serviceCode: "STANDARD", price: 12, serviceName: "Standard" }]; }, getEligibleShip123Products: async () => [{ code: "STANDARD" }] });
+const actualCp = require("../lib/couriersplease");
+stub("../lib/couriersplease", {
+  ...actualCp,
+  checkCouriersPleaseAvailability: () => ({ available: true, reason: null }),
+  getCouriersPleaseRates: async () => { providerCalls++; return [{ serviceCode: "TSKG", price: 12, serviceName: "Road Express" }]; },
+});
 stub("../lib/shipping-quote", { createShippingQuoteToken: () => "signed-quote", shippingDestinationKey: () => "destination" });
-const shipping = require("../app/api/shipping/ship123/route") as typeof import("../app/api/shipping/ship123/route");
+const shipping = require("../app/api/shipping/couriersplease/route") as typeof import("../app/api/shipping/couriersplease/route");
 const coupons = require("../app/api/coupons/validate/route") as typeof import("../app/api/coupons/validate/route");
 const request = (data: unknown) => new NextRequest("https://shop.example/api", { method: "POST", body: JSON.stringify(data) });
 
@@ -46,9 +51,9 @@ test("guest shipping remains available and shares an IP-based abuse limit", asyn
   allowed = true;
 });
 
-test("shipping availability endpoint reports whether an allowed courier is configured", async () => {
+test("shipping availability endpoint reports whether Couriers Please is configured", async () => {
   allowed = true;
-  const response = await shipping.GET(new NextRequest("https://shop.example/api/shipping/ship123"));
+  const response = await shipping.GET(new NextRequest("https://shop.example/api/shipping/couriersplease"));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { available: true, reason: null });
 });

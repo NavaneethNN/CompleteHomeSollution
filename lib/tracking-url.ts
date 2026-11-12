@@ -1,3 +1,7 @@
+export function isSimulationTrackingCode(trackingNumber: string | null | undefined): boolean {
+  return Boolean(trackingNumber?.trim().toUpperCase().startsWith("CPTEST-"));
+}
+
 /**
  * Returns a tracking link only for courier names we recognise. This avoids
  * turning administrator-entered text into an arbitrary external URL.
@@ -20,7 +24,7 @@ export function getTrackingUrl(carrier: string | null | undefined, trackingNumbe
     return `https://www.fedex.com/fedextrack/?trknbr=${trackingId}`;
   }
   if (courier.includes("couriers please") || courier.includes("couriersplease")) {
-    return `https://www.couriersplease.com.au/tools-track/result?trackingNumber=${trackingId}`;
+    return `https://www.couriersplease.com.au/tools-track?no=${trackingId}`;
   }
 
   return null;

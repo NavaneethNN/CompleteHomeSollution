@@ -13,7 +13,7 @@ test("creates direct links for supported couriers", () => {
   );
   assert.equal(
     getTrackingUrl("Couriers Please", "CP12345678"),
-    "https://www.couriersplease.com.au/tools-track/result?trackingNumber=CP12345678"
+    "https://www.couriersplease.com.au/tools-track?no=CP12345678"
   );
 });
 

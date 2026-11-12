@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Session } from "next-auth";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
@@ -6,6 +7,7 @@ import { calculateCartPricing, moneyToCents } from "@/lib/cart-pricing";
 import { hasActiveMembership } from "@/lib/membership";
 import { resolveMemberPrice } from "@/lib/member-price";
 import { cleanupStalePendingCouponReservations } from "@/lib/coupon-reservation";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 const itemsSchema = z.array(z.object({
   productId: z.string().cuid(),
@@ -19,7 +21,10 @@ const validateCouponSchema = z.object({
   addMembership: z.boolean().optional(),
 });
 
-async function validateCoupon(input: z.infer<typeof validateCouponSchema>) {
+async function validateCoupon(
+  input: z.infer<typeof validateCouponSchema>,
+  existingSession?: Session | null
+) {
   const code = input.code.toUpperCase();
   const items = input.items;
   
@@ -28,7 +33,7 @@ async function validateCoupon(input: z.infer<typeof validateCouponSchema>) {
     return NextResponse.json({ error: "Duplicate cart items" }, { status: 400 });
   }
 
-  const session = await auth();
+  const session = existingSession !== undefined ? existingSession : await auth();
   const userId = session?.user?.id ?? null;
   const productIds = [...new Set(items.map(item => item.productId))];
   const [coupon, products, membership] = await Promise.all([
@@ -80,7 +85,7 @@ async function validateCoupon(input: z.infer<typeof validateCouponSchema>) {
   if (coupon.memberEligibility === "MEMBERS_ONLY" && !activeMember) {
     return NextResponse.json({ error: "This coupon is only available for members" }, { status: 400 });
   }
-  if (coupon.memberEligibility === "NON_MEMBERS" && activeMember) {
+  if (coupon.memberEligibility === "NON_MEMBERS" && effectiveMember) {
     return NextResponse.json({ error: "This coupon is only available for non-members" }, { status: 400 });
   }
   
@@ -152,6 +157,15 @@ async function validateCoupon(input: z.infer<typeof validateCouponSchema>) {
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await auth();
+    const limit = await consumeRateLimit(
+      "coupon-validate",
+      `${getClientIp(req.headers)}:${session?.user?.id ?? "guest"}`,
+      20,
+      60
+    );
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     const code = req.nextUrl.searchParams.get("code")?.trim().toUpperCase();
     const rawItems = req.nextUrl.searchParams.get("items");
     if (!code || code.length > 20) return NextResponse.json({ error: "Coupon code required" }, { status: 400 });
@@ -164,7 +178,7 @@ export async function GET(req: NextRequest) {
     }
     
     const addMembership = req.nextUrl.searchParams.get("addMembership") === "true";
-    return await validateCoupon({ code, items, addMembership });
+    return await validateCoupon({ code, items, addMembership }, session);
   } catch (error) {
     if (error instanceof Error && error.message === "INVALID_VARIANT") {
       return NextResponse.json({ error: "Variant not found" }, { status: 400 });
@@ -179,10 +193,19 @@ export async function GET(req: NextRequest) {
 // CODE-6: Add POST handler for coupon validation
 export async function POST(req: NextRequest) {
   try {
+    const session = await auth();
+    const limit = await consumeRateLimit(
+      "coupon-validate",
+      `${getClientIp(req.headers)}:${session?.user?.id ?? "guest"}`,
+      20,
+      60
+    );
+    if (!limit.allowed) return rateLimitResponse(limit);
+
     let body: unknown;
     try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
     const input = validateCouponSchema.parse(body);
-    return await validateCoupon(input);
+    return await validateCoupon(input, session);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });

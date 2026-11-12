@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { hasFreshAdminSession } from "@/lib/admin-auth";
-import { getCouriersPleaseTracking, isCouriersPleaseTestMode } from "@/lib/couriersplease";
-import { processDueEmailJobs } from "@/lib/email-outbox";
+import { isCouriersPleaseTestMode } from "@/lib/couriersplease";
+import { syncOrderWithCouriersPlease } from "@/lib/couriersplease-sync";
 
 export const runtime = "nodejs";
 
@@ -22,9 +21,11 @@ export async function POST(_req: NextRequest, { params }: Context) {
 
     const order = await db.order.findUnique({
       where: { id: orderId },
-      include: {
-        user: { select: { email: true, name: true } },
-        address: true,
+      select: {
+        id: true,
+        status: true,
+        trackingNumber: true,
+        carrier: true,
       },
     });
 
@@ -39,56 +40,41 @@ export async function POST(_req: NextRequest, { params }: Context) {
       );
     }
 
+    if (["PENDING", "CANCELLED", "REFUNDED"].includes(order.status)) {
+      return NextResponse.json(
+        { error: `Cannot sync carrier tracking for ${order.status.toLowerCase()} order` },
+        { status: 409 }
+      );
+    }
+
     // Already terminal delivered
     if (order.status === "DELIVERED") {
       return NextResponse.json({
         success: true,
+        updated: false,
         isDelivered: true,
         orderStatus: order.status,
         message: "Order is already marked as DELIVERED.",
       });
     }
 
-    const trackingResult = await getCouriersPleaseTracking(order.trackingNumber);
+    const syncResult = await syncOrderWithCouriersPlease(order);
+    const trackingResult = syncResult.tracking;
 
-    if (trackingResult?.isDelivered) {
-      const prevStatus = order.status;
-      await db.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
-          data: {
-            status: "DELIVERED",
-            updatedAt: new Date(),
-          },
-        });
-
-        await tx.emailJob.createMany({
-          data: [
-            {
-              key: `order:${order.id}:status:DELIVERED:${randomUUID()}`,
-              kind: "ORDER_STATUS",
-              orderId: order.id,
-              payload: {
-                status: "DELIVERED",
-                previousStatus: prevStatus,
-                trackingNumber: order.trackingNumber || undefined,
-                carrier: order.carrier || "Couriers Please",
-              },
-            },
-          ],
-          skipDuplicates: true,
-        });
-      });
-
-      await processDueEmailJobs().catch((err) => {
-        console.error("[Tracking sync] Email dispatch error:", err);
-      });
+    if (syncResult.updated) {
+      const milestoneLabel =
+        syncResult.orderStatus === "DELIVERED"
+          ? "DELIVERED"
+          : syncResult.orderStatus === "OUT_FOR_DELIVERY"
+          ? "OUT FOR DELIVERY"
+          : syncResult.orderStatus;
 
       return NextResponse.json({
         success: true,
         updated: true,
-        orderStatus: "DELIVERED",
-        message: "Order marked as DELIVERED based on courier tracking! Customer notified.",
+        isDelivered: syncResult.orderStatus === "DELIVERED",
+        orderStatus: syncResult.orderStatus,
+        message: `Order updated to ${milestoneLabel} based on courier tracking! Customer notified.`,
         tracking: trackingResult,
       });
     }
@@ -96,11 +82,12 @@ export async function POST(_req: NextRequest, { params }: Context) {
     return NextResponse.json({
       success: true,
       updated: false,
-      orderStatus: order.status,
-      isTestMode: isCouriersPleaseTestMode(),
+      isDelivered: false,
+      orderStatus: syncResult.orderStatus,
+      isTestMode: isCouriersPleaseTestMode() || order.trackingNumber.startsWith("CPTEST-"),
       message: trackingResult?.status
         ? `Courier status: ${trackingResult.status}`
-        : "Courier status checked: in transit",
+        : "No new carrier tracking events yet",
       tracking: trackingResult,
     });
   } catch (error) {

@@ -51,6 +51,15 @@ export interface ShippingLabelViewProps {
     weight: number;
     cubicWeight: number;
     itemCount: number;
+    totalBoxes?: number;
+    boxes?: Array<{
+      label: string;
+      quantity: number;
+      length: number;
+      width: number;
+      height: number;
+      weight: number;
+    }>;
     itemNames: string[];
     specialInstructions?: string | null;
   };
@@ -279,10 +288,22 @@ export function ShippingLabelView({
                 <span className="font-bold text-slate-950">{parcel.cubicWeight.toFixed(2)} kg</span>
               </div>
               <div className="text-right">
-                <span className="text-slate-500 block text-[7.5px] uppercase">Pieces:</span>
-                <span className="font-bold text-slate-950">1 of 1</span>
+                <span className="text-slate-500 block text-[7.5px] uppercase">Boxes:</span>
+                <span className="font-bold text-slate-950">
+                  {parcel.totalBoxes ?? 1} {(parcel.totalBoxes ?? 1) === 1 ? "box" : "boxes"}
+                </span>
               </div>
             </div>
+            {(parcel.totalBoxes ?? 1) > 1 && parcel.boxes && parcel.boxes.length > 0 && (
+              <div className="pt-1 border-t border-slate-200 space-y-0.5 text-[8px] font-mono text-slate-700">
+                {parcel.boxes.map((box, idx) => (
+                  <div key={idx} className="flex justify-between gap-2">
+                    <span className="truncate">{box.quantity}× {box.label}</span>
+                    <span className="shrink-0">{box.length}×{box.width}×{box.height}cm · {box.weight.toFixed(2)}kg</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ── 6. Authority to Leave & Special Instructions ── */}

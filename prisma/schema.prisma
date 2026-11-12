@@ -122,6 +122,8 @@ model Product {
   basePrice    Float    @default(0) // Base price before variants
   comparePrice Float?
   memberPrice  Float?
+  memberFreeDelivery   Boolean @default(false) // Free delivery for members alone
+  memberDeliveryCharge Float?  // Standard fixed delivery charge for members alone
   stock        Int      @default(0) // Total stock across all variants
   sku          String   @unique // Base SKU
   images       String[] // Default product images
@@ -140,6 +142,7 @@ model Product {
   width             Float?   // Width in cm
   height            Float?   // Height in cm
   requiresPackaging Boolean? @default(true) // Whether outer packaging box is needed (false = shipped directly in product dimensions)
+  extraPackages     Json?    // Optional additional courier packaging boxes: Array<{ weight, length, width, height }>
 
   category          Category           @relation(fields: [categoryId], references: [id])
   reviews           Review[]
@@ -203,12 +206,17 @@ model ProductVariant {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  // Shipping dimensions (in cm) - overrides product dimensions if set
-  weight            Float?   // Weight in kg
-  length            Float?   // Length in cm
-  width             Float?   // Width in cm
-  height            Float?   // Height in cm
+  // Product dimensions (in cm) - visible to customers
+  productLength     Float?   // Product length in cm
+  productWidth      Float?   // Product width in cm
+  productHeight     Float?   // Product height in cm
+  // Courier parcel dimensions & weight - used for shipping/courier calculation
+  weight            Float?   // Courier parcel weight in kg
+  length            Float?   // Courier parcel length in cm
+  width             Float?   // Courier parcel width in cm
+  height            Float?   // Courier parcel height in cm
   requiresPackaging Boolean? @default(true) // Whether outer packaging box is needed for this variant
+  extraPackages     Json?    // Optional additional courier packaging boxes: Array<{ weight, length, width, height }>
 
   product Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
   images  VariantImage[]       // Images specific to this variant
@@ -319,6 +327,7 @@ model Order {
   packedWidth           Float?    // in cm (breadth)
   packedHeight          Float?    // in cm
   packageOverride       Boolean?  @default(false)
+  packedBoxes           Json?     // Per-box parcel breakdown: Array<{ label?, quantity, length, width, height, weight }>
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

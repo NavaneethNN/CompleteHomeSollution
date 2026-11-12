@@ -9,6 +9,7 @@ import crypto from "crypto";
 import { maskWinnerName } from "@/lib/raffle-utils";
 import { sendEmail } from "@/lib/brevo";
 import { renderStandardEmail, renderCard, escapeHtml } from "@/lib/email-template";
+import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
 
 export interface RaffleFilters {
   status?: "ALL" | "ACTIVE" | "UPCOMING" | "COMPLETED";
@@ -680,6 +681,9 @@ export async function prepareRafflePrizeForCheckout(winnerId: string) {
                 where: { id: previousOrder.id },
                 data: { status: "CANCELLED" },
               });
+              if (typeof (tx as any).order?.findUnique === "function") {
+                await releaseCouponReservationInTransaction(tx, previousOrder.id);
+              }
             }
             await tx.raffleWinner.update({
               where: { id: winner.id },

@@ -1,9 +1,23 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
-export default function CheckoutError({ reset }: { reset: () => void }) {
+export default function CheckoutError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    Sentry.captureException(error, {
+      tags: { section: "checkout" },
+    });
+  }, [error]);
+
   return (
     <main className="container mx-auto max-w-xl px-4 py-16 text-center">
       <h1 className="text-2xl font-bold">Checkout is temporarily unavailable</h1>

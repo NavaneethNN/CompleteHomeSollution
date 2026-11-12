@@ -27,9 +27,12 @@ import { AdminRefundPanel } from "@/components/admin/refund-panel";
 import { OrderStatusUpdate } from "@/components/admin/order-status-update";
 import { ReadyToShipPanel } from "@/components/admin/ready-to-ship-panel";
 import { OrderPickupAppointmentPanel } from "@/components/admin/order-pickup-appointment-panel";
-import { OrderPackagingPanel } from "@/components/admin/order-packaging-panel";
 import { OrderLabelButton } from "@/components/admin/order-label-button";
-import { selectPackagingPreset } from "@/lib/packaging";
+import {
+  resolveOrderShipmentBoxes,
+  parseStoredPackedBoxes,
+  type PackedBoxSpec,
+} from "@/lib/shipping-packages";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +100,7 @@ async function getOrder(id: string) {
       packedLength: true,
       packedWidth: true,
       packedHeight: true,
+      packedBoxes: true,
       packageOverride: true,
       createdAt: true,
       updatedAt: true,
@@ -104,7 +108,21 @@ async function getOrder(id: string) {
       address: true,
       items: {
         include: {
-          product: { select: { id: true, name: true, slug: true, images: true, sku: true, weight: true, length: true, width: true, height: true } },
+          product: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              images: true,
+              sku: true,
+              weight: true,
+              length: true,
+              width: true,
+              height: true,
+              extraPackages: true,
+              requiresPackaging: true,
+            },
+          },
           productVariant: {
             include: {
               images: { orderBy: { displayOrder: "asc" } },
@@ -134,71 +152,63 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
   }
 
   const { id } = await params;
-  const [order, packagingPresets] = await Promise.all([
-    getOrder(id),
-    db.packagingPreset.findMany({
-      where: { isActive: true },
-      orderBy: [{ priority: "desc" }, { maxWeight: "asc" }, { name: "asc" }],
-    }),
-  ]);
+  const order = await getOrder(id);
 
   if (!order) {
     notFound();
   }
 
-  const netProductWeight = order.items.reduce((sum, item) => {
-    const w = (item as any).productVariant?.weight ?? (item as any).product?.weight ?? 0.5;
-    return sum + w * item.quantity;
-  }, 0);
-
   // ── Packaging Box Specifications Resolution ─────────────────────────────
-  // Ensure the database, OrderPackagingPanel, and ReadyToShipPanel always use the exact same specs
+  // Ensure the database and ReadyToShipPanel always use the exact same separate-box specs
   let effectivePackagePresetId = order.packagePresetId;
   let effectivePackageName = order.packageName;
   let effectivePackedLength = order.packedLength;
   let effectivePackedWidth = order.packedWidth;
   let effectivePackedHeight = order.packedHeight;
   let effectivePackedWeight = order.packedWeight;
-  let effectivePackageOverride = order.packageOverride ?? false;
+  const effectivePackageOverride = order.packageOverride ?? false;
+  let effectivePackedBoxes: PackedBoxSpec[] = parseStoredPackedBoxes(order.packedBoxes);
 
   if (
     order.fulfillmentType !== "STORE_PICKUP" &&
     order.fulfillmentType !== "MANUAL_DELIVERY" &&
-    order.items.length > 0 &&
-    (!effectivePackedLength || !effectivePackedWeight || !effectivePackageName)
+    order.items.length > 0
   ) {
-    const packagingItems = order.items.map((it) => ({
-      quantity: it.quantity,
-      weight: (it as any).productVariant?.weight ?? (it as any).product?.weight ?? 0.5,
-      length: (it as any).productVariant?.length ?? (it as any).product?.length ?? 20,
-      width: (it as any).productVariant?.width ?? (it as any).product?.width ?? 15,
-      height: (it as any).productVariant?.height ?? (it as any).product?.height ?? 10,
-      name: (it as any).product?.name,
-    }));
+    const resolvedBoxes = await resolveOrderShipmentBoxes(order).catch(() => null);
+    if (resolvedBoxes) {
+      const hasStoredBoxes = effectivePackedBoxes.length > 0;
+      effectivePackedBoxes = resolvedBoxes.boxes;
+      if (!hasStoredBoxes && (!effectivePackedLength || !effectivePackedWeight || !effectivePackageName)) {
+        effectivePackagePresetId = resolvedBoxes.packagePresetId;
+        effectivePackageName = resolvedBoxes.packageName;
+        effectivePackedLength = resolvedBoxes.packedLength;
+        effectivePackedWidth = resolvedBoxes.packedWidth;
+        effectivePackedHeight = resolvedBoxes.packedHeight;
+        effectivePackedWeight = resolvedBoxes.packedWeight;
 
-    const calculated = await selectPackagingPreset(packagingItems, packagingPresets as any).catch(() => null);
-    if (calculated) {
-      effectivePackagePresetId = calculated.presetId ?? null;
-      effectivePackageName = calculated.packageName;
-      effectivePackedLength = calculated.length;
-      effectivePackedWidth = calculated.width;
-      effectivePackedHeight = calculated.height;
-      effectivePackedWeight = calculated.packedWeight;
-      effectivePackageOverride = false;
-
-      // Auto-persist to DB so Couriers Please API, Packaging Panel, and database are 100% synchronized
-      await db.order.update({
-        where: { id: order.id },
-        data: {
-          packagePresetId: effectivePackagePresetId,
-          packageName: effectivePackageName,
-          packedLength: effectivePackedLength,
-          packedWidth: effectivePackedWidth,
-          packedHeight: effectivePackedHeight,
-          packedWeight: effectivePackedWeight,
-          packageOverride: false,
-        },
-      }).catch((err) => console.error("[admin order] Auto-persist packaging failed:", err));
+        // Auto-persist to DB so Couriers Please API, Packaging Panel, and database are 100% synchronized
+        await db.order
+          .update({
+            where: { id: order.id },
+            data: {
+              packagePresetId: effectivePackagePresetId,
+              packageName: effectivePackageName,
+              packedLength: effectivePackedLength,
+              packedWidth: effectivePackedWidth,
+              packedHeight: effectivePackedHeight,
+              packedWeight: effectivePackedWeight,
+              packedBoxes: effectivePackedBoxes as any,
+              packageOverride: effectivePackageOverride,
+            },
+          })
+          .catch((err) => console.error("[admin order] Auto-persist packaging failed:", err));
+      } else {
+        effectivePackageName = effectivePackageName || resolvedBoxes.packageName;
+        effectivePackedLength = effectivePackedLength || resolvedBoxes.packedLength;
+        effectivePackedWidth = effectivePackedWidth || resolvedBoxes.packedWidth;
+        effectivePackedHeight = effectivePackedHeight || resolvedBoxes.packedHeight;
+        effectivePackedWeight = effectivePackedWeight || resolvedBoxes.packedWeight;
+      }
     }
   }
 
@@ -418,26 +428,6 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               </div>
             </CardContent>
           </Card>
-
-          {/* Packaging Box Configuration & Allocation — only relevant for standard courier delivery of active orders */}
-          {order.fulfillmentType !== "STORE_PICKUP" &&
-            order.fulfillmentType !== "MANUAL_DELIVERY" &&
-            order.items.length > 0 &&
-            order.status !== "CANCELLED" &&
-            order.status !== "REFUNDED" && (
-            <OrderPackagingPanel
-              orderId={order.id}
-              initialPackagePresetId={effectivePackagePresetId}
-              initialPackageName={effectivePackageName}
-              initialPackedLength={effectivePackedLength}
-              initialPackedWidth={effectivePackedWidth}
-              initialPackedHeight={effectivePackedHeight}
-              initialPackedWeight={effectivePackedWeight}
-              initialPackageOverride={effectivePackageOverride}
-              calculatedProductWeight={netProductWeight}
-              availablePresets={packagingPresets}
-            />
-          )}
 
           {/* Customer Info */}
           <Card>
@@ -742,6 +732,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                 packedWidth: effectivePackedWidth,
                 packedHeight: effectivePackedHeight,
                 packedWeight: effectivePackedWeight,
+                packedBoxes: effectivePackedBoxes,
                 packageOverride: effectivePackageOverride,
               }}
             />

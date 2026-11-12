@@ -1,4 +1,5 @@
 import { after, NextRequest, NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createGuestOrderToken, createOrderReturnToken } from "@/lib/order-access";
@@ -12,15 +13,25 @@ import { checkCouriersPleaseAvailability, getCouriersPleaseRates } from "@/lib/c
 import { createOnlinePayCheckout, getOnlinePayCheckout, OnlinePayCheckoutError, validateOnlinePayConfiguration } from "@/lib/onlinepay";
 import { shippingDestinationKey, verifyShippingQuoteToken } from "@/lib/shipping-quote";
 import { calculateCartPricing, moneyToCents, splitLineForGateway } from "@/lib/cart-pricing";
-import { releaseCouponReservation, cleanupStalePendingCouponReservations } from "@/lib/coupon-reservation";
-import { buildParcelGroups, buildPackagedParcelGroups, FreightRequiredError, shipmentKey } from "@/lib/shipping-packages";
-import { selectPackagingPreset, type PackagingCalculationResult } from "@/lib/packaging";
+import { releaseCouponReservation, releaseCouponReservationInTransaction, cleanupStalePendingCouponReservations } from "@/lib/coupon-reservation";
+import { buildPackagedParcelGroups, FreightRequiredError, shipmentKey, type PackedBoxSpec, type PackagingSummary } from "@/lib/shipping-packages";
 import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { assertInventoryAvailableForPendingOrder, InventoryUnavailableError } from "@/lib/inventory-reservation";
 import { resolveMemberPrice } from "@/lib/member-price";
 import { checkoutTotals } from "@/lib/checkout-totals";
 import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
 import { isLargeProduct, getManualDeliveryPostcodeRate } from "@/lib/manual-delivery";
+import {
+  expandCourierProductVariantsForLargeCheck,
+  resolveCourierPackageSet,
+} from "@/lib/variant-dimensions";
+import {
+  MEMBER_FREE_DELIVERY_CODE,
+  MEMBER_FIXED_DELIVERY_CODE,
+  buildMemberOverriddenShipmentKey,
+  memberDeliveryShipmentKey,
+  partitionCartForMemberDelivery,
+} from "@/lib/member-delivery";
 
 const addressSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -57,7 +68,7 @@ const checkoutSchema = z
     savedAddressId: z.string().cuid().optional(),
     guestEmail: z.string().trim().email().max(254).optional(),
     shippingRateCode: z.string().max(50).optional(),
-    shippingCost: z.number().min(0).max(500).optional(),
+    shippingCost: z.number().min(0).max(5000).optional(),
     shippingQuoteToken: z.string().max(1024).optional(),
     couponCode: z.string().max(20).optional(),
     addMembership: z.boolean().optional(),
@@ -132,10 +143,20 @@ export async function POST(req: NextRequest) {
       if (existing.status === "PENDING" && existing.paywayTransactionId?.startsWith("ONLINEPAY:")) {
         const checkout = await getOnlinePayCheckout(existing.paywayTransactionId.slice(10));
         if (typeof checkout.url === "string") {
-          return NextResponse.json({ orderId: existing.id, guestToken: existing.guestEmail ? createGuestOrderToken(existing.id, existing.guestEmail) : undefined, status: "redirect", checkoutUrl: checkout.url });
+          return NextResponse.json({
+            orderId: existing.id,
+            guestToken: !existing.userId && existing.guestEmail ? createGuestOrderToken(existing.id, existing.guestEmail) : undefined,
+            status: "redirect",
+            checkoutUrl: checkout.url,
+          });
         }
       }
-      return NextResponse.json({ orderId: existing.id, guestToken: existing.guestEmail ? createGuestOrderToken(existing.id, existing.guestEmail) : undefined, status: existing.status === "PENDING" ? "pending" : "success", idempotent: true });
+      return NextResponse.json({
+        orderId: existing.id,
+        guestToken: !existing.userId && existing.guestEmail ? createGuestOrderToken(existing.id, existing.guestEmail) : undefined,
+        status: existing.status === "PENDING" ? "pending" : "success",
+        idempotent: true,
+      });
     };
     const previousResponse = await replay();
     if (previousResponse) return previousResponse;
@@ -189,6 +210,9 @@ export async function POST(req: NextRequest) {
                   where: { id: prevOrder.id },
                   data: { status: "CANCELLED" },
                 });
+                if (typeof (tx as any).order?.findUnique === "function") {
+                  await releaseCouponReservationInTransaction(tx, prevOrder.id);
+                }
               }
               await tx.raffleWinner.update({
                 where: { id: raffleWinner.id },
@@ -310,7 +334,7 @@ export async function POST(req: NextRequest) {
       if (coupon.memberEligibility === "MEMBERS_ONLY" && !isMemberFromDb) {
         return NextResponse.json({ error: "This coupon is only available for members" }, { status: 400 });
       }
-      if (coupon.memberEligibility === "NON_MEMBERS" && isMemberFromDb) {
+      if (coupon.memberEligibility === "NON_MEMBERS" && effectiveMember) {
         return NextResponse.json({ error: "This coupon is only available for non-members" }, { status: 400 });
       }
 
@@ -327,13 +351,19 @@ export async function POST(req: NextRequest) {
           ? products.filter((p) => coupon.categories.some((c) => c.categoryId === p.categoryId)).map((p) => p.id)
           : products.map((p) => p.id)
     );
+    const requestedQtyBySku = new Map<string, number>();
+    for (const item of input.items) {
+      const skuKey = `${item.productId}:${item.variantId ?? "base"}`;
+      requestedQtyBySku.set(skuKey, (requestedQtyBySku.get(skuKey) ?? 0) + item.quantity);
+    }
     for (const item of input.items) {
       const product = products.find((p) => p.id === item.productId)!;
       const stock = item.variantId
         ? product.productVariants.find((variant) => variant.id === item.variantId)?.stock
         : product.stock;
       if (stock == null) return NextResponse.json({ error: "Variant not found" }, { status: 400 });
-      if (stock < item.quantity) {
+      const totalRequestedQty = requestedQtyBySku.get(`${item.productId}:${item.variantId ?? "base"}`) ?? item.quantity;
+      if (stock < totalRequestedQty) {
         return NextResponse.json({ error: `Insufficient stock for ${product.name}` }, { status: 400 });
       }
     }
@@ -415,7 +445,13 @@ export async function POST(req: NextRequest) {
 
     const membershipCharge = wantsMembership && !alreadyMember ? defaultPlan!.price : 0;
     const netSubtotal = Math.round(pricing.subtotalCents) / 100;
-    const freeShipping = netSubtotal >= 1200;
+    const partition = partitionCartForMemberDelivery(
+      input.items,
+      (item) => products.find((p) => p.id === item.productId),
+      effectiveMember
+    );
+    const hasFixedMemberDelivery = partition.fixedDeliveryCents > 0;
+    const freeShipping = netSubtotal >= 1200 && !hasFixedMemberDelivery;
     let fulfillmentType = input.fulfillmentType || "DELIVERY";
     if (fulfillmentType === "DELIVERY" && input.shippingRateCode === "MANUAL_DELIVERY") {
       fulfillmentType = "MANUAL_DELIVERY";
@@ -424,7 +460,8 @@ export async function POST(req: NextRequest) {
     let shippingCost: number;
     let shippingServiceCode: string | null = null;
     let resolvedCarrier: string = "Couriers Please";
-    let orderPackaging: PackagingCalculationResult | null = null;
+    let orderPackaging: PackagingSummary | null = null;
+    let orderPackedBoxes: PackedBoxSpec[] | null = null;
 
     if (fulfillmentType === "STORE_PICKUP") {
       shippingCost = 0;
@@ -438,12 +475,55 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      shippingCost = manualRate.charge;
+      shippingCost = Math.round(manualRate.charge * 100 + partition.fixedDeliveryCents) / 100;
       shippingServiceCode = "MANUAL_DELIVERY";
       resolvedCarrier = "Complete Home Sollution (Manual Delivery)";
+    } else if (partition.allOverridden) {
+      const expectedCents = partition.fixedDeliveryCents;
+      const clientCost = Math.round((input.shippingCost ?? 0) * 100) / 100;
+      const clientCents = Math.round(clientCost * 100);
+      if (clientCents !== expectedCents) {
+        return NextResponse.json(
+          {
+            error: `Shipping cost mismatch. Expected $${(expectedCents / 100).toFixed(2)}, received $${clientCost.toFixed(2)}. Please refresh and try again.`,
+          },
+          { status: 400 }
+        );
+      }
+      const isFree = expectedCents === 0;
+      const defaultServiceCode = isFree ? MEMBER_FREE_DELIVERY_CODE : MEMBER_FIXED_DELIVERY_CODE;
+      if (input.shippingQuoteToken) {
+        const expectedPrice = expectedCents / 100;
+        const validToken = verifyShippingQuoteToken({
+          token: input.shippingQuoteToken,
+          postcode: deliveryAddress.postcode,
+          destinationKey: shippingDestinationKey(deliveryAddress),
+          shipmentKey: buildMemberOverriddenShipmentKey(input.items, partition.fixedDeliveryCents),
+          serviceCode: input.shippingRateCode ?? defaultServiceCode,
+          price: expectedPrice,
+        });
+        if (!validToken) {
+          return NextResponse.json(
+            { error: "Shipping quote expired or invalid. Please refresh shipping options and try again." },
+            { status: 400 }
+          );
+        }
+      }
+      shippingCost = expectedCents / 100;
+      shippingServiceCode = input.shippingRateCode || defaultServiceCode;
+      resolvedCarrier = isFree ? "Member Free Delivery" : "Member Fixed Delivery";
     } else {
-      // Standard Courier Delivery
-      const hasLargeItems = products.some((p) => isLargeProduct(p));
+      // Standard Courier Delivery (evaluated strictly on non-member-overridden items)
+      const hasLargeItems = partition.standardItems.some((item) => {
+        const product = products.find((p) => p.id === item.productId);
+        if (!product) return false;
+        const variant = item.variantId
+          ? product.productVariants.find((v) => v.id === item.variantId)
+          : null;
+        return expandCourierProductVariantsForLargeCheck(product, variant).some((entry) =>
+          isLargeProduct(entry)
+        );
+      });
       if (hasLargeItems) {
         return NextResponse.json(
           { error: "Cart contains large items (e.g. sofas) that cannot be delivered via standard courier. Please select Store Pickup or Manual Delivery." },
@@ -453,28 +533,32 @@ export async function POST(req: NextRequest) {
 
       let parcelGroups;
       try {
-        const packagedResult = await buildPackagedParcelGroups(input.items.map(item => {
+        const packagedResult = await buildPackagedParcelGroups(partition.standardItems.map(item => {
           const product = products.find(value => value.id === item.productId)!;
           const variant = item.variantId ? product.productVariants.find(value => value.id === item.variantId) : null;
+          const pkg = resolveCourierPackageSet(product, variant);
           return {
             key: `${item.productId}:${item.variantId ?? "base"}`,
             quantity: item.quantity,
-            weight: variant?.weight ?? product.weight,
-            length: variant?.length ?? product.length,
-            width: variant?.width ?? product.width,
-            height: variant?.height ?? product.height,
-            requiresPackaging: variant?.requiresPackaging ?? product.requiresPackaging ?? true,
+            weight: pkg.weight,
+            length: pkg.length,
+            width: pkg.width,
+            height: pkg.height,
+            requiresPackaging: pkg.requiresPackaging,
+            extraPackages: pkg.extraPackages,
+            label: product.name,
           };
         }));
         parcelGroups = packagedResult.groups;
         orderPackaging = packagedResult.packaging;
+        orderPackedBoxes = packagedResult.boxes;
       } catch (error) {
         if (error instanceof FreightRequiredError) {
           return NextResponse.json({ error: error.message, freightRequired: true }, { status: 422 });
         }
         throw error;
       }
-      const parcelShipmentKey = shipmentKey(parcelGroups);
+      const parcelShipmentKey = memberDeliveryShipmentKey(shipmentKey(parcelGroups), partition);
       if (!freeShipping && (!input.shippingCost || input.shippingCost <= 0)) {
         return NextResponse.json(
           { error: "A shipping rate is required for this order" },
@@ -489,17 +573,13 @@ export async function POST(req: NextRequest) {
         if (checkCouriersPleaseAvailability().available) {
           try {
             const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
-            if (rates.length > 0) {
-              shippingServiceCode = rates[0].serviceCode;
-            } else {
-              shippingServiceCode = "CP_STANDARD";
-            }
+            shippingServiceCode = rates.length > 0 ? rates[0].serviceCode : null;
           } catch (error) {
             console.warn("[checkout] Couriers Please rate check exception for free shipping:", error);
-            shippingServiceCode = "CP_STANDARD";
+            shippingServiceCode = null;
           }
         } else {
-          shippingServiceCode = "CP_STANDARD";
+          shippingServiceCode = null;
         }
         shippingCost = 0;
       } else {
@@ -524,7 +604,8 @@ export async function POST(req: NextRequest) {
                 const rates = await getCouriersPleaseRates(deliveryAddress, parcelGroups);
                 const matchedRate = rates.find((r) => r.serviceCode === input.shippingRateCode);
                 if (matchedRate) {
-                  serverShippingCost = matchedRate.price;
+                  serverShippingCost =
+                    Math.round((matchedRate.price * 100 + partition.fixedDeliveryCents)) / 100;
                 }
               } catch (cpErr) {
                 console.warn("[checkout] Couriers Please rate check exception:", cpErr);
@@ -581,7 +662,7 @@ export async function POST(req: NextRequest) {
         const createdOrder = await tx.order.create({
         data: {
         ...(session?.user?.id ? { user: { connect: { id: session.user.id } } } : {}),
-        guestEmail: input.guestEmail?.trim().toLowerCase() || null,
+        guestEmail: !session?.user?.id ? (input.guestEmail?.trim().toLowerCase() || null) : null,
         guestPhone: !session?.user?.id ? (input.address?.phone ?? null) : null,
         address: { create: deliveryAddress },
         subtotal,
@@ -597,6 +678,7 @@ export async function POST(req: NextRequest) {
         packedWidth: orderPackaging?.width || null,
         packedHeight: orderPackaging?.height || null,
         packageOverride: false,
+        ...(orderPackedBoxes && orderPackedBoxes.length > 0 ? { packedBoxes: orderPackedBoxes } : {}),
         tax,
         discount: couponDiscount,
         total,
@@ -625,6 +707,10 @@ export async function POST(req: NextRequest) {
                 raffleWinner.prizeType === "FREE_PRODUCT"
                   ? `Raffle Winner Free Gift (${raffleWinner.raffle.title})`
                   : `Raffle Winner Exclusive Price $${raffleWinner.winningPrice || raffleWinner.prize.price || 0} (${raffleWinner.raffle.title})`;
+            } else if (variant && Array.isArray((variant as any).values) && (variant as any).values.length > 0) {
+              variantSummary = (variant as any).values
+                .map((vv: any) => `${vv.variantValue?.variantAttribute?.name || "Option"}: ${vv.variantValue?.value ?? ""}`)
+                .join(", ");
             } else if (variant && (variant as any).variantValues && (variant as any).variantValues.length > 0) {
               variantSummary = (variant as any).variantValues
                 .map((vv: any) => `${vv.attribute?.name || "Option"}: ${vv.value}`)
@@ -721,56 +807,102 @@ export async function POST(req: NextRequest) {
 
     // ── Free Order Handling (e.g. 100% Free Raffle Gift or zero-cost order) ──
     if (order.total === 0) {
-      const settled = await db.$transaction(async (tx) => {
-        const claimed = await tx.order.updateMany({
-          where: { id: order.id, status: "PENDING" },
-          data: {
-            status: "PAID",
-            paywayTransactionId: "FREE_ORDER",
-            couponReserved: false,
-          },
-        });
-        if (!claimed.count) return false;
+      let settled = false;
+      try {
+        settled = await db.$transaction(async (tx) => {
+          const claimed = await tx.order.updateMany({
+            where: { id: order.id, status: "PENDING" },
+            data: {
+              status: "PAID",
+              paywayTransactionId: "FREE_ORDER",
+              couponReserved: false,
+            },
+          });
+          if (!claimed.count) return false;
 
-        for (const item of order.items) {
-          if (item.productVariantId) {
-            const updated = await tx.productVariant.updateMany({
-              where: {
-                id: item.productVariantId,
-                stock: { gte: item.quantity },
-              },
-              data: { stock: { decrement: item.quantity } },
-            });
-            if (updated.count === 0) {
-              const variant = await tx.productVariant.findUnique({
-                where: { id: item.productVariantId },
-                select: { product: { select: { name: true } } },
+          for (const item of order.items) {
+            if (item.productVariantId) {
+              const updated = await tx.productVariant.updateMany({
+                where: {
+                  id: item.productVariantId,
+                  stock: { gte: item.quantity },
+                },
+                data: { stock: { decrement: item.quantity } },
               });
-              throw new Error(`OUT_OF_STOCK:${variant?.product.name ?? "A product"}`);
-            }
-          } else {
-            const updated = await tx.product.updateMany({
-              where: {
-                id: item.productId,
-                stock: { gte: item.quantity },
-              },
-              data: { stock: { decrement: item.quantity } },
-            });
-            if (updated.count === 0) {
-              const product = await tx.product.findUnique({
-                where: { id: item.productId },
-                select: { name: true },
+              if (updated.count === 0) {
+                const variant = await tx.productVariant.findUnique({
+                  where: { id: item.productVariantId },
+                  select: { product: { select: { name: true } } },
+                });
+                throw new Error(`OUT_OF_STOCK:${variant?.product.name ?? "A product"}`);
+              }
+            } else {
+              const updated = await tx.product.updateMany({
+                where: {
+                  id: item.productId,
+                  stock: { gte: item.quantity },
+                },
+                data: { stock: { decrement: item.quantity } },
               });
-              throw new Error(`OUT_OF_STOCK:${product?.name ?? "A product"}`);
+              if (updated.count === 0) {
+                const product = await tx.product.findUnique({
+                  where: { id: item.productId },
+                  select: { name: true },
+                });
+                throw new Error(`OUT_OF_STOCK:${product?.name ?? "A product"}`);
+              }
             }
           }
+          await queueOrderConfirmation(tx, order.id);
+          if (order.membershipAmount > 0 && order.userId) {
+            await activateMembershipInTransaction(tx, {
+              userId: order.userId,
+              planId: order.membershipPlanId,
+              durationDays: order.membershipDurationDays ?? undefined,
+              amountPaid: order.membershipAmount,
+              paywaySessionId: `order:${order.id}:membership`,
+            });
+          }
+          return true;
+        });
+      } catch (txErr) {
+        const message = txErr instanceof Error ? txErr.message : "";
+        if (message.startsWith("OUT_OF_STOCK:")) {
+          const productName = message.replace("OUT_OF_STOCK:", "");
+          await db.$transaction(async (tx) => {
+            const changed = await tx.order.updateMany({
+              where: { id: order.id, status: "PENDING" },
+              data: { status: "CANCELLED", refundReason: "Stock unavailable during free order confirmation" },
+            });
+            if (changed.count) {
+              if (typeof (tx as any).order?.findUnique === "function") {
+                await releaseCouponReservationInTransaction(tx, order.id);
+              }
+              if ((tx as any).raffleWinner) {
+                await (tx as any).raffleWinner.updateMany({
+                  where: { orderId: order.id },
+                  data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+                });
+              }
+            }
+          });
+          return NextResponse.json(
+            {
+              error: `Sorry, "${productName}" just sold out.`,
+              status: "out_of_stock",
+            },
+            { status: 409 }
+          );
         }
-        await queueOrderConfirmation(tx, order.id);
-        return true;
-      });
+        throw txErr;
+      }
 
       if (!settled) {
         return NextResponse.json({ error: "Order was already processed or cancelled." }, { status: 409 });
+      }
+
+      if (order.membershipAmount > 0) {
+        try { revalidatePath("/admin/membership"); } catch {}
       }
 
       after(async () => {
@@ -795,7 +927,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         orderId: order.id,
-        guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
+        guestToken: !order.userId && !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
         status: "success",
       });
     }
@@ -841,7 +973,7 @@ export async function POST(req: NextRequest) {
           ],
         });
         await db.order.update({ where: { id: order.id }, data: { paywayTransactionId: `ONLINEPAY:${hostedCheckout.id}` } });
-        return NextResponse.json({ orderId: order.id, guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "redirect", checkoutUrl: hostedCheckout.url });
+        return NextResponse.json({ orderId: order.id, guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "redirect", checkoutUrl: hostedCheckout.url });
       } catch (error) {
         console.error("[checkout] OnlinePay checkout creation failed", error);
         if (error instanceof OnlinePayCheckoutError && error.definitelyRejected) {
@@ -866,14 +998,14 @@ export async function POST(req: NextRequest) {
         if (hostedCheckout) {
           return NextResponse.json({
             orderId: order.id,
-            guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
+            guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
             status: "redirect",
             checkoutUrl: hostedCheckout.url,
           });
         }
         return NextResponse.json({
           orderId: order.id,
-          guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
+          guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
           status: "pending",
         });
       }
@@ -910,7 +1042,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Payment details were rejected. Please check them and try again.", retryWithNewKey: true }, { status: 422 });
       }
       // A timeout is ambiguous: never cancel or encourage another charge.
-      return NextResponse.json({ orderId: order.id, guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "pending" });
+      return NextResponse.json({ orderId: order.id, guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "pending" });
     }
 
     // Record the provider transaction as soon as it exists. If a subsequent
@@ -945,14 +1077,14 @@ export async function POST(req: NextRequest) {
       // Async payment — leave as PENDING; client can poll GET /api/orders/:id
       return NextResponse.json({
         orderId: order.id,
-      guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
+      guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
         transactionId: txn.transactionId,
         status: "pending",
       });
     }
 
     if (txn.status !== "approved" && txn.status !== "approved*") {
-      return NextResponse.json({ orderId: order.id, guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "pending" });
+      return NextResponse.json({ orderId: order.id, guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "pending" });
     }
 
     // status === "approved" | "approved*" — complete order atomically
@@ -1019,7 +1151,7 @@ export async function POST(req: NextRequest) {
         }
         return true;
       });
-      if (!settled) return NextResponse.json({ orderId: order.id, guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "pending" });
+      if (!settled) return NextResponse.json({ orderId: order.id, guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined, status: "pending" });
       if (order.membershipAmount > 0) {
         try { revalidatePath("/admin/membership"); } catch {}
       }
@@ -1033,7 +1165,18 @@ export async function POST(req: NextRequest) {
             where: { id: order.id, status: "PENDING" },
             data: { status: "CANCELLED", refundRequested: true, refundReason: "Payment approved but stock unavailable; refund required" },
           });
-          if (changed.count) await queueRefundAction(tx, order.id);
+          if (changed.count) {
+            await queueRefundAction(tx, order.id);
+            if (typeof releaseCouponReservationInTransaction === "function" && typeof (tx as any).order?.findUnique === "function") {
+              await releaseCouponReservationInTransaction(tx, order.id);
+            }
+            if ((tx as any).raffleWinner) {
+              await (tx as any).raffleWinner.updateMany({
+                where: { orderId: order.id },
+                data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+              });
+            }
+          }
         });
         console.error(
           `[checkout] Stock exhausted post-payment for "${productName}". ` +
@@ -1080,7 +1223,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       orderId: order.id,
-      guestToken: order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
+      guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
       receiptNumber: txn.receiptNumber,
       transactionId: txn.transactionId,
       status: "success",
@@ -1094,6 +1237,9 @@ export async function POST(req: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
     }
+    Sentry.captureException(error, {
+      tags: { route: "POST /api/checkout/session" },
+    });
     return NextResponse.json(
       { error: "Failed to process payment. Please try again." },
       { status: 500 }

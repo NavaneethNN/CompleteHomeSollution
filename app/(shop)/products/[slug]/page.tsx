@@ -217,6 +217,8 @@ export default async function ProductDetailPage({
               height: product.height,
               category: { name: product.category.name, slug: product.category.slug },
               isPreOrder: product.isPreOrder ?? false,
+              memberFreeDelivery: product.memberFreeDelivery ?? false,
+              memberDeliveryCharge: product.memberDeliveryCharge ?? null,
               reviewCount: product._count.reviews,
               avgRating,
             }}
@@ -277,6 +279,20 @@ export default async function ProductDetailPage({
                         <span className="text-xs text-muted-foreground font-normal ml-1">(Save ${(product.basePrice - product.memberPrice).toLocaleString()})</span>
                       </p>
                     )}
+                    {product.memberFreeDelivery && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 border border-emerald-200">
+                        <Sparkles className="h-3 w-3 text-emerald-600" />
+                        Free Delivery for Members
+                      </div>
+                    )}
+                    {!product.memberFreeDelivery &&
+                      typeof product.memberDeliveryCharge === "number" &&
+                      product.memberDeliveryCharge >= 0 && (
+                        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary border border-primary/20">
+                          <Sparkles className="h-3 w-3 text-primary" />
+                          ${product.memberDeliveryCharge.toFixed(2)} Delivery for Members
+                        </div>
+                      )}
                   </div>
 
                   {/* Membership Upsell for Non-Members */}

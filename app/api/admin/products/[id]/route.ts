@@ -47,6 +47,13 @@ const variantAttributeSchema = z.object({
   values: z.array(variantValueSchema),
 });
 
+const extraPackageBoxSchema = z.object({
+  weight: z.number().positive(),
+  length: z.number().positive(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
 const productVariantSchema = z.object({
   sku: z.string().min(1),
   price: z.number().nonnegative(),
@@ -59,10 +66,14 @@ const productVariantSchema = z.object({
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional().nullable(),
   bulletTitle: z.string().max(100).optional().nullable(),
   bulletPoints: z.array(z.string()).max(20).default([]),
+  productLength: z.number().positive().optional().nullable(),
+  productWidth: z.number().positive().optional().nullable(),
+  productHeight: z.number().positive().optional().nullable(),
   weight: z.number().optional().nullable(),
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  extraPackages: z.array(extraPackageBoxSchema).optional().nullable(),
   requiresPackaging: z.boolean().optional().default(true),
 });
 
@@ -82,6 +93,8 @@ const updateProductSchema = z.object({
   isActive: z.boolean().optional(),
   isPreOrder: z.boolean().optional(),
   isLargeItem: z.boolean().optional(),
+  memberFreeDelivery: z.boolean().optional(),
+  memberDeliveryCharge: z.number().nonnegative().optional().nullable(),
   hasVariants: z.boolean().optional(),
   images: z.array(z.string())
     .max(MAX_IMAGES_COUNT, `Maximum ${MAX_IMAGES_COUNT} images allowed`)
@@ -94,6 +107,7 @@ const updateProductSchema = z.object({
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  extraPackages: z.array(extraPackageBoxSchema).optional().nullable(),
   requiresPackaging: z.boolean().optional(),
   // For products with variants
   variantAttributes: z.array(variantAttributeSchema).optional(),
@@ -219,12 +233,19 @@ export async function PUT(
       if (data.isActive !== undefined) updateData.isActive = data.isActive;
       if (data.isPreOrder !== undefined) updateData.isPreOrder = data.isPreOrder;
       if (data.isLargeItem !== undefined) updateData.isLargeItem = data.isLargeItem;
+      if (data.memberFreeDelivery !== undefined) updateData.memberFreeDelivery = data.memberFreeDelivery;
+      if (data.memberDeliveryCharge !== undefined) {
+        updateData.memberDeliveryCharge = data.memberFreeDelivery ? null : data.memberDeliveryCharge;
+      } else if (data.memberFreeDelivery === true) {
+        updateData.memberDeliveryCharge = null;
+      }
       if (data.hasVariants !== undefined) updateData.hasVariants = data.hasVariants;
       if (data.images !== undefined) updateData.images = data.images;
       if (data.weight !== undefined) updateData.weight = data.weight;
       if (data.length !== undefined) updateData.length = data.length;
       if (data.width !== undefined) updateData.width = data.width;
       if (data.height !== undefined) updateData.height = data.height;
+      if (data.extraPackages !== undefined) updateData.extraPackages = data.extraPackages ?? [];
       if (data.requiresPackaging !== undefined) updateData.requiresPackaging = data.requiresPackaging;
       if (slug !== undefined) updateData.slug = slug;
 
@@ -365,10 +386,14 @@ export async function PUT(
                     description: variant.description || null,
                     bulletTitle: variant.bulletTitle || null,
                     bulletPoints: variant.bulletPoints || [],
-                    weight: variant.weight,
-                    length: variant.length,
-                    width: variant.width,
-                    height: variant.height,
+                    productLength: variant.productLength ?? null,
+                    productWidth: variant.productWidth ?? null,
+                    productHeight: variant.productHeight ?? null,
+                    weight: variant.weight ?? null,
+                    length: variant.length ?? null,
+                    width: variant.width ?? null,
+                    height: variant.height ?? null,
+                    extraPackages: variant.extraPackages ?? [],
                     requiresPackaging: variant.requiresPackaging ?? true,
                   },
                 });
@@ -413,10 +438,14 @@ export async function PUT(
                     description: variant.description || null,
                     bulletTitle: variant.bulletTitle || null,
                     bulletPoints: variant.bulletPoints || [],
-                    weight: variant.weight,
-                    length: variant.length,
-                    width: variant.width,
-                    height: variant.height,
+                    productLength: variant.productLength ?? null,
+                    productWidth: variant.productWidth ?? null,
+                    productHeight: variant.productHeight ?? null,
+                    weight: variant.weight ?? null,
+                    length: variant.length ?? null,
+                    width: variant.width ?? null,
+                    height: variant.height ?? null,
+                    extraPackages: variant.extraPackages ?? [],
                     requiresPackaging: variant.requiresPackaging ?? true,
                   },
                 });

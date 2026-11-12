@@ -45,6 +45,10 @@ import { Address } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { checkoutTotals } from "@/lib/checkout-totals";
 import { isLargeProduct } from "@/lib/manual-delivery";
+import {
+  isMemberDeliveryServiceCode,
+  resolveProductMemberDeliveryMode,
+} from "@/lib/member-delivery";
 import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -218,7 +222,23 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   }, [shippingAvailabilityAttempt]);
   // Cart state
   const storedItems = useCartStore((state) => state.items);
-  const [freshPrices, setFreshPrices] = useState<Record<string, { price: number; memberPrice: number | null; stock: number; weight: number }>>({});
+  const [freshPrices, setFreshPrices] = useState<
+    Record<
+      string,
+      {
+        price: number;
+        memberPrice: number | null;
+        stock: number;
+        weight: number;
+        length?: number | null;
+        width?: number | null;
+        height?: number | null;
+        isLargeItem?: boolean;
+        memberFreeDelivery?: boolean;
+        memberDeliveryCharge?: number | null;
+      }
+    >
+  >({});
   const [pricesReady, setPricesReady] = useState(false);
   const [pricesError, setPricesError] = useState<string | null>(null);
   const productIds = JSON.stringify([...new Set(storedItems.map((item) => item.product.id))]);
@@ -243,6 +263,10 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
             product: {
               ...item.product,
               weight: fresh?.weight ?? (item.product as any).weight ?? 2,
+              length: fresh?.length ?? (item.product as any).length,
+              width: fresh?.width ?? (item.product as any).width,
+              height: fresh?.height ?? (item.product as any).height,
+              isLargeItem: fresh?.isLargeItem ?? (item.product as any).isLargeItem,
               stock: Math.max(fresh?.stock ?? 1, 1),
             },
           };
@@ -278,18 +302,23 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     return fresh !== undefined ? fresh : item.product.memberPrice;
   };
 
-  const subtotal = items.reduce((total, item) => {
-    if (item.product.raffleWinnerId) {
-      return total + (item.product.price ?? 0) * item.quantity;
-    }
-    const memberPrice = getMemberPrice(item);
-    const basePrice = Math.max(0, item.product.price ?? 0);
-    const effectivePrice = effectiveMember && memberPrice && memberPrice > 0 ? memberPrice : basePrice;
-    return total + effectivePrice * item.quantity;
-  }, 0);
+  const subtotal =
+    items.reduce((totalCents, item) => {
+      if (item.product.raffleWinnerId) {
+        return totalCents + Math.round((item.product.price ?? 0) * 100) * item.quantity;
+      }
+      const memberPrice = getMemberPrice(item);
+      const basePrice = Math.max(0, item.product.price ?? 0);
+      const effectivePrice = effectiveMember && memberPrice && memberPrice > 0 ? memberPrice : basePrice;
+      return totalCents + Math.round(effectivePrice * 100) * item.quantity;
+    }, 0) / 100;
   // Full (non-member) subtotal for savings display
-  const fullSubtotal = items.reduce((total, item) => total + Math.max(0, item.product.price ?? 0) * item.quantity, 0);
-  const memberSavings = fullSubtotal - subtotal;
+  const fullSubtotal =
+    items.reduce(
+      (totalCents, item) => totalCents + Math.round(Math.max(0, item.product.price ?? 0) * 100) * item.quantity,
+      0
+    ) / 100;
+  const memberSavings = Math.round((fullSubtotal - subtotal) * 100) / 100;
   const itemCount = items.reduce((total, item) => total + item.quantity, 0);
 
   const pricingKey = JSON.stringify([effectiveMember, items.map(item => [item.product.id, item.product.variantId ?? null, item.quantity, item.product.price, getMemberPrice(item)])]);
@@ -305,19 +334,51 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   // a discount on the entire cart.
   const displayedSubtotal = currentCoupon?.subtotal ?? subtotal;
   const discount = Math.min(currentCoupon?.discount ?? 0, displayedSubtotal);
-  const discountedSubtotal = currentCoupon?.discountedSubtotal ?? displayedSubtotal - discount;
+  const discountedSubtotal =
+    currentCoupon?.discountedSubtotal ?? Math.max(0, Math.round((displayedSubtotal - discount) * 100)) / 100;
   const cartHasLargeItems = useMemo(() => {
-    return items.some((item) => isLargeProduct(item.product)) || hasLargeItemsState;
-  }, [items, hasLargeItemsState]);
+    const hasUncoveredLarge = items.some((item) => {
+      const mode = resolveProductMemberDeliveryMode(
+        {
+          memberFreeDelivery: (item.product as any).memberFreeDelivery,
+          memberDeliveryCharge: (item.product as any).memberDeliveryCharge,
+        },
+        effectiveMember
+      );
+      if (mode.type !== "STANDARD") return false;
+      return isLargeProduct(item.product);
+    });
+    return hasUncoveredLarge || hasLargeItemsState;
+  }, [items, effectiveMember, hasLargeItemsState]);
+
+  const hasMemberFixedDelivery = useMemo(() => {
+    if (!effectiveMember) return false;
+    return items.some((item) => {
+      const mode = resolveProductMemberDeliveryMode(
+        {
+          memberFreeDelivery: (item.product as any).memberFreeDelivery,
+          memberDeliveryCharge: (item.product as any).memberDeliveryCharge,
+        },
+        true
+      );
+      return mode.type === "FIXED";
+    });
+  }, [items, effectiveMember]);
 
   const isStorePickup = fulfillmentType === "STORE_PICKUP";
   const selectedRate = shippingRates.find((r) => r.serviceCode === selectedRateCode) ?? shippingRates[0] ?? null;
-  const freeShipping = !isStorePickup && !cartHasLargeItems && (discountedSubtotal >= 1200);
+  const freeShipping = !isStorePickup && !cartHasLargeItems && !hasMemberFixedDelivery && (discountedSubtotal >= 1200);
   const shippingCost = isStorePickup ? 0 : freeShipping ? 0 : (selectedRate?.price ?? null);
   const membershipAdd = (!isMember && addMembership) ? MEMBERSHIP_PRICE : 0;
   const { tax: gst, total } = checkoutTotals(discountedSubtotal, shippingCost ?? 0, membershipAdd);
   const isFreeOrder = Math.round(total * 100) === 0;
-  const isShippingReady = isStorePickup || freeShipping || (shippingAvailable === true && shippingCost !== null);
+  const isShippingReady =
+    isStorePickup ||
+    freeShipping ||
+    (shippingCost !== null &&
+      (selectedRate?.serviceCode === "MANUAL_DELIVERY" ||
+        isMemberDeliveryServiceCode(selectedRate?.serviceCode) ||
+        shippingAvailable === true));
   // Net benefit: savings on items minus membership fee
   const netBenefit = memberSavings - MEMBERSHIP_PRICE;
 
@@ -365,12 +426,29 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     }
   };
 
+  useEffect(() => {
+    if (freeShipping) {
+      shippingRequestRef.current++;
+      setIsFetchingRates(false);
+      setRatesError(null);
+      setShippingRates([]);
+      setSelectedRateCode(null);
+    }
+  }, [freeShipping]);
+
   // Couriers Please needs the complete destination, and stale responses must not replace a newer quote.
   const fetchShippingRates = useCallback(
     async (address: AddressInput | Address) => {
       const requestId = ++shippingRequestRef.current;
       const cleanPostcode = (address.postcode || "").replace(/\D/g, "").slice(0, 4);
-      if (!/^\d{4}$/.test(cleanPostcode) || !pricesReady || freeShipping) return;
+      if (freeShipping) {
+        setIsFetchingRates(false);
+        setRatesError(null);
+        setShippingRates([]);
+        setSelectedRateCode(null);
+        return;
+      }
+      if (!/^\d{4}$/.test(cleanPostcode) || !pricesReady) return;
       setIsFetchingRates(true);
       setRatesError(null);
       setShippingRates([]);
@@ -392,6 +470,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             address: cleanAddress,
+            addMembership: !isMember && addMembership,
             items: items.map(item => ({
               productId: item.product.id,
               variantId: item.product.variantId ?? undefined,
@@ -431,7 +510,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         if (requestId === shippingRequestRef.current) setIsFetchingRates(false);
       }
     },
-    [items, pricesReady, freeShipping]
+    [items, pricesReady, freeShipping, isMember, addMembership]
   );
 
   // Fetch rates when selected saved address changes
@@ -445,6 +524,16 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   useEffect(() => {
     if (guestAddress?.postcode) fetchShippingRates(guestAddress);
   }, [guestAddress, fetchShippingRates]);
+
+  // Refetch shipping rates when membership toggle changes so member delivery perks update
+  useEffect(() => {
+    const activeAddress = selectedAddressId
+      ? addresses.find((a) => a.id === selectedAddressId)
+      : guestAddress;
+    if (activeAddress?.postcode) {
+      fetchShippingRates(activeAddress);
+    }
+  }, [addMembership]);
 
   // Show cancelled toast
   useEffect(() => {
@@ -580,6 +669,11 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
         setAddresses(updated);
         if (selectedAddressId === id) {
           setSelectedAddressId(updated.length > 0 ? updated[0].id : null);
+          if (updated.length === 0) {
+            setShippingRates([]);
+            setSelectedRateCode(null);
+            setRatesError(null);
+          }
         }
         toast({ title: "Address deleted" });
       }
@@ -655,10 +749,27 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
     }
   };
 
-  // Every price/quantity/membership change affects coupon amounts, including ALL coupons.
+  // Any checkout-affecting change invalidates the previous idempotency key so
+  // editing address, shipping, pickup/delivery, or coupon after backing out
+  // never replays a stale PENDING order or payment session.
+  const checkoutPayloadKey = JSON.stringify([
+    pricingKey,
+    appliedCouponCode,
+    appliedCoupon?.code ?? null,
+    fulfillmentType,
+    selectedAddressId,
+    guestAddress,
+    guestEmail.trim().toLowerCase(),
+    shippingCost,
+    selectedRateCode,
+  ]);
   useEffect(() => {
     try { sessionStorage.removeItem("chs_checkout_idempotency_key"); } catch {}
     idempotencyKeyRef.current = null;
+  }, [checkoutPayloadKey]);
+
+  // Every price/quantity/membership change affects coupon amounts, including ALL coupons.
+  useEffect(() => {
     if (appliedCouponCode) void applyCoupon(appliedCouponCode, true);
     // Revalidate only when inputs change, not when the response updates coupon state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -694,7 +805,12 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
 
   // Place order — validate then request a PayWay single-use token
   const submitOrderWithToken = async (tokenId: string) => {
-    if (couponNeedsRefresh || isApplyingCoupon) { setAwaitingToken(false); return; }
+    if (couponNeedsRefresh || isApplyingCoupon) {
+      submissionInFlightRef.current = false;
+      setAwaitingToken(false);
+      setIsProcessing(false);
+      return;
+    }
     setAwaitingToken(false);
     setIsProcessing(true);
     try {      const response = await fetch("/api/checkout/session", {
@@ -806,7 +922,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
   }, [awaitingToken, singleUseTokenId]);
 
   const handlePlaceOrder = () => {
-    if (!paymentAvailable) return;
+    if (!isFreeOrder && !paymentAvailable) return;
     if (items.length === 0) {
       toast({ title: "Cart is empty", description: "Add items to your cart first.", variant: "destructive" });
       return;
@@ -1387,15 +1503,27 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                         <Package className="h-4 w-4 text-primary shrink-0" />
                         <span className="flex flex-col gap-0.5">
                           <span className="font-semibold text-foreground">
-                            Standard Delivery
+                            {bestRate.serviceCode === "MANUAL_DELIVERY"
+                              ? bestRate.serviceName
+                              : bestRate.serviceCode === "MEMBER_FREE_DELIVERY"
+                              ? "Free Delivery (Member Perk)"
+                              : bestRate.serviceCode === "MEMBER_FIXED_DELIVERY"
+                              ? "Standard Delivery (Member Rate)"
+                              : "Standard Delivery"}
                           </span>
                           <span className="text-[11px] text-muted-foreground leading-snug">
-                            5–7 working days • Tracked dispatch
+                            {bestRate.serviceCode === "MANUAL_DELIVERY"
+                              ? (bestRate.deliveryTime || "Delivery arranged by our team")
+                              : bestRate.serviceCode === "MEMBER_FREE_DELIVERY"
+                              ? "Exclusive member delivery · Tracked dispatch"
+                              : bestRate.serviceCode === "MEMBER_FIXED_DELIVERY"
+                              ? "Fixed member delivery fee · Tracked dispatch"
+                              : "5–7 working days • Tracked dispatch"}
                           </span>
                         </span>
                       </span>
                       <span className="font-bold text-foreground">
-                        {currencyFormatter.format(bestRate.price)}
+                        {bestRate.price === 0 ? "FREE" : currencyFormatter.format(bestRate.price)}
                       </span>
                     </div>
                   </div>
@@ -1520,6 +1648,7 @@ export function CheckoutForm({ savedAddresses, addressesError: _addressesError, 
                   // token is set; the useEffect below will fire submitOrderWithToken
                 }}
                 onError={(msg) => {
+                  submissionInFlightRef.current = false;
                   setPaymentError(msg);
                   setAwaitingToken(false);
                   setIsProcessing(false);

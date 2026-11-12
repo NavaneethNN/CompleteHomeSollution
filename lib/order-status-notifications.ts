@@ -1,6 +1,7 @@
 import { sendEmail } from "./brevo";
 import { renderStandardEmail, renderCard, escapeHtml } from "./email-template";
 import { createGuestOrderToken } from "./order-access";
+import { getTrackingUrl, isSimulationTrackingCode } from "./tracking-url";
 
 interface OrderStatusNotificationData {
   orderId: string;
@@ -223,6 +224,12 @@ export async function sendOrderStatusNotification(data: OrderStatusNotificationD
     `;
 
     // Tracking card
+    const rawTrackingUrl =
+      data.trackingNumber && !isSimulationTrackingCode(data.trackingNumber)
+        ? getTrackingUrl(data.carrier, data.trackingNumber)
+        : null;
+    const safeTrackingUrl = rawTrackingUrl ? escapeHtml(rawTrackingUrl) : null;
+
     const trackingHtml = safeTrackingNumber
       ? renderCard(
           `
@@ -230,6 +237,11 @@ export async function sendOrderStatusNotification(data: OrderStatusNotificationD
           ${safeCarrier ? `<tr><td style="padding:4px 0;color:#64748b;width:35%;">Carrier:</td><td style="padding:4px 0;font-weight:700;">${safeCarrier}</td></tr>` : ""}
           <tr><td style="padding:4px 0;color:#64748b;width:35%;">Tracking Number:</td><td style="padding:4px 0;font-weight:700;color:#1a2e5a;">${safeTrackingNumber}</td></tr>
         </table>
+        ${
+          safeTrackingUrl
+            ? `<div style="margin-top:10px;"><a href="${safeTrackingUrl}" style="display:inline-block;padding:8px 14px;background:#1a2e5a;color:#ffffff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:700;">Track Shipment &rarr;</a></div>`
+            : ""
+        }
       `,
           { title: "Tracking Information", bg: "#eff6ff", border: "#bfdbfe" }
         )

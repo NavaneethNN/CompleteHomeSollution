@@ -12,7 +12,7 @@ test("shipping uses every quantity and groups identical real packages", () => {
   assert.equal(shipmentKey(groups), shipmentKey(structuredClone(groups)));
 });
 
-test("unknown or implausible packages require manual freight; Ship123 evaluates larger furniture", () => {
+test("unknown or implausible packages require manual freight; valid packages quote automatically", () => {
   const base = { key: "sofa", quantity: 1, weight: 10, length: 80, width: 30, height: 20 };
   assert.throws(() => buildParcelGroups([{ ...base, weight: null }]), FreightRequiredError);
   assert.equal(buildParcelGroups([{ ...base, weight: 22.1, length: 106 }])[0].weightKg, 22.1);

@@ -1,72 +1,131 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import {
-  calculateEstimatedMinimumDimensions,
-  selectPackagingPreset,
-  type PackagingItemInput,
-} from "../lib/packaging";
-import { buildPackagedParcelGroups } from "../lib/shipping-packages";
+import { buildPackagedParcelGroups, resolveOrderShipmentBoxes } from "../lib/shipping-packages";
 
-test("calculateEstimatedMinimumDimensions computes envelope and volume for multiple items", () => {
-  const items: PackagingItemInput[] = [
-    { name: "Item A", quantity: 2, weight: 1.5, length: 30, width: 20, height: 10 },
-    { name: "Item B", quantity: 1, weight: 2.0, length: 25, width: 25, height: 15 },
-  ];
-
-  const result = calculateEstimatedMinimumDimensions(items);
-
-  assert.equal(result.isAutoEstimated, true);
-  assert.equal(result.productWeight, 5.0);
-  assert.ok(result.packedWeight >= 5.2);
-  assert.ok(result.length >= 30, `Length ${result.length} should be at least max item length 30`);
-  assert.ok(result.width >= 25, `Width ${result.width} should be at least max item width 25`);
-  assert.ok(result.height >= 15, `Height ${result.height} should be at least max item height 15`);
-  // Total volume must accommodate items volume
-  const totalItemVolume = 2 * (30 * 20 * 10) + (25 * 25 * 15);
-  const boxVolume = result.length * result.width * result.height;
-  assert.ok(boxVolume >= totalItemVolume, `Box volume ${boxVolume} must be >= items volume ${totalItemVolume}`);
-});
-
-test("selectPackagingPreset with no configured presets returns estimated minimum for multiple items", async () => {
-  const items: PackagingItemInput[] = [
-    { name: "Vase 1", quantity: 1, weight: 2.0, length: 30, width: 20, height: 20 },
-    { name: "Vase 2", quantity: 1, weight: 2.0, length: 30, width: 20, height: 20 },
-  ];
-
-  // Pass empty presets array to simulate no presets configured in database
-  const result = await selectPackagingPreset(items, []);
-
-  assert.ok(result !== null);
-  assert.equal(result.isAutoEstimated, true);
-  assert.ok(result.packageName.includes("Estimated Minimum"));
-  assert.equal(result.productWeight, 4.0);
-  assert.ok(result.length >= 30);
-  assert.ok(result.width >= 20);
-  assert.ok(result.height >= 20);
-});
-
-test("selectPackagingPreset with no configured presets returns null for a single item (uses product dimensions)", async () => {
-  const singleItem: PackagingItemInput[] = [
-    { name: "Single Vase", quantity: 1, weight: 2.0, length: 30, width: 20, height: 20 },
-  ];
-
-  // Single item with no preset in DB should return null so it uses product dimensions directly
-  const result = await selectPackagingPreset(singleItem, []);
-
-  assert.equal(result, null);
-});
-
-test("buildPackagedParcelGroups bundles multiple items into 1 package when no presets configured", async () => {
+test("buildPackagedParcelGroups uses exact product/variant dimensions directly without auto-box preset wrapping", async () => {
   const shippingItems = [
-    { key: "item-1:base", quantity: 2, weight: 1.0, length: 25, width: 20, height: 10, requiresPackaging: true },
-    { key: "item-2:base", quantity: 1, weight: 1.5, length: 20, width: 15, height: 15, requiresPackaging: true },
+    {
+      key: "item-1:base",
+      label: "Ceramic Bowl",
+      quantity: 2,
+      weight: 1.5,
+      length: 30,
+      width: 20,
+      height: 10,
+      requiresPackaging: true,
+    },
+    {
+      key: "item-2:base",
+      label: "Table Lamp",
+      quantity: 1,
+      weight: 2.0,
+      length: 25,
+      width: 25,
+      height: 15,
+      requiresPackaging: false,
+    },
   ];
 
-  const { groups, packaging } = await buildPackagedParcelGroups(shippingItems);
+  // Even when a legacy preset array is passed, no preset wrapping or same-box estimation occurs
+  const legacyPresets = [
+    { id: "preset-big", name: "Big Outer Carton", length: 80, width: 60, height: 50, maxWeight: 30, emptyWeight: 1.2 },
+  ];
+  const { groups, boxes, packaging } = await buildPackagedParcelGroups(shippingItems, legacyPresets);
 
-  // If presets exist in DB or not, it should bundle into 1 package (count: 1)
-  assert.equal(groups.length, 1);
-  assert.equal(groups[0].count, 1);
-  assert.ok(groups[0].weightKg >= 3.5);
+  assert.equal(groups.reduce((sum, g) => sum + g.count, 0), 3);
+  assert.equal(boxes.length, 2);
+  assert.deepEqual(boxes[0], {
+    label: "Ceramic Bowl",
+    quantity: 2,
+    length: 30,
+    width: 20,
+    height: 10,
+    weight: 1.5,
+  });
+  assert.deepEqual(boxes[1], {
+    label: "Table Lamp",
+    quantity: 1,
+    length: 25,
+    width: 25,
+    height: 15,
+    weight: 2.0,
+  });
   assert.ok(packaging !== null);
+  assert.equal(packaging.presetId, null);
+  assert.equal(packaging.packedWeight, 5.0);
+  assert.match(packaging.packageName, /3 Boxes/i);
+});
+
+test("buildPackagedParcelGroups handles every product unit and multi-box product in separate boxes (never bundles together)", async () => {
+  const shippingItems = [
+    {
+      key: "item-1:base",
+      label: "Dining Table",
+      quantity: 2,
+      weight: 12.0,
+      length: 120,
+      width: 60,
+      height: 15,
+      requiresPackaging: true,
+      extraPackages: [{ weight: 8.0, length: 70, width: 40, height: 15 }],
+    },
+    {
+      key: "item-2:base",
+      label: "Side Chair",
+      quantity: 1,
+      weight: 6.5,
+      length: 50,
+      width: 50,
+      height: 45,
+      requiresPackaging: false,
+    },
+  ];
+
+  const { groups, boxes, packaging } = await buildPackagedParcelGroups(shippingItems);
+
+  // Dining Table has 2 boxes per unit * qty 2 = 4 boxes; Side Chair has 1 box * qty 1 = 1 box => 5 separate boxes
+  const totalParcelCount = groups.reduce((sum, g) => sum + g.count, 0);
+  assert.equal(totalParcelCount, 5);
+  assert.equal(groups.length, 3);
+  assert.equal(boxes.length, 3);
+  assert.ok(packaging !== null);
+  assert.equal(packaging.packedWeight, 46.5); // 2 * (12 + 8) + 6.5
+  assert.match(packaging.packageName, /5 Boxes/i);
+});
+
+test("resolveOrderShipmentBoxes keeps multi-product order boxes separate without DB preset queries", async () => {
+  const resolved = await resolveOrderShipmentBoxes({
+    items: [
+      {
+        id: "oi-a",
+        quantity: 2,
+        product: {
+          weight: 5,
+          length: 40,
+          width: 30,
+          height: 20,
+          extraPackages: [{ weight: 3, length: 30, width: 20, height: 15 }],
+          name: "Modular Bookcase",
+        },
+        productVariant: null,
+      },
+      {
+        id: "oi-b",
+        quantity: 1,
+        product: {
+          weight: 2.5,
+          length: 25,
+          width: 20,
+          height: 12,
+          name: "Desk Organizer",
+        },
+        productVariant: null,
+      },
+    ],
+  });
+
+  assert.equal(resolved.packagePresetId, null);
+  assert.equal(resolved.totalBoxCount, 5);
+  assert.equal(resolved.boxes.length, 3);
+  assert.equal(resolved.packedWeight, 18.5); // 2*(5+3) + 2.5
 });

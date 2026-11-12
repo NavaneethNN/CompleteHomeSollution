@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { couriersPleaseSenderFromEnv } from "@/lib/couriersplease";
-import { selectPackagingPreset } from "@/lib/packaging";
+import { resolveOrderShipmentBoxes, parseStoredPackedBoxes } from "@/lib/shipping-packages";
 import { generateCode128Svg } from "@/lib/barcode";
 import { ShippingLabelView } from "@/components/admin/shipping-label-view";
 
@@ -26,72 +26,75 @@ export default async function OrderShippingLabelPage({ params, searchParams }: L
   const { id } = await params;
   const { autoprint } = await searchParams;
 
-  const [order, packagingPresets] = await Promise.all([
-    db.order.findUnique({
-      where: { id },
-      include: {
-        address: true,
-        user: { select: { name: true, email: true, phone: true } },
-        items: {
-          include: {
-            product: { select: { name: true, sku: true, weight: true, length: true, width: true, height: true } },
-            productVariant: { select: { weight: true, length: true, width: true, height: true } },
+  const order = await db.order.findUnique({
+    where: { id },
+    include: {
+      address: true,
+      user: { select: { name: true, email: true, phone: true } },
+      items: {
+        include: {
+          product: {
+            select: {
+              name: true,
+              sku: true,
+              weight: true,
+              length: true,
+              width: true,
+              height: true,
+              extraPackages: true,
+              requiresPackaging: true,
+            },
+          },
+          productVariant: {
+            select: {
+              weight: true,
+              length: true,
+              width: true,
+              height: true,
+              extraPackages: true,
+              requiresPackaging: true,
+            },
           },
         },
       },
-    }),
-    db.packagingPreset.findMany({
-      where: { isActive: true },
-      orderBy: [{ priority: "desc" }, { maxWeight: "asc" }],
-    }),
-  ]);
+    },
+  });
 
   if (!order) {
     notFound();
   }
 
   // ── Packaging Box Specifications Resolution ─────────────────────────────
-  let packageName = order.packageName || "Standard Package";
-  let length = order.packedLength || 30;
-  let width = order.packedWidth || 25;
-  let height = order.packedHeight || 20;
-  let weight = order.packedWeight || 1.0;
+  const resolvedBoxes = await resolveOrderShipmentBoxes(order);
+  const packageName = order.packageName || resolvedBoxes.packageName;
+  const length = order.packedLength || resolvedBoxes.packedLength;
+  const width = order.packedWidth || resolvedBoxes.packedWidth;
+  const height = order.packedHeight || resolvedBoxes.packedHeight;
+  const weight = order.packedWeight || resolvedBoxes.packedWeight;
+  const boxes = resolvedBoxes.boxes;
+  const totalBoxes = resolvedBoxes.totalBoxCount;
 
-  if (!order.packedLength || !order.packedWeight || !order.packageName) {
-    const packagingItems = order.items.map((it) => ({
-      quantity: it.quantity,
-      weight: it.productVariant?.weight ?? it.product.weight ?? 0.5,
-      length: it.productVariant?.length ?? it.product.length ?? 20,
-      width: it.productVariant?.width ?? it.product.width ?? 15,
-      height: it.productVariant?.height ?? it.product.height ?? 10,
-      name: it.product.name,
-    }));
-
-    const calculated = await selectPackagingPreset(packagingItems, packagingPresets as any).catch(() => null);
-    if (calculated) {
-      packageName = calculated.packageName;
-      length = calculated.length;
-      width = calculated.width;
-      height = calculated.height;
-      weight = calculated.packedWeight;
-
-      // Auto-persist to DB
-      await db.order.update({
+  if (!parseStoredPackedBoxes(order.packedBoxes).length && (!order.packedLength || !order.packedWeight || !order.packageName)) {
+    // Auto-persist separate-box dimensions to DB
+    await db.order
+      .update({
         where: { id: order.id },
         data: {
-          packagePresetId: calculated.presetId || null,
-          packageName: calculated.packageName,
-          packedLength: calculated.length,
-          packedWidth: calculated.width,
-          packedHeight: calculated.height,
-          packedWeight: calculated.packedWeight,
+          packagePresetId: resolvedBoxes.packagePresetId,
+          packageName: resolvedBoxes.packageName,
+          packedLength: resolvedBoxes.packedLength,
+          packedWidth: resolvedBoxes.packedWidth,
+          packedHeight: resolvedBoxes.packedHeight,
+          packedWeight: resolvedBoxes.packedWeight,
+          packedBoxes: boxes as any,
           packageOverride: false,
         },
-      }).catch(() => null);
-    }
+      })
+      .catch(() => null);
   }
 
-  const cubicWeight = Math.round(((length * width * height) / 4000) * 100) / 100;
+  const cubicWeight =
+    Math.round(boxes.reduce((sum, b) => sum + ((b.length * b.width * b.height) / 4000) * b.quantity, 0) * 100) / 100;
 
   // ── Sender Details ────────────────────────────────────────────────────────
   let sender = {
@@ -188,6 +191,8 @@ export default async function OrderShippingLabelPage({ params, searchParams }: L
         height,
         weight,
         cubicWeight,
+        totalBoxes,
+        boxes,
         itemCount: order.items.reduce((s, it) => s + it.quantity, 0),
         itemNames: order.items.map((it) => `${it.quantity}x ${it.product.name}`),
         specialInstructions,

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -69,14 +71,6 @@ interface LabelDataResponse {
     items: Array<{ name: string; quantity: number; sku?: string }>;
     specialInstructions: string;
   };
-  packagingPresets: Array<{
-    id: string;
-    name: string;
-    length: number;
-    width: number;
-    height: number;
-    maxWeight: number;
-  }>;
 }
 
 interface ShippingLabelDialogProps {
@@ -94,6 +88,7 @@ export function ShippingLabelDialog({
   open,
   onOpenChange,
 }: ShippingLabelDialogProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<LabelDataResponse | null>(null);
@@ -139,26 +134,57 @@ export function ShippingLabelDialog({
   }, [orderId]);
 
   const handleBookCouriersPlease = async () => {
+    const packedLength = Number(length);
+    const packedWidth = Number(width);
+    const packedHeight = Number(height);
+    const packedWeight = Number(weight);
+
+    if (
+      !Number.isFinite(packedLength) ||
+      packedLength <= 0 ||
+      !Number.isFinite(packedWidth) ||
+      packedWidth <= 0 ||
+      !Number.isFinite(packedHeight) ||
+      packedHeight <= 0 ||
+      !Number.isFinite(packedWeight) ||
+      packedWeight <= 0
+    ) {
+      toast.error("Package length, width, height, and weight must be positive numbers.");
+      return;
+    }
+
+    const trimmedInstructions = instructions.trim();
     setBookingCouriersPlease(true);
     try {
       const res = await fetch(`/api/admin/orders/${orderId}/ready-to-ship`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          packedLength: Number(length) || 0,
-          packedWidth: Number(width) || 0,
-          packedHeight: Number(height) || 0,
-          packedWeight: Number(weight) || 0,
-          specialInstructions: instructions.slice(0, 15),
+          packedLength,
+          packedWidth,
+          packedHeight,
+          packedWeight,
+          specialInstructions: trimmedInstructions.slice(0, 140) || undefined,
+          pickupInstructions: trimmedInstructions.slice(0, 15) || "Pickup ready",
         }),
       });
       const resJson = await res.json();
       if (!res.ok) {
         throw new Error(resJson.error || "Couriers Please booking failed");
       }
+      if (resJson.pickupWarning) {
+        toast.warning(resJson.pickupWarning);
+      } else {
+        toast.success(
+          resJson.consignmentNumber
+            ? `Booked Couriers Please consignment ${resJson.consignmentNumber}`
+            : "Couriers Please booking created"
+        );
+      }
       await fetchLabelData();
+      router.refresh();
     } catch (err: any) {
-      alert(err.message || "Failed to create consignment with Couriers Please");
+      toast.error(err.message || "Failed to create consignment with Couriers Please");
     } finally {
       setBookingCouriersPlease(false);
     }
@@ -197,18 +223,6 @@ export function ShippingLabelDialog({
       year: "numeric",
     });
   }, [data?.createdAt]);
-
-  // Handle Preset change
-  const handlePresetSelect = (presetId: string) => {
-    if (!data?.packagingPresets) return;
-    const preset = data.packagingPresets.find((p) => p.id === presetId);
-    if (preset) {
-      setPackageName(preset.name);
-      setLength(preset.length);
-      setWidth(preset.width);
-      setHeight(preset.height);
-    }
-  };
 
   // Hidden iframe printing ensures 0 page-bleed or UI artifacts
   const handlePrint = () => {
@@ -601,38 +615,23 @@ export function ShippingLabelDialog({
                 </div>
               </div>
 
-              {/* Package Presets & Dimensions */}
+              {/* Parcel Dimensions */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Packaging Box &amp; Dimensions
+                    Parcel Box Dimensions
                   </Label>
                   <span className="text-[10px] text-slate-500 font-mono">
                     Cubic: {cubicWeight} kg
                   </span>
                 </div>
 
-                {data.packagingPresets && data.packagingPresets.length > 0 && (
-                  <select
-                    className="w-full h-8 text-xs rounded-md border border-slate-300 bg-white px-2 text-slate-800"
-                    onChange={(e) => handlePresetSelect(e.target.value)}
-                    defaultValue=""
-                  >
-                    <option value="" disabled>Select Standard Box Preset…</option>
-                    {data.packagingPresets.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.length}×{p.width}×{p.height} cm)
-                      </option>
-                    ))}
-                  </select>
-                )}
-
                 <div className="grid grid-cols-4 gap-1.5 pt-1">
                   <div>
                     <span className="text-[10px] text-slate-500 block">L (cm)</span>
                     <Input
                       type="number"
-                      placeholder="0"
+                      placeholder="cm"
                       value={length}
                       onChange={(e) => setLength(e.target.value)}
                       className="h-8 text-xs font-mono"
@@ -642,7 +641,7 @@ export function ShippingLabelDialog({
                     <span className="text-[10px] text-slate-500 block">W (cm)</span>
                     <Input
                       type="number"
-                      placeholder="0"
+                      placeholder="cm"
                       value={width}
                       onChange={(e) => setWidth(e.target.value)}
                       className="h-8 text-xs font-mono"
@@ -652,7 +651,7 @@ export function ShippingLabelDialog({
                     <span className="text-[10px] text-slate-500 block">H (cm)</span>
                     <Input
                       type="number"
-                      placeholder="0"
+                      placeholder="cm"
                       value={height}
                       onChange={(e) => setHeight(e.target.value)}
                       className="h-8 text-xs font-mono"
@@ -663,7 +662,7 @@ export function ShippingLabelDialog({
                     <Input
                       type="number"
                       step="0.1"
-                      placeholder="0.0"
+                      placeholder="kg"
                       value={weight}
                       onChange={(e) => setWeight(e.target.value)}
                       className="h-8 text-xs font-mono"
@@ -955,7 +954,7 @@ export function ShippingLabelDialog({
 
             <a
               href={
-                carrier.includes("Couriers Please")
+                carrier.includes("Couriers Please") && data?.hasCouriersPleaseBooking
                   ? `/api/admin/orders/${orderId}/couriersplease/label`
                   : `/api/admin/orders/${orderId}/shipping-label`
               }

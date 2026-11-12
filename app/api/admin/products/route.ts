@@ -48,6 +48,13 @@ const variantAttributeSchema = z.object({
   values: z.array(variantValueSchema),
 });
 
+const extraPackageBoxSchema = z.object({
+  weight: z.number().positive(),
+  length: z.number().positive(),
+  width: z.number().positive(),
+  height: z.number().positive(),
+});
+
 const productVariantSchema = z.object({
   sku: z.string().min(1),
   price: z.number().nonnegative(),
@@ -60,10 +67,14 @@ const productVariantSchema = z.object({
   description: z.string().max(MAX_DESCRIPTION_LENGTH).optional().nullable(),
   bulletTitle: z.string().max(100).optional().nullable(),
   bulletPoints: z.array(z.string()).max(20).default([]),
+  productLength: z.number().positive().optional().nullable(),
+  productWidth: z.number().positive().optional().nullable(),
+  productHeight: z.number().positive().optional().nullable(),
   weight: z.number().optional().nullable(),
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  extraPackages: z.array(extraPackageBoxSchema).optional().nullable(),
   requiresPackaging: z.boolean().optional().default(true),
 });
 
@@ -83,6 +94,8 @@ const createProductSchema = z.object({
   isActive: z.boolean().default(true),
   isPreOrder: z.boolean().default(false),
   isLargeItem: z.boolean().default(false),
+  memberFreeDelivery: z.boolean().optional().default(false),
+  memberDeliveryCharge: z.number().nonnegative().optional().nullable(),
   hasVariants: z.boolean().default(false),
   images: z.array(z.string())
     .max(MAX_IMAGES_COUNT, `Maximum ${MAX_IMAGES_COUNT} images allowed`)
@@ -95,6 +108,7 @@ const createProductSchema = z.object({
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
   height: z.number().optional().nullable(),
+  extraPackages: z.array(extraPackageBoxSchema).optional().nullable(),
   requiresPackaging: z.boolean().optional().default(true),
   // For products with variants
   variantAttributes: z.array(variantAttributeSchema).optional(),
@@ -223,12 +237,15 @@ export async function POST(req: Request) {
           isActive: data.isActive,
           isPreOrder: data.isPreOrder ?? false,
           isLargeItem: data.isLargeItem ?? false,
+          memberFreeDelivery: data.memberFreeDelivery ?? false,
+          memberDeliveryCharge: data.memberFreeDelivery ? null : (data.memberDeliveryCharge ?? null),
           hasVariants: data.hasVariants,
           images: data.images,
           weight: data.weight,
           length: data.length,
           width: data.width,
           height: data.height,
+          extraPackages: data.extraPackages ?? [],
           requiresPackaging: data.requiresPackaging ?? true,
         },
       });
@@ -287,10 +304,14 @@ export async function POST(req: Request) {
                 description: variant.description || null,
                 bulletTitle: variant.bulletTitle || null,
                 bulletPoints: variant.bulletPoints || [],
-                weight: variant.weight,
-                length: variant.length,
-                width: variant.width,
-                height: variant.height,
+                productLength: variant.productLength ?? null,
+                productWidth: variant.productWidth ?? null,
+                productHeight: variant.productHeight ?? null,
+                weight: variant.weight ?? null,
+                length: variant.length ?? null,
+                width: variant.width ?? null,
+                height: variant.height ?? null,
+                extraPackages: variant.extraPackages ?? [],
                 requiresPackaging: variant.requiresPackaging ?? true,
               },
             });

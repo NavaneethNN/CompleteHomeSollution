@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 let missingTable = "";
 let redisDown = false;
 const queried: string[] = [];
-const tables = ["order", "membershipPayment", "membershipPlan", "coupon", "stockAlert", "emailJob"];
+const tables = ["product", "order", "membershipPayment", "membershipPlan", "coupon", "stockAlert", "emailJob"];
 const db = Object.fromEntries(tables.map(table => [table, { findFirst: async () => {
   queried.push(table);
   if (missingTable === table) throw new Error("Missing migration column: private database details");

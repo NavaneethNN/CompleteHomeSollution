@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { refundTransaction } from "@/lib/payway";
-import { refundOnlinePayOrder, OnlinePayRefundError } from "@/lib/onlinepay";
+import { getOnlinePayCheckout, onlinePayPaymentSucceeded, refundOnlinePayOrder, OnlinePayRefundError } from "@/lib/onlinepay";
+import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
 import { refundOrderMembership } from "@/lib/membership";
 import { queueRefundReceipt, queueRefundRequest, processDueEmailJobs } from "@/lib/email-outbox";
 import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
@@ -60,6 +61,27 @@ export async function POST(
     }
 
     if (order.status === "PENDING") {
+      if (order.paywayTransactionId?.startsWith("ONLINEPAY:") && configuredPaymentGateway(process.env) === "onlinepay") {
+        const checkoutId = order.paywayTransactionId.slice("ONLINEPAY:".length);
+        try {
+          const checkout = await getOnlinePayCheckout(checkoutId);
+          if (onlinePayPaymentSucceeded(checkout)) {
+            return NextResponse.json(
+              {
+                error: "Payment was already completed for this order. Refresh to confirm your order or request a refund.",
+                status: "already_paid",
+              },
+              { status: 409 }
+            );
+          }
+        } catch (err) {
+          console.error("[cancel] Failed to verify OnlinePay checkout status", err);
+          return NextResponse.json(
+            { error: "Unable to verify payment status before cancelling. Please wait a moment and try again." },
+            { status: 503 }
+          );
+        }
+      }
       await db.$transaction(async (tx) => {
         await tx.order.updateMany({
           where: { id: orderId, status: "PENDING" },

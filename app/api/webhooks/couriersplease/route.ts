@@ -1,54 +1,42 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { processDueEmailJobs } from "@/lib/email-outbox";
-import { isCouriersPleaseTestMode, getCouriersPleaseEnv } from "@/lib/couriersplease";
+import {
+  classifyCouriersPleaseStatus,
+  getCouriersPleaseEnv,
+  isCouriersPleaseTestMode,
+} from "@/lib/couriersplease";
 
 export const runtime = "nodejs";
 
-/**
- * Normalizes courier status string into our internal OrderStatus.
- * Handles variations like:
- * - "DELIVERED", "Delivered", "DEL", "POD", "Delivered to recipient", "Delivered with Authority to Leave"
- * - "OUT_FOR_DELIVERY", "Out for Delivery", "With Driver", "On Van"
- * - "IN_TRANSIT", "In Transit", "Picked Up", "Collected"
- */
+const STATUS_RANK: Record<string, number> = {
+  PAID: 1,
+  CONFIRMED: 1,
+  PROCESSING: 1,
+  SHIPPED: 2,
+  OUT_FOR_DELIVERY: 3,
+  DELIVERED: 4,
+};
+
+function secretsMatch(provided: string | null | undefined, expected: string): boolean {
+  if (!provided) return false;
+  const a = createHash("sha256").update(provided).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
 function normalizeCourierStatus(statusRaw: string): "DELIVERED" | "OUT_FOR_DELIVERY" | "SHIPPED" | null {
-  const s = statusRaw.toLowerCase().trim().replace(/[-_\s]+/g, " ");
+  return classifyCouriersPleaseStatus(statusRaw).normalizedStatus;
+}
 
-  if (
-    s === "delivered" ||
-    s.startsWith("deliver") ||
-    s.includes("pod") ||
-    s.includes("delivered to") ||
-    s.includes("safe drop completed") ||
-    s.includes("delivery completed")
-  ) {
-    return "DELIVERED";
+function firstNonEmptyString(...candidates: Array<unknown>): string | undefined {
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
   }
-
-  if (
-    s === "out for delivery" ||
-    s.includes("out for delivery") ||
-    s.includes("with driver") ||
-    s.includes("on van") ||
-    s.includes("on vehicle for delivery")
-  ) {
-    return "OUT_FOR_DELIVERY";
-  }
-
-  if (
-    s === "in transit" ||
-    s.includes("transit") ||
-    s.includes("picked up") ||
-    s.includes("collected") ||
-    s.includes("depot scan") ||
-    s.includes("sorting")
-  ) {
-    return "SHIPPED";
-  }
-
-  return null;
+  return undefined;
 }
 
 export async function POST(req: NextRequest) {
@@ -62,11 +50,12 @@ export async function POST(req: NextRequest) {
       const headerSecret =
         req.headers.get("x-couriersplease-secret") ||
         req.headers.get("x-webhook-secret") ||
+        req.headers.get("x-api-key") ||
         req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
       const querySecret = req.nextUrl.searchParams.get("secret");
       const providedSecret = headerSecret || querySecret;
 
-      if (providedSecret !== configuredSecret) {
+      if (!secretsMatch(providedSecret, configuredSecret)) {
         console.warn("[CouriersPlease Webhook] Unauthorized access attempt: invalid secret");
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
@@ -80,34 +69,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
+    const consignmentInfo = Array.isArray(body?.data?.consignmentInfo) ? body.data.consignmentInfo[0] : undefined;
+
     // Extract tracking/consignment number or order reference from various webhook formats
-    const consignmentNumber: string | undefined =
-      body?.consignmentNumber ||
-      body?.consignment_number ||
-      body?.trackingNumber ||
-      body?.tracking_number ||
-      body?.data?.tracking_number ||
-      body?.consignment ||
-      body?.code;
+    const consignmentNumber = firstNonEmptyString(
+      body?.consignmentNumber,
+      body?.consignment_number,
+      body?.consignmentCode,
+      body?.ConsignmentCode,
+      body?.trackingNumber,
+      body?.tracking_number,
+      body?.trackingCode,
+      body?.TrackingCode,
+      body?.data?.consignmentCode,
+      body?.data?.consignmentNumber,
+      body?.data?.tracking_number,
+      consignmentInfo?.consignmentCode,
+      body?.consignment,
+      body?.code
+    );
 
-    const orderReference: string | undefined =
-      body?.orderId ||
-      body?.order_id ||
-      body?.referenceNumber ||
-      body?.reference_number ||
-      body?.reference ||
-      body?.retailer_invoice ||
-      body?.data?.order_id;
+    const orderReference = firstNonEmptyString(
+      body?.orderId,
+      body?.order_id,
+      body?.referenceNumber,
+      body?.ReferenceNumber,
+      body?.reference_number,
+      body?.reference,
+      body?.retailer_invoice,
+      body?.data?.order_id,
+      body?.data?.referenceNumber
+    );
 
-    const rawStatus: string | undefined =
-      body?.status ||
-      body?.state ||
-      body?.tag ||
-      body?.event ||
-      body?.event_type ||
-      body?.description ||
-      body?.data?.tag ||
-      body?.data?.status;
+    const rawStatus = firstNonEmptyString(
+      body?.status,
+      body?.state,
+      body?.tag,
+      body?.event,
+      body?.event_type,
+      body?.action,
+      body?.description,
+      body?.data?.tag,
+      body?.data?.status,
+      consignmentInfo?.status
+    );
 
     if (!consignmentNumber && !orderReference) {
       return NextResponse.json(
@@ -123,7 +128,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const normalizedStatus = normalizeCourierStatus(String(rawStatus));
+    const normalizedStatus = normalizeCourierStatus(rawStatus);
     if (!normalizedStatus) {
       // Ignored informational events (e.g. "Manifest Created", "Label Generated")
       return NextResponse.json({
@@ -135,6 +140,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Find Order in Database
+    const strippedRef = orderReference ? orderReference.replace(/^CHS-/, "") : "";
     const order = await db.order.findFirst({
       where: {
         OR: [
@@ -147,7 +153,7 @@ export async function POST(req: NextRequest) {
           ...(orderReference
             ? [
                 { id: orderReference },
-                { id: { endsWith: orderReference.replace(/^CHS-/, "") } },
+                ...(strippedRef.length >= 8 ? [{ id: { endsWith: strippedRef } }] : []),
               ]
             : []),
         ],
@@ -189,7 +195,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Only transition orders that have been paid/confirmed/shipped
+    // Only transition orders that have been paid/confirmed/shipped and only advance forward monotonically
     const eligibleStatuses = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY"];
     if (!eligibleStatuses.includes(order.status)) {
       return NextResponse.json({
@@ -197,6 +203,16 @@ export async function POST(req: NextRequest) {
         ignored: true,
         orderId: order.id,
         message: `Order status ${order.status} is not eligible for delivery update`,
+      });
+    }
+
+    if ((STATUS_RANK[normalizedStatus] ?? 0) <= (STATUS_RANK[order.status] ?? 0)) {
+      return NextResponse.json({
+        received: true,
+        ignored: true,
+        orderId: order.id,
+        currentStatus: order.status,
+        message: `Order already at or past ${normalizedStatus} (${order.status})`,
       });
     }
 

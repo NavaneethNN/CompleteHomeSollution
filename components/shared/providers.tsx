@@ -5,6 +5,7 @@ import { SessionProvider } from "next-auth/react";
 import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "sonner";
+import { SentryUserSync } from "@/components/shared/sentry-user-sync";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -21,6 +22,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <SessionProvider refetchInterval={0} refetchOnWindowFocus={false} refetchWhenOffline={false}>
+      <SentryUserSync />
       <QueryClientProvider client={queryClient}>
         {children}
         <Toaster />

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 /** Read all scalar columns so an incomplete migration cannot look healthy. */
 export async function checkDatabaseReadiness(): Promise<void> {
   await Promise.all([
+    db.product.findFirst(),
     db.order.findFirst(),
     db.membershipPayment.findFirst(),
     db.membershipPlan.findFirst(),

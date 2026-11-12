@@ -155,7 +155,15 @@ export async function GET(req: NextRequest, { params }: Params) {
           where: { id: orderId, status: "PENDING" },
           data: { status: "CANCELLED" },
         });
-        await releaseCouponReservationInTransaction(tx, orderId);
+        if (typeof releaseCouponReservationInTransaction === "function") {
+          await releaseCouponReservationInTransaction(tx, orderId);
+        }
+        if ((tx as any).raffleWinner) {
+          await (tx as any).raffleWinner.updateMany({
+            where: { orderId },
+            data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+          });
+        }
       });
       return NextResponse.json(
         {
@@ -236,7 +244,18 @@ export async function GET(req: NextRequest, { params }: Params) {
               where: { id: orderId, status: "PENDING" },
               data: { status: "CANCELLED", refundRequested: true, refundReason: "Payment approved but stock unavailable; refund required" },
             });
-            if (changed.count) await queueRefundAction(tx, orderId);
+            if (changed.count) {
+              await queueRefundAction(tx, orderId);
+              if (typeof releaseCouponReservationInTransaction === "function") {
+                await releaseCouponReservationInTransaction(tx, orderId);
+              }
+              if ((tx as any).raffleWinner) {
+                await (tx as any).raffleWinner.updateMany({
+                  where: { orderId },
+                  data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+                });
+              }
+            }
           });
           console.error(
             `[poll-payment] Stock exhausted post-payment for "${productName}". ` +

@@ -1,6 +1,19 @@
 "use client";
 
-export default function ShopError({ reset }: { reset: () => void }) {
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
+
+export default function ShopError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string };
+  reset: () => void;
+}) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
   return (
     <main className="container mx-auto px-5 py-16 text-center">
       <h1 className="text-2xl font-bold">We couldn’t load this page</h1>

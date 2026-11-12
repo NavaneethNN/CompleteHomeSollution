@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { SUITE_META, type Suite } from "@/lib/qa-test-data";
 import SuiteRunner from "./_components/suite-runner";
 
@@ -41,21 +42,16 @@ export default async function SuitePage({
 }) {
   const { suite } = await params;
 
+  if (!(await hasFreshAdminSession())) {
+    redirect(`/login?callbackUrl=${encodeURIComponent(`/qa/${suite}`)}`);
+  }
+
   if (!VALID_SUITES.includes(suite as Suite)) notFound();
 
   const rawResults = await db.testResult.findMany({
     where: { suite },
     select: { testId: true, status: true, notes: true, comments: true },
   });
-
-  try {
-    const url = process.env.DATABASE_URL ?? process.env.DATABASE_URL_UNPOOLED ?? "";
-    const hostMatch = url.match(/@(.*?)\//);
-    // eslint-disable-next-line no-console
-    console.log("[qa/suite] suite=", suite, "dbHost=", hostMatch ? hostMatch[1] : "(none)", "results=", rawResults.length);
-  } catch (e) {
-    // ignore
-  }
 
   const initialResults = rawResults.map((r) => ({
     testId: r.testId,

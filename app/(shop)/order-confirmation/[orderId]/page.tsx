@@ -23,6 +23,8 @@ import { SaveGuestSessionOrder } from "@/components/shop/save-guest-session-orde
 import { PollPendingPayment } from "@/components/shop/poll-pending-payment";
 import { STORE_PICKUP_LOCATION } from "@/lib/store-info";
 import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
+import { getOnlinePayCheckout, onlinePayPaymentSucceeded } from "@/lib/onlinepay";
+import { configuredPaymentGateway } from "@/lib/payment-gateway-selection";
 
 export const metadata: Metadata = { title: "Order Confirmed", robots: { index: false, follow: false } };
 
@@ -127,22 +129,36 @@ export default async function OrderConfirmationPage({
       cancel === "1"
     )
   ) {
-    await db.$transaction(async (tx) => {
-      await tx.order.updateMany({
-        where: { id: orderId, status: "PENDING" },
-        data: { status: "CANCELLED", refundReason: "Cancelled on payment provider hosted page" },
-      });
-      if (typeof releaseCouponReservationInTransaction === "function") {
-        await releaseCouponReservationInTransaction(tx, orderId);
+    let shouldCancelPending = true;
+    if (order.paywayTransactionId?.startsWith("ONLINEPAY:") && configuredPaymentGateway(process.env) === "onlinepay") {
+      try {
+        const checkout = await getOnlinePayCheckout(order.paywayTransactionId.slice("ONLINEPAY:".length));
+        if (onlinePayPaymentSucceeded(checkout)) {
+          shouldCancelPending = false;
+        }
+      } catch {
+        // Leave PENDING when provider state cannot be verified so polling resolves safely.
+        shouldCancelPending = false;
       }
-      if ((tx as any).raffleWinner) {
-        await (tx as any).raffleWinner.updateMany({
-          where: { orderId },
-          data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+    }
+    if (shouldCancelPending) {
+      await db.$transaction(async (tx) => {
+        await tx.order.updateMany({
+          where: { id: orderId, status: "PENDING" },
+          data: { status: "CANCELLED", refundReason: "Cancelled on payment provider hosted page" },
         });
-      }
-    });
-    order.status = "CANCELLED";
+        if (typeof releaseCouponReservationInTransaction === "function") {
+          await releaseCouponReservationInTransaction(tx, orderId);
+        }
+        if ((tx as any).raffleWinner) {
+          await (tx as any).raffleWinner.updateMany({
+            where: { orderId },
+            data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
+          });
+        }
+      });
+      order.status = "CANCELLED";
+    }
   }
 
   const paid = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);

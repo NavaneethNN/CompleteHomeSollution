@@ -82,7 +82,8 @@ export function saveGuestOrderToSession(order: SessionGuestOrder): void {
 
     // Persist to session cookie (omitting Expires/Max-Age makes it a true browser session cookie)
     const jsonVal = encodeURIComponent(JSON.stringify(updated));
-    document.cookie = `${COOKIE_NAME}=${jsonVal}; path=/; SameSite=Lax`;
+    const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${COOKIE_NAME}=${jsonVal}; path=/; SameSite=Lax${secureFlag}`;
   } catch (err) {
     console.warn("[guest-session] Failed to save guest order to session:", err);
   }

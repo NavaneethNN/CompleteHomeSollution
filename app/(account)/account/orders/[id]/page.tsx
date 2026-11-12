@@ -7,7 +7,8 @@ import { redirect, notFound } from "next/navigation";
 import { getOrderById } from "@/lib/actions/orders";
 import type { OrderWithItems } from "@/lib/actions/orders";
 import { getGuestSessionOrders } from "@/lib/guest-orders";
-import { getTrackingUrl } from "@/lib/tracking-url";
+import { getTrackingUrl, isSimulationTrackingCode } from "@/lib/tracking-url";
+import { getCouriersPleaseTracking, isCouriersPleaseTestMode } from "@/lib/couriersplease";
 import {
   Package,
   ChevronRight,
@@ -80,12 +81,24 @@ export default async function OrderDetailPage({ params, searchParams }: OrderDet
   });
 
   const isPaid = ["PAID", "CONFIRMED", "PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
-  const trackingUrl = order.trackingNumber ? getTrackingUrl(order.carrier, order.trackingNumber) : null;
+  const isSimTracking = isSimulationTrackingCode(order.trackingNumber);
+  const trackingUrl = order.trackingNumber && !isSimTracking ? getTrackingUrl(order.carrier, order.trackingNumber) : null;
   const isPreShip = ["PAID", "CONFIRMED", "PROCESSING"].includes(order.status);
   const isPostShip = ["SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"].includes(order.status);
   const isCancellable = isPreShip || isPostShip;
   const effectiveStatus = getEffectiveOrderStatus(order);
   const isStorePickup = order.fulfillmentType === "STORE_PICKUP";
+
+  const liveTracking =
+    order.trackingNumber &&
+    order.carrier?.toLowerCase().includes("couriers please") &&
+    !isSimTracking &&
+    !isCouriersPleaseTestMode()
+      ? await Promise.race([
+          getCouriersPleaseTracking(order.trackingNumber).catch(() => null),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+        ])
+      : null;
 
   // Stepper calculations for store pickup
   const pickupStep1Done = isPaid;
@@ -537,10 +550,36 @@ export default async function OrderDetailPage({ params, searchParams }: OrderDet
                     <>
                       <Row label="Carrier" value={order.carrier || "Standard Delivery"} />
                       <Row label="Tracking Number" value={order.trackingNumber} mono />
+                      {liveTracking?.deliveryETA && (
+                        <Row label="Estimated Delivery" value={liveTracking.deliveryETA} />
+                      )}
+                      {liveTracking?.status && (
+                        <Row label="Courier Status" value={liveTracking.status} />
+                      )}
+                      {isSimTracking && (
+                        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                          Test / Simulation mode consignment — external courier tracking is disabled for simulated shipments.
+                        </p>
+                      )}
                       {trackingUrl && (
                         <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex text-sm font-semibold text-primary hover:underline">
                           Track with {order.carrier}
                         </a>
+                      )}
+                      {liveTracking?.events && liveTracking.events.length > 0 && (
+                        <div className="pt-3 border-t border-border space-y-2">
+                          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                            Latest Tracking Scans
+                          </p>
+                          <div className="space-y-1.5">
+                            {liveTracking.events.slice(0, 6).map((ev, idx) => (
+                              <div key={idx} className="flex items-start justify-between gap-3 text-xs">
+                                <span className="text-foreground font-medium">{ev.description}</span>
+                                <span className="text-muted-foreground shrink-0 font-mono">{ev.date}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </>
                   ) : (

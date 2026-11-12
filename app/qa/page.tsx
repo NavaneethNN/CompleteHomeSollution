@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { TEST_CASES, SUITE_META, type Suite } from "@/lib/qa-test-data";
 import { CheckCircle2, XCircle, ArrowRight, FlaskConical } from "lucide-react";
 
@@ -40,6 +42,9 @@ const ALL_SUITES: Suite[] = [
 ];
 
 export default async function QADashboardPage() {
+  if (!(await hasFreshAdminSession())) {
+    redirect("/login?callbackUrl=/qa");
+  }
   const allStats = await Promise.all(ALL_SUITES.map((suite) => getSuiteStats(suite)));
   
   const statsMap = Object.fromEntries(ALL_SUITES.map((suite, i) => [suite, allStats[i]])) as Record<Suite, { total: number; passed: number; failed: number; pending: number }>;

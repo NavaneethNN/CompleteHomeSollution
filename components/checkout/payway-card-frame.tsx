@@ -181,7 +181,19 @@ return () => {
 
   // ── Token retrieval ────────────────────────────────────────────────────────
   const getToken = useCallback(() => {
-    if (!frameRef.current || !isValid || isGettingToken || disabled) return;
+    if (isGettingToken) return;
+    if (!frameRef.current) {
+      onErrorRef.current("Card payment form is not ready. Please wait a moment and try again.");
+      return;
+    }
+    if (disabled) {
+      onErrorRef.current("Card payment is currently unavailable.");
+      return;
+    }
+    if (!isValid) {
+      onErrorRef.current("Please enter complete, valid card details.");
+      return;
+    }
     setIsGettingToken(true);
     frameRef.current.getToken((err, data) => {
       setIsGettingToken(false);
