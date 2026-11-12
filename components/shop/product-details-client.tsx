@@ -76,6 +76,9 @@ interface ProductDetailsClientProps {
     bulletTitle?: string | null;
     bulletPoints?: string[];
     material: string | null;
+    productLength?: number | null;
+    productWidth?: number | null;
+    productHeight?: number | null;
     weight?: number | null;
     length?: number | null;
     width?: number | null;
@@ -139,8 +142,10 @@ export function ProductDetailsClient({
     : (product.bulletPoints && product.bulletPoints.length > 0 ? product.bulletPoints : []);
   const displayBulletTitle = (hasVariantBullets ? selectedVariant?.bulletTitle : product.bulletTitle)?.trim() || "Key Features";
 
-  // Customer-visible dimensions — strictly use the variant's product dimensions, never courier parcel dimensions/weight
-  const customerDimensions = resolveVariantCustomerDimensions(selectedVariant);
+  // Customer-visible dimensions — strictly use product dimensions, never courier parcel dimensions/weight
+  const customerDimensions =
+    resolveVariantCustomerDimensions(selectedVariant) ||
+    resolveVariantCustomerDimensions(product);
   const hasSpecifications = Boolean(product.material || customerDimensions);
 
   // Generate variant label from selected variant's attribute values

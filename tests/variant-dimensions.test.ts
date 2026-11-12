@@ -475,3 +475,70 @@ test("Admin product API saves and updates variant product dimensions and extraPa
   assert.equal(capturedVariantUpdates[0].data.height, 22);
   assert.deepEqual(capturedVariantUpdates[0].data.extraPackages, [{ weight: 15, length: 95, width: 55, height: 22 }]);
 });
+
+test("Admin product API saves and updates base product customer product dimensions separately", async () => {
+  let createdProductData: any = null;
+  let updatedProductData: any = null;
+
+  dbMock.product.create = async ({ data }: any) => {
+    createdProductData = structuredClone(data);
+    return { id: productId, ...data };
+  };
+  dbMock.product.update = async ({ data }: any) => {
+    updatedProductData = structuredClone(data);
+    return { id: productId, ...data };
+  };
+
+  const createReq = new Request("https://shop.example/api/admin/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Simple Solid Wood Desk",
+      basePrice: 450,
+      sku: "WD-DESK-001",
+      categoryId: "cat-1",
+      hasVariants: false,
+      productLength: 140,
+      productWidth: 70,
+      productHeight: 75,
+      weight: 22,
+      length: 148,
+      width: 78,
+      height: 18,
+    }),
+  });
+
+  const createRes = await adminProductsRoute.POST(createReq);
+  assert.equal(createRes.status, 201);
+  assert.equal(createdProductData.productLength, 140);
+  assert.equal(createdProductData.productWidth, 70);
+  assert.equal(createdProductData.productHeight, 75);
+  assert.equal(createdProductData.weight, 22);
+  assert.equal(createdProductData.length, 148);
+
+  const updateReq = new Request(`https://shop.example/api/admin/products/${productId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name: "Simple Solid Wood Desk",
+      hasVariants: false,
+      productLength: 150,
+      productWidth: 75,
+      productHeight: 75,
+      weight: 24,
+      length: 158,
+      width: 82,
+      height: 20,
+    }),
+  });
+
+  const updateRes = await adminProductByIdRoute.PUT(updateReq, {
+    params: Promise.resolve({ id: productId }),
+  });
+  assert.equal(updateRes.status, 200);
+  assert.equal(updatedProductData.productLength, 150);
+  assert.equal(updatedProductData.productWidth, 75);
+  assert.equal(updatedProductData.productHeight, 75);
+  assert.equal(updatedProductData.weight, 24);
+  assert.equal(updatedProductData.length, 158);
+});

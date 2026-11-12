@@ -104,6 +104,9 @@ const createProductSchema = z.object({
       `Each image must be under ${MAX_IMAGE_SIZE_MB}MB or a valid URL`
     )
     .default([]),
+  productLength: z.number().positive().optional().nullable(),
+  productWidth: z.number().positive().optional().nullable(),
+  productHeight: z.number().positive().optional().nullable(),
   weight: z.number().optional().nullable(),
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
@@ -241,6 +244,9 @@ export async function POST(req: Request) {
           memberDeliveryCharge: data.memberFreeDelivery ? null : (data.memberDeliveryCharge ?? null),
           hasVariants: data.hasVariants,
           images: data.images,
+          productLength: data.productLength ?? null,
+          productWidth: data.productWidth ?? null,
+          productHeight: data.productHeight ?? null,
           weight: data.weight,
           length: data.length,
           width: data.width,

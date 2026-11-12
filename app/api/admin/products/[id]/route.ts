@@ -103,6 +103,9 @@ const updateProductSchema = z.object({
       `Each image must be under ${MAX_IMAGE_SIZE_MB}MB or a valid URL`
     )
     .optional(),
+  productLength: z.number().positive().optional().nullable(),
+  productWidth: z.number().positive().optional().nullable(),
+  productHeight: z.number().positive().optional().nullable(),
   weight: z.number().optional().nullable(),
   length: z.number().optional().nullable(),
   width: z.number().optional().nullable(),
@@ -241,6 +244,9 @@ export async function PUT(
       }
       if (data.hasVariants !== undefined) updateData.hasVariants = data.hasVariants;
       if (data.images !== undefined) updateData.images = data.images;
+      if (data.productLength !== undefined) updateData.productLength = data.productLength;
+      if (data.productWidth !== undefined) updateData.productWidth = data.productWidth;
+      if (data.productHeight !== undefined) updateData.productHeight = data.productHeight;
       if (data.weight !== undefined) updateData.weight = data.weight;
       if (data.length !== undefined) updateData.length = data.length;
       if (data.width !== undefined) updateData.width = data.width;

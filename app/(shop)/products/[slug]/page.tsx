@@ -393,22 +393,21 @@ export default async function ProductDetailPage({
               )}
 
               {/* Specifications */}
-              {(product.weight || product.length || product.width || product.height) && (
+              {(product.productLength || (product.length && product.width && product.height)) && (
                 <div className="pt-4 border-t border-border/70">
                   <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Specifications</h2>
                   <div className="grid grid-cols-1 gap-y-2 text-xs sm:text-sm">
-                    {product.weight && (
+                    {product.productLength && product.productWidth && product.productHeight ? (
                       <div className="flex justify-between py-1">
-                        <span className="text-muted-foreground">Weight</span>
-                        <span className="font-medium text-foreground">{product.weight} kg</span>
+                        <span className="text-muted-foreground">Product Dimensions (L × W × H)</span>
+                        <span className="font-medium text-foreground">{product.productLength} × {product.productWidth} × {product.productHeight} cm</span>
                       </div>
-                    )}
-                    {product.length && product.width && product.height && (
+                    ) : product.length && product.width && product.height ? (
                       <div className="flex justify-between py-1">
-                        <span className="text-muted-foreground">Dimensions (L × W × H)</span>
+                        <span className="text-muted-foreground">Product Dimensions (L × W × H)</span>
                         <span className="font-medium text-foreground">{product.length} × {product.width} × {product.height} cm</span>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               )}

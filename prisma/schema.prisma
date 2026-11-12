@@ -136,11 +136,15 @@ model Product {
   categoryId   String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  // Shipping dimensions (in cm)
-  weight            Float?   // Weight in kg
-  length            Float?   // Length in cm
-  width             Float?   // Width in cm
-  height            Float?   // Height in cm
+  // Product dimensions (in cm) - visible to customers
+  productLength     Float?   // Product length in cm
+  productWidth      Float?   // Product width in cm
+  productHeight     Float?   // Product height in cm
+  // Courier parcel dimensions & weight - used for shipping/courier calculation
+  weight            Float?   // Courier parcel weight in kg
+  length            Float?   // Courier parcel length in cm
+  width             Float?   // Courier parcel width in cm
+  height            Float?   // Courier parcel height in cm
   requiresPackaging Boolean? @default(true) // Whether outer packaging box is needed (false = shipped directly in product dimensions)
   extraPackages     Json?    // Optional additional courier packaging boxes: Array<{ weight, length, width, height }>
 

@@ -291,6 +291,16 @@ function VariantCard({
               : "No images"}
         </span>
         <span className="text-xs text-slate-400 hidden sm:inline">Stock: {variant.stock}</span>
+        {variant.productLength && variant.productWidth && variant.productHeight ? (
+          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded flex items-center gap-1 hidden md:inline-flex">
+            <Ruler className="h-3 w-3" />
+            {variant.productLength}×{variant.productWidth}×{variant.productHeight} cm
+          </span>
+        ) : (
+          <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200/70 px-1.5 py-0.5 rounded hidden md:inline-flex">
+            No product dims
+          </span>
+        )}
         <Switch
           checked={variant.isActive}
           onCheckedChange={(checked: boolean) => {
@@ -434,59 +444,65 @@ function VariantCard({
           </div>
 
           {/* Product Dimensions (Customer Visible) */}
-          <div className="space-y-2">
-            <div>
-              <Label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
-                <Ruler className="h-3.5 w-3.5" />
+          <div className="space-y-2 p-3 rounded-lg border border-emerald-200/80 bg-emerald-50/40">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
+                <Ruler className="h-3.5 w-3.5 text-emerald-600" />
                 Product Dimensions (Customer Visible)
               </Label>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Shown on the product page to help customers check item size.
-              </p>
+              <Badge variant="outline" className="text-emerald-700 bg-white border-emerald-300 text-[10px]">
+                Shown on Product Page
+              </Badge>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Actual assembled product size displayed to customers on the product page.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Product Length (cm)</Label>
+                <Label className="text-xs text-slate-500">Product Length (cm)</Label>
                 <Input
                   type="number" min="0" step="any"
                   value={variant.productLength ?? ""}
                   onChange={(e) => onUpdate({ productLength: e.target.value })}
-                  className="h-8 text-xs" placeholder="cm"
+                  className="h-8 text-xs bg-white" placeholder="cm"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Product Width (cm)</Label>
+                <Label className="text-xs text-slate-500">Product Width (cm)</Label>
                 <Input
                   type="number" min="0" step="any"
                   value={variant.productWidth ?? ""}
                   onChange={(e) => onUpdate({ productWidth: e.target.value })}
-                  className="h-8 text-xs" placeholder="cm"
+                  className="h-8 text-xs bg-white" placeholder="cm"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Product Height (cm)</Label>
+                <Label className="text-xs text-slate-500">Product Height (cm)</Label>
                 <Input
                   type="number" min="0" step="any"
                   value={variant.productHeight ?? ""}
                   onChange={(e) => onUpdate({ productHeight: e.target.value })}
-                  className="h-8 text-xs" placeholder="cm"
+                  className="h-8 text-xs bg-white" placeholder="cm"
                 />
               </div>
             </div>
           </div>
 
           {/* Courier Parcel Dimensions & Weight */}
-          <div className="space-y-2 pt-3 border-t border-slate-200">
-            <div>
-              <Label className="text-xs font-medium text-slate-600 flex items-center gap-1.5">
-                <Package className="h-3.5 w-3.5" />
+          <div className="space-y-2 p-3 rounded-lg border border-slate-200 bg-slate-50/50">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                <Package className="h-3.5 w-3.5 text-slate-500" />
                 Courier Parcel Dimensions &amp; Weight (Shipping Calculation)
               </Label>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Packed parcel dimensions and weight used strictly for courier quotes, packaging, and labels.
-              </p>
+              <Badge variant="outline" className="text-slate-600 bg-white border-slate-300 text-[10px]">
+                Shipping Only (Hidden from Customer)
+              </Badge>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Packed parcel/carton box dimensions and weight used strictly for courier quotes, packaging, and labels.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-400">Courier Weight (kg)</Label>
                 <Input
@@ -677,7 +693,12 @@ export default function NewProductPage() {
   const [hasVariants, setHasVariants] = useState(false);
   const [images, setImages] = useState<string[]>([]);
 
-  // Shipping
+  // Product dimensions (customer visible)
+  const [productLength, setProductLength] = useState("");
+  const [productWidth, setProductWidth] = useState("");
+  const [productHeight, setProductHeight] = useState("");
+
+  // Courier parcel dimensions (shipping calculation)
   const [weight, setWeight] = useState("");
   const [length, setLength] = useState("");
   const [width, setWidth] = useState("");
@@ -752,6 +773,9 @@ export default function NewProductPage() {
         setMemberDeliveryCharge(!freeDelivery && fixedCharge !== null ? String(fixedCharge) : "");
         setHasVariants(p.hasVariants);
         setImages(p.images || []);
+        setProductLength(p.productLength?.toString() || "");
+        setProductWidth(p.productWidth?.toString() || "");
+        setProductHeight(p.productHeight?.toString() || "");
         setWeight(p.weight?.toString() || "");
         setLength(p.length?.toString() || "");
         setWidth(p.width?.toString() || "");
@@ -1197,6 +1221,9 @@ export default function NewProductPage() {
         requiresPackaging: false,
         hasVariants,
         images,
+        productLength: productLength ? parseFloat(productLength) : (isEditMode ? null : undefined),
+        productWidth: productWidth ? parseFloat(productWidth) : (isEditMode ? null : undefined),
+        productHeight: productHeight ? parseFloat(productHeight) : (isEditMode ? null : undefined),
         weight: weight ? parseFloat(weight) : (isEditMode ? null : undefined),
         length: length ? parseFloat(length) : (isEditMode ? null : undefined),
         width: width ? parseFloat(width) : (isEditMode ? null : undefined),
@@ -2111,55 +2138,124 @@ export default function NewProductPage() {
               </CardContent>
             </Card>
           ) : (
-            /* Simple product — courier parcel dimensions & optional extra boxes */
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Package className="h-4 w-4" />
-                  Courier Parcel Dimensions &amp; Weight
-                </CardTitle>
-                <p className="text-xs text-slate-500">
-                  Each box configured here is quoted and booked separately with the courier and is never combined with other products.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="weight">Courier Weight (kg)</Label>
-                    <Input
-                      id="weight" type="number" min="0" step="any"
-                      value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="kg"
-                    />
+            /* Simple product — product dimensions (customer visible) + courier parcel dimensions (shipping) */
+            <>
+              {/* Product Dimensions (Customer Visible) */}
+              <Card className="border-emerald-200/80 bg-emerald-50/20">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2 text-emerald-950">
+                      <Ruler className="h-4 w-4 text-emerald-600" />
+                      Product Dimensions (Customer Visible)
+                    </CardTitle>
+                    <Badge variant="outline" className="text-emerald-700 bg-white border-emerald-300 text-[11px]">
+                      Shown on Product Page
+                    </Badge>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="length">Parcel Length (cm)</Label>
-                    <Input
-                      id="length" type="number" min="0" step="any"
-                      value={length} onChange={(e) => setLength(e.target.value)} placeholder="cm"
-                    />
+                  <p className="text-xs text-slate-500">
+                    Enter the actual assembled item size to display to customers on the product page.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="productLength" className="text-slate-700">Product Length (cm)</Label>
+                      <Input
+                        id="productLength"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={productLength}
+                        onChange={(e) => setProductLength(e.target.value)}
+                        placeholder="cm"
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="productWidth" className="text-slate-700">Product Width (cm)</Label>
+                      <Input
+                        id="productWidth"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={productWidth}
+                        onChange={(e) => setProductWidth(e.target.value)}
+                        placeholder="cm"
+                        className="bg-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="productHeight" className="text-slate-700">Product Height (cm)</Label>
+                      <Input
+                        id="productHeight"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={productHeight}
+                        onChange={(e) => setProductHeight(e.target.value)}
+                        placeholder="cm"
+                        className="bg-white"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="width">Parcel Width (cm)</Label>
-                    <Input
-                      id="width" type="number" min="0" step="any"
-                      value={width} onChange={(e) => setWidth(e.target.value)} placeholder="cm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="height">Parcel Height (cm)</Label>
-                    <Input
-                      id="height" type="number" min="0" step="any"
-                      value={height} onChange={(e) => setHeight(e.target.value)} placeholder="cm"
-                    />
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                <CourierExtraPackagesSection
-                  extraPackages={extraPackages}
-                  onChange={setExtraPackages}
-                />
-              </CardContent>
-            </Card>
+              {/* Courier Parcel Dimensions & Weight (Box Size) */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Package className="h-4 w-4 text-slate-600" />
+                      Courier Parcel Dimensions &amp; Weight (Box Size)
+                    </CardTitle>
+                    <Badge variant="outline" className="text-slate-600 bg-slate-50 border-slate-200 text-[11px]">
+                      Shipping Calculation &amp; Labels Only
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Packed carton/parcel dimensions and weight used strictly for courier quotes, packaging, and labels. Hidden from customers.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="weight">Courier Weight (kg)</Label>
+                      <Input
+                        id="weight" type="number" min="0" step="any"
+                        value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="kg"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="length">Parcel Length (cm)</Label>
+                      <Input
+                        id="length" type="number" min="0" step="any"
+                        value={length} onChange={(e) => setLength(e.target.value)} placeholder="cm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="width">Parcel Width (cm)</Label>
+                      <Input
+                        id="width" type="number" min="0" step="any"
+                        value={width} onChange={(e) => setWidth(e.target.value)} placeholder="cm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="height">Parcel Height (cm)</Label>
+                      <Input
+                        id="height" type="number" min="0" step="any"
+                        value={height} onChange={(e) => setHeight(e.target.value)} placeholder="cm"
+                      />
+                    </div>
+                  </div>
+
+                  <CourierExtraPackagesSection
+                    extraPackages={extraPackages}
+                    onChange={setExtraPackages}
+                  />
+                </CardContent>
+              </Card>
+            </>
           )}
         </div>
       )}
