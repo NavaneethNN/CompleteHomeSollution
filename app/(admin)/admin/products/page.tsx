@@ -337,6 +337,9 @@ export default function AdminProductsPage() {
                 <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Type
                 </th>
+                <th className="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Member Delivery
+                </th>
                 <th className="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
                   Actions
                 </th>
@@ -360,12 +363,13 @@ export default function AdminProductsPage() {
                     <td className="px-4 py-4"><Skeleton className="h-4 w-10" /></td>
                     <td className="px-4 py-4"><Skeleton className="h-5 w-20 rounded-full" /></td>
                     <td className="px-4 py-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-4 py-4"><Skeleton className="h-5 w-24 rounded-full" /></td>
                     <td className="px-4 py-4 text-right"><Skeleton className="ml-auto h-8 w-20 rounded-md" /></td>
                   </tr>
                 ))
               ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-16 text-center">
+                  <td colSpan={8} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
                         <Package className="h-8 w-8 text-slate-400" />
@@ -465,6 +469,19 @@ export default function AdminProductsPage() {
                           </span>
                         ) : (
                           <span className="text-xs text-slate-400">Simple</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        {product.memberFreeDelivery ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5">
+                            Free Delivery
+                          </span>
+                        ) : typeof product.memberDeliveryCharge === "number" && product.memberDeliveryCharge >= 0 ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                            ${product.memberDeliveryCharge.toFixed(2)} Fixed
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-400">Courier Calculated</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-right" onClick={(e) => e.stopPropagation()}>

@@ -1433,7 +1433,8 @@ export default function NewProductPage() {
                 <Switch checked={isLargeItem} onCheckedChange={setIsLargeItem} />
               </div>
 
-              <div className="border-t border-slate-100 pt-3 space-y-3">
+              {/* Member Delivery Perks */}
+              <div className="border-t border-slate-100 pt-3 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
@@ -1443,7 +1444,7 @@ export default function NewProductPage() {
                       </Badge>
                     </div>
                     <p className="text-sm text-slate-500">
-                      When enabled, club members pay $0 delivery charge for this product (courier or manual delivery charge is waived).
+                      When enabled, club members receive 100% free delivery ($0 shipping) for this product.
                     </p>
                   </div>
                   <Switch
@@ -1452,52 +1453,64 @@ export default function NewProductPage() {
                       setMemberFreeDelivery(checked);
                       if (checked) {
                         setMemberFixedDeliveryEnabled(false);
+                        setMemberDeliveryCharge("");
                       }
                     }}
                   />
                 </div>
 
-                {!memberFreeDelivery && (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="font-medium text-slate-800 text-sm">
-                          Standard Fixed Delivery Charge for Members
-                        </Label>
-                        <p className="text-xs text-slate-500">
-                          Set a flat delivery fee for members instead of dynamic courier rates.
-                        </p>
+                <div className="border-t border-slate-100 pt-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <Label className="font-semibold text-slate-900">Standard Fixed Delivery Charge for Members</Label>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200 text-[10px]">
+                          Members Only
+                        </Badge>
                       </div>
-                      <Switch
-                        checked={memberFixedDeliveryEnabled}
-                        onCheckedChange={(checked) => {
-                          setMemberFixedDeliveryEnabled(checked);
-                          if (!checked) {
-                            setMemberDeliveryCharge("");
-                          }
-                        }}
-                      />
+                      <p className="text-sm text-slate-500">
+                        When enabled, club members pay a fixed standard delivery fee instead of live courier calculations.
+                      </p>
                     </div>
+                    <Switch
+                      checked={memberFixedDeliveryEnabled}
+                      onCheckedChange={(checked) => {
+                        setMemberFixedDeliveryEnabled(checked);
+                        if (checked) {
+                          setMemberFreeDelivery(false);
+                        } else {
+                          setMemberDeliveryCharge("");
+                        }
+                      }}
+                    />
+                  </div>
 
-                    {memberFixedDeliveryEnabled && (
-                      <div className="pt-2 flex items-center gap-3">
-                        <Label htmlFor="memberDeliveryCharge" className="text-xs font-semibold text-slate-700 shrink-0">
-                          Member Delivery Charge ($AUD)
-                        </Label>
+                  {memberFixedDeliveryEnabled ? (
+                    <div className="pt-2 pl-1 flex items-center gap-3">
+                      <Label htmlFor="memberDeliveryCharge" className="text-xs font-semibold text-slate-700 shrink-0">
+                        Fixed Delivery Charge ($ AUD) <span className="text-red-500">*</span>
+                      </Label>
+                      <div className="relative max-w-[180px]">
+                        <span className="absolute left-3 top-2 text-sm text-slate-400 font-medium">$</span>
                         <Input
                           id="memberDeliveryCharge"
                           type="number"
                           step="0.01"
                           min="0"
-                          placeholder="e.g. 15.00"
+                          placeholder="15.00"
                           value={memberDeliveryCharge}
                           onChange={(e) => setMemberDeliveryCharge(e.target.value)}
-                          className="max-w-[160px] bg-white h-9"
+                          className="pl-7 bg-white h-9 text-sm"
                         />
                       </div>
-                    )}
-                  </div>
-                )}
+                      <span className="text-xs text-slate-400">AUD charged to members at checkout</span>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400 pl-0.5">
+                      Toggle ON to set a fixed standard delivery price for members alone.
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
