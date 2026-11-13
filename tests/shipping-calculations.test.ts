@@ -629,3 +629,114 @@ test("Checkout shipping quote and session calculate multi-item + multi-packaging
     6
   );
 });
+
+test("Multi-box product (Box 1 + Box 2) quotes each physical parcel independently and never collapses to single-box price", async (t) => {
+  const prevEnv = {
+    COURIER_PLEASE_TEST_MODE: process.env.COURIER_PLEASE_TEST_MODE,
+    COURIER_PLEASE_API_ID: process.env.COURIER_PLEASE_API_ID,
+    COURIER_PLEASE_API_KEY: process.env.COURIER_PLEASE_API_KEY,
+  };
+  const originalFetch = globalThis.fetch;
+
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    for (const [k, v] of Object.entries(prevEnv)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+  });
+
+  process.env.COURIER_PLEASE_TEST_MODE = "false";
+  process.env.COURIER_PLEASE_API_ID = "test-api-id";
+  process.env.COURIER_PLEASE_API_KEY = "test-api-key";
+
+  // Simulate real CouriersPlease API response:
+  // - Multi-item probe returns $14.99 (L11 minimum consignment charge)
+  // - Box 1 (70x40x20, 1kg) returns $14.99 (L11)
+  // - Box 2 (35x20x10, 0.5kg) returns $11.96 (TS3)
+  globalThis.fetch = (async (_url: any, init: any) => {
+    const payload = JSON.parse(String(init?.body || "{}"));
+    const totalQty = payload.items.reduce((sum: number, it: any) => sum + Number(it.quantity), 0);
+    if (totalQty > 1 || payload.items.length > 1) {
+      return new Response(
+        JSON.stringify({
+          responseCode: "SUCCESS",
+          data: [
+            {
+              RateCardCode: "L11",
+              RateCardDescription: "Road Express",
+              CalculatedFreightCharge: "12.53",
+              CalculatedFuelCharge: "2.46",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const item = payload.items[0];
+    if (item.length === 70 && item.width === 40 && item.height === 20) {
+      // Box 1
+      return new Response(
+        JSON.stringify({
+          responseCode: "SUCCESS",
+          data: [
+            {
+              RateCardCode: "L11",
+              RateCardDescription: "Road Express",
+              CalculatedFreightCharge: "12.53",
+              CalculatedFuelCharge: "2.46",
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Box 2
+    return new Response(
+      JSON.stringify({
+        responseCode: "SUCCESS",
+        data: [
+          {
+            RateCardCode: "TS3",
+            RateCardDescription: "3Kg Parcel",
+            CalculatedFreightCharge: "10.00",
+            CalculatedFuelCharge: "1.96",
+          },
+          {
+            RateCardCode: "L11",
+            RateCardDescription: "Road Express",
+            CalculatedFreightCharge: "12.53",
+            CalculatedFuelCharge: "2.46",
+          },
+        ],
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  }) as typeof fetch;
+
+  const { getCouriersPleaseRates } = await import("../lib/couriersplease");
+
+  // Single Box 1 alone
+  const singleRates = await getCouriersPleaseRates(
+    { suburb: "Golden Grove", state: "SA", postcode: "5125" },
+    [{ count: 1, lengthCm: 70, widthCm: 40, heightCm: 20, weightKg: 1 }]
+  );
+  assert.equal(singleRates.length, 1);
+  assert.equal(singleRates[0].price, 14.99);
+
+  // Box 1 + Box 2 (the user's exact 2-box product)
+  const twoBoxRates = await getCouriersPleaseRates(
+    { suburb: "Golden Grove", state: "SA", postcode: "5125" },
+    [
+      { count: 1, lengthCm: 70, widthCm: 40, heightCm: 20, weightKg: 1 },
+      { count: 1, lengthCm: 35, widthCm: 20, heightCm: 10, weightKg: 0.5 },
+    ]
+  );
+
+  // Must NOT collapse to $14.99; must sum Box 1 ($14.99) + Box 2 ($11.96) = $26.95
+  assert.ok(twoBoxRates.length > 0);
+  assert.equal(twoBoxRates[0].price, 26.95);
+  assert.ok(twoBoxRates[0].price > singleRates[0].price);
+});

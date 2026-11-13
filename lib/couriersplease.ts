@@ -639,22 +639,25 @@ export async function getCouriersPleaseRates(
   const items = consolidatePackagedItemsForQuote(packageItemsForCouriersPlease(groups));
   const totalBoxes = items.reduce((sum, it) => sum + it.quantity, 0);
 
+  if (totalBoxes <= 1) {
+    return fetchCouriersPleaseQuoteRaw(apiBase, authHeader, sender, destination, items);
+  }
+
+  // For multi-box orders: attempt multi-item quote probe, but when multiple physical cartons
+  // are booked as independent parcels, quotes must aggregate the actual per-box courier rates
+  // rather than letting a single flat consignment minimum underquote the extra packaging boxes.
   let multiQuoteError: CouriersPleaseError | null = null;
   try {
-    const rates = await fetchCouriersPleaseQuoteRaw(apiBase, authHeader, sender, destination, items);
-    if (rates.length > 0 || totalBoxes <= 1) {
-      return rates;
-    }
+    await fetchCouriersPleaseQuoteRaw(apiBase, authHeader, sender, destination, items);
   } catch (err) {
-    if (totalBoxes > 1 && isMultiParcelFallbackRejection(err)) {
+    if (isMultiParcelFallbackRejection(err)) {
       multiQuoteError = err;
     } else {
       throw err;
     }
   }
 
-  // Fallback for multi-box orders when Couriers Please does not offer a combined multi-item rate card:
-  // quote each unique normalized box shape individually (quantity: 1) and aggregate rates.
+  // Quote each unique normalized box shape individually (quantity: 1) and aggregate rates across all boxes.
   const perGroupRates: Array<{ quantity: number; rates: CouriersPleaseRate[] }> = [];
   for (const item of items) {
     const singleItemRates = await fetchCouriersPleaseQuoteRaw(apiBase, authHeader, sender, destination, [
