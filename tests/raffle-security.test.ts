@@ -155,14 +155,14 @@ test("calculateOrderProductSpend correctly excludes membership and computes net 
   assert.equal(calculateOrderProductSpend(refundedOrder), 90);
 });
 
-test("calculateTotalProductSpend enforces minimum $100 product spend requirement across customer orders", () => {
-  assert.equal(RAFFLE_MIN_PRODUCT_SPEND, 100);
+test("calculateTotalProductSpend enforces minimum $99 product spend requirement across customer orders", () => {
+  assert.equal(RAFFLE_MIN_PRODUCT_SPEND, 99);
 
   // Scenario 1: Customer with no orders
   const noOrders = calculateTotalProductSpend([]);
   assert.equal(noOrders.totalProductSpend, 0);
   assert.equal(noOrders.hasMinProductSpend, false);
-  assert.equal(noOrders.remainingSpendRequired, 100);
+  assert.equal(noOrders.remainingSpendRequired, 99);
 
   // Scenario 2: Customer with only membership purchase ($20) -> not eligible
   const membershipCustomer = calculateTotalProductSpend([
@@ -170,9 +170,9 @@ test("calculateTotalProductSpend enforces minimum $100 product spend requirement
   ]);
   assert.equal(membershipCustomer.totalProductSpend, 0);
   assert.equal(membershipCustomer.hasMinProductSpend, false);
-  assert.equal(membershipCustomer.remainingSpendRequired, 100);
+  assert.equal(membershipCustomer.remainingSpendRequired, 99);
 
-  // Scenario 3: Customer with $80 product purchase + $20 membership -> $80 total product spend, $20 remaining, not eligible
+  // Scenario 3: Customer with $80 product purchase + $20 membership -> $80 total product spend, $19 remaining, not eligible
   const underSpendCustomer = calculateTotalProductSpend([
     {
       subtotal: 80,
@@ -183,9 +183,9 @@ test("calculateTotalProductSpend enforces minimum $100 product spend requirement
   ]);
   assert.equal(underSpendCustomer.totalProductSpend, 80);
   assert.equal(underSpendCustomer.hasMinProductSpend, false);
-  assert.equal(underSpendCustomer.remainingSpendRequired, 20);
+  assert.equal(underSpendCustomer.remainingSpendRequired, 19);
 
-  // Scenario 4: Customer with multiple orders totaling >= $100 ($60 + $50 = $110) -> eligible!
+  // Scenario 4: Customer with multiple orders totaling >= $99 ($60 + $50 = $110) -> eligible!
   const multiOrderCustomer = calculateTotalProductSpend([
     {
       subtotal: 60,
@@ -203,20 +203,32 @@ test("calculateTotalProductSpend enforces minimum $100 product spend requirement
   assert.equal(multiOrderCustomer.hasMinProductSpend, true);
   assert.equal(multiOrderCustomer.remainingSpendRequired, 0);
 
-  // Scenario 5: Customer with single $100 product order -> eligible!
-  const exactHundredCustomer = calculateTotalProductSpend([
+  // Scenario 5: Customer with single $99 product order -> exactly eligible!
+  const exactNinetyNineCustomer = calculateTotalProductSpend([
     {
-      subtotal: 100,
+      subtotal: 99,
       discount: 0,
-      items: [{ id: "i1", quantity: 1, unitPrice: 100 }],
+      items: [{ id: "i1", quantity: 1, unitPrice: 99 }],
     },
   ]);
-  assert.equal(exactHundredCustomer.totalProductSpend, 100);
-  assert.equal(exactHundredCustomer.hasMinProductSpend, true);
-  assert.equal(exactHundredCustomer.remainingSpendRequired, 0);
+  assert.equal(exactNinetyNineCustomer.totalProductSpend, 99);
+  assert.equal(exactNinetyNineCustomer.hasMinProductSpend, true);
+  assert.equal(exactNinetyNineCustomer.remainingSpendRequired, 0);
+
+  // Scenario 6: Customer with $98.99 product order -> 1 cent short -> not eligible
+  const edgeCustomer = calculateTotalProductSpend([
+    {
+      subtotal: 98.99,
+      discount: 0,
+      items: [{ id: "i1", quantity: 1, unitPrice: 98.99 }],
+    },
+  ]);
+  assert.equal(edgeCustomer.totalProductSpend, 98.99);
+  assert.equal(edgeCustomer.hasMinProductSpend, false);
+  assert.equal(edgeCustomer.remainingSpendRequired, 0.01);
 });
 
-test("enterRaffle rejects customer with < $100 product spend and allows customer with >= $100 product spend", async () => {
+test("enterRaffle rejects customer with < $99 product spend and allows customer with >= $99 product spend", async () => {
   let mockOrders: any[] = [];
   const testUserId = "user-raffle-tester-1";
   const testRaffleId = "raffle-test-101";
@@ -287,10 +299,10 @@ test("enterRaffle rejects customer with < $100 product spend and allows customer
   mockOrders = [];
   const res0 = await enterRaffle(testRaffleId, 1);
   assert.equal(res0.success, false);
-  assert.ok(res0.error?.includes("A minimum purchase of $100.00 on products"));
+  assert.ok(res0.error?.includes("A minimum purchase of $99.00 on products"));
   assert.ok(res0.error?.includes("$0.00"));
 
-  // 2. Customer with $50 product spend + $20 membership spend -> rejected (membership excluded, $50 remaining)
+  // 2. Customer with $50 product spend + $20 membership spend -> rejected (membership excluded, $49 remaining)
   mockOrders = [
     {
       id: "ord-1",
@@ -302,18 +314,18 @@ test("enterRaffle rejects customer with < $100 product spend and allows customer
   ];
   const res50 = await enterRaffle(testRaffleId, 1);
   assert.equal(res50.success, false);
-  assert.ok(res50.error?.includes("A minimum purchase of $100.00 on products"));
+  assert.ok(res50.error?.includes("A minimum purchase of $99.00 on products"));
   assert.ok(res50.error?.includes("$50.00"));
 
-  // 3. Customer with another $60 product spend -> total $110 >= $100 -> accepted!
+  // 3. Customer with another $50 product spend -> total $100 >= $99 -> accepted!
   mockOrders.push({
     id: "ord-2",
-    subtotal: 60,
+    subtotal: 50,
     discount: 0,
     membershipAmount: 0,
-    items: [{ id: "it-2", quantity: 1, unitPrice: 60 }],
+    items: [{ id: "it-2", quantity: 1, unitPrice: 50 }],
   });
-  const res110 = await enterRaffle(testRaffleId, 1);
-  assert.equal(res110.success, true);
-  assert.ok(res110.ticketNumbers && res110.ticketNumbers.length === 1);
+  const res100 = await enterRaffle(testRaffleId, 1);
+  assert.equal(res100.success, true);
+  assert.ok(res100.ticketNumbers && res100.ticketNumbers.length === 1);
 });

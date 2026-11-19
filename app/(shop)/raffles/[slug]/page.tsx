@@ -145,7 +145,7 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
               )}
 
               <span className="inline-flex items-center gap-1.5 bg-white/95 text-foreground border border-border/70 text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full shadow-xs whitespace-nowrap pointer-events-auto backdrop-blur-xs">
-                <span>Min $100 Product Spend</span>
+                <span>Min $99 Product Spend</span>
               </span>
             </div>
 
@@ -418,8 +418,8 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
                 <p>
                   • <strong>Eligibility:</strong>{" "}
                   {isMembersOnly
-                    ? "Exclusive to active Complete Home Solution VIP Members who have spent a minimum of $100 on products (excluding membership)."
-                    : "Open to all registered customers residing in Australia (18+) who have spent a minimum of $100 on products (excluding membership)."}
+                    ? "Exclusive to active Complete Home Solution VIP Members who have spent a minimum of $99 on products (excluding membership)."
+                    : "Open to all registered customers residing in Australia (18+) who have spent a minimum of $99 on products (excluding membership)."}
                 </p>
                 <p>
                   • <strong>Draw Selection:</strong> Random ticket selection using an auditable cryptographic seed conducted on{" "}

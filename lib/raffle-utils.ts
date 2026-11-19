@@ -22,7 +22,7 @@ export function maskWinnerName(name?: string | null): string {
  * required for a customer to be eligible to participate in all store raffles.
  * Membership fees and delivery charges are strictly excluded.
  */
-export const RAFFLE_MIN_PRODUCT_SPEND = 100;
+export const RAFFLE_MIN_PRODUCT_SPEND = 99;
 
 /**
  * Order statuses that represent settled/paid customer orders.

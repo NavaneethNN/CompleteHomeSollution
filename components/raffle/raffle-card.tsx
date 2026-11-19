@@ -142,7 +142,7 @@ export function RaffleCard({ raffle }: RaffleCardProps) {
       <div className="p-4 sm:p-5 flex flex-col flex-1">
         <div className="flex-1 flex flex-col">
           <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-            {isMembersOnly ? "VIP Member Draw · Min $100 Spend" : "Community Giveaway · Min $100 Spend"}
+            {isMembersOnly ? "VIP Member Draw · Min $99 Spend" : "Community Giveaway · Min $99 Spend"}
           </span>
 
           <Link href={`/raffles/${raffle.slug}`}>

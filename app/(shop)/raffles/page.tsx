@@ -104,7 +104,7 @@ export default async function RafflesPage({ searchParams }: RafflesPageProps) {
                 100% Free
               </span>
               <span className="text-xs text-muted-foreground font-medium mt-0.5 block">
-                No Purchase Required
+                Min. $99 Purchase Required
               </span>
             </div>
 
@@ -209,7 +209,7 @@ export default async function RafflesPage({ searchParams }: RafflesPageProps) {
               </div>
               <h3 className="font-semibold text-base text-foreground mb-2">1. Claim Your Free Ticket</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Log into your Complete Home Sollution account, open any active raffle, and generate your unique verifiable ticket codes instantly.
+                Log into your Complete Home Sollution account (with min. $99 product spend), open any active raffle, and generate your unique verifiable ticket codes instantly.
               </p>
             </div>
 

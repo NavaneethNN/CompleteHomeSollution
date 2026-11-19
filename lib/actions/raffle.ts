@@ -317,7 +317,7 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
       }
     }
 
-    // Check product spend requirement: ALL raffles require minimum $100 product purchase (excluding membership)
+    // Check product spend requirement: ALL raffles require minimum $99 product purchase (excluding membership)
     const spendSummary = await getUserProductSpend(userId, session.user.email, db);
     if (!spendSummary.hasMinProductSpend) {
       return {

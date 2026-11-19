@@ -90,7 +90,7 @@ export function RaffleEntryWidget({
 
     if (userParticipation && !userParticipation.hasMinProductSpend) {
       toast.error(
-        `A minimum purchase of $${(userParticipation.minProductSpendRequired ?? 100).toFixed(2)} on products (excluding membership) is required to enter all raffles.`
+        `A minimum purchase of $${(userParticipation.minProductSpendRequired ?? 99).toFixed(2)} on products (excluding membership) is required to enter all raffles.`
       );
       return;
     }
@@ -134,7 +134,7 @@ export function RaffleEntryWidget({
         <div className="space-y-2.5 bg-white rounded-xl p-4 border border-border/80 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>Eligible for customers who spent min $100 on products</span>
+            <span>Eligible for customers who spent min $99 on products</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -188,10 +188,10 @@ export function RaffleEntryWidget({
     );
   }
 
-  // 3. Minimum $100 Product Spend Requirement Check
+  // 3. Minimum $99 Product Spend Requirement Check
   if (userParticipation && !userParticipation.hasMinProductSpend) {
     const totalSpend = userParticipation.totalProductSpend ?? 0;
-    const minRequired = userParticipation.minProductSpendRequired ?? 100;
+    const minRequired = userParticipation.minProductSpendRequired ?? 99;
     const remainingToSpend = userParticipation.remainingSpendRequired ?? Math.max(0, minRequired - totalSpend);
     const progressPercent = Math.min(100, Math.max(0, Math.round((totalSpend / minRequired) * 100)));
 
@@ -203,13 +203,13 @@ export function RaffleEntryWidget({
           </div>
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full border border-amber-200/80">
-              MINIMUM $100 PURCHASE REQUIRED
+              MINIMUM $99 PURCHASE REQUIRED
             </span>
             <h3 className="text-base font-semibold text-foreground mt-1">
               Product Spend Required to Enter
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              Customers who have spent a minimum of $100 on products (excluding membership) are eligible to enter all store raffles.
+              Customers who have spent a minimum of $99 on products (excluding membership) are eligible to enter all store raffles.
             </p>
           </div>
         </div>
@@ -248,7 +248,7 @@ export function RaffleEntryWidget({
             className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-muted text-muted-foreground text-sm font-semibold cursor-not-allowed border border-border/60 opacity-60"
           >
             <Lock className="h-4 w-4" />
-            <span>Enter Raffle (Requires $100 Product Spend)</span>
+            <span>Enter Raffle (Requires $99 Product Spend)</span>
           </button>
 
           <Link
@@ -261,7 +261,7 @@ export function RaffleEntryWidget({
         </div>
 
         <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-          Note: Membership subscriptions and delivery charges do not count towards the $100 product purchase requirement.
+          Note: Membership subscriptions and delivery charges do not count towards the $99 product purchase requirement.
         </p>
       </div>
     );
@@ -297,7 +297,7 @@ export function RaffleEntryWidget({
       <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50/90 border border-emerald-200/90 text-emerald-950 text-xs font-medium">
         <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
         <span>
-          Eligibility verified · ${(userParticipation?.totalProductSpend ?? 0).toFixed(2)} spent on products (min $100 met)
+          Eligibility verified · ${(userParticipation?.totalProductSpend ?? 0).toFixed(2)} spent on products (min $99 met)
         </span>
       </div>
 
@@ -439,7 +439,7 @@ export function RaffleEntryWidget({
 
       {/* Rules Notice */}
       <p className="text-[11px] text-muted-foreground text-center leading-relaxed pt-1">
-        Free promotional draw. Transparent cryptographic random selection. No purchase necessary.
+        Free promotional draw for verified customers ($99+ product spend). Transparent cryptographic random selection.
       </p>
     </div>
   );

@@ -135,7 +135,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
               <div className="flex items-center gap-2 text-emerald-950 font-medium">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                 <span>
-                  <strong>Raffle Eligibility Verified:</strong> You have spent ${data.spendSummary.totalProductSpend.toFixed(2)} on products (min $100 met). You are eligible to enter all store raffles!
+                  <strong>Raffle Eligibility Verified:</strong> You have spent ${data.spendSummary.totalProductSpend.toFixed(2)} on products (min ${data.spendSummary.minProductSpendRequired} met). You are eligible to enter all store raffles!
                 </span>
               </div>
               <Link href="/raffles" className="font-semibold text-emerald-800 hover:text-emerald-950 underline">
@@ -148,7 +148,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
                 <ShoppingBag className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
                 <div>
                   <p className="font-semibold text-amber-900">
-                    Spend $100 on products to enter all store raffles
+                    Spend ${data.spendSummary.minProductSpendRequired} on products to enter all store raffles
                   </p>
                   <p className="text-amber-800/90 text-[11px] mt-0.5">
                     Your current product spend is ${data.spendSummary.totalProductSpend.toFixed(2)} / ${data.spendSummary.minProductSpendRequired.toFixed(2)} (${data.spendSummary.remainingSpendRequired.toFixed(2)} remaining). Note: Membership subscriptions do not count.
