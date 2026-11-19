@@ -87,6 +87,16 @@ test("sanitizeOnlinePayName and sanitizeOnlinePayCity enforce provider length an
   assert.equal(sanitizeOnlinePayCity("", "City"), "City");
 
   assert.equal(sanitizeOnlinePayItemName("Line\nItem\tName"), "Line Item Name");
+  assert.equal(
+    sanitizeOnlinePayItemName("Luxury LED Deer Couple Decorative Ornament – Black & White"),
+    "Luxury LED Deer Couple Decorative Ornament"
+  );
+  assert.equal(
+    sanitizeOnlinePayItemName("Set of 2 / Bedside Tables (Black & White) – Large"),
+    "Set of 2 - Bedside Tables Black and White - L"
+  );
+  assert.ok(sanitizeOnlinePayItemName("A".repeat(100)).length <= 45);
+  assert.equal(sanitizeOnlinePayItemName("", "Item"), "Item");
 });
 
 test("provider technical developer messages are translated to friendly guidance", async (t) => {
@@ -114,6 +124,29 @@ test("provider technical developer messages are translated to friendly guidance"
     assert.ok(!error.message.includes("Examine the details property"));
     assert.ok(!error.message.includes("requests body"));
     assert.ok(error.message.includes("address and postcode"));
+    return true;
+  });
+
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    message: "At least one parameter is invalid. Examine the details property for more information.",
+    details: { "line_items[0].name": ["invalid format"] },
+  }, { status: 400 }));
+
+  await assert.rejects(createOnlinePayCheckout(input), (error: unknown) => {
+    assert.ok(error instanceof OnlinePayCheckoutError);
+    assert.ok(!error.message.includes("Please check your name details"));
+    assert.ok(error.message.includes("cart items"));
+    return true;
+  });
+
+  t.mock.method(globalThis, "fetch", async () => Response.json({
+    message: "At least one parameter is invalid. Examine the details property for more information.",
+    details: { "customer_details.billing.first_name": ["invalid format"] },
+  }, { status: 400 }));
+
+  await assert.rejects(createOnlinePayCheckout(input), (error: unknown) => {
+    assert.ok(error instanceof OnlinePayCheckoutError);
+    assert.ok(error.message.includes("Please check your name details and try again."));
     return true;
   });
 });

@@ -955,7 +955,7 @@ export async function POST(req: NextRequest) {
           returnUrl: signedReturnUrl,
           shopUrl: signedReturnUrl,
           customer: {
-            email, firstName, lastName: rest.join(" ") || "Customer", address1: order.address.line1,
+            email, firstName, lastName: rest.join(" ") || firstName || "Customer", address1: order.address.line1,
             city: order.address.suburb, state: order.address.state, postcode: order.address.postcode,
           },
           lineItems: [
@@ -963,7 +963,7 @@ export async function POST(req: NextRequest) {
               const productId = line.key.split(":")[0];
               const product = products.find((p) => p.id === productId)!;
               return {
-                name: line.key.endsWith(":raffle") ? `${product.name} (Raffle Prize)` : product.name,
+                name: line.key.endsWith(":raffle") ? `${product.name} - Raffle Prize` : product.name,
                 quantity: part.quantity,
                 unitPriceCents: part.unitPriceCents,
               };

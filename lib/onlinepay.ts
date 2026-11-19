@@ -56,22 +56,28 @@ export function onlinePayBillingAddress(address: string) {
 // - city: max 28 chars, allowed symbols: letters, numbers, spaces, +_-,.
 export function sanitizeOnlinePayName(name: string, fallback = "Customer"): string {
   const cleaned = (name || "")
-    .replace(/['’`]/g, "")
+    .replace(/[–—]/g, "-")
+    .replace(/['’`"]/g, "")
     .replace(/&/g, "and")
     .replace(/[^a-zA-Z0-9\s+_,\.\-]/g, "")
+    .replace(/\s+/g, " ")
     .trim()
     .slice(0, 22)
+    .replace(/[-_,\.\s]+$/, "")
     .trim();
   return cleaned || fallback;
 }
 
 export function sanitizeOnlinePayCity(city: string, fallback = "City"): string {
   const cleaned = (city || "")
-    .replace(/['’`]/g, "")
+    .replace(/[–—]/g, "-")
+    .replace(/['’`"]/g, "")
     .replace(/&/g, "and")
     .replace(/[^a-zA-Z0-9\s+_,\.\-]/g, "")
+    .replace(/\s+/g, " ")
     .trim()
     .slice(0, 28)
+    .replace(/[-_,\.\s]+$/, "")
     .trim();
   return cleaned || fallback;
 }
@@ -79,9 +85,15 @@ export function sanitizeOnlinePayCity(city: string, fallback = "City"): string {
 export function sanitizeOnlinePayItemName(name: string, fallback = "Item"): string {
   const cleaned = (name || "")
     .replace(/[\r\n\t]/g, " ")
+    .replace(/[–—]/g, "-")
+    .replace(/&/g, "and")
+    .replace(/[\/\\|]/g, "-")
+    .replace(/[()\[\]{}'’`"“”!?:;*#]/g, " ")
+    .replace(/[^a-zA-Z0-9\s+_,\.\-]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 200)
+    .slice(0, 45)
+    .replace(/[-_,\.\s]+$/, "")
     .trim();
   return cleaned || fallback;
 }
@@ -167,10 +179,12 @@ export async function createOnlinePayCheckout(input: {
     if (rawMessage.includes("parameter is invalid") || rawMessage.includes("details property") || rawMessage.includes("requests body")) {
       if (invalidFields.some(f => f.includes("email"))) {
         message = "Please check your email address and try again.";
+      } else if (invalidFields.some(f => f.includes("first_name") || f.includes("last_name") || ((f.includes("customer") || f.includes("billing")) && f.includes("name")))) {
+        message = "Please check your name details and try again.";
       } else if (invalidFields.some(f => f.includes("billing") || f.includes("city") || f.includes("postal_code") || f.includes("address"))) {
         message = "Please check your address and postcode details and try again.";
-      } else if (invalidFields.some(f => f.includes("first_name") || f.includes("last_name") || f.includes("name"))) {
-        message = "Please check your name details and try again.";
+      } else if (invalidFields.some(f => f.includes("line_item") || f.includes("line_items"))) {
+        message = "There was an issue processing the cart items for payment. Please try again or contact support.";
       } else {
         message = "Unable to initialize payment checkout. Please check your contact and address details, or try again.";
       }
