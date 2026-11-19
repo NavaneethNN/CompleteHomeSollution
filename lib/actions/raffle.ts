@@ -6,7 +6,11 @@ import { ClaimPrizeAddressInput } from "@/lib/validations/raffle";
 import { consumeRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
-import { maskWinnerName } from "@/lib/raffle-utils";
+import {
+  maskWinnerName,
+  getUserProductSpend,
+  RAFFLE_MIN_PRODUCT_SPEND,
+} from "@/lib/raffle-utils";
 import { sendEmail } from "@/lib/brevo";
 import { renderStandardEmail, renderCard, escapeHtml } from "@/lib/email-template";
 import { releaseCouponReservationInTransaction } from "@/lib/coupon-reservation";
@@ -172,7 +176,7 @@ export async function getRaffleDetails(slug: string) {
     let userParticipation = null;
 
     if (userId) {
-      const [userEntries, userTickets, userWins] = await Promise.all([
+      const [userEntries, userTickets, userWins, spendSummary] = await Promise.all([
         db.raffleEntry.findMany({
           where: { raffleId: raffle.id, userId },
           orderBy: { createdAt: "desc" },
@@ -188,6 +192,7 @@ export async function getRaffleDetails(slug: string) {
             ticket: true,
           },
         }),
+        getUserProductSpend(userId, session?.user?.email, db),
       ]);
 
       const user = await db.user.findUnique({
@@ -211,6 +216,10 @@ export async function getRaffleDetails(slug: string) {
         wins: userWins,
         isMember: user?.isMember || false,
         isEligibleMember,
+        totalProductSpend: spendSummary.totalProductSpend,
+        hasMinProductSpend: spendSummary.hasMinProductSpend,
+        minProductSpendRequired: spendSummary.minProductSpendRequired,
+        remainingSpendRequired: spendSummary.remainingSpendRequired,
         remainingAllowedEntries: Math.max(0, raffle.maxEntriesPerUser - userTickets.length),
       };
     }
@@ -308,6 +317,15 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
       }
     }
 
+    // Check product spend requirement: ALL raffles require minimum $100 product purchase (excluding membership)
+    const spendSummary = await getUserProductSpend(userId, session.user.email, db);
+    if (!spendSummary.hasMinProductSpend) {
+      return {
+        success: false,
+        error: `A minimum purchase of $${spendSummary.minProductSpendRequired.toFixed(2)} on products (excluding membership) is required to enter all raffles. Your current product spend is $${spendSummary.totalProductSpend.toFixed(2)} ($${spendSummary.remainingSpendRequired.toFixed(2)} remaining).`,
+      };
+    }
+
     if (ticketCount > raffle.maxEntriesPerUser) {
       return {
         success: false,
@@ -368,6 +386,14 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
         new Date() > new Date(freshRaffle.endDate)
       ) {
         throw new Error("This raffle is no longer accepting entries.");
+      }
+
+      // Re-verify product spend requirement within transaction
+      const txSpend = await getUserProductSpend(userId, session.user.email, tx);
+      if (!txSpend.hasMinProductSpend) {
+        throw new Error(
+          `A minimum purchase of $${txSpend.minProductSpendRequired.toFixed(2)} on products (excluding membership) is required to enter all raffles.`
+        );
       }
 
       // Check user ticket count inside transaction
@@ -594,10 +620,13 @@ export async function getCustomerRaffleDashboard() {
     );
 
     // Also get saved user addresses for easy claiming
-    const savedAddresses = await db.address.findMany({
-      where: { userId },
-      orderBy: { id: "desc" },
-    });
+    const [savedAddresses, spendSummary] = await Promise.all([
+      db.address.findMany({
+        where: { userId },
+        orderBy: { id: "desc" },
+      }),
+      getUserProductSpend(userId, session.user.email, db),
+    ]);
 
     return {
       data: {
@@ -607,6 +636,7 @@ export async function getCustomerRaffleDashboard() {
         pendingDrawParticipations,
         completedParticipations,
         savedAddresses,
+        spendSummary,
       },
       error: null,
     };

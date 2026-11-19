@@ -31,6 +31,12 @@ interface DashboardClientProps {
     pendingDrawParticipations: any[];
     completedParticipations: any[];
     savedAddresses: any[];
+    spendSummary?: {
+      totalProductSpend: number;
+      hasMinProductSpend: boolean;
+      minProductSpendRequired: number;
+      remainingSpendRequired: number;
+    };
   };
 }
 
@@ -121,6 +127,44 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
             </span>
           </div>
         </div>
+
+        {/* Product Spend Eligibility Banner */}
+        {data.spendSummary && (
+          data.spendSummary.hasMinProductSpend ? (
+            <div className="mt-4 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200/90 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 text-emerald-950 font-medium">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <span>
+                  <strong>Raffle Eligibility Verified:</strong> You have spent ${data.spendSummary.totalProductSpend.toFixed(2)} on products (min $100 met). You are eligible to enter all store raffles!
+                </span>
+              </div>
+              <Link href="/raffles" className="font-semibold text-emerald-800 hover:text-emerald-950 underline">
+                Browse Raffles &rarr;
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-4 p-4 rounded-xl bg-amber-50/90 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-start gap-2.5 text-amber-950">
+                <ShoppingBag className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-900">
+                    Spend $100 on products to enter all store raffles
+                  </p>
+                  <p className="text-amber-800/90 text-[11px] mt-0.5">
+                    Your current product spend is ${data.spendSummary.totalProductSpend.toFixed(2)} / ${data.spendSummary.minProductSpendRequired.toFixed(2)} (${data.spendSummary.remainingSpendRequired.toFixed(2)} remaining). Note: Membership subscriptions do not count.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/products"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full font-semibold text-xs bg-primary text-white hover:bg-primary/90 shadow-2xs shrink-0 self-start sm:self-auto"
+              >
+                <ShoppingBag className="h-3.5 w-3.5" />
+                <span>Shop Products</span>
+              </Link>
+            </div>
+          )
+        )}
       </div>
 
       {/* ── Navigation Tabs ── */}

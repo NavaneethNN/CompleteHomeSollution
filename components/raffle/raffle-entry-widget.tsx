@@ -18,6 +18,8 @@ import {
   Copy,
   Check,
   ShieldCheck,
+  ShoppingBag,
+  Lock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -43,6 +45,10 @@ interface EntryWidgetProps {
     isMember: boolean;
     isEligibleMember: boolean;
     remainingAllowedEntries: number;
+    totalProductSpend?: number;
+    hasMinProductSpend?: boolean;
+    minProductSpendRequired?: number;
+    remainingSpendRequired?: number;
   } | null;
   isLoggedIn: boolean;
 }
@@ -79,6 +85,13 @@ export function RaffleEntryWidget({
 
     if (isMemberOnly && !isMemberEligible) {
       toast.error("This raffle is exclusively for VIP Members.");
+      return;
+    }
+
+    if (userParticipation && !userParticipation.hasMinProductSpend) {
+      toast.error(
+        `A minimum purchase of $${(userParticipation.minProductSpendRequired ?? 100).toFixed(2)} on products (excluding membership) is required to enter all raffles.`
+      );
       return;
     }
 
@@ -121,7 +134,7 @@ export function RaffleEntryWidget({
         <div className="space-y-2.5 bg-white rounded-xl p-4 border border-border/80 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>100% Free Entry – No purchase required</span>
+            <span>Eligible for customers who spent min $100 on products</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -175,7 +188,86 @@ export function RaffleEntryWidget({
     );
   }
 
-  // 3. User is eligible & logged in
+  // 3. Minimum $100 Product Spend Requirement Check
+  if (userParticipation && !userParticipation.hasMinProductSpend) {
+    const totalSpend = userParticipation.totalProductSpend ?? 0;
+    const minRequired = userParticipation.minProductSpendRequired ?? 100;
+    const remainingToSpend = userParticipation.remainingSpendRequired ?? Math.max(0, minRequired - totalSpend);
+    const progressPercent = Math.min(100, Math.max(0, Math.round((totalSpend / minRequired) * 100)));
+
+    return (
+      <div className="rounded-2xl border border-amber-200/90 bg-[#fdfbf7] p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center font-bold shrink-0 shadow-xs">
+            <ShoppingBag className="h-5 w-5" />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-full border border-amber-200/80">
+              MINIMUM $100 PURCHASE REQUIRED
+            </span>
+            <h3 className="text-base font-semibold text-foreground mt-1">
+              Product Spend Required to Enter
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Customers who have spent a minimum of $100 on products (excluding membership) are eligible to enter all store raffles.
+            </p>
+          </div>
+        </div>
+
+        {/* Spend Tracker Progress Box */}
+        <div className="rounded-xl bg-white border border-border/80 p-4 space-y-2.5">
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-muted-foreground">Your Product Spend</span>
+            <span className="text-foreground">
+              ${totalSpend.toFixed(2)} / ${minRequired.toFixed(2)}
+            </span>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+            <span>{progressPercent}% unlocked</span>
+            <span className="font-semibold text-primary">
+              ${remainingToSpend.toFixed(2)} more needed to enter
+            </span>
+          </div>
+        </div>
+
+        {/* Actions: Disabled Enter Button & Shop Products CTA */}
+        <div className="space-y-2.5 pt-1">
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="w-full inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-muted text-muted-foreground text-sm font-semibold cursor-not-allowed border border-border/60 opacity-60"
+          >
+            <Lock className="h-4 w-4" />
+            <span>Enter Raffle (Requires $100 Product Spend)</span>
+          </button>
+
+          <Link
+            href="/products"
+            className="w-full inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-6 text-sm font-semibold text-white transition-colors hover:bg-primary/90 shadow-xs"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            <span>Shop Products to Qualify (${remainingToSpend.toFixed(2)} remaining)</span>
+          </Link>
+        </div>
+
+        <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+          Note: Membership subscriptions and delivery charges do not count towards the $100 product purchase requirement.
+        </p>
+      </div>
+    );
+  }
+
+  // 4. User is eligible & logged in
   return (
     <div className="rounded-2xl border border-border bg-white p-5 sm:p-6 shadow-xs space-y-4">
       <div className="flex items-center justify-between pb-3.5 border-b border-border">
@@ -199,6 +291,14 @@ export function RaffleEntryWidget({
             {userParticipation?.totalTickets ?? 0} / {raffle.maxEntriesPerUser}
           </span>
         </div>
+      </div>
+
+      {/* Verified Eligibility Badge */}
+      <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-50/90 border border-emerald-200/90 text-emerald-950 text-xs font-medium">
+        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <span>
+          Eligibility verified · ${(userParticipation?.totalProductSpend ?? 0).toFixed(2)} spent on products (min $100 met)
+        </span>
       </div>
 
       {/* Just Obtained Tickets Notification */}
