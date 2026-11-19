@@ -402,45 +402,151 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
             </div>
 
             {/* Official Rules & Transparency */}
-            <div className="bg-[#f7f3ed] rounded-2xl p-6 sm:p-8 border border-border shadow-xs">
-              <div className="flex items-center gap-2 mb-3">
-                <ShieldCheck className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold text-foreground">
-                  Official Rules & Eligibility
-                </h2>
+            <div className="bg-[#f7f3ed] rounded-2xl p-6 sm:p-8 border border-border shadow-xs space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/80 pb-3.5">
+                <div className="flex items-center gap-2.5">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold text-foreground">
+                    Official Rules &amp; Eligibility
+                  </h2>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
+                  SA Trade Promotion
+                </span>
               </div>
 
-              <div className="space-y-2 text-xs text-muted-foreground leading-relaxed">
-                <p>
-                  • <strong>Participation Limits:</strong> Up to {raffle.maxEntriesPerUser} entry ticket
-                  {raffle.maxEntriesPerUser > 1 ? "s" : ""} per customer account.
-                </p>
-                <p>
-                  • <strong>Eligibility:</strong>{" "}
-                  {isMembersOnly
-                    ? "Exclusive to active Complete Home Solution VIP Members who have spent a minimum of $99 on products (excluding membership)."
-                    : "Open to all registered customers residing in Australia (18+) who have spent a minimum of $99 on products (excluding membership)."}
-                </p>
-                <p>
-                  • <strong>Draw Selection:</strong> Random ticket selection using an auditable cryptographic seed conducted on{" "}
-                  {new Date(raffle.drawDate).toLocaleDateString("en-AU", {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
-                  })}.
-                </p>
-                <p>
-                  • <strong>Prize Claim &amp; Checkout:</strong> Winners claim their prizes via our store checkout. Store pickup is 100% free ($0); for home delivery, shipping charges are calculated at checkout based on your destination. Paid product winners unlock their exclusive winning discount.
-                </p>
-                <p>
-                  • <strong>Paid Product Winners:</strong> Winners of discounted products have 14 days to complete their order at the winning rate.
-                </p>
-                {raffle.terms && (
-                  <div className="mt-4 pt-3 border-t border-border">
-                    <strong className="text-foreground block mb-1">Additional Terms:</strong>
-                    <p className="whitespace-pre-line">{raffle.terms}</p>
+              <div className="space-y-4 text-xs text-muted-foreground leading-relaxed">
+                {/* 1. Eligibility & Limits */}
+                <div className="space-y-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    1. Eligibility &amp; Participation Limits
+                  </h3>
+                  <ul className="list-disc list-inside space-y-1 pl-1">
+                    <li>
+                      <strong>Residency &amp; Membership:</strong> Open to eligible registered members residing in South Australia (aged 18+).
+                    </li>
+                    <li>
+                      <strong>Qualifying Spend:</strong> A minimum qualifying purchase of <strong>$99</strong> on products is required (membership alone does not qualify for entry).
+                    </li>
+                    <li>
+                      <strong>Entry Limit:</strong> Up to {raffle.maxEntriesPerUser} entry ticket{raffle.maxEntriesPerUser > 1 ? "s" : ""} per customer account upon completing prize draw registration.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* 2. Winner Draw & Cryptographic Selection */}
+                <div className="space-y-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    2. Winner Draw &amp; Cryptographic Selection
+                  </h3>
+                  <ul className="list-disc list-inside space-y-1 pl-1">
+                    <li>
+                      <strong>Prize Draw Date:</strong> {new Date(raffle.drawDate).toLocaleDateString("en-AU", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}.
+                    </li>
+                    <li>
+                      <strong>Selection Method:</strong> Random ticket selection conducted using an auditable cryptographic seed with transparent draw records.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* 3. Prize Selection & Conditions */}
+                <div className="space-y-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    3. Prize Entitlement &amp; Selection
+                  </h3>
+                  <ul className="list-disc list-inside space-y-1 pl-1">
+                    <li>
+                      The winner may select their preferred products from the eligible Complete Home Sollution product range up to the total prize entitlement ({totalPrizeValue > 0 ? `$${totalPrizeValue.toLocaleString()} AUD` : "$5,000 AUD"}).
+                    </li>
+                    <li>
+                      Prize value is calculated using the <strong>original regular retail prices</strong> of the selected products. Promotional, discounted, clearance, and special offer prices do not apply.
+                    </li>
+                    <li>
+                      Product prices may be fixed or variable depending on size, configuration, or customisation. Applicable prices will be confirmed before the winner finalises their selection.
+                    </li>
+                    <li>
+                      Any unused prize entitlement cannot be exchanged or refunded for cash. Products are subject to availability.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* 4. Delivery & Collection */}
+                <div className="space-y-1.5">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    4. Delivery &amp; Collection
+                  </h3>
+                  <ul className="list-disc list-inside space-y-1 pl-1">
+                    <li>
+                      The winner may choose <strong>store pickup</strong> or <strong>delivery</strong> (delivery is optional).
+                    </li>
+                    <li>
+                      <strong>Store pickup is 100% free ($0).</strong>
+                    </li>
+                    <li>
+                      If delivery is requested, the applicable delivery charge may be deducted from the $5,000 prize entitlement.
+                    </li>
+                    <li>
+                      If the combined value of selected products and delivery charges exceeds the $5,000 prize entitlement, the winner must pay the additional amount.
+                    </li>
+                    <li>
+                      Delivery availability and charges will be confirmed based on the delivery location before the winner finalises their selection.
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Example of Prize Redemption Table */}
+                <div className="rounded-xl bg-white border border-border p-3.5 sm:p-4 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-xs text-foreground">
+                      Example of Prize Redemption:
+                    </h4>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                      $5,000 Max Entitlement
+                    </span>
                   </div>
-                )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-border/80 text-muted-foreground font-semibold">
+                          <th className="py-2 pr-3">Selected Products</th>
+                          <th className="py-2 px-3">Delivery Option</th>
+                          <th className="py-2 pl-3 text-right">Winner Pays</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50 text-foreground font-medium">
+                        <tr>
+                          <td className="py-2 pr-3">$4,700</td>
+                          <td className="py-2 px-3">$300 Delivery</td>
+                          <td className="py-2 pl-3 text-right font-bold text-emerald-700">$0</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 pr-3">$5,000</td>
+                          <td className="py-2 px-3">Store Pickup ($0)</td>
+                          <td className="py-2 pl-3 text-right font-bold text-emerald-700">$0</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 pr-3">$5,000</td>
+                          <td className="py-2 px-3">$200 Delivery</td>
+                          <td className="py-2 pl-3 text-right font-bold text-primary">$200</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 pr-3">$5,500</td>
+                          <td className="py-2 px-3">$250 Delivery</td>
+                          <td className="py-2 pl-3 text-right font-bold text-primary">$750</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Regulatory Footer */}
+                <p className="text-[11px] text-muted-foreground/90 italic pt-1 border-t border-border/60">
+                  Terms and conditions apply. Complete Home Sollution Pty Ltd (www.completehomesollution.com.au). Promotion subject to applicable South Australian trade promotion laws and regulatory requirements.
+                </p>
               </div>
             </div>
           </div>
