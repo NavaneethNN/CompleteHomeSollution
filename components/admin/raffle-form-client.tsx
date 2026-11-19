@@ -62,7 +62,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
     endDate: initialData?.endDate ? new Date(initialData.endDate).toISOString().slice(0, 16) : defaultEnd,
     drawDate: initialData?.drawDate ? new Date(initialData.drawDate).toISOString().slice(0, 16) : defaultDraw,
     automaticClosure: initialData?.automaticClosure ?? true,
-    terms: initialData?.terms || "1. Free promotional draw open to Australian residents aged 18+. 2. Multiple entries permitted up to the maximum entry limit. 3. Free prizes include complimentary home delivery.",
+    terms: initialData?.terms || "1. Free promotional draw open to Australian residents aged 18+. 2. Multiple entries permitted up to the maximum entry limit. 3. Store pickup is 100% free ($0). For home delivery, shipping charges are calculated at checkout.",
     ageRestriction: initialData?.ageRestriction || 18,
     geographicRestriction: initialData?.geographicRestriction || "Australia",
     isFeatured: initialData?.isFeatured || false,

@@ -346,7 +346,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
                             </button>
                             <span className="text-[11px] text-amber-800 font-semibold">
                               {isFree
-                                ? "Free gift ($0) · Live delivery rate calculated at checkout"
+                                ? "Free gift ($0) · Free store pickup or live home delivery rate calculated at checkout"
                                 : `Special $${winPrice} price unlocked · Complete at checkout`}
                             </span>
                           </>

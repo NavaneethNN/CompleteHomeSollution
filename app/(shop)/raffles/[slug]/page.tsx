@@ -78,7 +78,7 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
 
           <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-emerald-700">
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-            100% Free Doorstep Delivery
+            Free Store Pickup Available
           </div>
         </div>
       </div>
@@ -430,7 +430,7 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
                   })}.
                 </p>
                 <p>
-                  • <strong>Prize Claim &amp; Checkout:</strong> Winners claim their prizes via our secure store checkout. Free product prizes are priced at $0.00 with standard delivery calculated at checkout based on your destination. Paid product winners unlock their exclusive winning discount.
+                  • <strong>Prize Claim &amp; Checkout:</strong> Winners claim their prizes via our store checkout. Store pickup is 100% free ($0); for home delivery, shipping charges are calculated at checkout based on your destination. Paid product winners unlock their exclusive winning discount.
                 </p>
                 <p>
                   • <strong>Paid Product Winners:</strong> Winners of discounted products have 14 days to complete their order at the winning rate.
@@ -469,8 +469,8 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
                   <Truck className="h-4 w-4" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block font-semibold text-foreground">Free Australian Delivery</span>
-                  <span className="mt-0.5 block text-muted-foreground">Complimentary dispatch on won prizes</span>
+                  <span className="block font-semibold text-foreground">Free Store Pickup</span>
+                  <span className="mt-0.5 block text-muted-foreground">Home delivery shipping calculated at checkout</span>
                 </span>
               </div>
 

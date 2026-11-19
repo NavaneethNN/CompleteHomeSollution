@@ -260,7 +260,7 @@ export function RaffleClaimModal({
 
           <div className="p-3 bg-[#faf8f5] rounded-xl border border-border flex items-center gap-2.5 text-xs text-foreground">
             <Truck className="h-4 w-4 shrink-0 text-primary" />
-            <span>Complimentary standard shipping across Australia is included. No charges will apply.</span>
+            <span>Store pickup is 100% free ($0). For home delivery, shipping charges are calculated at checkout based on your destination.</span>
           </div>
 
           <div className="pt-2 flex items-center justify-end gap-2.5">

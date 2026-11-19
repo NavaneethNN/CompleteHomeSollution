@@ -227,9 +227,9 @@ export default async function RafflesPage({ searchParams }: RafflesPageProps) {
               <div className="w-12 h-12 rounded-xl bg-white border border-border/80 shadow-xs flex items-center justify-center text-emerald-700 mb-4 font-bold">
                 <Trophy className="h-6 w-6" />
               </div>
-              <h3 className="font-semibold text-base text-foreground mb-2">3. Direct Prize Delivery</h3>
+              <h3 className="font-semibold text-base text-foreground mb-2">3. Prize Claim &amp; Fulfillment</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Free product winners provide shipping details for complimentary doorstep delivery. Special discount winners easily purchase at their exclusive winning rate!
+                Store pickup is 100% free ($0). For home delivery, shipping charges are calculated at checkout based on your destination. Special discount winners easily purchase at their exclusive winning rate!
               </p>
             </div>
           </div>
