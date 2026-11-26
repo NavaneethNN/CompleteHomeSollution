@@ -8,7 +8,6 @@ import {
   MapPin,
   Home,
   Building,
-  MapPinned,
   Navigation,
   Globe,
   Pencil,
@@ -21,7 +20,6 @@ import {
   ArrowRight,
   User,
   Phone,
-  Sparkles,
 } from "lucide-react";
 import { cleanAustralianSuburb } from "@/lib/data/australian-suburbs";
 import { Address } from "@prisma/client";
@@ -39,9 +37,6 @@ import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -60,7 +55,6 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { AddressAutocomplete } from "./address-autocomplete";
-import { SuburbSelector } from "./suburb-selector";
 
 const AUSTRALIAN_STATES = [
   { value: "ACT", label: "Australian Capital Territory" },
@@ -434,7 +428,7 @@ export function AddressManager({ addresses: initialAddresses, error, userProfile
             </button>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-4 pt-1">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-1">
             {/* STEP 1: Name & Phone */}
             <div className={cn("space-y-4", addressStep !== 1 && "hidden")}>
               <div className="space-y-1.5">

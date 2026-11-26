@@ -46,8 +46,8 @@ export function CancelOrderButton({ orderId, orderTotal, isPreShip, alreadyReque
       }
       setOpen(false);
       router.refresh();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to cancel order");
     } finally {
       setLoading(false);
     }

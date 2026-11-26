@@ -28,7 +28,7 @@ export function AnimateIn({
   delay = 0,
   className,
   as: Tag = "div",
-  threshold = 0.15,
+  threshold = 0.01,
 }: AnimateInProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<any>(null);
@@ -44,24 +44,36 @@ export function AnimateIn({
     setMounted(true);
   }, []);
 
-  // Step 2: only attach the observer once the component is mounted
+  // Step 2: only attach the observer once the component is mounted, with a
+  // safety fallback so tall sections or throttled tabs never stay at opacity-0.
   useEffect(() => {
     if (!mounted) return;
     const el = ref.current;
-    if (!el) return;
+    if (!el) {
+      setTriggered(true);
+      return;
+    }
+
+    const fallbackTimer = setTimeout(() => {
+      setTriggered(true);
+    }, 400);
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
           setTriggered(true);
+          clearTimeout(fallbackTimer);
           observer.disconnect();
         }
       },
-      { threshold }
+      { threshold, rootMargin: "80px 0px" }
     );
 
     observer.observe(el);
-    return () => observer.disconnect();
+    return () => {
+      clearTimeout(fallbackTimer);
+      observer.disconnect();
+    };
   }, [mounted, threshold]);
 
   const Component = Tag as React.ElementType;

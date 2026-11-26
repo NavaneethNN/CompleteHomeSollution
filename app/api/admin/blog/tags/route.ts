@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import slugify from "slugify";
 
 // GET /api/admin/blog/tags - List all blog tags
 export async function GET() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -30,8 +29,7 @@ export async function GET() {
 
 // POST /api/admin/blog/tags - Create a new blog tag
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

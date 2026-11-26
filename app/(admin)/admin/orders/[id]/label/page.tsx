@@ -86,7 +86,7 @@ export default async function OrderShippingLabelPage({ params, searchParams }: L
           packedWidth: resolvedBoxes.packedWidth,
           packedHeight: resolvedBoxes.packedHeight,
           packedWeight: resolvedBoxes.packedWeight,
-          packedBoxes: boxes as any,
+          packedBoxes: boxes as unknown as import("@prisma/client").Prisma.InputJsonValue,
           packageOverride: false,
         },
       })

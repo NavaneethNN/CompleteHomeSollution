@@ -4,14 +4,8 @@ import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box,
-  Scale,
-  Maximize2,
   Pencil,
-  CheckCircle2,
-  AlertCircle,
   Loader2,
-  Save,
-  RotateCcw,
   Plus,
   Trash2,
 } from "lucide-react";

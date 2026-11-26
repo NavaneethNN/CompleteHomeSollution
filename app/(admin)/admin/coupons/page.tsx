@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -17,7 +15,6 @@ import {
   Pencil,
   Copy,
   Check,
-  X,
   ChevronDown,
   ChevronUp,
   Loader2,
@@ -90,8 +87,26 @@ const currencyFormatter = new Intl.NumberFormat("en-AU", {
   currency: "AUD",
 });
 
+interface CouponFormData {
+  code: string;
+  name: string;
+  description: string;
+  type: "GLOBAL" | "PRODUCT" | "CATEGORY";
+  discountType: "PERCENTAGE" | "FIXED";
+  discountValue: string;
+  minOrderAmount: string;
+  maxDiscount: string;
+  usageLimit: string;
+  perUserLimit: string;
+  memberEligibility: "ALL" | "MEMBERS_ONLY" | "NON_MEMBERS";
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  productIds: string[];
+  categoryIds: string[];
+}
+
 export default function AdminCouponsPage() {
-  const router = useRouter();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -106,7 +121,7 @@ export default function AdminCouponsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Form state
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<CouponFormData>({
     code: "",
     name: "",
     description: "",
@@ -144,7 +159,7 @@ export default function AdminCouponsPage() {
       const res = await fetch("/api/admin/products?limit=100");
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setProducts(data.products.map((p: any) => ({ id: p.id, name: p.name })));
+      setProducts(data.products.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
     } catch {
       toast.error("Failed to load products");
     }
@@ -155,7 +170,7 @@ export default function AdminCouponsPage() {
       const res = await fetch("/api/admin/categories");
       if (!res.ok) throw new Error("Failed to fetch");
       const data = await res.json();
-      setCategories(data.categories.map((c: any) => ({ id: c.id, name: c.name })));
+      setCategories(data.categories.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
     } catch {
       toast.error("Failed to load categories");
     }
@@ -212,8 +227,8 @@ export default function AdminCouponsPage() {
       setIsCreateDialogOpen(false);
       resetForm();
       fetchCoupons();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to create coupon");
     }
   };
 
@@ -245,8 +260,8 @@ export default function AdminCouponsPage() {
       setSelectedCoupon(null);
       resetForm();
       fetchCoupons();
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to create coupon");
     } finally {
       setIsUpdating(false);
     }
@@ -622,8 +637,8 @@ function CouponForm({
   products,
   categories,
 }: {
-  formData: any;
-  setFormData: (data: any) => void;
+  formData: CouponFormData;
+  setFormData: (data: CouponFormData) => void;
   products: Product[];
   categories: Category[];
 }) {
@@ -662,7 +677,7 @@ function CouponForm({
           <label className="text-sm font-medium">Coupon Type *</label>
           <Select
             value={formData.type}
-            onValueChange={(value) => setFormData({ ...formData, type: value })}
+            onValueChange={(value) => setFormData({ ...formData, type: value as CouponFormData["type"] })}
           >
             <SelectTrigger>
               <SelectValue />
@@ -678,7 +693,7 @@ function CouponForm({
           <label className="text-sm font-medium">Discount Type *</label>
           <Select
             value={formData.discountType}
-            onValueChange={(value) => setFormData({ ...formData, discountType: value })}
+            onValueChange={(value) => setFormData({ ...formData, discountType: value as CouponFormData["discountType"] })}
           >
             <SelectTrigger>
               <SelectValue />

@@ -16,7 +16,7 @@ export function AdminPreloader() {
 
   useEffect(() => {
     prevPathRef.current = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
-  }, []);
+  }, [pathname, searchParams]);
 
   const finishProgress = useCallback(() => {
     if (progressTimerRef.current) {
@@ -55,10 +55,10 @@ export function AdminPreloader() {
       setProgress(current);
     }, 80);
 
-    // Safety timeout: dismiss after 2.5s maximum
+    // Safety timeout: dismiss after 12s maximum
     safetyTimerRef.current = setTimeout(() => {
       finishProgress();
-    }, 2500);
+    }, 12000);
   }, [finishProgress]);
 
   // Detect completed navigation

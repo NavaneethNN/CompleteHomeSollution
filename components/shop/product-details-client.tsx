@@ -160,7 +160,7 @@ export function ProductDetailsClient({
     if (defaultVariant) {
       setSelectedVariant(defaultVariant);
     }
-  }, [defaultVariant?.id]);
+  }, [defaultVariant]);
 
   const handleVariantChange = useCallback((variant: ProductVariant | null) => {
     setSelectedVariant(variant);

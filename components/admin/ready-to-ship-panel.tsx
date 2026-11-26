@@ -204,6 +204,7 @@ export function ReadyToShipPanel({
     initialPackaging?.packedBoxes,
     initialPackaging?.packageName,
     initialPackaging?.packageOverride,
+    initialPackaging,
     orderId,
     currentStatus,
     currentCarrier,

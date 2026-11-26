@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -18,13 +17,10 @@ import {
   Printer,
   Download,
   ExternalLink,
-  Package,
   Truck,
   CheckCircle2,
   RefreshCw,
   AlertCircle,
-  ShieldCheck,
-  Settings2,
 } from "lucide-react";
 import { generateCode128Svg } from "@/lib/barcode";
 
@@ -84,7 +80,6 @@ interface ShippingLabelDialogProps {
 export function ShippingLabelDialog({
   orderId,
   orderNumber: initialOrderNumber,
-  fulfillmentType: initialFulfillmentType,
   open,
   onOpenChange,
 }: ShippingLabelDialogProps) {
@@ -126,8 +121,8 @@ export function ShippingLabelDialog({
       setWeight(json.parcel.weight);
       setPackageName(json.parcel.packageName);
       setInstructions(json.parcel.specialInstructions || "Safe drop permitted");
-    } catch (err: any) {
-      setError(err?.message || "Failed to load label data");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load label data");
     } finally {
       setLoading(false);
     }
@@ -183,8 +178,8 @@ export function ShippingLabelDialog({
       }
       await fetchLabelData();
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to create consignment with Couriers Please");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to create consignment with Couriers Please");
     } finally {
       setBookingCouriersPlease(false);
     }

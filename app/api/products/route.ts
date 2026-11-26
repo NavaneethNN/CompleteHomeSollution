@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { createProductSchema, productFiltersSchema } from "@/lib/validations/product";
+import { z } from "zod";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,8 +22,8 @@ export async function GET(req: NextRequest) {
 
     const orderBy = {
       newest: { createdAt: "desc" as const },
-      price_asc: { price: "asc" as const },
-      price_desc: { price: "desc" as const },
+      price_asc: { basePrice: "asc" as const },
+      price_desc: { basePrice: "desc" as const },
       popular: { createdAt: "desc" as const },
     }[filters.sort];
 
@@ -31,10 +32,10 @@ export async function GET(req: NextRequest) {
       ...(filters.category && { category: { slug: filters.category } }),
       ...(filters.material && { material: filters.material }),
       ...(filters.roomType && { roomType: filters.roomType }),
-      ...((filters.minPrice || filters.maxPrice) && {
-        price: {
-          ...(filters.minPrice && { gte: filters.minPrice }),
-          ...(filters.maxPrice && { lte: filters.maxPrice }),
+      ...((filters.minPrice !== undefined || filters.maxPrice !== undefined) && {
+        basePrice: {
+          ...(filters.minPrice !== undefined && { gte: filters.minPrice }),
+          ...(filters.maxPrice !== undefined && { lte: filters.maxPrice }),
         },
       }),
     };
@@ -59,14 +60,16 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error("[GET /api/products]", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session || session.user.role !== "ADMIN") {
+    if (!(await hasFreshAdminSession())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -77,6 +80,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: product }, { status: 201 });
   } catch (error) {
     console.error("[POST /api/products]", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 });
   }
 }

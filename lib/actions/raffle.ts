@@ -1,5 +1,6 @@
 "use server";
 
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { ClaimPrizeAddressInput } from "@/lib/validations/raffle";
@@ -9,7 +10,6 @@ import crypto from "crypto";
 import {
   maskWinnerName,
   getUserProductSpend,
-  RAFFLE_MIN_PRODUCT_SPEND,
 } from "@/lib/raffle-utils";
 import { sendEmail } from "@/lib/brevo";
 import { renderStandardEmail, renderCard, escapeHtml } from "@/lib/email-template";
@@ -28,7 +28,7 @@ export async function getPublicRaffles(filters?: RaffleFilters) {
     // Auto-update statuses based on dates if necessary
     await autoUpdateRaffleStatuses();
 
-    const where: any = {};
+    const where: Prisma.RaffleWhereInput = {};
 
     if (filters?.featuredOnly) {
       where.isFeatured = true;
@@ -89,9 +89,9 @@ export async function getPublicRaffles(filters?: RaffleFilters) {
     }));
 
     return { raffles: sanitizedRaffles, error: null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch public raffles:", error);
-    return { raffles: [], error: error.message || "Failed to load raffles" };
+    return { raffles: [], error: error instanceof Error ? error.message : "Failed to load raffles" };
   }
 }
 
@@ -120,9 +120,9 @@ export async function getHomepageRaffles() {
     });
 
     return { raffles, error: null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch homepage raffles:", error);
-    return { raffles: [], error: error.message || "Failed to load featured raffles" };
+    return { raffles: [], error: error instanceof Error ? error.message : "Failed to load featured raffles" };
   }
 }
 
@@ -247,9 +247,14 @@ export async function getRaffleDetails(slug: string) {
       isLoggedIn: !!userId,
       error: null,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch raffle details:", error);
-    return { raffle: null, userParticipation: null, isLoggedIn: false, error: error.message };
+    return {
+      raffle: null,
+      userParticipation: null,
+      isLoggedIn: false,
+      error: error instanceof Error ? error.message : "Failed to fetch raffle details",
+    };
   }
 }
 
@@ -537,9 +542,9 @@ export async function enterRaffle(raffleId: string, ticketCount: number = 1) {
         ticketCount > 1 ? "s" : ""
       }!`,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to enter raffle:", error);
-    return { success: false, error: error.message || "Failed to participate in the raffle." };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to participate in the raffle." };
   }
 }
 
@@ -596,7 +601,7 @@ export async function getCustomerRaffleDashboard() {
     });
 
     // Group tickets by raffle
-    const raffleMap = new Map<string, any>();
+    const raffleMap = new Map<string, { raffle: (typeof tickets)[number]["raffle"]; tickets: typeof tickets }>();
     tickets.forEach((t) => {
       if (!raffleMap.has(t.raffleId)) {
         raffleMap.set(t.raffleId, {
@@ -604,7 +609,7 @@ export async function getCustomerRaffleDashboard() {
           tickets: [],
         });
       }
-      raffleMap.get(t.raffleId).tickets.push(t);
+      raffleMap.get(t.raffleId)!.tickets.push(t);
     });
 
     const activeParticipations = Array.from(raffleMap.values()).filter(
@@ -640,9 +645,9 @@ export async function getCustomerRaffleDashboard() {
       },
       error: null,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to load customer raffle dashboard:", error);
-    return { data: null, error: error.message || "Failed to load raffle dashboard" };
+    return { data: null, error: error instanceof Error ? error.message : "Failed to load raffle dashboard" };
   }
 }
 
@@ -711,7 +716,7 @@ export async function prepareRafflePrizeForCheckout(winnerId: string) {
                 where: { id: previousOrder.id },
                 data: { status: "CANCELLED" },
               });
-              if (typeof (tx as any).order?.findUnique === "function") {
+              if (typeof tx.order?.findUnique === "function") {
                 await releaseCouponReservationInTransaction(tx, previousOrder.id);
               }
             }
@@ -836,9 +841,9 @@ export async function prepareRafflePrizeForCheckout(winnerId: string) {
       },
       cartItem,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Failed to prepare raffle prize for checkout:", err);
-    return { success: false, error: err.message || "Failed to prepare prize checkout." };
+    return { success: false, error: err instanceof Error ? err.message : "Failed to prepare prize checkout." };
   }
 }
 

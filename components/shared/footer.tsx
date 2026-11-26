@@ -10,7 +10,7 @@ const footerLinks = [
       { label: "Register", href: "/register" },
       { label: "My Orders", href: "/account/orders" },
       { label: "Membership", href: "/account/membership" },
-      { label: "Wishlist", href: "/account/dashboard" },
+      { label: "Wishlist", href: "/wishlist" },
     ],
   },
   {
@@ -19,8 +19,7 @@ const footerLinks = [
       { label: "Search", href: "/search" },
       { label: "Shipping Info", href: "/shipping-policy" },
       { label: "Returns & Refunds", href: "/refund-policy" },
-      { label: "Contact Us", href: "mailto:support@completehomesolution.com" },
-      { label: "FAQs", href: "#" },
+      { label: "Contact Us", href: "/contact" },
     ],
   },
   {

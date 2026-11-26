@@ -35,7 +35,11 @@ export function resolveMonotonicCarrierStatus(
   targetStatus: CarrierMilestone | null | undefined
 ): CarrierMilestone | null {
   if (!targetStatus) return null;
-  if (!ELIGIBLE_CARRIER_TRANSITION_STATUSES.includes(currentStatus as any)) {
+  if (
+    !ELIGIBLE_CARRIER_TRANSITION_STATUSES.includes(
+      currentStatus as (typeof ELIGIBLE_CARRIER_TRANSITION_STATUSES)[number]
+    )
+  ) {
     return null;
   }
   const currentRank = STATUS_RANK[currentStatus] ?? 0;

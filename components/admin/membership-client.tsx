@@ -1,14 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Image from "next/image";
 import {
   Crown, Plus, Pencil, Trash2, Star, Check,
-  Users, Calendar, Tag, Percent, X, Loader2,
+  Calendar, Tag, Percent, X, Loader2,
   ToggleLeft, ToggleRight, AlertCircle,
 } from "lucide-react";
 import {
   createPlan, updatePlan, deletePlan, setDefaultPlan,
-  revokeMembership, grantMembership,
+  revokeMembership,
 } from "@/lib/actions/admin-membership";
 import type { MembershipPlan, MemberUser, PlanInput } from "@/lib/actions/admin-membership";
 
@@ -24,9 +25,9 @@ function durationLabel(days: number) {
 
 function Avatar({ name, image }: { name: string | null; image: string | null }) {
   const initials = name ? name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) : "?";
-  // eslint-disable-next-line @next/next/no-img-element
+   
   return image ? (
-    <img src={image} alt={name ?? ""} referrerPolicy="no-referrer" className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-border" />
+    <Image src={image} alt={name ?? ""} width={32} height={32} unoptimized referrerPolicy="no-referrer" className="h-8 w-8 rounded-full object-cover shrink-0 ring-1 ring-border" />
   ) : (
     <div className="h-8 w-8 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0">{initials}</div>
   );

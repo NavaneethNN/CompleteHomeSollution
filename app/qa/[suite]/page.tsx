@@ -57,7 +57,7 @@ export default async function SuitePage({
     testId: r.testId,
     status: r.status as "PENDING" | "PASSED" | "FAILED",
     notes: r.notes ?? "",
-    comments: (r as any).comments ?? "",
+    comments: (r as { comments?: string | null }).comments ?? "",
   }));
 
   return <SuiteRunner suite={suite as Suite} initialResults={initialResults} />;

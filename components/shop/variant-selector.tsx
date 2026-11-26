@@ -75,7 +75,7 @@ export function VariantSelector({
       return acc;
     }, {} as Record<string, string>);
     setSelections(newSelections);
-  }, [defaultVariant?.id]);
+  }, [defaultVariant]);
 
   // Find selected variant based on all selections
   const selectedVariant = useMemo(() => {

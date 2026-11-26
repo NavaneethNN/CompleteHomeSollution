@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -197,7 +199,7 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
               packedWidth: effectivePackedWidth,
               packedHeight: effectivePackedHeight,
               packedWeight: effectivePackedWeight,
-              packedBoxes: effectivePackedBoxes as any,
+              packedBoxes: effectivePackedBoxes as unknown as Prisma.InputJsonValue,
               packageOverride: effectivePackageOverride,
             },
           })
@@ -326,40 +328,49 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-slate-100">
-                {order.items.map((item, index) => (
+                {order.items.map((item, index) => {
+                  const typedItem = item as (typeof order.items)[number] & {
+                    unitPrice: number;
+                    productVariant?: {
+                      sku?: string | null;
+                      images?: Array<{ url: string }>;
+                      values?: Array<{
+                        variantValue: { value: string; variantAttribute: { name: string } };
+                      }>;
+                    } | null;
+                  };
+                  const displayImage =
+                    typedItem.productVariant?.images?.[0]?.url ?? item.product.images?.[0];
+                  return (
                   <div key={index} className="p-4 flex gap-4">
                     {/* Product Image — prefer variant image over product image */}
-                    {(() => {
-                      const displayImage =
-                        (item as any).productVariant?.images?.[0]?.url ?? item.product.images?.[0];
-                      return (
-                        <div className="h-20 w-20 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-50">
-                          {displayImage ? (
-                            <img
-                              src={displayImage}
-                              alt={item.product.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center text-slate-400">
-                              <Package className="h-8 w-8" />
-                            </div>
-                          )}
+                    <div className="h-20 w-20 rounded-lg border border-slate-200 overflow-hidden shrink-0 bg-slate-50">
+                      {displayImage ? (
+                        <Image
+                          src={displayImage}
+                          alt={item.product.name}
+                          width={80}
+                          height={80}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-slate-400">
+                          <Package className="h-8 w-8" />
                         </div>
-                      );
-                    })()}
+                      )}
+                    </div>
 
                     {/* Product Info */}
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-slate-900 truncate">{item.product.name}</h4>
                       <p className="text-sm text-slate-500">
-                        SKU: {(item as any).productVariant?.sku || item.product.sku || "N/A"}
+                        SKU: {typedItem.productVariant?.sku || item.product.sku || "N/A"}
                       </p>
 
                       {/* Variant attributes */}
-                      {(item as any).productVariant?.values?.length > 0 && (
+                      {(typedItem.productVariant?.values?.length ?? 0) > 0 && (
                         <div className="flex gap-2 mt-1 flex-wrap">
-                          {(item as any).productVariant.values.map((v: any) => (
+                          {typedItem.productVariant!.values!.map((v) => (
                             <span key={v.variantValue.value} className="text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
                               {v.variantValue.variantAttribute.name}: {v.variantValue.value}
                             </span>
@@ -370,12 +381,13 @@ export default async function AdminOrderDetailPage({ params }: OrderDetailPagePr
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-sm text-slate-600">Qty: {item.quantity}</span>
                         <span className="font-medium text-slate-900">
-                          {currencyFormatter.format((item as any).unitPrice * item.quantity)}
+                          {currencyFormatter.format(typedItem.unitPrice * item.quantity)}
                         </span>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
               
               {/* Order Summary */}

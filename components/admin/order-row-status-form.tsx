@@ -49,8 +49,8 @@ export function OrderRowStatusForm({ orderId, currentStatus }: OrderRowStatusFor
 
       toast.success(`Status updated to ${STATUS_OPTIONS.find(s => s.value === selectedStatus)?.label}`);
       router.refresh();
-    } catch (err: any) {
-      toast.error(err.message || "Something went wrong.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setIsUpdating(false);
     }

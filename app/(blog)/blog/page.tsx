@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ function calculateReadingTime(content: string): number {
 }
 
 async function getBlogPosts(search?: string, category?: string) {
-  const where: any = {
+  const where: Prisma.BlogPostWhereInput = {
     ...publishedBlogWhere(),
   };
 
@@ -220,9 +221,11 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
                     >
                       <div className="flex gap-3">
                         {post.coverImage && (
-                          <img
+                          <Image
                             src={post.coverImage}
                             alt={post.title}
+                            width={64}
+                            height={64}
                             className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
                           />
                         )}

@@ -75,7 +75,7 @@ export function AddressAutocomplete({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isApiReady, setIsApiReady] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [, setLoadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const apiKeyRef = useRef<string>("");
@@ -192,7 +192,6 @@ export function AddressAutocomplete({
     const placePrediction = suggestion.placePrediction;
     if (!placePrediction || !apiKeyRef.current) return;
 
-    console.log("[AddressAutocomplete] Selected place:", placePrediction.placeId);
     setIsLoading(true);
     setShowSuggestions(false);
     setSuggestions([]);
@@ -221,7 +220,6 @@ export function AddressAutocomplete({
       }
 
       const place: PlaceDetailsResponse = await response.json();
-      console.log("[AddressAutocomplete] Place details:", place);
 
       let line1 = "";
       let line2 = "";
@@ -266,8 +264,6 @@ export function AddressAutocomplete({
 
       suburb = cleanAustralianSuburb(suburb);
       postcode = postcode.replace(/\D/g, "").slice(0, 4);
-
-      console.log("[AddressAutocomplete] Parsed address:", { line1, line2, suburb, state, postcode, country });
 
       onChange(line1);
       onAddressSelect({

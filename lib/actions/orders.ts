@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { OrderStatus } from "@prisma/client";
-import { claimGuestOrdersForUser } from "@/lib/guest-orders";
+import { claimGuestOrdersForUser } from "@/lib/order-claim";
 
 export interface OrderWithItems {
   id: string;

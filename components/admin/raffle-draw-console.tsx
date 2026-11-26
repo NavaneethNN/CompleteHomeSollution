@@ -1,31 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { RaffleStatus } from "@prisma/client";
 import {
   Trophy,
-  Gift,
   Ticket,
   Dices,
   CheckCircle2,
-  AlertCircle,
   Truck,
   RotateCcw,
-  Sparkles,
   ExternalLink,
   Edit,
   Play,
-  Pause,
-  Save,
   Loader2,
-  Users,
   ShieldCheck,
   MapPin,
-  Calendar,
   Clock,
-  Send,
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -35,6 +27,7 @@ import {
   redrawSingleWinner,
   updatePrizeFulfilment,
   updateRaffleStatus,
+  type getAdminRaffleById,
 } from "@/lib/actions/admin-raffle";
 import { toast } from "sonner";
 import {
@@ -45,8 +38,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+type AdminRaffleDetail = NonNullable<Awaited<ReturnType<typeof getAdminRaffleById>>["raffle"]>;
+
 interface ConsoleProps {
-  raffle: any;
+  raffle: AdminRaffleDetail;
 }
 
 export function RaffleDrawConsole({ raffle }: ConsoleProps) {
@@ -57,7 +52,7 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
   const [actionLoading, setActionLoading] = useState(false);
 
   // Redraw modal state
-  const [redrawWinnerTarget, setRedrawWinnerTarget] = useState<any | null>(null);
+  const [redrawWinnerTarget, setRedrawWinnerTarget] = useState<AdminRaffleDetail["winners"][number] | null>(null);
   const [redrawReason, setRedrawReason] = useState("");
 
   // Fulfilment editing state
@@ -85,8 +80,8 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
       } else {
         toast.error(res.error || "Failed to conduct draw");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Draw execution error");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Draw execution error");
     } finally {
       setDrawLoading(false);
     }
@@ -103,8 +98,8 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
       } else {
         toast.error(res.error || "Failed to announce winners");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Approval error");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Approval error");
     } finally {
       setActionLoading(false);
     }
@@ -128,8 +123,8 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
       } else {
         toast.error(res.error || "Failed to redraw winner");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Redraw error");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Redraw error");
     } finally {
       setActionLoading(false);
     }
@@ -150,14 +145,14 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
       } else {
         toast.error(res.error || "Failed to update tracking");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Update error");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Update error");
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleQuickStatus = async (status: string) => {
+  const handleQuickStatus = async (status: RaffleStatus) => {
     setActionLoading(true);
     try {
       const res = await updateRaffleStatus(raffle.id, status);
@@ -167,14 +162,14 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
       } else {
         toast.error(res.error || "Failed to update status");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Error updating status");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Error updating status");
     } finally {
       setActionLoading(false);
     }
   };
 
-  const totalPrizeSlots = raffle.prizes.reduce((sum: number, p: any) => sum + p.quantity, 0);
+  const totalPrizeSlots = raffle.prizes.reduce((sum, p) => sum + p.quantity, 0);
 
   return (
     <div className="space-y-6 pb-20">
@@ -447,7 +442,7 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {raffle.winners.map((winner: any) => {
+              {raffle.winners.map((winner) => {
                 const isClaimed = winner.status === "CLAIMED";
                 const isFree = winner.prizeType === "FREE_PRODUCT";
 
@@ -527,16 +522,23 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
               View customer submitted shipping addresses, assign courier tracking numbers, and update delivery milestones.
             </p>
 
-            {raffle.winners.filter((w: any) => w.status === "CLAIMED").length === 0 ? (
+            {raffle.winners.filter((w) => w.status === "CLAIMED").length === 0 ? (
               <p className="text-xs text-muted-foreground py-8 text-center">
                 No winners have submitted their claim or shipping address yet.
               </p>
             ) : (
               <div className="divide-y divide-border">
                 {raffle.winners
-                  .filter((w: any) => w.status === "CLAIMED")
-                  .map((winner: any) => {
-                    const addr = winner.shippingAddress;
+                  .filter((w) => w.status === "CLAIMED")
+                  .map((winner) => {
+                    const addr = winner.shippingAddress as {
+                      name?: string;
+                      phone?: string;
+                      line1?: string;
+                      suburb?: string;
+                      state?: string;
+                      postcode?: string;
+                    } | null;
                     return (
                       <div
                         key={winner.id}
@@ -579,7 +581,7 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
                               winnerId: winner.id,
                               carrier: winner.carrier || "Australia Post",
                               trackingNumber: winner.trackingNumber || "",
-                              deliveryStatus: winner.deliveryStatus || "PROCESSING",
+                              deliveryStatus: (winner.deliveryStatus || "PROCESSING") as "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED",
                               notes: winner.notes || "",
                             })
                           }
@@ -605,7 +607,7 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
           </h2>
 
           <div className="divide-y divide-border">
-            {raffle.tickets.slice(0, 100).map((ticket: any) => (
+            {raffle.tickets.slice(0, 100).map((ticket) => (
               <div
                 key={ticket.id}
                 className="py-2.5 flex items-center justify-between text-xs"
@@ -641,7 +643,7 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
           </h2>
 
           <div className="space-y-3">
-            {raffle.auditLogs.map((log: any) => (
+            {raffle.auditLogs.map((log) => (
               <div
                 key={log.id}
                 className="p-3.5 rounded-xl bg-secondary/40 border border-border flex items-start justify-between gap-3 text-xs"
@@ -739,7 +741,7 @@ export function RaffleDrawConsole({ raffle }: ConsoleProps) {
                   onChange={(e) =>
                     setEditingFulfilment({
                       ...editingFulfilment,
-                      deliveryStatus: e.target.value as any,
+                      deliveryStatus: e.target.value as "PROCESSING" | "SHIPPED" | "DELIVERED",
                     })
                   }
                   className="w-full text-xs px-3 py-2 rounded-xl border border-border bg-slate-50 font-bold focus:outline-hidden"

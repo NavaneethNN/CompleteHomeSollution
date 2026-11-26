@@ -125,10 +125,24 @@ const PLACEHOLDER_RATE_CODES = new Set([
   "MEMBER_FIXED_DELIVERY",
 ]);
 
-function extractCouriersPleaseError(result: any, fallback: string): string {
-  if (result?.data?.errors && Array.isArray(result.data.errors) && result.data.errors.length > 0) {
+interface CouriersPleaseApiErrorItem {
+  description?: string;
+  field?: string;
+}
+
+interface CouriersPleaseApiResponse<T = Record<string, unknown>> {
+  responseCode?: string;
+  msg?: string;
+  data?: T;
+}
+
+function extractCouriersPleaseError(
+  result: CouriersPleaseApiResponse<{ errors?: CouriersPleaseApiErrorItem[] } | unknown[]> | null,
+  fallback: string
+): string {
+  if (result?.data && !Array.isArray(result.data) && Array.isArray(result.data.errors) && result.data.errors.length > 0) {
     const joined = result.data.errors
-      .map((e: any) => e.description || e.field || JSON.stringify(e))
+      .map((e: CouriersPleaseApiErrorItem) => e.description || e.field || JSON.stringify(e))
       .filter(Boolean)
       .join(". ");
     if (joined) return joined;
@@ -194,53 +208,6 @@ export function getCouriersPleaseEnv(key: string, aliases: string[] = []): strin
 export function isCouriersPleaseTestMode(): boolean {
   const flag = getCouriersPleaseEnv("COURIER_PLEASE_TEST_MODE", ["COURIERS_PLEASE_TEST_MODE"]);
   return flag === "true" || flag === "1";
-}
-
-function createSampleLabelPdf(consignment: string): string {
-  const content = `BT
-/F1 22 Tf
-50 720 Td
-(COURIERS PLEASE SHIPPING LABEL [TEST MODE]) Tj
-0 -35 Td
-/F1 13 Tf
-(Consignment Number: ${consignment}) Tj
-0 -25 Td
-(Carrier: Couriers Please - Road Express) Tj
-0 -25 Td
-(Sender: Complete Home Solution, Golden Grove SA 5125) Tj
-0 -25 Td
-(Recipient: Test Customer Delivery Address) Tj
-0 -40 Td
-/F1 10 Tf
-(This label was generated in Couriers Please TEST MODE for booking verification.) Tj
-0 -15 Td
-(No physical courier collection has been dispatched.) Tj
-ET`;
-
-  const pdf = `%PDF-1.4
-1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
-2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
-3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj
-4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj
-5 0 obj << /Length ${content.length} >>
-stream
-${content}
-endstream
-endobj
-xref
-0 6
-0000000000 65535 f 
-0000000010 00000 n 
-0000000060 00000 n 
-0000000117 00000 n 
-0000000244 00000 n 
-0000000315 00000 n 
-trailer << /Root 1 0 R /Size 6 >>
-startxref
-${400 + content.length}
-%%EOF`;
-
-  return Buffer.from(pdf).toString("base64");
 }
 
 export function couriersPleaseSenderFromEnv(): CouriersPleaseAddress {
@@ -520,7 +487,24 @@ async function fetchCouriersPleaseQuoteRaw(
     return [];
   }
 
-  const result: any = await response.json().catch(() => null);
+  const result: CouriersPleaseApiResponse<
+    Array<{
+      RateCardCode?: string;
+      RateCardDescription?: string;
+      CalculatedFreightCharge?: number | string;
+      CalculatedFuelCharge?: number | string;
+      TotalCharge?: number | string;
+      InsuranceAmt?: number | string;
+      CalculatedGST?: number | string;
+      GST?: number | string;
+      CalculatedSurcharge?: number | string;
+      SurchargeAmt?: number | string;
+      SecuritySurcharge?: number | string;
+      EstimatedDeliveryDays?: number;
+      ETA?: string;
+      PickupCutOffTime?: string | null;
+    }> | { errors?: CouriersPleaseApiErrorItem[] }
+  > | null = await response.json().catch(() => null);
   if (!response.ok || !result || result.responseCode !== "SUCCESS" || !Array.isArray(result.data)) {
     if (result?.responseCode === "404" || result?.msg?.toLowerCase().includes("not found")) {
       return [];
@@ -533,7 +517,7 @@ async function fetchCouriersPleaseQuoteRaw(
       responseCode: result?.responseCode,
       msg: result?.msg,
       errorDetail,
-      errors: result?.data?.errors,
+      errors: result?.data && !Array.isArray(result.data) ? result.data.errors : undefined,
     });
     throw new CouriersPleaseError(errorDetail, result?.responseCode, result?.data, response.status);
   }
@@ -909,7 +893,9 @@ export async function createCouriersPleaseShipment(input: {
       );
     }
 
-    const validateData: any = await validateRes.json().catch(() => null);
+    const validateData: CouriersPleaseApiResponse<{ errors?: CouriersPleaseApiErrorItem[] }> | null = await validateRes
+      .json()
+      .catch(() => null);
     if (!validateRes.ok || validateData?.responseCode !== "SUCCESS") {
       const errorDetail = extractCouriersPleaseError(validateData, "Shipment validation failed");
       throw new CouriersPleaseError(
@@ -942,15 +928,14 @@ export async function createCouriersPleaseShipment(input: {
     });
   } catch (error) {
     console.error("[CouriersPlease] Create shipment network error:", error);
-    throw new CouriersPleaseError(
-      "Couriers Please service is unreachable while creating shipment",
-      "NETWORK_ERROR",
-      undefined,
-      503
-    );
+    throw new CouriersPleaseError("Couriers Please service is unreachable while creating shipment", "NETWORK_ERROR", undefined, 503);
   }
 
-  const result: any = await response.json().catch(() => null);
+  const result: CouriersPleaseApiResponse<{
+    consignmentCode?: string;
+    jobNumber?: string;
+    errors?: CouriersPleaseApiErrorItem[];
+  }> | null = await response.json().catch(() => null);
   if (!response.ok || !result || result.responseCode !== "SUCCESS" || !result.data?.consignmentCode) {
     const errorDetail = extractCouriersPleaseError(result, "Failed to create consignment with Couriers Please");
     console.error("[CouriersPlease] Create shipment failed:", {
@@ -1366,15 +1351,13 @@ export async function bookCouriersPleasePickup(input: {
     });
   } catch (error) {
     console.error("[CouriersPlease] Book pickup network error:", error);
-    throw new CouriersPleaseError(
-      "Couriers Please service is unreachable while booking pickup",
-      "NETWORK_ERROR",
-      undefined,
-      503
-    );
+    throw new CouriersPleaseError("Couriers Please service is unreachable while booking pickup", "NETWORK_ERROR", undefined, 503);
   }
 
-  const result: any = await response.json().catch(() => null);
+  const result: CouriersPleaseApiResponse<{
+    jobNumber?: string;
+    errors?: CouriersPleaseApiErrorItem[];
+  }> | null = await response.json().catch(() => null);
   if (!response.ok || !result || result.responseCode !== "SUCCESS" || !result.data?.jobNumber) {
     const errorDetail = extractCouriersPleaseError(result, "Failed to book courier pickup with Couriers Please");
     console.error("[CouriersPlease] Book pickup failed:", {
@@ -1421,7 +1404,7 @@ export async function getCouriersPleaseLabel(consignmentNumber: string): Promise
     return null;
   }
 
-  const result: any = await response.json().catch(() => null);
+  const result: CouriersPleaseApiResponse<{ label?: string }> | null = await response.json().catch(() => null);
   if (response.ok && result?.responseCode === "SUCCESS" && typeof result.data?.label === "string" && result.data.label.trim()) {
     return result.data.label.replace(/\s+/g, "");
   }
@@ -1524,7 +1507,32 @@ async function fetchSingleConsignmentTracking(
     );
 
     if (!response.ok) return null;
-    const result: any = await response.json().catch(() => null);
+    type TrackingItem = {
+      action?: string;
+      description?: string;
+      date?: string;
+      time?: string;
+      dateTime?: string;
+      location?: string;
+      depot?: string;
+      status?: string;
+      timestamp?: string;
+    };
+    const result: CouriersPleaseApiResponse<{
+      status?: string;
+      events?: TrackingItem[];
+      trackingEvents?: TrackingItem[];
+      consignmentInfo?: Array<{
+        consignmentCode?: string;
+        status?: string;
+        deliveredAt?: string | null;
+        deliveryETA?: string | null;
+        pod?: string | null;
+        itemsCoupons?: Array<{
+          trackingInfo?: TrackingItem[];
+        }>;
+      }>;
+    }> | null = await response.json().catch(() => null);
     if (result?.responseCode !== "SUCCESS" || !result?.data) return null;
 
     // Parse live Couriers Please locateParcel structure: data.consignmentInfo[0].itemsCoupons[].trackingInfo[]
@@ -1553,7 +1561,7 @@ async function fetchSingleConsignmentTracking(
         }
       }
     } else if (Array.isArray(result.data.events || result.data.trackingEvents)) {
-      for (const ev of result.data.events || result.data.trackingEvents) {
+      for (const ev of result.data.events || result.data.trackingEvents || []) {
         const desc = String(ev?.description || ev?.action || ev?.status || "").trim();
         if (!desc) continue;
         rawEvents.push({

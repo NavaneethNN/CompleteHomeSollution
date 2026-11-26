@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     const uniqueSortedIds = [...new Set(ids)].sort();
     const cacheKey = `cart:catalog:v2:${uniqueSortedIds.join(",")}`;
 
-    const cached = await cacheGet<{ prices: any; catalog: any }>(cacheKey);
+    const cached = await cacheGet<{ prices: Record<string, unknown>; catalog: Record<string, unknown> }>(cacheKey);
     if (cached) {
       return NextResponse.json(cached);
     }

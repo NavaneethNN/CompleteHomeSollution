@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,7 +15,6 @@ import {
   Lock,
   User,
   ArrowRight,
-  CheckCircle2,
   Truck,
   Award,
   ShieldCheck,
@@ -145,7 +144,6 @@ function FieldError({ message }: { message?: string }) {
 /* ─── Main component ─────────────────────────────────────────────────── */
 
 export default function RegisterForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = getSafeCallbackUrl(searchParams.get("callbackUrl"));
   const emailParam = searchParams.get("email") || "";

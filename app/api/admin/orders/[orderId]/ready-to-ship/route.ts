@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -136,7 +137,7 @@ export async function GET(_req: NextRequest, { params }: Context) {
             packedWidth: resolvedBoxes.packedWidth,
             packedHeight: resolvedBoxes.packedHeight,
             packedWeight: resolvedBoxes.packedWeight,
-            packedBoxes: resolvedBoxes.boxes as any,
+            packedBoxes: resolvedBoxes.boxes as unknown as Prisma.InputJsonValue,
             packageOverride: order.packageOverride ?? false,
           },
         })
@@ -522,7 +523,7 @@ export async function POST(req: NextRequest, { params }: Context) {
           packedWidth: resolvedShipment.packedWidth,
           packedHeight: resolvedShipment.packedHeight,
           packedWeight: resolvedShipment.packedWeight,
-          packedBoxes: activeBoxes as any,
+          packedBoxes: activeBoxes as unknown as Prisma.InputJsonValue,
           packageOverride: true,
         },
       });
@@ -531,7 +532,7 @@ export async function POST(req: NextRequest, { params }: Context) {
       order.packedWidth = resolvedShipment.packedWidth;
       order.packedHeight = resolvedShipment.packedHeight;
       order.packedWeight = resolvedShipment.packedWeight;
-      (order as any).packedBoxes = activeBoxes;
+      (order as { packedBoxes?: unknown }).packedBoxes = activeBoxes;
       order.packageOverride = true;
     }
 

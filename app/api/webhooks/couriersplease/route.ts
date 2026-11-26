@@ -41,10 +41,15 @@ function firstNonEmptyString(...candidates: Array<unknown>): string | undefined 
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Optional Secret Verification
+    // 1. Secret Verification (required in production; optional only in local dev/test when unset)
     const configuredSecret = getCouriersPleaseEnv("COURIERS_PLEASE_WEBHOOK_SECRET", [
       "COURIER_PLEASE_WEBHOOK_SECRET",
     ]);
+
+    if (!configuredSecret && process.env.NODE_ENV === "production") {
+      console.error("[CouriersPlease Webhook] COURIERS_PLEASE_WEBHOOK_SECRET is not configured");
+      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+    }
 
     if (configuredSecret) {
       const headerSecret =
@@ -62,7 +67,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Parse Payload
-    let body: any;
+    type WebhookBody = Record<string, unknown> & {
+      data?: Record<string, unknown> & {
+        consignmentInfo?: Array<Record<string, unknown>>;
+      };
+    };
+    let body: WebhookBody;
     try {
       body = await req.json();
     } catch {

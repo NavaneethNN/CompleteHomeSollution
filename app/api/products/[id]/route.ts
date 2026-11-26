@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { updateProductSchema } from "@/lib/validations/product";
+import { z } from "zod";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
-    const product = await db.product.findUnique({
-      where: { id },
+    const isAdmin = await hasFreshAdminSession();
+
+    const product = await db.product.findFirst({
+      where: isAdmin ? { id } : { id, isActive: true },
       include: {
-        category: true,
-        reviews: { include: { user: { select: { name: true, image: true } } } },
+        category: { select: { id: true, name: true, slug: true } },
+        reviews: {
+          include: { user: { select: { name: true, image: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 20,
+        },
         _count: { select: { reviews: true } },
       },
     });
@@ -27,8 +34,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
-    const session = await auth();
-    if (!session || session.user.role !== "ADMIN") {
+    if (!(await hasFreshAdminSession())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -40,14 +46,16 @@ export async function PUT(req: NextRequest, { params }: Params) {
     return NextResponse.json({ data: product });
   } catch (error) {
     console.error("[PUT /api/products/[id]]", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0].message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
   try {
-    const session = await auth();
-    if (!session || session.user.role !== "ADMIN") {
+    if (!(await hasFreshAdminSession())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

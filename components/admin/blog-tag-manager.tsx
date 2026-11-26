@@ -15,7 +15,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "@/components/ui/dialog";
-import { Plus, Tag, Hash, Loader2 } from "lucide-react";
+import { Plus, Tag, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface BlogTag {

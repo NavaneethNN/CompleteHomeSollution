@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { sendNewBlogPostNotifications } from "@/lib/blog-notifications";
 
@@ -8,7 +9,7 @@ function isValidUrl(string: string): boolean {
   try {
     const url = new URL(string);
     return url.protocol === "http:" || url.protocol === "https:";
-  } catch (_) {
+  } catch {
     return false;
   }
 }
@@ -16,8 +17,7 @@ function isValidUrl(string: string): boolean {
 // GET /api/admin/blog - Get all blog posts
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    if (!(await hasFreshAdminSession())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -48,8 +48,11 @@ export async function GET() {
 // POST /api/admin/blog - Create new blog post
 export async function POST(request: NextRequest) {
   try {
+    if (!(await hasFreshAdminSession())) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const session = await auth();
-    if (!session?.user || session.user.role !== "ADMIN") {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -157,7 +160,6 @@ export async function POST(request: NextRequest) {
           author: post.author,
           publishedAt: post.publishedAt,
         });
-        console.log("Blog post notifications sent successfully");
       } catch (error) {
         console.error("Failed to send blog post notifications:", error);
         // Don't fail the request if notifications fail

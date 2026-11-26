@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hasValidCronSecret } from "@/lib/cron-auth";
 import { db } from "@/lib/db";
-import { processFailedRenewal, activateMembership } from "@/lib/membership";
+import { processFailedRenewal } from "@/lib/membership";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;

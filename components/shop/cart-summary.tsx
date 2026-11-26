@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Crown, Sparkles } from "lucide-react";
+import { ArrowRight, Crown } from "lucide-react";
 import { MembershipUpsellBanner } from "./membership-upsell-banner";
 
 interface CartSummaryProps {

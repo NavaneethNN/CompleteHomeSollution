@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import {
@@ -17,7 +18,6 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
-  ShoppingBag,
 } from "lucide-react";
 import { getGuestOrdersFromSession, saveGuestOrderToSession, type SessionGuestOrder } from "@/lib/guest-session";
 import { getGuestSessionOrders, lookupGuestOrder } from "@/lib/guest-orders";
@@ -278,7 +278,7 @@ export function GuestOrdersView() {
                         <div key={item.id} className="flex items-center gap-4">
                           <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
                             {displayImage ? (
-                              <img src={displayImage} alt={item.product.name} className="w-full h-full object-cover" />
+                              <Image src={displayImage} alt={item.product.name} width={64} height={64} className="w-full h-full object-cover" />
                             ) : (
                               <Box className="h-6 w-6 text-muted-foreground" />
                             )}

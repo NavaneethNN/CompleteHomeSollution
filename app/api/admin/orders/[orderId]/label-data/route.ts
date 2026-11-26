@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { couriersPleaseSenderFromEnv } from "@/lib/couriersplease";
 import { resolveOrderShipmentBoxes } from "@/lib/shipping-packages";
@@ -12,8 +12,7 @@ interface Context {
 
 export async function GET(_req: NextRequest, { params }: Context) {
   try {
-    const session = await auth();
-    if (!session || session.user.role !== "ADMIN") {
+    if (!(await hasFreshAdminSession())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

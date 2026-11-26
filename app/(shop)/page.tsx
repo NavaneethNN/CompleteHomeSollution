@@ -23,7 +23,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-export const metadata: Metadata = { title: "Home — Complete Home Sollution" };
+export const metadata: Metadata = { title: "Home" };
 export const dynamic = "force-dynamic";
 
 const FEATURES = [

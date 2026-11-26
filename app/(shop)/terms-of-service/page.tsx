@@ -80,7 +80,7 @@ export default function TermsOfServicePage() {
 
           <h3 className="text-lg font-medium mb-2">5.2 Payment</h3>
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
-            <li>We accept payments via Stripe (credit/debit cards)</li>
+            <li>We accept payments via Westpac OnlinePay (credit/debit cards)</li>
             <li>Payment is processed at the time of order placement</li>
             <li>You represent that you have the legal right to use the payment method</li>
             <li>All payment information is encrypted and secure</li>

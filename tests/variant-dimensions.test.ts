@@ -78,6 +78,9 @@ const dbMock = {
   packagingPreset: {
     findMany: async () => [],
   },
+  user: {
+    findUnique: async () => ({ role: "ADMIN" }),
+  },
   $transaction: async (fn: (tx: any) => Promise<any>) => fn(dbMock),
 };
 

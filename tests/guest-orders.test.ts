@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 
 process.env.AUTH_SECRET = process.env.AUTH_SECRET || "test-secret-for-order-access";
 
-import { claimGuestOrdersForUser, getGuestSessionOrders, lookupGuestOrder } from "../lib/guest-orders";
+import { getGuestSessionOrders, lookupGuestOrder } from "../lib/guest-orders";
+import { claimGuestOrdersForUser } from "../lib/order-claim";
 import { createGuestOrderToken } from "../lib/order-access";
 import { db } from "../lib/db";
 

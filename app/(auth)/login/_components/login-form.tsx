@@ -186,8 +186,6 @@ function LoginFormInner() {
         redirect: false,
       });
 
-      console.log("[Login] signIn result:", result);
-
       // Extract error code if present
       let code = result?.code;
       if (!code && result?.url) {
@@ -212,7 +210,6 @@ function LoginFormInner() {
       if (result?.error || code) {
         const errorKey = code && AUTH_ERRORS[code] ? code : (result?.error ?? "Default");
         const errorMessage = AUTH_ERRORS[errorKey] ?? AUTH_ERRORS.Default;
-        console.log("[Login] Setting error:", errorMessage, "code:", errorKey);
         setServerError(errorMessage);
         setErrorCode(errorKey);
         return;
@@ -220,7 +217,6 @@ function LoginFormInner() {
 
       // Handle NextAuth v5 bug where redirect: false still follows redirects and returns ok: true
       if (result?.url && result.url.includes("error=")) {
-        console.log("[Login] Caught redirected error in URL:", result.url);
         if (result.url.includes("code=UserNotFound")) {
           const signupUrl = `/register?email=${encodeURIComponent(data.email)}&message=no_account${
             callbackUrl && callbackUrl !== "/" ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""
@@ -237,10 +233,11 @@ function LoginFormInner() {
         router.push(callbackUrl);
         router.refresh();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[Login] Unexpected error:", err);
-      const errCode = err?.code || (err?.type?.includes("UserNotFound") ? "UserNotFound" : null);
-      if (errCode === "UserNotFound" || err?.message?.includes("UserNotFound")) {
+      const errObj = err as { code?: string; type?: string; message?: string } | null;
+      const errCode = errObj?.code || (errObj?.type?.includes("UserNotFound") ? "UserNotFound" : null);
+      if (errCode === "UserNotFound" || errObj?.message?.includes("UserNotFound")) {
         const signupUrl = `/register?email=${encodeURIComponent(data.email)}&message=no_account${
           callbackUrl && callbackUrl !== "/" ? `&callbackUrl=${encodeURIComponent(callbackUrl)}` : ""
         }`;

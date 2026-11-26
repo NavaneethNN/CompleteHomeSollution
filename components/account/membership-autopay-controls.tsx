@@ -18,14 +18,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  RefreshCw,
   AlertTriangle,
   XCircle,
   CreditCard,
   Loader2,
   Calendar,
   Sparkles,
-  Info,
 } from "lucide-react";
 
 type Props = {
@@ -44,7 +42,6 @@ export function MembershipAutopayControls({
   initialAutoRenew,
   membershipExpiry,
   membershipStatus,
-  membershipCancelReason,
   retryCount,
   nextRetryAt,
   isAdmin = false,

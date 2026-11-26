@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
+import type { Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -150,7 +152,7 @@ async function getBlogPost(slug: string, userId?: string) {
 }
 
 async function getRelatedPosts(postId: string, categoryId?: string, limit = 3) {
-  const where: any = {
+  const where: Prisma.BlogPostWhereInput = {
     id: { not: postId },
     ...publishedBlogWhere(),
   };
@@ -387,9 +389,11 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
           {/* Cover Image */}
           {post.coverImage && (
             <div className="mb-8">
-              <img
+              <Image
                 src={post.coverImage}
                 alt={post.title}
+                width={1200}
+                height={675}
                 className="w-full h-auto rounded-xl border border-slate-200"
               />
             </div>

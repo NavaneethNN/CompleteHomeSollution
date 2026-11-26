@@ -100,9 +100,9 @@ export const redis = new Proxy({} as Redis, {
     if (!client) {
       return async () => null;
     }
-    const val = (client as any)[prop];
+    const val = Reflect.get(client, prop);
     if (typeof val === "function") {
-      return val.bind(client);
+      return (val as (...args: unknown[]) => unknown).bind(client);
     }
     return val;
   },
@@ -180,7 +180,7 @@ interface MemoryCacheEntry<T> {
 }
 
 // Bounded in-memory L1 cache to avoid round-trips for high-frequency queries
-const l1Cache = new Map<string, MemoryCacheEntry<any>>();
+const l1Cache = new Map<string, MemoryCacheEntry<unknown>>();
 const MAX_L1_ENTRIES = 500;
 
 function cleanL1Cache() {
@@ -228,7 +228,7 @@ export async function cacheGet<T>(key: string): Promise<T | null> {
       return raw;
     }
   } catch (err) {
-    console.warn(`[Redis] cacheGet error for key "${qualifiedKey}":`, (err as any)?.message || err);
+    console.warn(`[Redis] cacheGet error for key "${qualifiedKey}":`, err instanceof Error ? err.message : err);
   }
 
   return null;
@@ -259,7 +259,7 @@ export async function cacheSet<T>(key: string, data: T, ttlSeconds: number): Pro
       ),
     ]);
   } catch (err) {
-    console.warn(`[Redis] cacheSet error for key "${qualifiedKey}":`, (err as any)?.message || err);
+    console.warn(`[Redis] cacheSet error for key "${qualifiedKey}":`, err instanceof Error ? err.message : err);
   }
 }
 
@@ -285,7 +285,7 @@ export async function cacheDel(keys: string | string[]): Promise<void> {
       ),
     ]);
   } catch (err) {
-    console.warn("[Redis] cacheDel error:", (err as any)?.message || err);
+    console.warn("[Redis] cacheDel error:", err instanceof Error ? err.message : err);
   }
 }
 

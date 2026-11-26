@@ -32,7 +32,6 @@ export async function sendNewBlogPostNotifications(post: BlogPost) {
     });
 
     if (members.length === 0) {
-      console.log("No members to notify");
       return;
     }
 
@@ -123,8 +122,6 @@ export async function sendNewBlogPostNotifications(post: BlogPost) {
       }
     }
 
-    console.log(`Blog post notifications sent: ${successCount} successful, ${failureCount} failed`);
-    
     return {
       totalMembers: members.length,
       successCount,

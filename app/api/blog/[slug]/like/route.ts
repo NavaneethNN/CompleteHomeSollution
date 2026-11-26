@@ -1,31 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { headers } from "next/headers";
-
-// Simple in-memory rate limiting (in production, use Redis)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-function getRateLimitKey(userId: string, postId: string): string {
-  return `like:${userId}:${postId}`;
-}
-
-function checkRateLimit(key: string, limit: number = 10, windowMs: number = 60000): boolean {
-  const now = Date.now();
-  const record = rateLimitMap.get(key);
-
-  if (!record || now > record.resetTime) {
-    rateLimitMap.set(key, { count: 1, resetTime: now + windowMs });
-    return true;
-  }
-
-  if (record.count >= limit) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-}
+import { hasActiveMembership } from "@/lib/membership";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 // POST /api/blog/[slug]/like - Like or unlike a blog post
 export async function POST(
@@ -34,59 +11,70 @@ export async function POST(
 ) {
   try {
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
-    // Check if user is a member
-    if (!session.user.isMember) {
+    const dbUser = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { isMember: true, membershipExpiry: true },
+    });
+    if (!hasActiveMembership(dbUser)) {
       return NextResponse.json({ error: "Membership required to like posts" }, { status: 403 });
     }
 
     const { slug } = await params;
 
-    // Find the blog post
+    // Find the published blog post
     const post = await db.blogPost.findUnique({
       where: { slug },
+      select: { id: true, isPublished: true },
     });
 
-    if (!post) {
+    if (!post || !post.isPublished) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // Check rate limiting
-    const rateLimitKey = getRateLimitKey(session.user.id, post.id);
-    if (!checkRateLimit(rateLimitKey)) {
-      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    const limit = await consumeRateLimit(
+      "blog-like",
+      `${getClientIp(request.headers)}:${session.user.id}:${post.id}`,
+      10,
+      60
+    );
+    if (!limit.allowed) {
+      return rateLimitResponse(limit);
     }
 
-    // Check if user already liked this post
-    const existingLike = await db.blogLike.findUnique({
-      where: {
-        postId_userId: {
-          postId: post.id,
-          userId: session.user.id,
+    const result = await db.$transaction(async (tx) => {
+      const existingLike = await tx.blogLike.findUnique({
+        where: {
+          postId_userId: {
+            postId: post.id,
+            userId: session.user.id,
+          },
         },
-      },
-    });
-
-    if (existingLike) {
-      await db.blogLike.delete({ where: { id: existingLike.id } });
-      const updated = await db.blogPost.update({
-        where: { id: post.id },
-        data: { likeCount: { decrement: 1 } },
-        select: { likeCount: true },
       });
-      return NextResponse.json({ liked: false, likeCount: Math.max(0, updated.likeCount) });
-    } else {
-      await db.blogLike.create({ data: { postId: post.id, userId: session.user.id } });
-      const updated = await db.blogPost.update({
+
+      if (existingLike) {
+        await tx.blogLike.delete({ where: { id: existingLike.id } });
+        const updated = await tx.blogPost.update({
+          where: { id: post.id },
+          data: { likeCount: { decrement: 1 } },
+          select: { likeCount: true },
+        });
+        return { liked: false, likeCount: Math.max(0, updated.likeCount) };
+      }
+
+      await tx.blogLike.create({ data: { postId: post.id, userId: session.user.id } });
+      const updated = await tx.blogPost.update({
         where: { id: post.id },
         data: { likeCount: { increment: 1 } },
         select: { likeCount: true },
       });
-      return NextResponse.json({ liked: true, likeCount: updated.likeCount });
-    }
+      return { liked: true, likeCount: updated.likeCount };
+    });
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error("Blog like error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -102,16 +90,17 @@ export async function GET(
     const session = await auth();
     const { slug } = await params;
 
-    // Find the blog post
+    // Find the published blog post
     const post = await db.blogPost.findUnique({
       where: { slug },
       select: {
         id: true,
+        isPublished: true,
         likeCount: true,
       },
     });
 
-    if (!post) {
+    if (!post || !post.isPublished) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 

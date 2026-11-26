@@ -150,8 +150,8 @@ export default async function OrderConfirmationPage({
         if (typeof releaseCouponReservationInTransaction === "function") {
           await releaseCouponReservationInTransaction(tx, orderId);
         }
-        if ((tx as any).raffleWinner) {
-          await (tx as any).raffleWinner.updateMany({
+        if (tx.raffleWinner) {
+          await tx.raffleWinner.updateMany({
             where: { orderId },
             data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
           });
@@ -289,10 +289,8 @@ export default async function OrderConfirmationPage({
             <h3 className="text-sm font-semibold text-foreground mb-3">Items Ordered</h3>
             <div className="divide-y divide-border">
               {order.items.map((item) => {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const variantLabel = (item as any).productVariant?.values
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  ?.map((v: any) => v.variantValue.value)
+                const variantLabel = item.productVariant?.values
+                  ?.map((v) => v.variantValue.value)
                   .join(" / ");
                 return (
                   <div key={item.id} className="flex justify-between py-2.5 text-sm">

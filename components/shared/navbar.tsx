@@ -10,7 +10,7 @@ import {
   Search, ShoppingBag, Heart, User, ChevronDown, ChevronRight,
   Menu, X, Armchair, BedDouble, UtensilsCrossed, Monitor, Flower2,
   LayoutDashboard, Package, Crown, UserCircle, MapPin,
-  LogOut, LogIn, UserPlus, ShieldCheck, LayoutGrid, Loader2, Ticket, Sparkles,
+  LogOut, LogIn, UserPlus, ShieldCheck, LayoutGrid, Loader2, Ticket,
 } from "lucide-react";
 
 /* ─── Types ──────────────────────────────────────────────────────── */

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEditor, EditorContent } from "@tiptap/react";
+import NextImage from "next/image";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -442,7 +443,7 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
                     </div>
                   )}
                   {imageUrl && (
-                    <img src={imageUrl} alt="preview" className="w-full h-32 object-cover rounded-lg border border-slate-200" />
+                    <NextImage src={imageUrl} alt="preview" width={400} height={128} unoptimized className="w-full h-32 object-cover rounded-lg border border-slate-200" />
                   )}
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-1">Alt text</label>
@@ -483,9 +484,12 @@ export default function BlogRichEditor({ value, onChange, onImageUpload }: BlogR
                   </div>
                   {youtubeUrl && getYoutubeId(youtubeUrl) && (
                     <div className="relative rounded-xl overflow-hidden border border-slate-200">
-                      <img
+                      <NextImage
                         src={`https://img.youtube.com/vi/${getYoutubeId(youtubeUrl)}/hqdefault.jpg`}
                         alt="YouTube preview"
+                        width={480}
+                        height={270}
+                        unoptimized
                         className="w-full aspect-video object-cover"
                       />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30">

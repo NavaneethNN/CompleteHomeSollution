@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ShoppingCart, Layers, Check, Zap, PhoneCall } from "lucide-react";
+import { ShoppingCart, Layers, Check, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveMemberPrice } from "@/lib/member-price";
 import { STORE_PHONE } from "@/lib/store-info";
@@ -46,10 +45,9 @@ interface ProductCardProps {
 }
 
 export function ProductCard(props: Readonly<ProductCardProps>) {
-  const { product, isMember = false } = props;
+  const { product } = props;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const router = useRouter();
   useEffect(() => { setMounted(true); }, []);
   // Use variant price if available, otherwise use base price
   const displayPrice = product.variant?.price ?? product.basePrice;
@@ -58,10 +56,6 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
   const displayStock = product.variant?.stock ?? product.stock;
   const displayImage = product.variant?.image ?? product.images[0] ?? "/placeholder.jpg";
   const hasDiscount = displayComparePrice && displayComparePrice > displayPrice;
-  let reviewLabel = "reviews";
-  if (product.reviewCount === 1) {
-    reviewLabel = "review";
-  }
 
   let discountPercent = 0;
   if (hasDiscount) {
@@ -71,17 +65,11 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
   const isInCartRaw = useCartStore((state) => state.isInCart(product.id, cartVariantId));
   const isInCart = mounted && isInCartRaw;
   const addItem = useCartStore((state) => state.addItem);
-  let addToCartButtonClassName = "bg-primary text-white shadow-md hover:bg-primary/90";
-  let addToCartIcon: React.ReactNode = <ShoppingCart className="h-4 w-4" />;
   let addToCartLabel = "Add to Cart";
 
   if (displayStock === 0) {
-    addToCartButtonClassName = "cursor-not-allowed bg-muted text-muted-foreground";
-    addToCartIcon = null;
     addToCartLabel = "Out of Stock";
   } else if (isInCart) {
-    addToCartButtonClassName = "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100";
-    addToCartIcon = <Check className="h-4 w-4" />;
     addToCartLabel = "Added";
   }
 
@@ -127,26 +115,6 @@ export function ProductCard(props: Readonly<ProductCardProps>) {
       },
       quantity
     );
-  };
-
-  const handleBuyNow = () => {
-    if (displayStock === 0) {
-      return;
-    }
-
-    let variantLabel: string | undefined;
-    if (product.variant) {
-      variantLabel = "Selected option";
-    }
-
-    addItem(
-      {
-        ...popupProduct,
-        variantLabel,
-      },
-      1
-    );
-    router.push("/checkout");
   };
 
   return (

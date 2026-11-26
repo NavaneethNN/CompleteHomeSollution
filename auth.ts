@@ -6,7 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { hashPassword, passwordNeedsRehash, verifyPassword } from "@/lib/password";
 import { consumeRateLimit, getClientIp } from "@/lib/rate-limit";
-import { claimGuestOrdersForUser } from "@/lib/guest-orders";
+import { claimGuestOrdersForUser } from "@/lib/order-claim";
 
 export class EmailNotVerifiedError extends CredentialsSignin {
   code = "EmailNotVerified";
@@ -137,17 +137,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account, profile }) {
-      // For OAuth providers: ensure emailVerified is set (Google always provides verified emails)
+      // For OAuth providers: ensure emailVerified is set (Google always provides verified emails).
+      // If an unverified credentials account existed for this email, clear its passwordHash so
+      // a pre-registered unverified password cannot be used to take over the Google-linked account.
       if (account?.provider === "google" && user.id) {
         try {
           const dbUser = await db.user.findUnique({
             where: { id: user.id },
-            select: { emailVerified: true },
+            select: { emailVerified: true, passwordHash: true },
           });
-          if (!dbUser?.emailVerified) {
+          if (dbUser && !dbUser.emailVerified) {
             await db.user.update({
               where: { id: user.id },
-              data: { emailVerified: new Date() },
+              data: {
+                emailVerified: new Date(),
+                ...(dbUser.passwordHash ? { passwordHash: null } : {}),
+              },
             });
           }
         } catch {
@@ -177,10 +182,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return true;
     },
     async jwt({ token, user, account, trigger }) {
+      const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
+      const now = Date.now();
+      let didRefreshFromDb = false;
+
       if (user) {
         token["id"] = user.id;
         token["role"] = user.role ?? "CUSTOMER";
         token["isMember"] = user.isMember ?? false;
+        token["refreshedAt"] = now;
+        didRefreshFromDb = true;
       }
       // Only fetch Google user data if we have a valid email
       if (account?.provider === "google" && token.email) {
@@ -194,6 +205,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token["role"] = (dbUser.role as UserRole) ?? "CUSTOMER";
             token["isMember"] = !!dbUser.isMember &&
               (!dbUser.membershipExpiry || dbUser.membershipExpiry > new Date());
+            token["refreshedAt"] = now;
+            didRefreshFromDb = true;
             claimGuestOrdersForUser(dbUser.id, token.email as string).catch(() => null);
           }
         } catch (err) {
@@ -201,8 +214,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
       
-      // Always fetch fresh user data to reflect profile updates
-      if (token["id"]) {
+      // Refresh user data periodically (every 5 minutes) or on explicit session update
+      const lastRefreshed = typeof token["refreshedAt"] === "number" ? token["refreshedAt"] : 0;
+      const shouldRefresh = !didRefreshFromDb && (trigger === "update" || now - lastRefreshed > REFRESH_INTERVAL_MS);
+      if (token["id"] && shouldRefresh) {
         try {
           const dbUser = await db.user.findUnique({
             where: { id: token["id"] as string },
@@ -214,12 +229,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token["role"] = (dbUser.role as UserRole) ?? "CUSTOMER";
             token["isMember"] = !!dbUser.isMember &&
               (!dbUser.membershipExpiry || dbUser.membershipExpiry > new Date());
-            // Backfill emailVerified for existing OAuth users that have NULL
+            token["refreshedAt"] = now;
+            // Backfill emailVerified for existing OAuth users that have NULL (and clear any unverified passwordHash)
             const isOAuthUser = dbUser.accounts.some((a) => a.provider !== "credentials");
             if (!dbUser.emailVerified && isOAuthUser) {
               await db.user.update({
                 where: { id: dbUser.id },
-                data: { emailVerified: new Date() },
+                data: { emailVerified: new Date(), passwordHash: null },
               });
             }
           } else {
@@ -227,6 +243,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token["id"] = undefined;
             token["role"] = undefined;
             token["isMember"] = undefined;
+            token["refreshedAt"] = undefined;
           }
         } catch {
           // Silently ignore user lookup failures

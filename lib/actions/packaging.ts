@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { hasFreshAdminSession } from "@/lib/admin-auth";
@@ -65,10 +66,19 @@ export async function updatePackagingPreset(id: string, formData: Partial<z.infe
     return { success: false, error: "Unauthorized" };
   }
 
+  if (!id || typeof id !== "string") {
+    return { success: false, error: "Invalid preset ID" };
+  }
+
+  const parsed = presetSchema.partial().safeParse(formData);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message || "Invalid input" };
+  }
+
   try {
     const updated = await db.packagingPreset.update({
       where: { id },
-      data: formData,
+      data: parsed.data,
     });
     revalidatePath("/admin/packaging");
     revalidatePath("/admin/orders");
@@ -208,7 +218,7 @@ export async function updateOrderPackaging(input: z.infer<typeof updateOrderPack
         packedWidth,
         packedHeight,
         packedWeight,
-        packedBoxes: boxesToStore as any,
+        packedBoxes: boxesToStore as unknown as Prisma.InputJsonValue,
         packageOverride: packageOverride ?? true,
       },
     });

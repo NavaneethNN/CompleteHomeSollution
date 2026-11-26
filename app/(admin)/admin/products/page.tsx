@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -408,9 +409,11 @@ export default function AdminProductsPage() {
                         <div className="flex items-center gap-3">
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-slate-100 border border-slate-200 overflow-hidden">
                             {product.images[0] ? (
-                              <img
+                              <Image
                                 src={product.images[0]}
                                 alt={product.name}
+                                width={44}
+                                height={44}
                                 className="h-11 w-11 object-cover"
                               />
                             ) : (

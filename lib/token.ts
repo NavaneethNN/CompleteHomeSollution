@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 import { hashPassword } from "@/lib/password";
-import { claimGuestOrdersForUser } from "@/lib/guest-orders";
+import { claimGuestOrdersForUser } from "@/lib/order-claim";
 
 const TOKEN_EXPIRY_HOURS = 24;
 const VERIFY_PREFIX = "verify:";

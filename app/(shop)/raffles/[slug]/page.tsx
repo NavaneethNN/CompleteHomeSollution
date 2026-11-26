@@ -263,7 +263,7 @@ export default async function RaffleDetailPage({ params }: RaffleDetailPageProps
                           </p>
                           <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2 mt-0.5">
                             <span>Winner: <strong className="text-foreground">{winner.user?.name || "Verified Customer"}</strong></span>
-                            {(winner as any).isCurrentUser && (
+                            {(winner as { isCurrentUser?: boolean }).isCurrentUser && (
                               <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
                                 <Trophy className="h-3 w-3" /> You Won!
                               </span>

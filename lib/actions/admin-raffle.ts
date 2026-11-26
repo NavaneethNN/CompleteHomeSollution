@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Prisma, type RafflePrizeType, type RaffleStatus, type RaffleWinnerStatus } from "@prisma/client";
 import { hasFreshAdminSession } from "@/lib/admin-auth";
 import {
   raffleFormSchema,
@@ -31,9 +31,9 @@ export async function getAdminRaffles(search?: string, statusFilter?: string) {
   try {
     await requireAdmin();
 
-    const where: any = {};
+    const where: Prisma.RaffleWhereInput = {};
     if (statusFilter && statusFilter !== "ALL") {
-      where.status = statusFilter;
+      where.status = statusFilter as RaffleStatus;
     }
     if (search && search.trim()) {
       where.OR = [
@@ -66,9 +66,9 @@ export async function getAdminRaffles(search?: string, statusFilter?: string) {
     });
 
     return { raffles, error: null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch admin raffles:", error);
-    return { raffles: [], error: error.message };
+    return { raffles: [], error: error instanceof Error ? error.message : "Failed to fetch admin raffles." };
   }
 }
 
@@ -132,9 +132,9 @@ export async function getAdminRaffleById(id: string) {
     }
 
     return { raffle, error: null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch admin raffle:", error);
-    return { raffle: null, error: error.message };
+    return { raffle: null, error: error instanceof Error ? error.message : "Failed to fetch admin raffle." };
   }
 }
 
@@ -200,9 +200,9 @@ export async function createRaffle(data: RaffleFormData) {
     revalidatePath("/raffles");
 
     return { success: true, raffleId: raffle.id, message: "Raffle campaign created successfully!" };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to create raffle:", error);
-    return { success: false, error: error.message || "Failed to create raffle." };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to create raffle." };
   }
 }
 
@@ -285,16 +285,16 @@ export async function updateRaffle(id: string, data: RaffleFormData) {
     revalidatePath(`/raffles/${raffleData.slug}`);
 
     return { success: true, message: "Raffle campaign updated successfully!" };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to update raffle:", error);
-    return { success: false, error: error.message || "Failed to update raffle." };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update raffle." };
   }
 }
 
 /**
  * Quick status change (Publish, Pause, Resume, Close)
  */
-export async function updateRaffleStatus(id: string, status: any) {
+export async function updateRaffleStatus(id: string, status: RaffleStatus) {
   try {
     const adminId = await requireAdmin();
 
@@ -322,9 +322,9 @@ export async function updateRaffleStatus(id: string, status: any) {
     revalidatePath("/raffles");
 
     return { success: true, message: `Raffle status updated to ${status}.` };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to update status:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update status." };
   }
 }
 
@@ -391,9 +391,9 @@ export async function conductRaffleDraw(
       ticketId: string;
       userId: string;
       rank: number;
-      prizeType: any;
+      prizeType: RafflePrizeType;
       winningPrice: number;
-      status: any;
+      status: RaffleWinnerStatus;
     }> = [];
 
     const winningTicketIds = new Set<string>();
@@ -488,9 +488,9 @@ export async function conductRaffleDraw(
       drawSeed,
       message: `Draw executed successfully! ${winnersToCreate.length} winner(s) selected for verification.`,
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to conduct draw:", error);
-    return { success: false, error: error.message || "Failed to execute draw." };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to execute draw." };
   }
 }
 
@@ -613,9 +613,9 @@ export async function approveAndAnnounceWinners(raffleId: string) {
       success: true,
       message: "Winners announced successfully! Customer claims and prize purchases are now live.",
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to approve winners:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to approve winners." };
   }
 }
 
@@ -703,9 +703,9 @@ export async function redrawSingleWinner(winnerId: string, reason: string) {
 
     revalidatePath(`/admin/raffles/${winner.raffleId}`);
     return { success: true, message: "Winner replacement selected successfully." };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to redraw winner:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to redraw winner." };
   }
 }
 
@@ -759,9 +759,9 @@ export async function updatePrizeFulfilment(input: RaffleFulfilmentInput) {
     revalidatePath("/account/raffles");
 
     return { success: true, message: "Fulfilment and tracking updated successfully!" };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to update fulfilment:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to update fulfilment." };
   }
 }
 
@@ -770,7 +770,7 @@ export async function updatePrizeFulfilment(input: RaffleFulfilmentInput) {
  */
 export async function deleteRaffle(id: string) {
   try {
-    const adminId = await requireAdmin();
+    await requireAdmin();
 
     const raffle = await db.raffle.findUnique({
       where: { id },
@@ -794,8 +794,8 @@ export async function deleteRaffle(id: string) {
     revalidatePath("/raffles");
 
     return { success: true, message: "Raffle deleted successfully." };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to delete raffle:", error);
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Failed to delete raffle." };
   }
 }

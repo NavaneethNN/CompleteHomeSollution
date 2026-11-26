@@ -2,8 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Dancing_Script } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/shared/providers";
-import { Navbar } from "@/components/shared/navbar";
-import { Footer } from "@/components/shared/footer";
 import { ShopShell } from "@/components/shared/shop-shell";
 import { indexingEnabled, siteOrigin } from "@/lib/site-indexing";
 

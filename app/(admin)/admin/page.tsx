@@ -11,7 +11,6 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  AlertCircle,
   XCircle,
   Truck,
   Store,
@@ -20,9 +19,7 @@ import {
   BarChart3,
   AlertTriangle,
   Eye,
-  ShieldCheck,
   DollarSign,
-  ArrowUpRight,
 } from "lucide-react";
 
 export const metadata: Metadata = { title: "Executive Dashboard — Admin" };

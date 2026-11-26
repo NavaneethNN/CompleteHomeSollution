@@ -7,15 +7,12 @@ import {
   Ticket,
   Plus,
   Trash2,
-  Gift,
   Trophy,
   Calendar,
   Save,
   ArrowLeft,
   Loader2,
-  Sparkles,
   Crown,
-  HelpCircle,
 } from "lucide-react";
 import { createRaffle, updateRaffle } from "@/lib/actions/admin-raffle";
 import { RaffleFormData, RafflePrizeFormData } from "@/lib/validations/raffle";
@@ -24,7 +21,15 @@ import { toast } from "sonner";
 import slugify from "slugify";
 
 interface RaffleFormProps {
-  initialData?: any;
+  initialData?: Omit<Partial<RaffleFormData>, "status" | "visibility" | "startDate" | "endDate" | "drawDate"> & {
+    id?: string;
+    status?: string;
+    visibility?: string;
+    startDate?: Date | string;
+    endDate?: Date | string;
+    drawDate?: Date | string;
+    prizes?: Array<Partial<RafflePrizeFormData>>;
+  };
   availableProducts?: Array<{
     id: string;
     name: string;
@@ -49,10 +54,10 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
     description: initialData?.description || "",
     bannerImage: initialData?.bannerImage || "",
     images: initialData?.images || [],
-    status: initialData?.status || "ACTIVE",
+    status: (initialData?.status || "ACTIVE") as RaffleFormData["status"],
     entryPrice: initialData?.entryPrice || 0,
     isPaid: initialData?.isPaid || false,
-    visibility: initialData?.visibility || "ALL",
+    visibility: (initialData?.visibility || "ALL") as RaffleFormData["visibility"],
     eligiblePlanIds: initialData?.eligiblePlanIds || [],
     maxEntriesPerUser: initialData?.maxEntriesPerUser || 1,
     minEntriesPerUser: initialData?.minEntriesPerUser || 1,
@@ -68,9 +73,9 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
     isFeatured: initialData?.isFeatured || false,
     displayOnHomepage: initialData?.displayOnHomepage ?? true,
     prizes: initialData?.prizes?.length
-      ? initialData.prizes.map((p: any) => ({
-          rank: p.rank,
-          name: p.name,
+      ? initialData.prizes.map((p) => ({
+          rank: p.rank ?? 1,
+          name: p.name ?? "",
           description: p.description || "",
           images: p.images || [],
           value: p.value || 0,
@@ -143,7 +148,11 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
     });
   };
 
-  const handlePrizeChange = (index: number, field: keyof RafflePrizeFormData, value: any) => {
+  const handlePrizeChange = <K extends keyof RafflePrizeFormData>(
+    index: number,
+    field: K,
+    value: RafflePrizeFormData[K] | string
+  ) => {
     setFormData((prev) => {
       const updated = [...prev.prizes];
       updated[index] = { ...updated[index], [field]: value };
@@ -191,7 +200,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
     };
 
     try {
-      if (isEditing) {
+      if (isEditing && initialData?.id) {
         const res = await updateRaffle(initialData.id, submissionData);
         if (res.success) {
           toast.success(res.message);
@@ -210,8 +219,8 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
           toast.error(res.error || "Failed to create raffle");
         }
       }
-    } catch (err: any) {
-      toast.error(err.message || "An unexpected error occurred");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred");
     } finally {
       setLoading(false);
     }
@@ -346,7 +355,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
             </label>
             <select
               value={formData.status}
-              onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as RaffleFormData["status"] })}
               className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden font-bold"
             >
               <option value="ACTIVE">ACTIVE (Open for entries immediately)</option>
@@ -552,7 +561,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
             </label>
             <select
               value={formData.visibility}
-              onChange={(e) => setFormData({ ...formData, visibility: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, visibility: e.target.value as RaffleFormData["visibility"] })}
               className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden font-bold"
             >
               <option value="ALL">Everyone (Open to all customers)</option>
@@ -569,7 +578,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
               min={1}
               placeholder="1"
               value={formData.maxEntriesPerUser ?? ""}
-              onChange={(e) => setFormData({ ...formData, maxEntriesPerUser: e.target.value as any })}
+              onChange={(e) => setFormData({ ...formData, maxEntriesPerUser: Number(e.target.value) || 1 })}
               className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-border bg-slate-50 focus:bg-white focus:outline-hidden font-bold"
             />
           </div>
@@ -585,7 +594,7 @@ export function RaffleFormClient({ initialData, availableProducts = [] }: Raffle
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  totalMaxEntries: e.target.value ? (e.target.value as any) : null,
+                  totalMaxEntries: e.target.value ? Number(e.target.value) : null,
                 })
               }
               placeholder="Leave blank for unlimited"

@@ -13,8 +13,6 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { imageUploadError, IMAGE_UPLOAD_LIMIT_LABEL } from "@/lib/upload-policy";
 

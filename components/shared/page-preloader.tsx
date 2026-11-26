@@ -17,7 +17,7 @@ export function PagePreloader() {
   // Initialize prevPathRef on mount
   useEffect(() => {
     prevPathRef.current = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
-  }, []);
+  }, [pathname, searchParams]);
 
   const finishProgress = useCallback(() => {
     if (progressTimerRef.current) {
@@ -57,10 +57,10 @@ export function PagePreloader() {
       setProgress(current);
     }, 90);
 
-    // Fail-safe: Preloader NEVER spins longer than 2.5s under any circumstance
+    // Fail-safe: Preloader NEVER spins longer than 12s under any circumstance
     safetyTimerRef.current = setTimeout(() => {
       finishProgress();
-    }, 2500);
+    }, 12000);
   }, [finishProgress]);
 
   // Finish preloader whenever navigation completes

@@ -58,8 +58,8 @@ export default function BlogLikeButton({
       if (data.liked) {
         toast.success("Post liked!");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to update like");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to update like");
     } finally {
       setIsLoading(false);
     }

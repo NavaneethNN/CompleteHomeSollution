@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +56,7 @@ interface BlogPostData {
   seoTitle: string | null;
   seoDescription: string | null;
   readTime: number | null;
-  socialLinks: any;
+  socialLinks: unknown;
   tags: Array<{ tagId: string }>;
 }
 
@@ -105,7 +106,7 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
         .replace(/(^-|-$)/g, "");
       setFormData(prev => ({ ...prev, slug }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [formData.title, mode]);
 
   const handleImageUpload = async (file: File): Promise<string | null> => {
@@ -203,8 +204,8 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
           router.push("/admin/blog");
         }
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to save post");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to save post");
     } finally {
       setSaving(false);
     }
@@ -311,9 +312,11 @@ export default function BlogPostEditor({ categories, tags, mode, initialData }: 
             <CardContent>
               {formData.coverImage ? (
                 <div className="space-y-3">
-                  <img
+                  <Image
                     src={formData.coverImage}
                     alt="Cover"
+                    width={400}
+                    height={160}
                     className="w-full h-40 object-cover rounded-lg"
                   />
                   <Button

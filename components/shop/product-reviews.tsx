@@ -285,7 +285,7 @@ function ImageLightbox({ images, startAt, onClose }: { images: string[]; startAt
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function ProductReviews({ productId, reviews: initialReviews, reviewCount }: ProductReviewsProps) {
+export function ProductReviews({ productId, reviews: initialReviews }: ProductReviewsProps) {
   const pathname = usePathname();
   const [reviews, setReviews] = useState<Review[]>(initialReviews);
   const [eligibility, setEligibility] = useState<{

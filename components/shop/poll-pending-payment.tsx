@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, ExternalLink, XCircle, ArrowRight, RefreshCw } from "lucide-react";
+import { Loader2, ExternalLink, XCircle, RefreshCw } from "lucide-react";
 
 export function PollPendingPayment({
   orderId,

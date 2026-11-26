@@ -35,7 +35,6 @@ import {
   Search, 
   Trash2,
   Calendar,
-  Clock,
   ViewIcon,
   Crown
 } from "lucide-react";
@@ -97,7 +96,7 @@ interface BlogClientProps {
   tags: BlogTag[];
 }
 
-export default function BlogClient({ initialPosts, categories, tags }: BlogClientProps) {
+export default function BlogClient({ initialPosts, categories }: BlogClientProps) {
   const [posts, setPosts] = useState<BlogPost[]>(initialPosts);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -135,8 +134,8 @@ export default function BlogClient({ initialPosts, categories, tags }: BlogClien
 
       setPosts(posts.filter(p => p.id !== postId));
       toast.success("Post deleted successfully");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to delete post");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete post");
     } finally {
       setLoading(false);
     }

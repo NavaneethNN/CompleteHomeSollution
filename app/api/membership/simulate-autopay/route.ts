@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { processFailedRenewal, activateMembership } from "@/lib/membership";
 import { z } from "zod";
@@ -12,9 +13,16 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
+    if (!(await hasFreshAdminSession())) {
+      return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
+    }
     const session = await auth();
-    if (!session?.user?.id || session.user.role !== "ADMIN") {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 403 });
     }
 

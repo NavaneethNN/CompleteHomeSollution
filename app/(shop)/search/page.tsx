@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { Search, SlidersHorizontal, Package, ArrowRight } from "lucide-react";
+import { Search, Package, ArrowRight } from "lucide-react";
 import { HomeTrendingProductCard } from "@/components/shop/home-trending-product-card";
 import { auth } from "@/auth";
 
@@ -52,14 +52,6 @@ async function searchProducts(q: string, page: number) {
   return { products, total };
 }
 
-async function getRelatedCategories(q: string) {
-  if (!q) return [];
-  return db.category.findMany({
-    where: { name: { contains: q, mode: "insensitive" } },
-    take: 4,
-  });
-}
-
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const { q = "", page: pageParam = "1" } = await searchParams;
   const page    = Math.max(1, parseInt(pageParam));
@@ -68,8 +60,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   const { products, total } = await searchProducts(q, page);
   const totalPages = Math.ceil(total / LIMIT);
-
-  const currencyFmt = new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 0 });
 
   return (
     <div className="min-h-screen bg-white">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import {
   FolderTree,
   Plus,
@@ -296,10 +297,12 @@ export default function AdminCategoriesPage() {
                 title={`Edit ${category.name}`}
               >
                 {category.image ? (
-                  <img
+                  <Image
                     src={category.image}
                     alt={category.name}
-                    className="h-full w-full object-cover group-hover:brightness-90 transition-[filter]"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    className="object-cover group-hover:brightness-90 transition-[filter]"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = "none";
                       (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");

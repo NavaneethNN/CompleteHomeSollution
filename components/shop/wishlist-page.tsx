@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { ArrowRight, Heart } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useWishlistStore } from "@/store/wishlist";
 import { WishlistItem } from "./wishlist-item";
 import { WishlistEmptyState } from "./wishlist-empty-state";

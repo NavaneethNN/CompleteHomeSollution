@@ -90,8 +90,8 @@ export async function POST(
         if (typeof releaseCouponReservationInTransaction === "function") {
           await releaseCouponReservationInTransaction(tx, orderId);
         }
-        if ((tx as any).raffleWinner) {
-          await (tx as any).raffleWinner.updateMany({
+        if (tx.raffleWinner) {
+          await tx.raffleWinner.updateMany({
             where: { orderId },
             data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
           });
@@ -181,8 +181,8 @@ export async function POST(
             refundProcessing: false,
           },
         });
-        if ((tx as any).raffleWinner) {
-          await (tx as any).raffleWinner.updateMany({
+        if (tx.raffleWinner) {
+          await tx.raffleWinner.updateMany({
             where: { orderId },
             data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
           });

@@ -17,7 +17,14 @@ export const addressSchema = z.object({
 export const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(50, "Name is too long"),
   phone: z.string().max(20).optional(),
-  image: z.string().max(500).optional(),
+  image: z
+    .string()
+    .max(500)
+    .refine(
+      (val) => !val || val.startsWith("/") || /^https:\/\/.+/i.test(val),
+      "Profile image must be a valid HTTPS URL"
+    )
+    .optional(),
 });
 
 export type AddressInput = z.infer<typeof addressSchema>;

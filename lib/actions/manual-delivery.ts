@@ -1,18 +1,17 @@
 "use server";
 
 import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { processDueEmailJobs } from "@/lib/email-outbox";
 
 async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id || (session.user as any).role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     throw new Error("Unauthorized: Admin privileges required.");
   }
-  return session.user;
 }
 
 const postcodeSchema = z.object({
@@ -67,7 +66,7 @@ export async function updateManualDeliveryPostcode(
 ) {
   await requireAdmin();
 
-  const data: any = {};
+  const data: Prisma.ManualDeliveryPostcodeUpdateInput = {};
   if (input.charge !== undefined) {
     if (input.charge < 0) return { success: false, error: "Charge cannot be negative" };
     data.charge = Math.round(input.charge * 100) / 100;
@@ -172,7 +171,7 @@ export async function updateOrderPickupDetails(
     return { success: false, error: "Order not found." };
   }
 
-  const updateData: any = {};
+  const updateData: Prisma.OrderUpdateInput = {};
 
   if (input.pickupAppointmentDate !== undefined) {
     updateData.pickupAppointmentDate = input.pickupAppointmentDate

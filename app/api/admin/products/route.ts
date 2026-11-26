@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import slugify from "slugify";
@@ -120,8 +120,7 @@ const createProductSchema = z.object({
 
 // GET /api/admin/products - List all products with pagination
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -198,8 +197,7 @@ export async function GET(req: Request) {
 
 // POST /api/admin/products - Create a new product
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -220,7 +218,6 @@ export async function POST(req: Request) {
 
     // Create product in a transaction
     const product = await db.$transaction(async (tx) => {
-      console.log("[POST /api/admin/products] Creating base product...");
       // 1. Create the base product
       const newProduct = await tx.product.create({
         data: {
@@ -258,14 +255,12 @@ export async function POST(req: Request) {
 
       // 2. If product has variants, create variant attributes and values
       if (data.hasVariants && data.variantAttributes && data.variantAttributes.length > 0) {
-        console.log("[POST /api/admin/products] Creating variants, attributes:", data.variantAttributes.length);
         // Build maps: temp ID -> DB ID
         const attrTempIdToDbId = new Map<string, string>();
         const valueTempIdToDbId = new Map<string, string>();
 
         // Create variant attributes and their values
         for (const attr of data.variantAttributes) {
-          console.log("[POST /api/admin/products] Creating attribute:", attr.name, "tempId:", attr.id);
           const variantAttr = await tx.variantAttribute.create({
             data: {
               name: attr.name,
@@ -294,10 +289,7 @@ export async function POST(req: Request) {
 
         // 3. Create product variants
         if (data.productVariants && data.productVariants.length > 0) {
-          console.log("[POST /api/admin/products] Creating product variants:", data.productVariants.length);
-          console.log("[POST /api/admin/products] Value ID mapping:", Object.fromEntries(valueTempIdToDbId));
           for (const variant of data.productVariants) {
-            console.log("[POST /api/admin/products] Creating variant with valueIds:", variant.valueIds);
             const newVariant = await tx.productVariant.create({
               data: {
                 productId: newProduct.id,
@@ -369,7 +361,7 @@ export async function POST(req: Request) {
       );
     }
     if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
-      const target = (error as any).meta?.target;
+      const target = (error as { meta?: { target?: string | string[] } }).meta?.target;
       const targetField = Array.isArray(target) ? target.join(", ") : target || "SKU";
       return NextResponse.json(
         { error: `A product or variant with this ${targetField} already exists. Please choose a unique ${targetField}.` },

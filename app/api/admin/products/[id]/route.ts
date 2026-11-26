@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { z } from "zod";
 import slugify from "slugify";
@@ -122,8 +122,7 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -183,8 +182,7 @@ export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -218,17 +216,17 @@ export async function PUT(
     // Update product in a transaction to handle variants
     const product = await db.$transaction(async (tx) => {
       // 1. Update the base product
-      const updateData: any = {
+      const updateData: import("@prisma/client").Prisma.ProductUncheckedUpdateInput = {
         updatedAt: new Date(),
       };
       if (data.name !== undefined) updateData.name = data.name;
-      if (data.description !== undefined) updateData.description = data.description;
+      if (data.description !== undefined && data.description !== null) updateData.description = data.description;
       if (data.bulletTitle !== undefined) updateData.bulletTitle = data.bulletTitle;
       if (data.bulletPoints !== undefined) updateData.bulletPoints = data.bulletPoints;
-      if (data.basePrice !== undefined) updateData.basePrice = data.basePrice;
+      if (data.basePrice !== undefined && data.basePrice !== null) updateData.basePrice = data.basePrice;
       if (data.comparePrice !== undefined) updateData.comparePrice = data.comparePrice;
       if (data.memberPrice !== undefined) updateData.memberPrice = data.memberPrice;
-      if (data.stock !== undefined) updateData.stock = data.stock;
+      if (data.stock !== undefined && data.stock !== null) updateData.stock = data.stock;
       if (data.sku !== undefined) updateData.sku = data.sku;
       if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
       if (data.material !== undefined) updateData.material = data.material;
@@ -255,7 +253,7 @@ export async function PUT(
       if (data.requiresPackaging !== undefined) updateData.requiresPackaging = data.requiresPackaging;
       if (slug !== undefined) updateData.slug = slug;
 
-      const updatedProduct = await tx.product.update({
+      await tx.product.update({
         where: { id },
         data: updateData,
       });
@@ -598,7 +596,7 @@ export async function PUT(
       );
     }
     if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
-      const target = (error as any).meta?.target;
+      const target = (error as { meta?: { target?: string | string[] } }).meta?.target;
       const targetField = Array.isArray(target) ? target.join(", ") : target || "SKU";
       return NextResponse.json(
         { error: `A product or variant with this ${targetField} already exists. Please choose a unique ${targetField}.` },
@@ -619,8 +617,7 @@ export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

@@ -7,7 +7,7 @@ export const createProductSchema = z.object({
     .min(2)
     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase with hyphens only"),
   description: z.string().min(10, "Description is required"),
-  price: z.number().positive("Price must be positive"),
+  basePrice: z.number().positive("Price must be positive"),
   comparePrice: z.number().positive().optional(),
   memberPrice: z.number().positive().optional(),
   stock: z.number().int().min(0).default(0),

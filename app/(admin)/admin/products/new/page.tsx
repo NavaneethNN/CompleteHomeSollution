@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -782,7 +782,7 @@ export default function NewProductPage() {
         setHeight(p.height?.toString() || "");
         setExtraPackages(
           Array.isArray(p.extraPackages)
-            ? p.extraPackages.map((box: any) => ({
+            ? p.extraPackages.map((box: { weight?: number | string; length?: number | string; width?: number | string; height?: number | string }) => ({
                 weight: box?.weight ?? "",
                 length: box?.length ?? "",
                 width: box?.width ?? "",
@@ -793,27 +793,61 @@ export default function NewProductPage() {
         
         // Load variant attributes if present
         if (p.variantAttributes) {
-          const attrs = p.variantAttributes.map((attr: any) => ({
+          interface ApiVariantValue {
+            id: string;
+            value: string;
+            hexCode?: string | null;
+            images?: string[];
+          }
+          interface ApiVariantAttr {
+            id: string;
+            name: string;
+            displayOrder: number;
+            isPrimary?: boolean;
+            variantValues?: ApiVariantValue[];
+          }
+          const attrs = (p.variantAttributes as ApiVariantAttr[]).map((attr) => ({
             id: attr.id,
             name: attr.name,
             displayOrder: attr.displayOrder,
             isPrimary: attr.isPrimary ?? false,
-            values: (attr.variantValues || []).map((v: any) => ({
+            values: (attr.variantValues || []).map((v) => ({
               id: v.id,
               value: v.value,
-              hexCode: v.hexCode,
+              hexCode: v.hexCode ?? undefined,
               images: v.images || [],
             })),
           }));
           setVariantAttributes(attrs);
-          const primary = attrs.find((a: any) => a.isPrimary);
+          const primary = attrs.find((a) => a.isPrimary);
           if (primary) setPrimaryAttributeId(primary.id);
         }
         
         // Load product variants if present
         if (p.productVariants) {
-          setProductVariants(p.productVariants.map((v: any) => {
-            const valueIds: string[] = v.values?.map((val: any) => val.variantValueId) || [];
+          interface ApiProductVariant {
+            sku: string;
+            price?: number | string | null;
+            comparePrice?: number | string | null;
+            memberPrice?: number | string | null;
+            stock?: number | string | null;
+            isActive: boolean;
+            values?: Array<{ variantValueId: string }>;
+            images?: Array<{ url: string }>;
+            description?: string | null;
+            bulletTitle?: string | null;
+            bulletPoints?: string[] | null;
+            productLength?: number | string | null;
+            productWidth?: number | string | null;
+            productHeight?: number | string | null;
+            weight?: number | string | null;
+            length?: number | string | null;
+            width?: number | string | null;
+            height?: number | string | null;
+            extraPackages?: Array<{ weight?: number | string; length?: number | string; width?: number | string; height?: number | string }>;
+          }
+          setProductVariants((p.productVariants as ApiProductVariant[]).map((v) => {
+            const valueIds: string[] = v.values?.map((val) => val.variantValueId) || [];
             // Normalize ID to match makeVariantId() so isVariantActive() works correctly
             const normalizedId = `var-${[...valueIds].sort().join("-")}`;
             return {
@@ -825,7 +859,7 @@ export default function NewProductPage() {
               stock: v.stock ?? "",
               isActive: v.isActive,
               valueIds,
-              images: v.images?.map((img: any) => img.url) || [],
+              images: v.images?.map((img) => img.url) || [],
               description: v.description || "",
               bulletTitle: v.bulletTitle || "",
               bulletPoints: v.bulletPoints || [],
@@ -837,7 +871,7 @@ export default function NewProductPage() {
               width: v.width ?? "",
               height: v.height ?? "",
               extraPackages: Array.isArray(v.extraPackages)
-                ? v.extraPackages.map((box: any) => ({
+                ? v.extraPackages.map((box) => ({
                     weight: box?.weight ?? "",
                     length: box?.length ?? "",
                     width: box?.width ?? "",
@@ -911,26 +945,6 @@ export default function NewProductPage() {
         images: [],
       };
       return [...prev, newVariant];
-    });
-  };
-
-  const addAllCombinationsForValue = (primaryAttrId: string, primaryValueId: string) => {
-    // Find the secondary attribute (the one that isn't primary)
-    const secondaryAttrs = variantAttributes.filter((a) => a.id !== primaryAttrId);
-    if (secondaryAttrs.length === 0) {
-      // Single attribute product — just toggle the single value
-      toggleVariant([primaryValueId]);
-      return;
-    }
-    // Add all secondary combinations for this primary value
-    const getCombinations = (attrs: VariantAttribute[]): string[][] => {
-      if (attrs.length === 0) return [[]];
-      const [first, ...rest] = attrs;
-      return first.values.flatMap((v) => getCombinations(rest).map((c) => [v.id, ...c]));
-    };
-    getCombinations(secondaryAttrs).forEach((secIds) => {
-      const valueIds = [primaryValueId, ...secIds];
-      if (!isVariantActive(valueIds)) toggleVariant(valueIds);
     });
   };
 
@@ -1291,9 +1305,7 @@ export default function NewProductPage() {
 
       const url = isEditMode ? `/api/admin/products/${productId}` : "/api/admin/products";
       const method = isEditMode ? "PUT" : "POST";
-      
-      console.log("[handleSubmit] Sending product data:", JSON.stringify(productData, null, 2));
-      
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -1310,7 +1322,9 @@ export default function NewProductPage() {
         console.error("API Error:", errorData);
         let errorMessage = errorData.error || errorData.message || `Failed to ${isEditMode ? "update" : "create"} product (status: ${res.status})`;
         if (errorData.details && Array.isArray(errorData.details)) {
-          const details = errorData.details.map((d: any) => `${d.path?.join('.')}: ${d.message}`).join(', ');
+          const details = errorData.details
+            .map((d: { path?: Array<string | number>; message?: string }) => `${d.path?.join('.')}: ${d.message}`)
+            .join(', ');
           errorMessage += ` - ${details}`;
         }
         throw new Error(errorMessage);
@@ -1885,8 +1899,6 @@ export default function NewProductPage() {
 
           {/* Step 2 — Add values and pick combinations */}
           {variantAttributes.length > 0 && (() => {
-            const primaryAttr = variantAttributes[0];
-            const secondaryAttrs = variantAttributes.slice(1);
             return (
               <Card>
                 <CardHeader className="pb-2">

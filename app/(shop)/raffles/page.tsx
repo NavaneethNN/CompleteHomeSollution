@@ -1,6 +1,6 @@
 import { getPublicRaffles } from "@/lib/actions/raffle";
 import { RaffleCard } from "@/components/raffle/raffle-card";
-import { Gift, Trophy, ShieldCheck, Sparkles, CheckCircle2, Ticket, ChevronRight, ArrowRight } from "lucide-react";
+import { Gift, Trophy, ShieldCheck, Sparkles, CheckCircle2, Ticket, ChevronRight } from "lucide-react";
 import Link from "next/link";
 
 interface RafflesPageProps {

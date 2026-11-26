@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Image from "next/image";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Camera, User, Mail, Phone, Check, Loader2, Upload, X } from "lucide-react";
@@ -37,7 +38,6 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     register,
     handleSubmit,
     formState: { errors, isDirty },
-    watch,
     setValue,
   } = useForm<ProfileInput>({
     resolver: zodResolver(profileSchema),
@@ -171,9 +171,12 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           <div className="flex items-center gap-6">
             <div className="relative">
               {previewImage ? (
-                <img
+                <Image
                   src={previewImage}
                   alt="Profile"
+                  width={96}
+                  height={96}
+                  unoptimized
                   className="w-24 h-24 rounded-full object-cover ring-4 ring-border"
                   onError={() => setPreviewImage("")}
                 />
@@ -346,7 +349,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
           >
             Cancel
           </Button>
-          <Button type="submit" disabled={isLoading || !isDirty} onClick={handleSubmit(onSubmit as any)}>
+          <Button type="submit" disabled={isLoading || !isDirty} onClick={handleSubmit(onSubmit)}>
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

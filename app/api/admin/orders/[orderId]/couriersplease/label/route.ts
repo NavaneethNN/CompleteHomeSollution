@@ -132,7 +132,7 @@ export async function GET(req: NextRequest, { params }: Context) {
         // Fallback
       }
 
-      const resolvedBoxes = await resolveOrderShipmentBoxes(order as any);
+      const resolvedBoxes = await resolveOrderShipmentBoxes(order as Parameters<typeof resolveOrderShipmentBoxes>[0]);
       const length = order.packedLength || resolvedBoxes.packedLength;
       const width = order.packedWidth || resolvedBoxes.packedWidth;
       const height = order.packedHeight || resolvedBoxes.packedHeight;

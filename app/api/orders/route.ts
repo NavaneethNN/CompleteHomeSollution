@@ -121,7 +121,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const TAX_RATE = 0.1;
     const shippingCost = 15;
 
     // B-1: Use a DB transaction to atomically create the order AND decrement stock

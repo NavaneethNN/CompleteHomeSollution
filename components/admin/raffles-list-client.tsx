@@ -37,8 +37,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+import type { RaffleStatus } from "@prisma/client";
+import type { getAdminRaffles } from "@/lib/actions/admin-raffle";
+
+type AdminRaffleItem = Awaited<ReturnType<typeof getAdminRaffles>>["raffles"][number];
+
 interface RafflesListProps {
-  initialRaffles: any[];
+  initialRaffles: AdminRaffleItem[];
 }
 
 const STATUS_CONFIG: Record<
@@ -104,14 +109,14 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
   });
 
   const totalPrizeValue = raffles.reduce(
-    (sum, r) => sum + r.prizes.reduce((pSum: number, p: any) => pSum + p.value * p.quantity, 0),
+    (sum, r) => sum + r.prizes.reduce((pSum, p) => pSum + p.value * p.quantity, 0),
     0
   );
   const totalTicketsIssued = raffles.reduce((sum, r) => sum + (r._count?.tickets || r.totalTickets || 0), 0);
   const totalActiveRaffles = raffles.filter((r) => r.status === "ACTIVE").length;
   const totalPendingDraws = raffles.filter((r) => r.status === "DRAW_PENDING" || r.status === "CLOSED").length;
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
+  const handleStatusChange = async (id: string, newStatus: RaffleStatus) => {
     setLoadingActionId(id);
     try {
       const res = await updateRaffleStatus(id, newStatus);
@@ -124,8 +129,8 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
       } else {
         toast.error(res.error || "Failed to update status");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Error updating status");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Error updating status");
     } finally {
       setLoadingActionId(null);
     }
@@ -142,8 +147,8 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
       } else {
         toast.error(res.error || "Failed to delete raffle");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Error deleting raffle");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Error deleting raffle");
     } finally {
       setDeleteTargetId(null);
     }
@@ -322,7 +327,7 @@ export function RafflesListClient({ initialRaffles }: RafflesListProps) {
                     "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?auto=format&fit=crop&w=400&q=80";
 
                   const prizeCount = raffle.prizes?.length || 0;
-                  const winnerCount = raffle.prizes?.reduce((s: number, p: any) => s + p.quantity, 0) || 0;
+                  const winnerCount = raffle.prizes?.reduce((s, p) => s + p.quantity, 0) || 0;
                   const ticketCount = raffle._count?.tickets || raffle.totalTickets || 0;
 
                   return (

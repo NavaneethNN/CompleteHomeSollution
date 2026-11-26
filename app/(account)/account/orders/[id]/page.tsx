@@ -1,6 +1,7 @@
 import { OrderMembershipItem } from "@/components/account/order-membership-item";
 import { orderContentsLabel, getEffectiveOrderStatus } from "@/lib/order-display";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { redirect, notFound } from "next/navigation";
@@ -446,9 +447,11 @@ export default async function OrderDetailPage({ params, searchParams }: OrderDet
                         return (
                           <div className="w-20 h-20 rounded-xl bg-secondary flex items-center justify-center shrink-0 overflow-hidden border border-border">
                             {displayImage ? (
-                              <img
+                              <Image
                                 src={displayImage}
                                 alt={item.product.name}
+                                width={80}
+                                height={80}
                                 className="w-full h-full object-cover"
                               />
                             ) : (
@@ -748,24 +751,4 @@ function Row({
       </span>
     </div>
   );
-}
-
-function getStatusStyle(status: string): string {
-  const base = "text-xs font-bold px-3 py-1.5 rounded-full uppercase tracking-wide";
-  switch (status) {
-    case "PENDING":    return `${base} bg-amber-100 text-amber-700`;
-    case "PAID":       return `${base} bg-blue-100 text-blue-700`;
-    case "CONFIRMED":  return `${base} bg-blue-100 text-blue-700`;
-    case "PROCESSING": return `${base} bg-purple-100 text-purple-700`;
-    case "SHIPPED":    return `${base} bg-indigo-100 text-indigo-700`;
-    case "OUT_FOR_DELIVERY": return `${base} bg-indigo-100 text-indigo-700`;
-    case "DELIVERED":  return `${base} bg-emerald-100 text-emerald-700`;
-    case "CANCELLED":  return `${base} bg-red-100 text-red-700`;
-    case "REFUNDED":   return `${base} bg-gray-100 text-gray-700`;
-    default:           return `${base} bg-gray-100 text-gray-700`;
-  }
-}
-
-function formatStatusLabel(status: string): string {
-  return status.toLowerCase().split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
 }

@@ -8,10 +8,8 @@ import {
   Trophy,
   Gift,
   Ticket,
-  Truck,
   CheckCircle2,
   Clock,
-  Sparkles,
   ShoppingBag,
   ArrowRight,
   ExternalLink,
@@ -19,25 +17,14 @@ import {
   Check,
   Loader2,
 } from "lucide-react";
-import { prepareRafflePrizeForCheckout } from "@/lib/actions/raffle";
+import { prepareRafflePrizeForCheckout, type getCustomerRaffleDashboard } from "@/lib/actions/raffle";
 import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
 
+type CustomerDashboardData = NonNullable<Awaited<ReturnType<typeof getCustomerRaffleDashboard>>["data"]>;
+
 interface DashboardClientProps {
-  data: {
-    wins: any[];
-    allTickets: any[];
-    activeParticipations: any[];
-    pendingDrawParticipations: any[];
-    completedParticipations: any[];
-    savedAddresses: any[];
-    spendSummary?: {
-      totalProductSpend: number;
-      hasMinProductSpend: boolean;
-      minProductSpendRequired: number;
-      remainingSpendRequired: number;
-    };
-  };
+  data: CustomerDashboardData;
 }
 
 export function CustomerRafflesClient({ data }: DashboardClientProps) {
@@ -46,7 +33,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
   const [claimingWinnerId, setClaimingWinnerId] = useState<string | null>(null);
   const [copiedTicketId, setCopiedTicketId] = useState<string | null>(null);
 
-  const { wins, allTickets, activeParticipations, pendingDrawParticipations, completedParticipations } =
+  const { wins, allTickets, activeParticipations, completedParticipations } =
     data;
 
   const handleClaimPrize = async (winnerId: string) => {
@@ -62,8 +49,8 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
       useCartStore.getState().setRafflePrizeItem(res.cartItem);
       toast.success("Proceeding to checkout to select delivery address...");
       router.push(`/checkout?raffleWinnerId=${winnerId}`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to initiate checkout.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to initiate checkout.");
       setClaimingWinnerId(null);
     }
   };
@@ -381,11 +368,14 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
                               </div>
                             )}
 
-                            {win.shippingAddress && (
-                              <p className="text-[11px] text-muted-foreground">
-                                Delivering to: {win.shippingAddress.suburb}, {win.shippingAddress.state}
-                              </p>
-                            )}
+                            {Boolean(win.shippingAddress) && (() => {
+                              const addr = win.shippingAddress as { suburb?: string; state?: string } | null;
+                              return addr ? (
+                                <p className="text-[11px] text-muted-foreground">
+                                  Delivering to: {addr.suburb}, {addr.state}
+                                </p>
+                              ) : null;
+                            })()}
                           </div>
                         )}
                       </div>
@@ -443,7 +433,7 @@ export function CustomerRafflesClient({ data }: DashboardClientProps) {
                         Your Ticket Numbers ({tickets.length}):
                       </span>
                       <div className="flex flex-wrap gap-1.5">
-                        {tickets.map((t: any) => (
+                        {tickets.map((t) => (
                           <span
                             key={t.id}
                             className="font-mono text-xs font-semibold bg-secondary text-foreground px-2 py-0.5 rounded-md border border-border"

@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -8,8 +8,7 @@ import { revokeMembership as revokeUtil, grantMembership as grantUtil } from "@/
 import { invalidateMembershipPlanCache } from "@/lib/membership-plan";
 
 async function requireAdmin() {
-  const session = await auth();
-  if (!session || session.user.role !== "ADMIN") throw new Error("Unauthorized");
+  if (!(await hasFreshAdminSession())) throw new Error("Unauthorized");
 }
 
 // ── Types ───────────────────────────────────────────────────────────────────

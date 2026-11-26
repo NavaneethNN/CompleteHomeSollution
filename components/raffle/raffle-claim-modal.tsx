@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { MapPin, Truck, CheckCircle2, Loader2, Gift } from "lucide-react";
+import { Truck, CheckCircle2, Loader2, Gift } from "lucide-react";
 import { toast } from "sonner";
 
 interface ClaimModalProps {
@@ -79,8 +79,8 @@ export function RaffleClaimModal({
       } else {
         toast.error(res.error || "Failed to prepare prize checkout.");
       }
-    } catch (err: any) {
-      toast.error(err.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }

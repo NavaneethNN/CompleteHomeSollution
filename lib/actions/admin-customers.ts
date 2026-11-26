@@ -1,16 +1,14 @@
 "use server";
 
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { grantMembership, revokeMembership } from "@/lib/membership";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
 async function requireAdmin() {
-  const session = await auth();
-  if (!session || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     throw new Error("Unauthorized");
   }
-  return session;
 }
 
 export type AdminCustomer = {

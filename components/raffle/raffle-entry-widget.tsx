@@ -7,7 +7,6 @@ import { enterRaffle } from "@/lib/actions/raffle";
 import {
   Ticket,
   CheckCircle2,
-  AlertCircle,
   Crown,
   Loader2,
   Gift,
@@ -17,7 +16,6 @@ import {
   LogIn,
   Copy,
   Check,
-  ShieldCheck,
   ShoppingBag,
   Lock,
 } from "lucide-react";
@@ -39,9 +37,9 @@ interface EntryWidgetProps {
   };
   userParticipation: {
     totalTickets: number;
-    entries: any[];
-    tickets: any[];
-    wins: any[];
+    entries: unknown[];
+    tickets: Array<{ id: string; ticketNumber: string; createdAt: Date | string }>;
+    wins: Array<{ id: string }>;
     isMember: boolean;
     isEligibleMember: boolean;
     remainingAllowedEntries: number;
@@ -67,7 +65,6 @@ export function RaffleEntryWidget({
   const remaining = userParticipation?.remainingAllowedEntries ?? raffle.maxEntriesPerUser;
   const isFree = raffle.entryPrice === 0;
   const isMemberOnly = raffle.visibility === "MEMBERS_ONLY";
-  const userIsMember = userParticipation?.isMember;
   const isMemberEligible = userParticipation?.isEligibleMember ?? true;
 
   const handleCopyTicket = (ticketNum: string, idx: number) => {
@@ -110,8 +107,8 @@ export function RaffleEntryWidget({
       } else {
         toast.error(res.error || "Failed to participate.");
       }
-    } catch (err: any) {
-      toast.error(err.message || "An unexpected error occurred.");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
       setLoading(false);
     }

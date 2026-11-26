@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, ArrowRight, ShieldCheck, Tag, CheckCircle2 } from "lucide-react";
+import { Sparkles, ArrowRight, Tag, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
 interface SavingsCalculatorProps {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 import { db } from "@/lib/db";
 import { refundTransaction, PayWayApiError } from "@/lib/payway";
 import { refundOnlinePayOrder, OnlinePayRefundError } from "@/lib/onlinepay";
@@ -18,8 +18,7 @@ export async function POST(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
-    const session = await auth();
-    if (session?.user?.role !== "ADMIN") {
+    if (!(await hasFreshAdminSession())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

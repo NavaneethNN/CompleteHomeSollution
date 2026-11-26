@@ -3,17 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Printer,
   Download,
   ArrowLeft,
-  Truck,
-  CheckCircle2,
-  Package,
-  Layers,
-  FileText,
-  ExternalLink,
 } from "lucide-react";
 
 export interface ShippingLabelViewProps {

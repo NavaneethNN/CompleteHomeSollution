@@ -10,6 +10,9 @@ let postcodes: Array<{ id: string; postcode: string; suburb: string | null; char
 let mockOrders: Record<string, any> = {};
 
 const db = {
+  user: {
+    findUnique: async () => (session?.user ? { role: session.user.role } : null),
+  },
   manualDeliveryPostcode: {
     findMany: async () => structuredClone(postcodes),
     findUnique: async ({ where }: any) => {

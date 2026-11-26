@@ -7,19 +7,14 @@ import {
   Search,
   Pencil,
   Trash2,
-  Check,
-  X,
   Loader2,
   AlertCircle,
   MapPin,
-  DollarSign,
-  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -130,7 +125,9 @@ export function ManualDeliveryClient({ initialPostcodes }: ManualDeliveryClientP
           return;
         }
 
-        setPostcodes((prev) => [...prev, res.postcode as any].sort((a, b) => a.postcode.localeCompare(b.postcode)));
+        if (res.postcode) {
+          setPostcodes((prev) => [...prev, res.postcode].sort((a, b) => a.postcode.localeCompare(b.postcode)));
+        }
         toast({ title: "Postcode Added", description: `Postcode ${cleanPostcode} added with $${numCharge.toFixed(2)} delivery charge.` });
         setIsDialogOpen(false);
       }

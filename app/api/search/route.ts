@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { cacheFetch, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
+import { consumeRateLimit, getClientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function GET(req: NextRequest) {
-  const q     = req.nextUrl.searchParams.get("q")?.trim() ?? "";
-  const limit = Math.min(parseInt(req.nextUrl.searchParams.get("limit") ?? "12"), 50);
-  const page  = Math.max(1, parseInt(req.nextUrl.searchParams.get("page") ?? "1"));
+  const rl = await consumeRateLimit("search", getClientIp(req.headers), 60, 60);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
+  const q = (req.nextUrl.searchParams.get("q")?.trim() ?? "").slice(0, 100);
+  const rawLimit = Number.parseInt(req.nextUrl.searchParams.get("limit") ?? "12", 10);
+  const limit = Math.min(Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 12, 50);
+  const rawPage = Number.parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10);
+  const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
 
   if (q.length < 2) {
     return NextResponse.json({ products: [], total: 0 });
@@ -22,7 +28,7 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    const cacheKey = CACHE_KEYS.searchSuggest(`${q}:${limit}:${page}`);
+    const cacheKey = CACHE_KEYS.searchSuggest(`${q.toLowerCase()}:${limit}:${page}`);
     const data = await cacheFetch(cacheKey, CACHE_TTL.searchSuggest, async () => {
       const [products, total] = await Promise.all([
         db.product.findMany({

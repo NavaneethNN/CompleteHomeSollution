@@ -2,19 +2,15 @@
 
 import { useState, useTransition } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   Plus,
   Pencil,
   Trash2,
   ExternalLink,
-  Layers,
-  Sparkles,
   Eye,
   EyeOff,
   Image as ImageIcon,
   CheckCircle2,
-  AlertCircle,
   Loader2,
   Megaphone,
 } from "lucide-react";
@@ -155,8 +151,8 @@ export function PromotionsClient({ initialPromotions }: PromotionsClientProps) {
             setIsDialogOpen(false);
           }
         }
-      } catch (err: any) {
-        toast.error(err.message || "Failed to save promotional poster");
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to save promotional poster");
       }
     });
   };
@@ -170,8 +166,8 @@ export function PromotionsClient({ initialPromotions }: PromotionsClientProps) {
           prev.map((p) => (p.id === id ? { ...p, isActive: nextActive } : p))
         );
         toast.success(nextActive ? "Poster activated" : "Poster deactivated");
-      } catch (err: any) {
-        toast.error(err.message || "Failed to update status");
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to update status");
       }
     });
   };
@@ -184,8 +180,8 @@ export function PromotionsClient({ initialPromotions }: PromotionsClientProps) {
         setPromotions((prev) => prev.filter((p) => p.id !== deletingId));
         toast.success("Poster deleted successfully");
         setDeletingId(null);
-      } catch (err: any) {
-        toast.error(err.message || "Failed to delete poster");
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to delete poster");
       }
     });
   };

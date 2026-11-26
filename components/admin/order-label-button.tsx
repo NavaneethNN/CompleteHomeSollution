@@ -20,7 +20,6 @@ export function OrderLabelButton({
   orderId,
   orderNumber,
   fulfillmentType,
-  status,
   variant = "outline",
   size = "sm",
   className,

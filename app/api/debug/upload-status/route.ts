@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
+import { hasFreshAdminSession } from "@/lib/admin-auth";
 
 export const dynamic = "force-dynamic";
 
 // Diagnostic endpoint to check upload configuration
 export async function GET() {
-  const session = await auth();
-  
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   // Only allow admins to check this
-  if (!session?.user || session.user.role !== "ADMIN") {
+  if (!(await hasFreshAdminSession())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

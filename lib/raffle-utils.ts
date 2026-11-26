@@ -1,4 +1,4 @@
-import type { OrderStatus } from "@prisma/client";
+import type { OrderStatus, Prisma, PrismaClient } from "@prisma/client";
 
 /**
  * Mask customer names for public community displays to prevent customer enumeration,
@@ -109,7 +109,7 @@ export function calculateTotalProductSpend(orders: OrderForSpendCalculation[]): 
 export async function getUserProductSpend(
   userId: string,
   userEmail?: string | null,
-  client?: any
+  client?: PrismaClient | Prisma.TransactionClient
 ): Promise<UserProductSpendSummary> {
   if (!userId) {
     return {
@@ -139,7 +139,7 @@ export async function getUserProductSpend(
     where: {
       OR: [
         { userId },
-        ...(normalizedEmail ? [{ guestEmail: { equals: normalizedEmail, mode: "insensitive" } }] : []),
+        ...(normalizedEmail ? [{ guestEmail: { equals: normalizedEmail, mode: "insensitive" as const } }] : []),
       ],
       status: { in: SETTLED_ORDER_STATUSES },
     },

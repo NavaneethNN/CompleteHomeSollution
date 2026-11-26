@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
@@ -467,10 +468,12 @@ export default async function MembershipPage() {
                     >
                       <div>
                         <div className="relative aspect-16/10 w-full overflow-hidden bg-secondary">
-                          <img
+                          <Image
                             src={mainImage}
                             alt={raffle.title}
-                            className="w-full h-full object-cover"
+                            fill
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                            className="object-cover"
                           />
                           <div className="absolute top-2.5 left-2.5">
                             <span className="inline-flex items-center gap-1 bg-stone-900/90 backdrop-blur-xs text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full">
@@ -932,10 +935,12 @@ export default async function MembershipPage() {
                         <div>
                           {/* Image */}
                           <div className="relative aspect-16/10 w-full overflow-hidden bg-secondary">
-                            <img
+                            <Image
                               src={mainImage}
                               alt={raffle.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              fill
+                              sizes="(max-width: 768px) 100vw, 50vw"
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                             <div className="absolute top-3 left-3">
                               <span className="inline-flex items-center gap-1 bg-stone-900/90 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-1 rounded-full">

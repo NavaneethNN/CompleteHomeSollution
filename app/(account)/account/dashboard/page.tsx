@@ -7,7 +7,7 @@ import { getOrderStats } from "@/lib/actions/orders";
 import { getAddresses } from "@/lib/actions/address";
 import { AccountSidebar } from "@/components/account/account-sidebar";
 import {
-  Package, Crown, ShoppingBag, Heart, ChevronRight, ArrowRight,
+  Package, Crown, ShoppingBag, ChevronRight, ArrowRight,
   Star, Truck, ShieldCheck, Tag, Calendar, MapPin, ChevronLeft, Home, Ticket, Store,
 } from "lucide-react";
 
@@ -63,16 +63,12 @@ export default async function AccountDashboardPage() {
   const user = session!.user;
   
   // Fetch dynamic data
-  const [{ totalOrders, pendingOrders, recentOrders }, { addresses }, cartItems] = await Promise.all([
+  const [{ totalOrders, recentOrders }, { addresses }, cartItems] = await Promise.all([
     getOrderStats(),
     getAddresses(),
     db.cartItem.count({ where: { userId: user.id } }),
   ]);
-  
-  const initials = user.name
-    ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
-    : (user.email?.[0] ?? "U").toUpperCase();
-  
+
   const addressCount = addresses?.length || 0;
   const cartCount = cartItems || 0;
 
@@ -294,28 +290,4 @@ export default async function AccountDashboardPage() {
       </div>
     </div>
   );
-}
-
-// Helper function to get status badge styles
-function getStatusStyle(status: string): string {
-  const baseClasses = "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide";
-  
-  switch (status) {
-    case "PENDING":
-      return `${baseClasses} bg-amber-100 text-amber-700`;
-    case "PAID":
-      return `${baseClasses} bg-blue-100 text-blue-700`;
-    case "PROCESSING":
-      return `${baseClasses} bg-purple-100 text-purple-700`;
-    case "SHIPPED":
-      return `${baseClasses} bg-indigo-100 text-indigo-700`;
-    case "DELIVERED":
-      return `${baseClasses} bg-emerald-100 text-emerald-700`;
-    case "CANCELLED":
-      return `${baseClasses} bg-red-100 text-red-700`;
-    case "REFUNDED":
-      return `${baseClasses} bg-gray-100 text-gray-700`;
-    default:
-      return `${baseClasses} bg-gray-100 text-gray-700`;
-  }
 }

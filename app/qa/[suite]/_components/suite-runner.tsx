@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useTransition } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, XCircle, Clock, ChevronLeft, ChevronDown, ChevronUp,
@@ -63,7 +63,6 @@ export default function SuiteRunner({ suite, initialResults }: Props) {
   const [expandedNotes, setExpandedNotes] = useState<Record<string, boolean>>({});
   const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({});
   const [collapsedCats, setCollapsedCats] = useState<Record<string, boolean>>({});
-  const [, startTransition] = useTransition();
 
   const updateStatus = useCallback(async (testId: string, status: TestStatus) => {
     const current = results[testId];

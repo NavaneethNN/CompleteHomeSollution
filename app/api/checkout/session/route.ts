@@ -1,4 +1,5 @@
 import { after, NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -141,14 +142,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "This checkout is closed. Start a new checkout.", retryWithNewKey: true }, { status: 409 });
       }
       if (existing.status === "PENDING" && existing.paywayTransactionId?.startsWith("ONLINEPAY:")) {
-        const checkout = await getOnlinePayCheckout(existing.paywayTransactionId.slice(10));
-        if (typeof checkout.url === "string") {
-          return NextResponse.json({
-            orderId: existing.id,
-            guestToken: !existing.userId && existing.guestEmail ? createGuestOrderToken(existing.id, existing.guestEmail) : undefined,
-            status: "redirect",
-            checkoutUrl: checkout.url,
-          });
+        try {
+          const checkout = await getOnlinePayCheckout(existing.paywayTransactionId.slice(10));
+          if (typeof checkout.url === "string") {
+            return NextResponse.json({
+              orderId: existing.id,
+              guestToken: !existing.userId && existing.guestEmail ? createGuestOrderToken(existing.id, existing.guestEmail) : undefined,
+              status: "redirect",
+              checkoutUrl: checkout.url,
+            });
+          }
+        } catch (err) {
+          console.warn("[checkout/session] OnlinePay replay lookup failed, returning pending", err);
         }
       }
       return NextResponse.json({
@@ -175,7 +180,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Raffle Winner Verification ───────────────────────────────────────────
-    let raffleWinner: any = null;
+    let raffleWinner: Prisma.RaffleWinnerGetPayload<{ include: { prize: true; raffle: true } }> | null = null;
     if (input.raffleWinnerId) {
       if (!session?.user?.id) {
         return NextResponse.json({ error: "You must be logged in to claim a raffle prize." }, { status: 401 });
@@ -204,18 +209,19 @@ export async function POST(req: NextRequest) {
             Date.now() - prevOrder.createdAt.getTime() > 15 * 60 * 1000;
 
           if (isCancelled || isAbandonedPending) {
+            const rwId = raffleWinner.id;
             await db.$transaction(async (tx) => {
               if (isAbandonedPending) {
                 await tx.order.update({
                   where: { id: prevOrder.id },
                   data: { status: "CANCELLED" },
                 });
-                if (typeof (tx as any).order?.findUnique === "function") {
+                if (typeof tx.order?.findUnique === "function") {
                   await releaseCouponReservationInTransaction(tx, prevOrder.id);
                 }
               }
               await tx.raffleWinner.update({
-                where: { id: raffleWinner.id },
+                where: { id: rwId },
                 data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
               });
             });
@@ -235,9 +241,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Fetch products and customer state ────────────────────────────────────
+    // ── Fetch products, customer state, membership plan, and coupon in parallel ──
+    type CouponWithRelations = Awaited<ReturnType<typeof db.coupon.findUnique>> & {
+      products: { productId: string }[];
+      categories: { categoryId: string }[];
+    };
     const productIds = [...new Set(input.items.map((i) => i.productId))];
-    const [products, currentUser] = await Promise.all([
+    const wantsMembership = input.addMembership === true && !!session?.user?.id;
+    const couponCode = input.couponCode?.trim().toUpperCase();
+
+    const [products, currentUser, defaultPlan, initialCoupon] = await Promise.all([
       db.product.findMany({
         where: { id: { in: productIds }, isActive: true },
         include: {
@@ -260,6 +273,21 @@ export async function POST(req: NextRequest) {
       session?.user?.id
         ? db.user.findUnique({ where: { id: session.user.id }, select: { isMember: true, membershipExpiry: true } })
         : Promise.resolve(null),
+      wantsMembership
+        ? db.membershipPlan.findFirst({
+            where: { isActive: true, isDefault: true },
+            select: { id: true, price: true, durationDays: true },
+          })
+        : Promise.resolve(null),
+      couponCode
+        ? (db.coupon.findUnique({
+            where: { code: couponCode },
+            include: {
+              products: { select: { productId: true } },
+              categories: { select: { categoryId: true } },
+            },
+          }) as Promise<CouponWithRelations | null>)
+        : Promise.resolve(null),
     ]);
 
     if (products.length !== productIds.length) {
@@ -270,36 +298,17 @@ export async function POST(req: NextRequest) {
     // members-only coupons merely because a stale boolean is still set.
     const isMemberFromDb = !!currentUser?.isMember &&
       (!currentUser.membershipExpiry || currentUser.membershipExpiry > new Date());
-    const wantsMembership = input.addMembership === true && !!session?.user?.id;
     const alreadyMember = isMemberFromDb;
     const effectiveMember = isMemberFromDb || (wantsMembership && !alreadyMember);
-    const defaultPlan = wantsMembership && !alreadyMember
-      ? await db.membershipPlan.findFirst({
-          where: { isActive: true, isDefault: true },
-          select: { id: true, price: true, durationDays: true },
-        })
-      : null;
     if (wantsMembership && !alreadyMember && !defaultPlan) {
       return NextResponse.json({ error: "Membership is currently unavailable." }, { status: 400 });
     }
 
     // ── Coupon validation ─────────────────────────────────────────────────────
-    type CouponWithRelations = Awaited<ReturnType<typeof db.coupon.findUnique>> & {
-      products: { productId: string }[];
-      categories: { categoryId: string }[];
-    };
-    let coupon: CouponWithRelations | null = null;
+    const coupon: CouponWithRelations | null = initialCoupon;
     let couponDiscount = 0;
-    const couponCode = input.couponCode?.trim().toUpperCase();
 
     if (couponCode) {
-      coupon = await db.coupon.findUnique({
-        where: { code: couponCode },
-        include: {
-          products: { select: { productId: true } },
-          categories: { select: { categoryId: true } },
-        },
-      }) as CouponWithRelations | null;
       if (!coupon || !coupon.isActive) {
         return NextResponse.json({ error: "Invalid or inactive coupon" }, { status: 400 });
       }
@@ -384,7 +393,7 @@ export async function POST(req: NextRequest) {
         raffleWinner.prize?.productId === item.productId &&
         (!raffleWinner.prize?.productVariantId || raffleWinner.prize.productVariantId === item.variantId);
 
-      if (isRafflePrizeItem) {
+      if (isRafflePrizeItem && raffleWinner) {
         rafflePrizeApplied = true;
         const winningPrice =
           raffleWinner.prizeType === "FREE_PRODUCT"
@@ -701,19 +710,24 @@ export async function POST(req: NextRequest) {
               ? product.productVariants.find((v) => v.id === variantId)
               : null;
 
+            const typedVariant = variant as (typeof variant & {
+              values?: Array<{ variantValue?: { variantAttribute?: { name?: string }; value?: string } }>;
+              variantValues?: Array<{ attribute?: { name?: string }; value?: string }>;
+            }) | null;
+
             let variantSummary: string | null = null;
             if (isRaffleLine && raffleWinner) {
               variantSummary =
                 raffleWinner.prizeType === "FREE_PRODUCT"
                   ? `Raffle Winner Free Gift (${raffleWinner.raffle.title})`
                   : `Raffle Winner Exclusive Price $${raffleWinner.winningPrice || raffleWinner.prize.price || 0} (${raffleWinner.raffle.title})`;
-            } else if (variant && Array.isArray((variant as any).values) && (variant as any).values.length > 0) {
-              variantSummary = (variant as any).values
-                .map((vv: any) => `${vv.variantValue?.variantAttribute?.name || "Option"}: ${vv.variantValue?.value ?? ""}`)
+            } else if (typedVariant && Array.isArray(typedVariant.values) && typedVariant.values.length > 0) {
+              variantSummary = typedVariant.values
+                .map((vv) => `${vv.variantValue?.variantAttribute?.name || "Option"}: ${vv.variantValue?.value ?? ""}`)
                 .join(", ");
-            } else if (variant && (variant as any).variantValues && (variant as any).variantValues.length > 0) {
-              variantSummary = (variant as any).variantValues
-                .map((vv: any) => `${vv.attribute?.name || "Option"}: ${vv.value}`)
+            } else if (typedVariant && typedVariant.variantValues && typedVariant.variantValues.length > 0) {
+              variantSummary = typedVariant.variantValues
+                .map((vv) => `${vv.attribute?.name || "Option"}: ${vv.value}`)
                 .join(", ");
             }
 
@@ -875,11 +889,11 @@ export async function POST(req: NextRequest) {
               data: { status: "CANCELLED", refundReason: "Stock unavailable during free order confirmation" },
             });
             if (changed.count) {
-              if (typeof (tx as any).order?.findUnique === "function") {
+              if (typeof tx.order?.findUnique === "function") {
                 await releaseCouponReservationInTransaction(tx, order.id);
               }
-              if ((tx as any).raffleWinner) {
-                await (tx as any).raffleWinner.updateMany({
+              if (tx.raffleWinner) {
+                await tx.raffleWinner.updateMany({
                   where: { orderId: order.id },
                   data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
                 });
@@ -927,7 +941,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         orderId: order.id,
-        guestToken: !order.userId && !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
+        guestToken: !order.userId && order.guestEmail ? createGuestOrderToken(order.id, order.guestEmail) : undefined,
         status: "success",
       });
     }
@@ -1167,11 +1181,11 @@ export async function POST(req: NextRequest) {
           });
           if (changed.count) {
             await queueRefundAction(tx, order.id);
-            if (typeof releaseCouponReservationInTransaction === "function" && typeof (tx as any).order?.findUnique === "function") {
+            if (typeof releaseCouponReservationInTransaction === "function" && typeof tx.order?.findUnique === "function") {
               await releaseCouponReservationInTransaction(tx, order.id);
             }
-            if ((tx as any).raffleWinner) {
-              await (tx as any).raffleWinner.updateMany({
+            if (tx.raffleWinner) {
+              await tx.raffleWinner.updateMany({
                 where: { orderId: order.id },
                 data: { status: "PENDING_CLAIM", orderId: null, claimedAt: null },
               });

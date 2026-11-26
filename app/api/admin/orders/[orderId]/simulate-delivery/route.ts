@@ -9,6 +9,10 @@ export const runtime = "nodejs";
 type Context = { params: Promise<{ orderId: string }> };
 
 export async function POST(_req: NextRequest, { params }: Context) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     if (!(await hasFreshAdminSession())) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

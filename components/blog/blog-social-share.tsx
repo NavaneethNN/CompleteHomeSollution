@@ -5,10 +5,8 @@ import { Button } from "@/components/ui/button";
 import { 
   Link2, 
   Mail,
-  Share2,
   MessageCircle,
   Send,
-  ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,7 +31,7 @@ export default function BlogSocialShare({ title, url }: BlogSocialShareProps) {
       setCopied(true);
       toast.success("Link copied to clipboard!");
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       toast.error("Failed to copy link");
     }
   };

@@ -22,7 +22,10 @@ function matches(where: Record<string, unknown>) {
 }
 const db = {
   emailJob: { createMany: async ({ data }: { data: { key: string; payload?: unknown }[] }) => { if (failQueue) throw new Error("Outbox unavailable"); queuedJobs.push(...data.map(job => job.key)); queuedPayloads.push(...data.map(job => job.payload)); return { count: data.length }; } },
-  user: { findUniqueOrThrow: async () => ({ isMember: activeMember, membershipExpiry: null }) },
+  user: {
+    findUnique: async () => (session?.user ? { role: session.user.role } : null),
+    findUniqueOrThrow: async () => ({ isMember: activeMember, membershipExpiry: null }),
+  },
   membershipPlan: { findFirst: async () => ({ id: "c1234567890123456789012346", price: 30, durationDays: 30, name: "Premium" }) },
   order: {
     findFirst: async () => createdOrders ? structuredClone(order) : null,
@@ -75,6 +78,7 @@ function request(body: unknown, path = "refund") {
 }
 function reset() {
   session = { user: { id: "owner", role: "ADMIN", email: "test@example.com" } };
+  db.user.findUnique = async () => (session?.user ? { role: session.user.role } : null);
   order = { id, userId: "owner", status: "PAID", total: 30, refundAmount: null, refundProcessing: false,
     refundAttemptAmount: null, refundAttemptRestoreStock: null, refundRequested: false,
     membershipAmount: 0, paywayTransactionId: "ONLINEPAY:checkout-123", user: null, guestEmail: null,

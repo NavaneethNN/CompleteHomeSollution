@@ -16,7 +16,7 @@ export default async function AdminRafflesPage() {
     redirect("/login");
   }
 
-  const { raffles, error } = await getAdminRaffles();
+  const { raffles } = await getAdminRaffles();
 
   return <RafflesListClient initialRaffles={raffles} />;
 }

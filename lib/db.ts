@@ -14,8 +14,9 @@ function createPrismaClient() {
   const adapter = new PrismaNeon({
     connectionString,
     max: 5,
-    connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 15000,
+    idleTimeoutMillis: 5000,
+    allowExitOnIdle: true,
   });
 
   return new PrismaClient({

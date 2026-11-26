@@ -1,6 +1,25 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
+const isDev = process.env.NODE_ENV !== "production";
+
+const cspDirectives = [
+  "default-src 'self'",
+  // 'unsafe-eval' is only needed by React/Next.js dev tooling; omit it in production.
+  // 'unsafe-inline' remains for Next.js static hydration scripts without per-request nonce middleware.
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://api.payway.com.au`,
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' blob: data: https:",
+  "font-src 'self'",
+  "connect-src 'self' https://places.googleapis.com https://api.payway.com.au https://o4511341988216832.ingest.us.sentry.io",
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.payway.com.au",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self' https://accounts.google.com",
+  "frame-ancestors 'none'",
+  "upgrade-insecure-requests",
+].join("; ") + ";";
+
 const nextConfig: NextConfig = {
   // The Neon adapter installs `ws` as its Node WebSocket implementation. Keep
   // it out of the server bundle so ws can load its optional native masking
@@ -63,7 +82,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://api.payway.com.au; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data: https:; font-src 'self'; connect-src 'self' https:; frame-src https://www.youtube.com https://www.youtube-nocookie.com https://api.payway.com.au; frame-ancestors 'none'; upgrade-insecure-requests;",
+            value: cspDirectives,
           },
         ],
       },

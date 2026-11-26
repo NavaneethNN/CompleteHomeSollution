@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
           <ul className="list-disc list-inside text-muted-foreground mb-4 space-y-1">
             <li>Name, email address, phone number</li>
             <li>Shipping and billing addresses</li>
-            <li>Payment information (processed securely via Stripe)</li>
+            <li>Payment information (processed securely via Westpac OnlinePay)</li>
             <li>Order history and purchase records</li>
             <li>Membership subscription details</li>
           </ul>
@@ -58,8 +58,8 @@ export default function PrivacyPolicyPage() {
         <section className="mb-8">
           <h2 className="text-xl font-semibold mb-4">4. Payment Processing</h2>
           <p className="text-muted-foreground mb-4">
-            We use <strong>Stripe</strong> to process payments securely. Your payment information is encrypted and never 
-            stored on our servers. Stripe is PCI DSS compliant and maintains the highest security standards.
+            We use <strong>Westpac OnlinePay</strong> to process payments securely. Your payment information is encrypted and never 
+            stored on our servers. Westpac OnlinePay is PCI DSS compliant and maintains the highest security standards.
           </p>
         </section>
 

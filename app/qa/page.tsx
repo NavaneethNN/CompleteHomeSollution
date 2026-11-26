@@ -138,7 +138,7 @@ export default async function QADashboardPage() {
                     { label: "Passed", value: stats.passed, color: "text-green-600", bg: "bg-green-50" },
                     { label: "Failed", value: stats.failed, color: "text-red-600", bg: "bg-red-50" },
                     { label: "Pending", value: stats.pending, color: "text-amber-600", bg: "bg-amber-50" },
-                  ].map(({ label, value, color, bg }) => (
+                  ].map(({ label, value, color }) => (
                     <div key={label} className="px-4 py-4 text-center">
                       <p className={`text-xl font-black ${color}`}>{value}</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>

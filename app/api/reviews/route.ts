@@ -3,11 +3,39 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { z } from "zod";
 
+function isAllowedReviewImageUrl(raw: string): boolean {
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== "https:") return false;
+    const configuredOrigin = process.env.R2_PUBLIC_URL;
+    if (configuredOrigin) {
+      return parsed.hostname === new URL(configuredOrigin).hostname;
+    }
+    return (
+      parsed.hostname.endsWith(".r2.dev") ||
+      parsed.hostname.endsWith(".r2.cloudflarestorage.com") ||
+      parsed.hostname === "images.completehomesollution.com.au"
+    );
+  } catch {
+    return false;
+  }
+}
+
 const createReviewSchema = z.object({
   productId: z.string().cuid(),
   rating: z.number().int().min(1).max(5),
   comment: z.string().max(1000).optional(),
-  images: z.array(z.string().url()).max(5).optional().default([]),
+  images: z
+    .array(
+      z
+        .string()
+        .url()
+        .max(500)
+        .refine(isAllowedReviewImageUrl, "Review images must be uploaded HTTPS image URLs")
+    )
+    .max(5)
+    .optional()
+    .default([]),
 });
 
 // GET /api/reviews?productId=xxx — returns eligibility for the current user

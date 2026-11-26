@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, ShoppingCart, Trash2, Heart, Package, AlertCircle, PhoneCall } from "lucide-react";
+import { Check, ShoppingCart, Heart, Package, AlertCircle, PhoneCall } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { STORE_PHONE } from "@/lib/store-info";
 import { useCartStore } from "@/store/cart";

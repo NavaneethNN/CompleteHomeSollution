@@ -10,7 +10,18 @@ export async function GET(req: NextRequest) {
     const basedOnIds = searchParams.get("basedOn")?.split(",").filter(Boolean) || [];
 
     const cacheKey = `upsells:${basedOnIds.sort().join(",")}:${excludeIds.sort().join(",")}:${limit}`;
-    const cached = await cacheGet<any[]>(cacheKey);
+    const cached = await cacheGet<
+      Array<{
+        id: string;
+        name: string;
+        slug: string;
+        price: number;
+        memberPrice: number | null;
+        images: string[];
+        category: string;
+        tag: string;
+      }>
+    >(cacheKey);
     if (cached) {
       return NextResponse.json(
         { products: cached },
@@ -93,8 +104,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Format products - eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const formattedProducts = (products as any[]).map((product) => {
+    const formattedProducts = products.map((product) => {
       const price = product.productVariants?.[0]?.price ?? product.basePrice;
       
       return {

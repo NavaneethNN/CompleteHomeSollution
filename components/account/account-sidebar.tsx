@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -42,9 +43,12 @@ export function AccountSidebar({ user }: AccountSidebarProps) {
       {/* Avatar card */}
       <div className="bg-white rounded-2xl p-6 mb-4 flex flex-col items-center text-center border border-border shadow-xs">
         {user.image ? (
-          <img
+          <Image
             src={user.image}
             alt={user.name ?? ""}
+            width={80}
+            height={80}
+            unoptimized
             referrerPolicy="no-referrer"
             className="w-20 h-20 rounded-full object-cover ring-4 ring-secondary mb-3 shadow-xs"
           />

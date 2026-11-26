@@ -1,6 +1,7 @@
 import { OrderMembershipItem } from "@/components/account/order-membership-item";
 import { orderContentsLabel, getEffectiveOrderStatus } from "@/lib/order-display";
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@/auth";
 import { getOrders } from "@/lib/actions/orders";
@@ -238,9 +239,11 @@ export default async function OrdersPage() {
                           <div key={item.id} className="flex items-center gap-4">
                             <div className="w-16 h-16 rounded-lg bg-secondary flex items-center justify-center shrink-0 overflow-hidden">
                               {displayImage ? (
-                                <img
+                                <Image
                                   src={displayImage}
                                   alt={item.product.name}
+                                  width={64}
+                                  height={64}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -323,28 +326,4 @@ export default async function OrdersPage() {
       </div>
     </div>
   );
-}
-
-// Helper function to get status badge styles
-function getStatusStyle(status: string): string {
-  const baseClasses = "text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide";
-
-  switch (status) {
-    case "PENDING":
-      return `${baseClasses} bg-amber-100 text-amber-700`;
-    case "PAID":
-      return `${baseClasses} bg-blue-100 text-blue-700`;
-    case "PROCESSING":
-      return `${baseClasses} bg-purple-100 text-purple-700`;
-    case "SHIPPED":
-      return `${baseClasses} bg-indigo-100 text-indigo-700`;
-    case "DELIVERED":
-      return `${baseClasses} bg-emerald-100 text-emerald-700`;
-    case "CANCELLED":
-      return `${baseClasses} bg-red-100 text-red-700`;
-    case "REFUNDED":
-      return `${baseClasses} bg-gray-100 text-gray-700`;
-    default:
-      return `${baseClasses} bg-gray-100 text-gray-700`;
-  }
 }

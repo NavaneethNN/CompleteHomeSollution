@@ -40,7 +40,7 @@ export async function FeaturedRaffles() {
         {/* Raffles Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {raffles.map((raffle) => (
-            <RaffleCard key={raffle.id} raffle={raffle as any} />
+            <RaffleCard key={raffle.id} raffle={raffle as Parameters<typeof RaffleCard>[0]["raffle"]} />
           ))}
         </div>
       </div>

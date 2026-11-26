@@ -1,7 +1,6 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { auth } from "@/auth";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { cacheFetch, cacheDel, CACHE_KEYS, CACHE_TTL } from "@/lib/redis";
@@ -42,11 +41,10 @@ const promotionSchema = z.object({
 export type PromotionInput = z.infer<typeof promotionSchema>;
 
 async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
+  const { hasFreshAdminSession } = await import("@/lib/admin-auth");
+  if (!(await hasFreshAdminSession())) {
     throw new Error("Unauthorized. Admin access required.");
   }
-  return session.user;
 }
 
 /**
