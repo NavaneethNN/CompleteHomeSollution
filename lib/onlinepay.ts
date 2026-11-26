@@ -160,6 +160,29 @@ export async function createOnlinePayCheckout(input: {
             transaction_mode: "S",
           },
         },
+        // These are intentionally explicit rather than relying on the HPP's
+        // account defaults. OnlinePay uses the PPC to determine which wallet
+        // methods can be presented for the shopper's browser/device.
+        google_pay: {
+          card: {
+            shopper_interaction: "ECOMMERCE",
+            payment_contract_id: required("ONLINEPAY_PPC_ID"),
+            authorization_type: "FINAL_AUTH",
+            sca_compliance_level: "WALLET",
+            threed_secure: {
+              threeds_contract_id: required("ONLINEPAY_3DS_ID"),
+              transaction_mode: "S",
+            },
+          },
+        },
+        apple_pay: {
+          card: {
+            shopper_interaction: "ECOMMERCE",
+            payment_contract_id: required("ONLINEPAY_PPC_ID"),
+            // Apple Pay performs its own authentication.
+            sca_compliance_level: "NONE",
+          },
+        },
       },
     }),
     cache: "no-store",

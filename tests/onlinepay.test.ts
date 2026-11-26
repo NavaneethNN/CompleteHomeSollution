@@ -55,6 +55,22 @@ test("hosted checkout sends integer AUD amount and handles upstream failure", as
     assert.equal(body.amount, 1250);
     assert.equal(body.currency_code, "AUD");
     assert.equal(body.line_items[0].total_amount, 1250);
+    assert.deepEqual(body.configurations.google_pay, {
+      card: {
+        shopper_interaction: "ECOMMERCE",
+        payment_contract_id: "test",
+        authorization_type: "FINAL_AUTH",
+        sca_compliance_level: "WALLET",
+        threed_secure: { threeds_contract_id: "test", transaction_mode: "S" },
+      },
+    });
+    assert.deepEqual(body.configurations.apple_pay, {
+      card: {
+        shopper_interaction: "ECOMMERCE",
+        payment_contract_id: "test",
+        sca_compliance_level: "NONE",
+      },
+    });
     assert.ok(init.signal);
     const billing = body.customer_details.billing;
     assert.equal(billing.address_1.length, 40);
